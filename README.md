@@ -1,42 +1,44 @@
-# Mixture of Scars (MoS) & SCache: Breaking the Barrier Between LLMs and Hardware
+# Mixture of Scars (MoS) & SCache $\mathcal{O}(1)$: Breaking the Dual Memory Wall Across `0.5B`–`72.71B` Transformers
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
+[![DOI v1.3.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
+[![Release: v1.3.0](https://img.shields.io/badge/Release-v1.3.0-brightgreen.svg)](zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
-[![HuggingFace Drop-in](https://img.shields.io/badge/HuggingFace-Compatible-yellow.svg)](https://huggingface.co/)
-[![KV Cache Reduction](https://img.shields.io/badge/KV%20Cache%20Reduction-187.5x-success.svg)]()
-[![Static Weights Reduction](https://img.shields.io/badge/Static%20Weights%20Reduction-90x-success.svg)]()
-[![Tests Passing](https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg)]()
+[![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
+[![HuggingFace Drop-in](https://img.shields.io/badge/HuggingFace-DynamicCache%20Drop--in-yellow.svg)](https://huggingface.co/)
+[![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
+[![72.7B Multi-Tenant](https://img.shields.io/badge/72.7B%20MoS-38.1%20GiB%20(%E2%88%9296.4%25%208x%20Bank)-9cf.svg)](#2-7271b-qwen25-72b-instruct-canonical-mos-v2-80l-tokenssec-next-to-peak-memory)
+[![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20CUDA%20Triton-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
+[![Tests Passing](https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg)](tests/)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 [![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v2.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
 [![Sponsor Research](https://img.shields.io/badge/Sponsor-Byte--OD%20Research-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/byte-od)
 [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)
 
-> **"Breaking the barrier between LLMs and hardware."**  
-> Modern Large Language Models have been crippled by a Dual Memory Wall: static weight bloat ($O(N)$) and linear context explosion ($O(L)$).  
-> **Mixture of Scars (MoS)** and **SCache** provide the architectural breakthrough to eliminate both bottlenecks simultaneously:
-> 1. **Mixture of Scars (MoS):** Radical static weight ($W_0$) compression (`135.43 GiB → 38.12 GiB` standalone at `72.71B`, and `27.59x` / `-96.37%` across an 8-specialist bank) via symmetric `INT4` bases, Activation-Aware SVD (`ASVD`) low-rank scar experts, and `20 × 4`-layer streaming shards (`1.79 GiB`/shard).
-> 2. **SCache ($O(1)$ Dynamic Context):** Drop-in HuggingFace KV-cache replacement that freezes memory into a constant physical window backed by Widrow-Hoff associative fast-weights (`0.00 B` growth at any sequence length).
+> **Unified Scar Operator (`v1.3.0`):** Autoregressive Transformers hit two compounding hardware walls: static parameter bloat $\mathcal{O}(N)$ (`135.43 GiB` FP16 at `72.71B`) and linear/quadratic KV-cache growth $\mathcal{O}(T) / \mathcal{O}(T^2)$. **Mixture of Scars (`MoS`)** and **`SCache`** attack both walls *training-free* under a single directional residual formulation:
+> 1. **Mixture of Scars (`MoS` — Spatial Weights):** Pairs canonical `Block-64 INT4` bases with **Activation-Aware SVD (`ASVD`)** low-rank scar experts, `20 × 4`-layer streaming shards (`1.79 GiB`/shard), and **fused in-register `W4A16+ASVD` GPU kernels** on Apple Silicon Metal (`50.38×` group compute speedup at `cos = 1.000000`) and NVIDIA CUDA Triton (`sm_75+` Turing `T4` through Hopper `H100`) — neutralizing **`195,720×`** SwiGLU outliers at `72.71B` (`135.43 → 38.12 GiB` standalone; **`27.59×` / `-96.37%`** across an 8-specialist bank) with **`100.0%` Top-5 agreement**.
+> 2. **`SCache` (`SCacheDynamicCache` — Temporal $\mathcal{O}(1)$ Memory):** Drop-in HuggingFace `DynamicCache` combining attention sinks, a rolling FIFO window, synchronized deep-layer `[L/2 : L)` Widrow-Hoff prediction-surprise routing over `32`-token micro-pages, and orthogonal Delta fast weights (`+0.00 Bytes` drift from `16.6k` to `32.9k` tokens).
+
+![Multi-Scale v1.3.0 Empirical Audit — 32.9k Passkey Recall, 72.71B Outliers & Fused Metal/CUDA Speed](zenodo_deposit_v1_3/mos_scache_v1_3_hero.png)
 
 ---
 
 ## 🔥 Red-Team Benchmarks (Top-of-README Quick-Look)
 
 ### 1. `16.6k` & `32.9k` Passkey / Needle-in-a-Haystack: `SCache O(1)` vs. Normal KV Cache
-Measured live on Apple Silicon M2 (`16 GB`, `MPS`, `FP16`) across **100% non-repeating Python standard library documentation** (`5%, 25%, 50%, 75%, 95%` needle depths, zero fine-tuning, recursive `untyped_storage().data_ptr()` byte audit in [`results/passkey_16k_32k_llm_audit.json`](results/passkey_16k_32k_llm_audit.json)):
+Measured live on Apple Silicon M2 (`16 GB`, `MPS`, `FP16`) across **100% non-repeating Python standard library documentation** (`5%, 25%, 50%, 75%, 95%` needle depths, **zero fine-tuning**, verified via recursive `untyped_storage().data_ptr()` byte audit with `0.00 B` discrepancy in [`results/passkey_16k_32k_llm_audit.json`](results/passkey_16k_32k_llm_audit.json)):
 
 | Pretrained Model | Context (`L`) | Cache Engine | Physical KV Memory (`Δrec = 0 B`) | Throughput (`tok/s` · Wall Time) | Passkey Recall (`5%–95%` Depths) | KV Reduction & Speed vs. Normal KV |
 |---|---|---|---|---|---|---|
-| **`Qwen2.5-3B-Instruct`** (`36L`) | `16,568` tok | Normal KV $O(T)$ (`DynamicCache`) | `582.75 MiB` *(linear growth)* | `245.3 tok/s` (`67.5s`) | `100%` | `1.0x` RAM · `1.00x` speed |
-| **`Qwen2.5-3B-Instruct`** (`36L`) | `16,568` tok | `StreamingLLM` $O(1)$ ($W=256$) | `9.00 MiB` *(constant)* | `394.0 tok/s` (`42.1s`) | **`0%` (Evicted)** | `64.8x` less RAM · Amnesia outside $W$ |
-| **`Qwen2.5-3B-Instruct`** (`36L`) | **`16,568` tok** | **`SCache` $O(1)$ ($W=256, S=256$)** | **`22.71 MiB` (`+0.00 B` drift)** | **`299.0 tok/s` (`55.4s`)** | **`100%` (`5/5` depths)** | **`25.7x` less KV RAM · `1.22x` faster** |
-| **`Qwen2.5-3B-Instruct`** (`36L`) | `32,868` tok | Normal KV $O(T)$ (`DynamicCache`) | `1,155.80 MiB` (`1.13 GiB`) | `51.5 tok/s` (`638.3s` / `10.6m`) | `100%` | `1.0x` RAM · Quadratic $O(T^2)$ stall |
-| **`Qwen2.5-3B-Instruct`** (`36L`) | `32,868` tok | `StreamingLLM` $O(1)$ ($W=256$) | `9.00 MiB` *(constant)* | `391.4 tok/s` (`84.0s`) | **`0%` (Evicted)** | `128.4x` less RAM · Amnesia outside $W$ |
-| **`Qwen2.5-3B-Instruct`** (`36L`) | **`32,868` tok** | **`SCache` $O(1)$ ($W=256, S=256$)** | **`22.71 MiB` (`Δ = +0 B` vs `16.6k`!)** | **`300.8 tok/s` (`109.3s`)** | **`100%` (`3/3`: `5%, 25%, 75%`)** | **`50.9x` less KV RAM · `5.84x` faster!** |
-| **`Qwen2.5-0.5B-Instruct`** (`24L`) | **`16,568` tok** | **`SCache` $O(1)$ ($W=256, S=256$ / $S=128$)** | **`6.86 MiB` (`5.32 MiB` @ $S=128$)** | **`1,159.4 tok/s` (`14.3s` vs `15.0s`)** | **`80%` (`4/5`) / `100%` (`5/5` @ $S=128$)** | **`28.3x–36.5x` less KV RAM · `1.06x–1.12x` faster** |
-| **`Qwen2.5-0.5B-Instruct`** (`24L`) | **`32,868` tok** | **`SCache` $O(1)$ ($W=256, S=256$)** | **`6.86 MiB` (`Δ = +0 B` vs `16.6k`!)** | **`1,176.9 tok/s` (`27.9s` vs `44.5s`)** | **`100%` (`5/5` depths)** | **`56.2x` less KV RAM · `1.60x` faster!** |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | `16,568` tok | Normal KV $\mathcal{O}(T)$ (`DynamicCache`) | `582.75 MiB` *(linear growth)* | `245.3 tok/s` (`67.5s`) | `100%` (`5/5`) | `1.0×` RAM · `1.00×` speed |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | `16,568` tok | `StreamingLLM` $\mathcal{O}(1)$ ($W=256$) | `9.00 MiB` *(constant)* | `394.0 tok/s` (`42.1s`) | **`0%` (Evicted)** | `64.8×` less RAM · Amnesia outside $W$ |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | **`16,568` tok** | **`SCache` $\mathcal{O}(1)$ ($W=256, S=256$)** | **`22.71 MiB` (`+0.00 B` drift)** | **`299.0 tok/s` (`55.4s`)** | **`100%` (`5/5` depths)** | **`25.7×` less KV RAM · `1.22×` faster** |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | `32,868` tok | Normal KV $\mathcal{O}(T)$ (`DynamicCache`) | `1,155.80 MiB` (`1.13 GiB`) | `51.5 tok/s` (`638.3s` / `10.6m`) | `100%` (`3/3`) | `1.0×` RAM · Quadratic $\mathcal{O}(T^2)$ stall |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | `32,868` tok | `StreamingLLM` $\mathcal{O}(1)$ ($W=256$) | `9.00 MiB` *(constant)* | `391.4 tok/s` (`84.0s`) | **`0%` (Evicted)** | `128.4×` less RAM · Amnesia outside $W$ |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | **`32,868` tok** | **`SCache` $\mathcal{O}(1)$ ($W=256, S=256$)** | **`22.71 MiB` (`Δ = +0 B` vs `16.6k`!)** | **`300.8 tok/s` (`109.3s`)** | **`100%` (`3/3`: `5%, 25%, 75%`)** | **`50.9×` less KV RAM · `5.84×` faster!** |
+| **`Qwen2.5-0.5B-Instruct`** (`24L`) | **`16,568` tok** | **`SCache` $\mathcal{O}(1)$ ($W=256, S=256 / 128$)** | **`6.86 MiB` (`5.32 MiB` @ $S=128$)** | **`1,159.4 tok/s` (`14.3s` vs `15.0s`)** | **`80%` (`4/5`) / `100%` (`5/5` @ $S=128$)** | **`28.3×–36.5×` less KV RAM · `1.1×` faster** |
+| **`Qwen2.5-0.5B-Instruct`** (`24L`) | **`32,868` tok** | **`SCache` $\mathcal{O}(1)$ ($W=256, S=256$)** | **`6.86 MiB` (`Δ = +0 B` vs `16.6k`!)** | **`1,176.9 tok/s` (`27.9s` vs `44.5s`)** | **`100%` (`5/5` depths)** | **`56.2×` less KV RAM · `1.60×` faster!** |
 
 ```bash
 # Reproduce the 16.6k & 32.9k Passkey / NIAH audit on your own GPU or Mac (writes JSON + verifies ΔBytes = 0 B):
@@ -44,133 +46,93 @@ python scripts/benchmark_16k_passkey_llm.py --models Qwen/Qwen2.5-0.5B-Instruct 
 ```
 
 ### 2. `72.71B` (`Qwen2.5-72B-Instruct` Canonical `MoS v2`, `80L`): `tokens/sec` Next to Peak Memory
-Measured with PyTorch's native Apple Metal `_weight_int4pack_mm` fused `INT4` + Rank-48 `ASVD` scars (**`cos = 1.000000` parity**, **`50.38x` faster 4-layer compute**: `1,495.3 ms → 29.7 ms` in [`results/scale_72b_audit/apple_m2_72b_speed_memory_audit.json`](results/scale_72b_audit/apple_m2_72b_speed_memory_audit.json)) alongside Apple Silicon Unified Memory bus scaling and measured NVIDIA `CUDA` telemetry:
+Measured with fused Apple Metal `_weight_int4pack_mm` + Rank-48 `ASVD` scars (**`cos = 1.000000` parity**, **`50.38×` faster 4-layer compute**: `1,495.3 ms → 29.7 ms` in [`results/scale_72b_audit/apple_m2_72b_speed_memory_audit.json`](results/scale_72b_audit/apple_m2_72b_speed_memory_audit.json)) and fused NVIDIA `CUDA` Triton `Block-64 W4A16 + ASVD` kernels ([`scar_cache/triton_mos_gemm.py`](scar_cache/triton_mos_gemm.py)):
 
-| Hardware & Mode (`72.71B`, `80` Layers, `38.12 GiB` Shards) | Prefill `tok/s` | Decode `tok/s` | Peak Active GPU / MPS Memory | Constant `SCache` $O(1)$ (`W=256, S=24`) | Hardware Bottleneck & Operational Notes |
+| Hardware & Mode (`72.71B`, `80` Layers, `38.12 GiB` Shards) | Prefill `tok/s` | Decode `tok/s` | Peak Active GPU / MPS Memory | Constant `SCache` $\mathcal{O}(1)$ (`W=256, S=24`) | Hardware Bottleneck & Operational Notes |
 |---|---|---|---|---|---|
-| **Apple M2 (`16 GB` Unified RAM, `100 GB/s`) — `--streaming`** *(Measured Live)* | **`4.23 tok/s`** | `0.023 tok/s` (`43.3 s/tok`) | **`1.92 GiB` MPS** (`120.6 MiB` post-unload · `0.52 GiB` RSS) | **`120.4–128.5 MiB`** (`+0 B` @ `16k+`) | Runs full `72.7B` on a base `16 GB` laptop with zero OOM; decode is NVMe SSD I/O-bound (`38.1 GiB`/tok). |
+| **Apple M2 (`16 GB` Unified RAM, `100 GB/s`) — `--streaming`** *(Measured Live)* | **`4.23 tok/s`** | `0.023 tok/s` (`43.3 s/tok`) | **`1.92 GiB` MPS** (`120.6 MiB` post-unload · `0.52 GiB` RSS) | **`120.4–128.5 MiB`** (`+0 B` @ `16k+`) | Runs full `72.7B` on a base `16 GB` laptop (`0 OOM`); decode is NVMe SSD I/O-bound (`38.1 GiB`/tok). |
 | **Apple M2 (`100 GB/s` bus) — Fused Metal `INT4` Compute** *(Measured Unpaged)* | **`2.53 tok/s`** *(128-blk)* | **`1.28 tok/s`** | `1.90 GiB`/group (`38.56 GiB` 80L eq.) | **`128.51 MiB`** (`+0 B`) | Direct unpaged Metal `_weight_int4pack_mm` + `ASVD` scar rate (`29.7 ms` / 4-layer group). |
 | **Apple M2 Pro (`32 GB` max SKU, `200 GB/s`) — Hybrid Page-Cache / Streaming** | `~5.0–6.5 tok/s` | **`~0.40–0.55 tok/s`** *(2.57 tok/s bus ceiling\*)* | **`1.92 GiB` Active MPS** (`~24 GiB` OS RAM cache) | **`128.51 MiB`** (`+0 B`) | \*M2 Pro hardware maxes out at `32 GB` Unified RAM (`< 38.12 GiB` shards), so `~10–12 GiB` spills to `5.5 GB/s` Pro NVMe; pure `200 GB/s` Metal bus ceiling is **`2.57 tok/s`**. |
 | **Apple M4 Pro (`48 GB`, `273 GB/s`) / M2 Max (`64 GB+`, `400 GB/s`) — `--resident`** | `~6.8–9.6 tok/s` | **`~3.46 – 4.87 tok/s`** | **`38.56 GiB` Unified MPS** (`0 MB/tok` SSD) | **`128.51 MiB`** (`+0 B` vs `10.7 GiB` KV @ `32k`) | `100%` of `20 × 4L` shards stay wired in Metal Unified Memory; `SCache` saves **`>10.5 GiB`** RAM at `32k` so `72B + 32k` fits in `48 GB`! |
-| **NVIDIA `24 GB` GPU (`CUDA`, e.g. T4x2 / L4 / 3090 / 4090)** *(Measured + Fused Triton W4A16)* | `18+ tok/s` | **`4.03 – 7.27+ tok/s`** | **`14.1 – 38.6 GiB` VRAM** (`1.79 GiB`/shard stream) | **`126.0 – 166.0 MiB`** (`+0 B`) | Fused Triton `Block-64 W4A16 + ASVD Epilogue` (`sm_75+` incl. T4 FP16, zero swizzle) + CUDA `int4pack` (`sm_80+`). |
+| **NVIDIA `CUDA` (`sm_75+` T4×2 / L4 / 3090 / 4090 / A100)** *(Fused Triton `W4A16+ASVD`)* | `18+ tok/s` | **`4.03 – 7.27+ tok/s`** | **`14.1 – 38.6 GiB` VRAM** (`1.79 GiB`/shard stream) | **`126.0 – 166.0 MiB`** (`+0 B`) | Zero-swizzle register nibble unpack (`M <= 8` coalesced GEMV + `M > 8` Tensor-Core GEMM) + `sm_80+` `int4pack`. |
 
 ```bash
 # 1. Run the Apple Silicon 72B Fused-Metal speed + peak memory audit (auto-runs 80L --resident on >=48 GB Macs):
 python scripts/benchmark_72b_apple_silicon.py
 
 # 2. Download public SHA-256 verified Qwen2.5-72B-Instruct MoS v2 shards & launch interactive terminal chat:
-python -m scar_cache.cli_72b --download --chat --model-dir ./models/qwen25_72b_mos_v2
+mos-run --download --chat --model-dir ./models/qwen25_72b_mos_v2
 ```
 
 ---
 
-### 📄 Official Preprint (`v1.3.0`), Public `72.71B` Shards & Interactive Red-Team Lab
-- **Permanent Preprint (CERN / Zenodo DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) ([**Preprint v1.3 PDF — 16k/32.9k Passkey, Fused Metal/CUDA Kernels & 72.71B Pareto**](zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
-- **Academic LaTeX Manuscript (arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/) & [`MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip`](zenodo_deposit_v1_3/MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip)
-- **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `20 × 1.79 GiB` Shards) & Practical Guide:**
-  - **Practical Local Guide (PT-BR / CLI):** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
-  - **Zero-Login HTTPS Release (`HTTP 206 Range` + `SHA-256`):** [`github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos`](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
-- **Official `v1.4 → v2.x` Innovation & Cross-Domain Applications Roadmap:** [`docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md`](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md) *(System 1 Speculative Fusion, Sub-2-Bit `72B` in `24 GB`, Artificial Sleep Cycle `SCache → MoS`, Sinkhorn Re-Basin, Scar-Storage, Scar-Search & `WebGPU/WGSL`)*
+## 📄 Official Preprint (`v1.3.0`), Public `72.71B` Shards & Replication Assets
+- **Permanent Preprint (CERN / Zenodo `v1.3.0` DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) · *Concept DOI (all versions):* [`10.5281/zenodo.24144512`](https://doi.org/10.5281/zenodo.24144512) ([**Preprint v1.3 PDF**](zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
+- **Academic LaTeX Source (arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/), [`arXiv_Direct_Upload_v1.3.zip`](zenodo_deposit_v1_3/arXiv_Direct_Upload_v1.3.zip) & [`MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip`](zenodo_deposit_v1_3/MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip)
+- **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `22` SHA-256 Shards, Zero Login) & Practical Guide:**
+  - **Direct Download (`HTTP 206 Range` + `SHA-256`):** [`github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos`](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
+  - **Step-by-Step Local Deployment Guide:** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
+- **Official `v1.4 → v2.x` Innovation & Cross-Domain Applications Roadmap:** [`docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md`](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
 - **Interactive Gradio Red-Team Laboratory (Hugging Face Space):** [`huggingface_space/`](huggingface_space/)
-- **8-Vector Multi-Scale Adversarial Suites (`0.5B`, `7.62B` & `72.71B` Telemetry):**
-  - `72.71B` (`Qwen/Qwen2.5-72B-Instruct`, `80L`, `240` SwiGLU MLPs, `195,720x` outliers, `2x Tesla T4` + Live `16 GB` Apple M2 `MPS`): [`scripts/adversarial_scale_72b_suite.py`](scripts/adversarial_scale_72b_suite.py), [`results/scale_72b_audit/adversarial_scale_72b_report.json`](results/scale_72b_audit/adversarial_scale_72b_report.json) & [`results/scale_72b_audit/apple_m2_live_72b_generation.json`](results/scale_72b_audit/apple_m2_live_72b_generation.json)
-  - `7.62B` (`Qwen/Qwen2.5-7B-Instruct`, `28L`, `3,336x` SwiGLU outliers, `2x Tesla T4`): [`scripts/adversarial_scale_7b_suite.py`](scripts/adversarial_scale_7b_suite.py) & [`results/scale_7b_audit/adversarial_scale_7b_report.json`](results/scale_7b_audit/adversarial_scale_7b_report.json)
-  - `0.5B`–`123B` Red-Team Suite (`0.00 KB` byte-pointer discrepancy): [`scripts/adversarial_mos_scache_suite.py`](scripts/adversarial_mos_scache_suite.py)
-
-#### 🚀 New in `v1.2.0`: Colossal `72.71B` (`80L`, `195,720x` Outliers) 3D Pareto & Local Consumer Execution
-Evaluated on **`Qwen/Qwen2.5-72B-Instruct` (`72.71B`, `80` layers, `240` SwiGLU matrices `[29568, 8192]`)** across a **non-repeating 926-token distributed storage + Python + queueing math + SQL document**:
-
-| Execution Engine (`72.71B`, `80L`) | Non-Repeating PPL | Model / 8x Bank Footprint | KV VRAM (`L = 4,096`) | Disk Read / Tok | Throughput (`tok/s`) | Speedup vs. `AirLLM` FP16 |
-|---|---|---|---|---|---|---|
-| Dense FP16 + Vanilla KV $O(T)$ | `4.35` | `135.43 GiB` (`866.3 GiB` OOM) | `1,280.0 MiB` $O(T)$ | `0 MB` | Multi-A100 Ref | Cluster Only |
-| `AirLLM` FP16 SSD (`3.5 GiB/s` NVMe / Cloud) | `4.35` | `<2 GiB` (I/O-stalled) | `1,280.0 MiB` $O(T)$ | `135.43 GiB` | `0.026` / `0.0006` | `1.0x` (`38.7 s/tok` NVMe) |
-| `MoS` + `StreamingLLM` ($W=128$) | `6.37` | `38.12 GiB` (**`31.4 GiB 8x`**) | **`40.0 MiB`** $O(1)$ | **`0 MB` (VRAM)** | `4.72` / `7.27` | `182x–280x` (Eviction Amnesia) |
-| `MoS` + `SCache` $O(1)$ ($W=256, S=16$) | **`4.86`** | `38.12 GiB` (**`31.4 GiB 8x`**) | **`126.0 MiB` $O(1)$** | **`0 MB` (VRAM)** | `3.90` / `7.27` | **`150x–280x` NVMe** |
-| **`MoS` + `SCache` $O(1)$ ($W=384, S=16$)** | **`4.75`** | **`38.12 GiB` (`31.4 GiB 8x`, -96.4%)** | **`166.0 MiB` $O(1)$ (`+0.00 B`)** | **`0 MB` (VRAM)** | **`4.03` / `7.27`** | **`155x–280x` (`6,717x` Cloud)** |
-
-- **`195,720x` Colossal SwiGLU Outlier Neutralization (`72.71B`):** Rank-48 `ASVD` scars (`829.7 MB` across all `240` MLPs) preserve **`100.0%` Top-5 token agreement** across unseen Python (`PPL 1.705 → 1.674`), Quantum Physics (`6.187 → 6.257`), Tech Portuguese (`19.478 → 18.446`), and Nested JSON (`21.285 → 19.058`), cutting `INT4` KL divergence by **`3.08x–3.29x`**.
-- **Monotonic Long-Horizon Gain with Scale:** At `72.71B` ($W=64$), `SCache` cuts `StreamingLLM` tail PPL by **`5.00x` (`97.46 → 19.51`)** at **`64.73 MiB` (`-94.94%` KV VRAM @ `4k`)** and boosts evicted passcode probability by **`14.38x`** (`445` tok) and **`5.38x`** (`1,225` tok post-eviction).
-- **Verified Live on `16.0 GB` Apple Silicon M2 (`MPS`):** Runs all `80` layers via `20 × 1.79 GiB` shards at **`2.87 tok/s` prefill**, **`0.51 GiB` peak Python RSS**, **`68.57 MiB` post-unload MPS**, **`71,838,720 B` (`68.51 MiB`) `0 B`-drift `SCache`**, recalling evicted passcode `7942-OMEGA` verbatim:
-  ```bash
-  # Download canonical Qwen2.5-72B-Instruct MoS v2 shards (resumable HTTPS + SHA-256) & launch local chat:
-  python -m scar_cache.cli_72b --download --chat --model-dir ./models/qwen25_72b_mos_v2
-  ```
-
-#### 🔬 `7.62B` Scale & 3D Pareto Frontier (`Qwen/Qwen2.5-7B-Instruct`, `28L`)
-Evaluated on **`Qwen/Qwen2.5-7B-Instruct` (`7.62B`, `84` SwiGLU MLPs, `2x Tesla T4`)** across a **non-repeating 926-token distributed storage + Python + queueing math + SQL document** against measured host SSD-to-GPU bandwidth (`1.57 GB/s`):
-
-| Execution Engine (`7.62B`) | Non-Repeating PPL | MLP Weights (8x Multi-Tenant Bank) | KV VRAM (`L = 4,096`) | Disk Read / Tok | Throughput (`tok/s`) | Speedup vs. `AirLLM` FP16 |
-|---|---|---|---|---|---|---|
-| Dense FP16 + Vanilla KV $O(T)$ | `6.05` | `10.62 GiB` (`85.0 GiB` OOM) | `229.4 MB` $O(T)$ | `0 MB` | `314.0 tok/s` | Resident Reference |
-| `AirLLM` / `mmap` FP16 SSD Offload | `6.05` | `<2 GiB` (SSD-stalled) | `229.4 MB` $O(T)$ | `14.2 GiB` | `0.11 tok/s` | `1.0x` (`9.1 s/tok`) |
-| `AirLLM` / `mmap` INT4 SSD Offload | `~6.5` | `<2 GiB` (SSD-stalled) | `229.4 MB` $O(T)$ | `4.0 GiB` | `0.39 tok/s` | `3.6x` (`2.5 s/tok`) |
-| `MoS` + `StreamingLLM` ($W=128$) | `8.42` | `2.99 GiB` (**`3.72 GiB`**) | **`7.0 MB`** $O(1)$ | **`0 MB`** | `36.2 tok/s` | `329.1x` (Eviction Amnesia) |
-| **`MoS` + `SCache` $O(1)$ ($W=256, S=16$)** | **`6.67`** | **`2.99 GiB` (`3.72 GiB`, -95.6%)** | **`22.0 MB` $O(1)$ (`+0.00 B`)** | **`0 MB`** | **`24.7 tok/s`** | **`224.5x` (`62.7x` vs. INT4)** |
-
-- **`>6.7B` Emergent Outlier Dominance (`3,336x` SwiGLU RMS ratio):** `MoS` achieves **`100.0%` Top-5 token agreement** across all 4 unseen domains (Python `PPL 1.648 → 1.640`, Physics `6.253 → 6.261`, Tech Portuguese `19.15 → 21.70` vs. `23.54` INT4, Nested JSON `25.356 → 25.352`, up to **`3.33x` lower KL divergence** than `INT4`).
-- **Multi-Thousand-Token Evicted Passcode Recall (Zero Fine-Tuning):** `SCache` recovers evicted passcodes with **`22.58x`** (`0.5B`, `445` tok post-eviction), **`11.23x`** (`7.62B`, `445` tok post-eviction), and **`7.51x`** higher exact probability **`1,745` tokens after eviction** (`L = 1,834`, `-88.1%` KV VRAM).
 
 ---
 
-## ⚡ The Dual Memory Wall in Modern Transformers
+## 📐 Mathematical Formulation: The Unified Scar Operator
 
-Running large language models (LLMs) locally or at scale is constrained by two compounding physical barriers:
+Both `MoS` (in parameter space) and `SCache` (in context time) instantiate the same directional residual operator:
 
-```
-                                  THE DUAL MEMORY WALL
- ┌─────────────────────────────────────────────────┬─────────────────────────────────────────────────┐
- │             STATIC WEIGHTS (W_0)                │             DYNAMIC CONTEXT (KV CACHE)          │
- │                                                 │                                                 │
- │ • Giant dense weights (70B = 40 GB to 140 GB)   │ • Unbounded O(L) growth during generation       │
- │ • MoE (Mixtral, DeepSeek) requires all experts  │ • 45k tokens in a 135M model = 1 GB of RAM      │
- │   loaded in VRAM (35 GB–45 GB minimum)          │ • 32k tokens in a 70B model = 12 GB–35 GB VRAM  │
- │ • Inviable for consumer laptops & edge devices  │ • Causes Out-Of-Memory (OOM) & memory throttling│
- └────────────────────────┬────────────────────────┴────────────────────────┬────────────────────────┘
-                          │                                                 │
-                          ▼                                                 ▼
-             [SOLUTION: Mixture of Scars]                        [SOLUTION: SCache O(1)]
-               Shared Base + Scar Experts                   Frozen Window + Delta Rule Memory
-               Up to 90x Less Static Memory                     187.5x Less Dynamic Memory
-```
+$$F(\mathbf{x}) = F_{\text{base}}(\mathbf{x}) + \sum_{k} \operatorname{ReLU}\!\left(\frac{\mathbf{x}^\top \mathbf{z}_k}{\|\mathbf{x}\|_2 \|\mathbf{z}_k\|_2 + \epsilon}\right) \cdot \Delta_{\text{scar}, k}(\mathbf{x})$$
+
+### 1. One-Sided Spherical-Cap Gate (`0.000000` Out-of-Cone Interference)
+Unlike `Softmax` routing ($\sigma_k(\mathbf{x}) > 0$ across all $\mathbb{R}^d$, leaking diffuse cross-talk), the one-sided `ReLU` cosine gate defines an exact $90^\circ$ spherical cap around $\mathbf{z}_k$. Every input in the orthogonal/antipodal half-space ($\mathbf{x}^\top \mathbf{z}_k \le 0$) incurs **identically zero (`0.000000`) activation or write**.
+
+### 2. Spatial Domain — `MoS` (`Block-64 INT4` + In-Register Activation-Aware SVD)
+Given pretrained matrix $\mathbf{W} \in \mathbb{R}^{N \times K}$, channel RMS activation scale $s_j = \sqrt{\mathbb{E}[x_j^2]} + \epsilon$, and symmetric `Block-64` 4-bit base $\widehat{\mathbf{W}}_4 = \operatorname{dequant}(\mathbf{W}_q, \boldsymbol{\alpha}_w)$, `MoS` factors the activation-weighted quantization residual $(\mathbf{W} - \widehat{\mathbf{W}}_4)\operatorname{diag}(\mathbf{s}) \approx \mathbf{U}_r \boldsymbol{\Sigma}_r \mathbf{V}_r^\top$ ($r \ll \min(N, K)$), setting $\mathbf{B}_{\text{scar}} = \mathbf{U}_r \boldsymbol{\Sigma}_r^{1/2}$ and $\mathbf{A}_{\text{scar}} = \boldsymbol{\Sigma}_r^{1/2} \mathbf{V}_r^\top \operatorname{diag}(\mathbf{s})^{-1}$:
+
+$$\mathbf{y}(\mathbf{x}) = \widehat{\mathbf{W}}_4 \mathbf{x} + \mathbf{B}_{\text{scar}}(\mathbf{A}_{\text{scar}}\mathbf{x})$$
+
+To eliminate the `~960 MB` temporary FP16 dequantization buffer per `72B` SwiGLU matrix while preventing `> 65,504` FP16 overflow under **`195,720×`** SwiGLU intermediate spikes via dynamic per-row scaling $c_m = \max(\|\mathbf{x}_m\|_\infty / 512, 10^{-4})$, `v1.3.0` fuses nibble unpacking and the low-rank scar epilogue directly in GPU registers on both **Apple Silicon Metal** (`_weight_int4pack_mm`) and **NVIDIA CUDA Triton** ([`scar_cache/triton_mos_gemm.py`](scar_cache/triton_mos_gemm.py)).
+
+### 3. Temporal Domain — `SCache` $\mathcal{O}(1)$ (Orthogonal Widrow-Hoff + Deep-Layer Surprise Routing)
+Per layer $\ell$ and KV head $h$, `SCache` maintains $N_{\text{sink}}$ attention sinks, a rolling FIFO window of $W_{\text{win}} - N_{\text{sink}}$ tokens, and $S_{\text{slots}}$ fixed anchor slots backed by per-head Widrow-Hoff fast weights $\mathbf{W}_{\text{scar}}^{(h)} \in \mathbb{R}^{d_h \times d_h}$:
+
+$$\mathbf{e}_t = \mathbf{v}_{\text{ev}} - \mathbf{W}_{\text{scar}}^{(t-1)} \hat{\mathbf{k}}_t, \qquad \mathbf{W}_{\text{scar}}^{(t)} = \gamma \mathbf{W}_{\text{scar}}^{(t-1)} + \eta\, g_{m^\star}(\hat{\mathbf{k}}_t)\, \mathbf{e}_t \hat{\mathbf{k}}_t^\top$$
+
+For $\gamma=1, \eta g_{m^\star}=1, \|\hat{\mathbf{k}}_t\|_2=1$, this simplifies to $\mathbf{W}_{\text{scar}}^{(t)} = \mathbf{W}_{\text{scar}}^{(t-1)}(\mathbf{I} - \hat{\mathbf{k}}_t \hat{\mathbf{k}}_t^\top) + \mathbf{v}_{\text{ev}} \hat{\mathbf{k}}_t^\top$: the orthogonal projector $(\mathbf{I} - \hat{\mathbf{k}}_t \hat{\mathbf{k}}_t^\top)$ **surgically erases stale values on $\operatorname{span}(\hat{\mathbf{k}}_t)$ without perturbing $\operatorname{span}(\hat{\mathbf{k}}_t)^\perp$** (zero Hebbian ghosting). Simultaneously, $\|\mathbf{e}_t\|_2$ aggregated synchronously across semantic deep layers $\ell \in [L_{\text{layers}}/2, L_{\text{layers}})$ acts as a **training-free Surprise Oracle**, promoting high-surprise `32`-token contiguous micro-pages into RoPE-aligned anchor slots at `+0.00 Bytes` memory growth.
 
 ---
 
-## 🏆 Empirical Benchmarks (Measured on Apple Silicon M2, 16 GB RAM)
+## 🔬 Multi-Scale 8-Vector Adversarial Audit (`0.5B` → `7.62B` → `72.71B`)
 
-### 1. Dynamic Context: 45,000 Tokens in 5.27 MB (SmolLM2-135M)
-Tested on the 30 layers of `HuggingFaceTB/SmolLM2-135M-Instruct` (`examples/09_high_stress_1gb_benchmark.py`):
+### Colossal `72.71B` (`Qwen/Qwen2.5-72B-Instruct`, `80L`, `240` SwiGLU MLPs) & `7.62B` (`28L`) 3D Pareto
+Evaluated across a **non-repeating 926-token distributed storage + Python + queueing math + SQL corpus** ([`scripts/adversarial_scale_72b_suite.py`](scripts/adversarial_scale_72b_suite.py), [`scripts/adversarial_scale_7b_suite.py`](scripts/adversarial_scale_7b_suite.py)):
 
-| Metric | Traditional KV Cache (`DynamicCache`) | SCache (`SCacheDynamicCache`) | Advantage |
+| Scale & Engine | Non-Repeat PPL | Weight / `8×` Multi-Tenant Footprint | KV VRAM (`L = 4,096`) | Disk Read / Tok | Throughput (`tok/s`) | Speedup vs. `AirLLM` FP16 |
+|---|---|---|---|---|---|---|
+| **`72.71B`** Dense FP16 + Full KV $\mathcal{O}(T)$ | `4.35` | `135.43 GiB` (`866.3 GiB` `8×` OOM) | `1,280.0 MiB` $\mathcal{O}(T)$ | `0 MB` | Multi-A100 Ref | Cluster Only |
+| **`72.71B`** `AirLLM` FP16 SSD (`3.5 GiB/s` / Cloud) | `4.35` | `<2 GiB` (I/O-stalled) | `1,280.0 MiB` $\mathcal{O}(T)$ | `135.43 GiB` | `0.026` / `0.0006` | `1.0×` (`38.7 s/tok`) |
+| **`72.71B`** `MoS` + `StreamingLLM` ($W=128$) | `6.37` | `38.12 GiB` (**`31.4 GiB 8×`**) | `40.0 MiB` $\mathcal{O}(1)$ | **`0 MB` (VRAM)** | `4.72` / `7.27` | `182×–280×` (Amnesia) |
+| **`72.71B`** **`MoS` + `SCache` $\mathcal{O}(1)$ ($W=384, S=16$)** | **`4.75`** | **`38.12 GiB` (`31.4 GiB 8×`, `-96.37%`)** | **`166.0 MiB` $\mathcal{O}(1)$ (`+0 B`)** | **`0 MB` (VRAM)** | **`4.03` / `7.27`** | **`155×–280×` (`6,717×` Cloud)** |
+| **`7.62B`** `AirLLM` FP16 SSD (`1.57 GB/s`) | `6.05` | `<2 GiB` (SSD-stalled) | `229.4 MB` $\mathcal{O}(T)$ | `14.2 GiB` | `0.11 tok/s` | `1.0×` (`9.1 s/tok`) |
+| **`7.62B`** **`MoS` + `SCache` $\mathcal{O}(1)$ ($W=256, S=16$)** | **`6.67`** | **`2.99 GiB` (`3.72 GiB 8×`, `-95.6%`)** | **`22.0 MB` $\mathcal{O}(1)$ (`+0 B`)** | **`0 MB` (VRAM)** | **`24.7 tok/s`** | **`224.5×` (`62.7×` vs INT4)** |
+
+### Summary of Hostile Red-Team Vectors (`V0`–`V6`)
+| Hostile Vector | Conventional Baseline | `MoS` / `SCache` $\mathcal{O}(1)$ Result | Audited Empirical Finding |
 |---|---|---|---|
-| **Space Complexity** | **$O(L)$ — Linear Growth** | **$O(1)$ — Strictly Constant** | **Hardware Invariant** |
-| **K/V Tensor Length** | 45,000 tokens | **64 tokens** (4 Sinks + 60 Slide) | **703x smaller** |
-| **Total RAM Consumed** | **988.77 MB (~1 GB)** | **5.27 MB** | **187.5x LESS (99.47% reduction)** |
-| **FLOPs per Token (Attention)** | 518,400,000 FLOPs | 737,280 FLOPs | **703.1x FASTER** |
+| **V0: Recursive Byte-Pointer Audit** | `72.7B @ 4k`: `1,310,720.0 KB` KV | **`66,281.3 KB` (`19.78×` smaller)** | `0.00 KB` hidden storage discrepancy (`untyped_storage().data_ptr()`) |
+| **V1: `195,720×` SwiGLU Outliers (`72.7B`)** | Uniform `INT4` KL: `0.0474–0.3717` | **KL `0.0144–0.1206` (`3.08×–3.29×` lower)** | **`100.0%` Top-5 agreement** across Python, Physics, Portuguese & JSON |
+| **V2: Long-Horizon Tail PPL ($W=64$)** | `72.7B` Naive: `127.91` · StreamLLM: `97.46` | **`72.7B` `SCache` Tail PPL: `19.51`** | **`5.00×` lower tail PPL** than `StreamingLLM` (`-86.8%` KV VRAM) |
+| **V3: Contradictory State Mutation** | Additive Hebbian: `cos = 0.467` (ghosting) | **Widrow-Hoff: `cos = 1.0000`** | Exact orthogonal erasure; `14.38×` higher evicted passcode prob at `72.7B` |
+| **V4: `500×` Noise DoS + Antipodal** | Unbounded linear drift / corruption | **Target `cos = 1.0000` · Leak `0.000000`** | Exact mathematical immunity outside the `ReLU` spherical cap |
+| **V5 & V6: Full-Stack `72.7B` / `123B` Stream** | `72.7B`: `135.4 GiB` · `123B`: `246 GB` | **`20 × 1.79 GiB` shards (`1.92 GiB` MPS)** | Simultaneous `-72.7%` MLP & `-86.8%` KV; recalls `7942-OMEGA` on `16 GB` M2 |
 
-### 2. Static Weights: Qwen 2.5 - 3B MLP Compression
-Tested on `Qwen/Qwen2.5-3B-Instruct` (`examples/12_qwen3b_stress_benchmark.py`):
+---
 
-| Component | Traditional Dense Weights | Mixture of Scars (MoS) | Real Savings |
-|---|---|---|---|
-| **36 MLP Layers** | **4.54 GB (4,644 MB)** | **0.84 GB (860 MB)** | **5.4x Smaller (3.70 GB saved)** |
-| **Total Model in RAM** | **5.75 GB** | **2.05 GB** | **Shrinks to 1/3 of the size!** |
-| **KV Cache @ 32k tokens** | 1,152 MB (1.21 GB) | **20.53 MB** | **98.22% Less Memory** |
+## ⚖️ Honest Boundary Conditions & Limitations
 
-### 3. Extreme 70B-Scale Topology Execution (80 Layers, D=8192, FFN=28672)
-Tested with `examples/13_70gb_extreme_mos_benchmark.py` and `examples/15_run_70b_full_battery.py`:
-
-| Parameter | Uncompressed Baseline (70B) | Mixture of Scars (MoS) + SCache | Factor |
-|---|---|---|---|
-| **Weight Footprint in RAM** | **112.0 GB** (Crashes 16GB Mac) | **1.23 GB** | **90x Memory Reduction** |
-| **KV Cache Footprint (80 Layers)** | **10.7 GB** | **26.0 MB** | **411x Reduction** |
-| **Total Inference RAM** | $> 120\text{ GB}$ (Needs Cluster) | **5.87 GB (Apple M2 CPU)** | **Runs on a consumer laptop!** |
-
-### 4. 72-Layer Deep Pretrained Retrieval Battery (Code Ingestion & Web Synthesis)
-Tested with `examples/16_qwen72_mos_battery.py`:
-
-* **Reasoning Quality:** Flawless conceptual physics explanations through 72 layers with 20.53 MB KV Cache.
-* **File Reading Fidelity:** Ingested 421 tokens of real Python source code into a 128-token window. 362 tokens were evicted and stored in associative fast-weights. The model accurately retrieved the private class attributes (`A` and `z_target`) directly from evicted memory.
-* **Web Search Synthesis:** Synthesized NeurIPS 2024 literature into structured bullet points with zero hallucination.
+1. **`32 GB` M2 Pro SKU vs. `>= 48 GB` Unified Memory on `72.71B`:** The `80`-layer `Qwen2.5-72B MoS v2` shards total `38.12 GiB`. Because Apple caps the M2 Pro hardware SKU at `32 GB` total Unified RAM, `~8–10 GiB` pages over NVMe (`~0.40–0.55 tok/s` hybrid vs. `2.57 tok/s` pure `200 GB/s` bus ceiling). Macs with `>= 48 GB` (`M4 Pro 48 GB`, `M2/M3/M4 Max 64 GB+`) keep all `80` layers + `32k` `SCache` (`128.5 MiB` vs. `10.7 GiB` Normal KV!) **100% RAM-resident** at `3.46–4.87 tok/s` with `0 MB/tok` SSD I/O. (`Sub-2-Bit + ASVD` `~20 GiB` for `24 GB` GPUs & `32 GB` Macs is Track 1.2 of our [`v2.x` Roadmap](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)).
+2. **Cross-Layer Permutation Sensitivity on Pretrained SwiGLU:** Sharing a single dense base across *distinct* pretrained layers without Sinkhorn permutation alignment incurs `KL ≈ 0.78` (as seen in synthetic topology stress scripts `examples/13` & `15`, which achieve `90×` structural compression on unaligned weights). Production off-the-shelf models therefore pair **per-layer `Block-64 INT4` bases with `ASVD` scars** (`38.12 GiB` standalone at `72.7B`), while **single-base sharing** is used for multi-tenant specialist banks anchored to a common backbone (`-96.37%` / `27.59×` across 8 specialists).
+3. **Fixed Micro-Page Slot Budget vs. Random Hash Copying:** Synchronized `32`-token micro-page routing (`S = 256`) achieves `100%` passkey recall at `32.9k` tokens; verbatim copying of dozens of independent uncorrelated hashes scales linearly with `S`.
 
 ---
 
@@ -178,30 +140,15 @@ Tested with `examples/16_qwen72_mos_battery.py`:
 
 ### Installation
 
-Install directly from GitHub:
-
-```bash
-pip install git+https://github.com/byte-od/mixture-of-scars.git
-```
-
-Or clone for development:
-
 ```bash
 git clone https://github.com/byte-od/mixture-of-scars.git
 cd mixture-of-scars
-pip install -e .
+pip install -e . pytest
 ```
 
-### ⚡ Run Online in 1 Click (Kaggle Official)
+### 1. Drop-in HuggingFace $\mathcal{O}(1)$ KV-Cache Replacement (`SCacheDynamicCache`)
 
-Run the full interactive benchmark on **Kaggle's free GPU/CPU environment** without installing anything locally:
-
-👉 **Live Interactive Kaggle Notebook:** [**thetod/mixture-of-scars-benchmark**](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)  
-* **Source Notebook File:** [`notebooks/mixture_of_scars_official_benchmark.ipynb`](notebooks/mixture_of_scars_official_benchmark.ipynb)
-
-### 1. Drop-in HuggingFace KV-Cache Replacement (1 Line of Code)
-
-Use `SCacheDynamicCache` with any HuggingFace model (Llama 3, Qwen 2.5, SmolLM2, Mistral). Memory remains permanently capped at $O(1)$:
+Works out-of-the-box with HuggingFace `transformers` (`Qwen2.5`, `Llama-3`, `Mistral`, `SmolLM2`) with **zero fine-tuning**:
 
 ```python
 import torch
@@ -210,114 +157,70 @@ from scar_cache import SCacheDynamicCache
 
 model_id = "Qwen/Qwen2.5-3B-Instruct"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.bfloat16)
+model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16, device_map="auto")
 
-# Initialize SCache with a frozen 128-token window and 4 Attention Sinks
-cache = SCacheDynamicCache(window_size=128, num_sink_tokens=4)
+# Constant O(1) cache: 4 sinks + 252 FIFO window + 256 surprise-routed micro-page tokens + Widrow-Hoff fast weights
+cache = SCacheDynamicCache(window_size=256, num_sink_tokens=4, num_slots=256)
 
-inputs = tokenizer("Your massive context here...", return_tensors="pt")
-out = model.generate(**inputs, past_key_values=cache, max_new_tokens=100)
+inputs = tokenizer("Your 32k+ token context here...", return_tensors="pt").to(model.device)
+out = model.generate(**inputs, past_key_values=cache, max_new_tokens=64)
 
 print(tokenizer.decode(out[0], skip_special_tokens=True))
-print(f"KV Cache Memory: {cache.total_memory_bytes / 1024:.2f} KB (Permanently frozen!)")
+print(f"Frozen SCache Memory: {cache.total_memory_bytes / (1024**2):.2f} MiB (+0.00 B drift at any length!)")
 ```
 
-### 2. Mixture of Scars (MoS) for Linear & MLP Layers
-
-Replace heavy linear layers or MoE blocks with `MixtureOfScarsLinear`:
+### 2. Fused `Block-64 W4A16 + ASVD` Linear & Multi-Specialist `MoS` Layers
 
 ```python
 import torch
 import torch.nn as nn
-from scar_cache import MixtureOfScarsLinear
+from scar_cache import MixtureOfScarsLinear, fused_int4_mos_linear
 
-# Multiple layers sharing the EXACT same base tensor (zero redundant memory!):
-shared_base = nn.Linear(2048, 2048)
+# Multi-tenant / multi-expert layer sharing a single base with directional ReLU scar experts:
+shared_base = nn.Linear(4096, 4096, bias=False)
+expert_bank_a = MixtureOfScarsLinear(4096, 4096, num_experts=8, top_k=2, shared_base=shared_base)
+expert_bank_b = MixtureOfScarsLinear(4096, 4096, num_experts=8, top_k=2, shared_base=shared_base)
 
-layer1 = MixtureOfScarsLinear(2048, 2048, num_experts=8, top_k=2, shared_base=shared_base)
-layer2 = MixtureOfScarsLinear(2048, 2048, num_experts=8, top_k=2, shared_base=shared_base)
-
-x = torch.randn(4, 2048)
-out1 = layer1(x)  # [4, 2048]
-out2 = layer2(x)  # [4, 2048]
-
-print(f"Base Memory:  {layer1.base_bytes / 1024:.1f} KB (Shared once)")
-print(f"Scars Memory: {layer1.scars_bytes / 1024:.1f} KB (L1/L2 cache resident)")
+x = torch.randn(4, 4096)
+y = expert_bank_a(x)  # Zero-copy shared base + L1/L2-resident ReLU-gated low-rank scars
 ```
 
-### 3. Download & Run the `70B`-Class Model Locally (`Qwen2.5-72B-Instruct MoS v2` + Practical Guide)
+### 3. Download & Run `Qwen2.5-72B-Instruct MoS v2` Locally (`38.12 GiB`, Zero Login)
 
-You do **not** need a multi-GPU cluster to quantize `72B` yourself — all `22` **SHA-256 verified** `.safetensors` shards (`38.12 GiB` total, `< 1.80 GiB` per 4-layer group) are publicly available with **zero login required**:
-
-- **📦 Direct Model Download (`HTTP 206 Range` resumable):** [github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
-- **📘 Official Step-by-Step Practical Guide (Apple Silicon `16 GB`–`64 GB+`, NVIDIA `CUDA` & `CPU`):** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
+All `22` **SHA-256 verified** `.safetensors` shards (`< 1.80 GiB` per 4-layer group) are publicly hosted with `HTTP 206 Range` resume support:
+- **📦 Direct Model Release:** [`releases/tag/v1.2.0-qwen72b-mos`](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
+- **📘 Practical Deployment Guide (Metal / CUDA / CPU):** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 
 ```bash
-# Auto-download with SHA-256 verification (resumes interrupted downloads) & start interactive 72.71B chat:
+# Auto-downloads SHA-256 verified 72.71B shards (resumable) & opens interactive O(1)-memory terminal chat:
 mos-run --download --chat --model-dir ./models/qwen25_72b_mos_v2
 ```
 
 ---
 
-## 🔬 Mathematical Architecture
+## 🌍 Beyond LLMs: Open Innovation Frontiers (`v1.4 → v2.x` Roadmap)
 
-### 1. Mixture of Scars (MoS) Formulation
-For an input vector $\mathbf{x} \in \mathbb{R}^D$:
-
-$$\mathbf{h}_{\text{base}} = \mathbf{W}_{\text{base}} \mathbf{x}$$
-
-$$\alpha_k = \text{Softmax}\left(\text{Top-K}\left(\frac{\mathbf{x} \cdot \mathbf{q}_k}{\sqrt{D}}\right)\right)$$
-
-$$\Delta \mathbf{h}_k = (\mathbf{x} \mathbf{A}_k) \mathbf{B}_k \cdot \max(0, \cos(\mathbf{x}, \mathbf{z}_{\text{target}}^{(k)}))$$
-
-$$\mathbf{h}_{\text{out}} = \mathbf{h}_{\text{base}} + \sum_{k \in \text{Top-K}} \alpha_k \Delta \mathbf{h}_k$$
-
-Where:
-* $\mathbf{W}_{\text{base}}$ is shared across layers via zero-copy tensor pointers.
-* $\mathbf{A}_k \in \mathbb{R}^{D \times r}, \mathbf{B}_k \in \mathbb{R}^{r \times D}$ are low-rank factorized scar experts.
-* $\mathbf{z}_{\text{target}}^{(k)}$ is the directional manifold centroid ensuring zero out-of-distribution interference.
-
-### 2. Widrow-Hoff Delta Rule for Online Associative Memory
-When tokens slide out of the physical window, they are compressed into the `MultiSlotSCache` using the exact Delta Rule:
-
-$$\Delta \mathbf{S}_t = \eta \cdot (\mathbf{v}_t - \mathbf{S}_{t-1} \mathbf{k}_t) \mathbf{k}_t^T$$
-
-Ensuring exact factual overwrite without additive ghosting or hallucinations.
+The Unified Scar Operator unlocks concrete mechanisms outside text generation — detailed in [`docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md`](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md):
+- **Vector Search & Post-RAG (`Scar-Search`):** Nanosecond L1-cache (`34.8 KB`) `ReLU` spherical-cap shard pruning, `20×–50×` smaller surprise-filtered vector indices, and mountable `.scache` $\mathcal{O}(1)$ knowledge cartridges.
+- **Data Storage & Lossless Compression (`Scar-Storage`):** Constant-RAM long-range `SCache + ANS` lossless entropy coding, `mos-git` low-rank tensor version control (`-96%+` disk), and **`< 1 ms` surgical *Machine Unlearning*** (GDPR/LGPD erasure via $\mathbf{W}_{\text{scar}}(\mathbf{I} - \hat{\mathbf{k}}\hat{\mathbf{k}}^\top)$).
+- **Next-Gen Inference (`v1.4`–`v2.0`):** `System 1` (`0.5B` @ `1,176 tok/s`) + `72B MoS` speculative Ghost-Jump decoding (`3×–5×` speedup), `Sub-2-Bit + ASVD` (`72B` in `~20 GiB` for `24 GB` GPUs), sleep-cycle `SCache → MoS` continual consolidation, and native `WebGPU / WGSL` browser shaders.
 
 ---
 
-## 📂 Executable Examples
-
-The repository includes **16 standalone, self-contained reproduction scripts** in `examples/`:
-
-| Example Script | Description |
-|---|---|
-| [`01_minimal_dropin.py`](examples/01_minimal_dropin.py) | 3-line PyTorch integration demo |
-| [`02_reinforcement_learning.py`](examples/02_reinforcement_learning.py) | RL agent replacing 2 GB replay buffer with 4.25 KB scar |
-| [`03_test_time_adaptation.py`](examples/03_test_time_adaptation.py) | Zero-backprop adaptation in $< 3\ \mu\text{s}$ |
-| [`04_kv_cache_replacement_demo.py`](examples/04_kv_cache_replacement_demo.py) | 5,000 tokens in 34.8 KB with exact Delta Rule overwrites |
-| [`05_transformer_kv_cache_benchmark.py`](examples/05_transformer_kv_cache_benchmark.py) | 2,000 token comparative latency benchmark |
-| [`06_generate_text_100_words.py`](examples/06_generate_text_100_words.py) | Word-level LM generating 100 words with 0 KV-Cache |
-| [`07_interactive_chat.py`](examples/07_interactive_chat.py) | Interactive terminal dialogue in Portuguese (68 KB fixed) |
-| [`08_real_llm_smollm_transplant.py`](examples/08_real_llm_smollm_transplant.py) | Real SmolLM2-135M transplant with 64-token physical cap |
-| [`09_high_stress_1gb_benchmark.py`](examples/09_high_stress_1gb_benchmark.py) | **High-Stress Benchmark (45,000 tokens: 1 GB vs 5.27 MB - 187x reduction)** |
-| [`10_mixture_of_scars_demo.py`](examples/10_mixture_of_scars_demo.py) | **Mixture of Scars (MoS) 32-layer benchmark (78.8x reduction)** |
-| [`11_full_system_benchmark.py`](examples/11_full_system_benchmark.py) | **Full 2x2 Matrix Benchmark (MoS Weights + SCache Context)** |
-| [`12_qwen3b_stress_benchmark.py`](examples/12_qwen3b_stress_benchmark.py) | **Qwen 2.5 - 3B Apple M2 Benchmark (MoS 3.7 GB reduction & 98.2% KV saving)** |
-| [`13_70gb_extreme_mos_benchmark.py`](examples/13_70gb_extreme_mos_benchmark.py) | **70B Scale Architecture Benchmark (20.5x reduction: 79.2 GB -> 3.87 GB)** |
-| [`14_full_battery_test_suite.py`](examples/14_full_battery_test_suite.py) | Pre-publication battery (Reasoning, Code Ingestion, Web Search) |
-| [`15_run_70b_full_battery.py`](examples/15_run_70b_full_battery.py) | **Full 80-layer 70B Scale Execution on Apple M2 (5.87 GB RAM vs 112 GB)** |
-| [`16_qwen72_mos_battery.py`](examples/16_qwen72_mos_battery.py) | **72-Layer Retrieval Battery (Reasoning, Real File Reading & Web Synthesis)** |
-
----
-
-## 🧪 Testing
-
-Run the full unit and adversarial red-team test suite (**44/44 tests passing**):
+## 📂 Reproduction Suites & Executable Examples
 
 ```bash
-pytest tests/
+# Run all 44 unit, red-team causality, and fused Metal/Triton kernel parity tests:
+pytest -q
 ```
+
+- **Core Verification & Red-Team Suites (`scripts/`):**
+  - [`scripts/benchmark_16k_passkey_llm.py`](scripts/benchmark_16k_passkey_llm.py) — `16.6k` & `32.9k` Passkey / NIAH live audit (`ΔBytes = 0 B` pointer check).
+  - [`scripts/benchmark_72b_apple_silicon.py`](scripts/benchmark_72b_apple_silicon.py) — Apple Silicon Metal `_weight_int4pack_mm` (`50.38×` speedup) + `80L` memory/speed profiler.
+  - [`scripts/adversarial_scale_72b_suite.py`](scripts/adversarial_scale_72b_suite.py) & [`scripts/adversarial_scale_7b_suite.py`](scripts/adversarial_scale_7b_suite.py) — Full `72.71B` & `7.62B` 8-vector adversarial audits.
+  - [`scripts/adversarial_mos_scache_suite.py`](scripts/adversarial_mos_scache_suite.py) — `0.5B`–`123B` multi-scale red-team suite (`V0`–`V6`).
+- **Standalone Tutorials (`examples/01`–`examples/16`):** `16` self-contained scripts in [`examples/`](examples/) covering 3-line drop-ins, RL `4.25 KB` trauma scars (`02`), `< 3 µs` test-time adaptation (`03`), `45k`-token stress tests (`09`), `Qwen2.5-3B` MLP compression (`12`), and unaligned structural topology stress tests (`13`, `15`).
+- **Interactive Cloud Notebook:** [**Kaggle `thetod/mixture-of-scars-benchmark`**](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark) ([`notebooks/mixture_of_scars_official_benchmark.ipynb`](notebooks/mixture_of_scars_official_benchmark.ipynb)).
 
 ---
 
@@ -338,9 +241,8 @@ If this research, its mathematical primitives, or its GPU/Unified-Memory kernels
 
 ## 📄 License & Citation
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-Developed by **Julio Cesar Reis Filho** & **Byte-OD Research Lab** (2026).
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.  
+Developed by **Julio Cesar Reis Filho** (*Byte-OD Research & System One Architecture Lab*, 2026).
 
 ```bibtex
 @techreport{reisfilho2026mos_scache,
