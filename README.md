@@ -7,7 +7,7 @@
 [![HuggingFace Drop-in](https://img.shields.io/badge/HuggingFace-Compatible-yellow.svg)](https://huggingface.co/)
 [![KV Cache Reduction](https://img.shields.io/badge/KV%20Cache%20Reduction-187.5x-success.svg)]()
 [![Static Weights Reduction](https://img.shields.io/badge/Static%20Weights%20Reduction-90x-success.svg)]()
-[![Tests Passing](https://img.shields.io/badge/Tests-41%2F41%20Passing-brightgreen.svg)]()
+[![Tests Passing](https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg)]()
 [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)
 
 > **"Breaking the barrier between LLMs and hardware."**  
@@ -48,7 +48,7 @@ Measured with PyTorch's native Apple Metal `_weight_int4pack_mm` fused `INT4` + 
 | **Apple M2 (`100 GB/s` bus) — Fused Metal `INT4` Compute** *(Measured Unpaged)* | **`2.53 tok/s`** *(128-blk)* | **`1.28 tok/s`** | `1.90 GiB`/group (`38.56 GiB` 80L eq.) | **`128.51 MiB`** (`+0 B`) | Direct unpaged Metal `_weight_int4pack_mm` + `ASVD` scar rate (`29.7 ms` / 4-layer group). |
 | **Apple M2 Pro (`32 GB` max SKU, `200 GB/s`) — Hybrid Page-Cache / Streaming** | `~5.0–6.5 tok/s` | **`~0.40–0.55 tok/s`** *(2.57 tok/s bus ceiling\*)* | **`1.92 GiB` Active MPS** (`~24 GiB` OS RAM cache) | **`128.51 MiB`** (`+0 B`) | \*M2 Pro hardware maxes out at `32 GB` Unified RAM (`< 38.12 GiB` shards), so `~10–12 GiB` spills to `5.5 GB/s` Pro NVMe; pure `200 GB/s` Metal bus ceiling is **`2.57 tok/s`**. |
 | **Apple M4 Pro (`48 GB`, `273 GB/s`) / M2 Max (`64 GB+`, `400 GB/s`) — `--resident`** | `~6.8–9.6 tok/s` | **`~3.46 – 4.87 tok/s`** | **`38.56 GiB` Unified MPS** (`0 MB/tok` SSD) | **`128.51 MiB`** (`+0 B` vs `10.7 GiB` KV @ `32k`) | `100%` of `20 × 4L` shards stay wired in Metal Unified Memory; `SCache` saves **`>10.5 GiB`** RAM at `32k` so `72B + 32k` fits in `48 GB`! |
-| **NVIDIA `24 GB` GPU (`CUDA`, e.g. T4x2 / L4 / 3090 / 4090)** *(Measured)* | `18+ tok/s` | **`4.03 – 7.27 tok/s`** | **`14.1 – 38.6 GiB` VRAM** (`1.79 GiB`/shard stream) | **`126.0 – 166.0 MiB`** (`+0 B`) | `4.03 tok/s` PCIe pinned-RAM streaming (`155x` faster than `AirLLM` FP16); `7.27 tok/s` resident. |
+| **NVIDIA `24 GB` GPU (`CUDA`, e.g. T4x2 / L4 / 3090 / 4090)** *(Measured + Fused Triton W4A16)* | `18+ tok/s` | **`4.03 – 7.27+ tok/s`** | **`14.1 – 38.6 GiB` VRAM** (`1.79 GiB`/shard stream) | **`126.0 – 166.0 MiB`** (`+0 B`) | Fused Triton `Block-64 W4A16 + ASVD Epilogue` (`sm_75+` incl. T4 FP16, zero swizzle) + CUDA `int4pack` (`sm_80+`). |
 
 ```bash
 # 1. Run the Apple Silicon 72B Fused-Metal speed + peak memory audit (auto-runs 80L --resident on >=48 GB Macs):

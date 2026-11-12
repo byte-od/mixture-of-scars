@@ -39,6 +39,11 @@ from safetensors.torch import load_file
 from transformers import AutoTokenizer
 
 from scar_cache.hf_cache import SCacheDynamicCache
+from scar_cache.triton_mos_gemm import (
+    HAS_TRITON,
+    can_use_triton_int4_mos,
+    triton_fused_int4_mos_linear,
+)
 
 
 DEFAULT_PUBLIC_RELEASE_BASE_URL = (
@@ -63,6 +68,9 @@ def _process_peak_rss_gib() -> float:
     return rss / (1024.0**3) if sys.platform == "darwin" else rss / (1024.0**2)
 
 
+_CUDA_INT4PACK_ABI_CACHE: Dict[str, Optional[str]] = {}
+
+
 def _can_use_mps_int4pack(device: torch.device, out_features: int, in_features: int, n_blocks: int) -> bool:
     return (
         device.type == "mps"
@@ -83,6 +91,114 @@ def _swizzle_block64_to_mps_int4pack(
     pb_2d = pb_dev.view(out_features, in_features // 2)
     u8_swapped = (((pb_2d & 0x0F) << 4) | (pb_2d >> 4)).contiguous()
     b_int4 = torch._convert_weight_to_int4pack(u8_swapped, 8)
+    scales_t = sb_dev.view(out_features, in_features // 64).transpose(0, 1).contiguous()
+    sz_int4 = torch.stack((scales_t, torch.zeros_like(scales_t)), dim=-1).contiguous()
+    return b_int4, sz_int4
+
+
+def _pack_block64_for_cuda_mode(pb_2d: torch.Tensor, mode: str) -> torch.Tensor:
+    if mode == "u8_swap":
+        return (((pb_2d & 0x0F) << 4) | (pb_2d >> 4)).contiguous()
+    if mode == "u8_noswap":
+        return pb_2d.contiguous()
+    u4 = torch.stack((pb_2d & 0x0F, pb_2d >> 4), dim=-1).view(pb_2d.shape[0], -1).to(torch.int32)
+    if mode == "i32_msb":
+        return (
+            (u4[:, 0::8] << 28)
+            | (u4[:, 1::8] << 24)
+            | (u4[:, 2::8] << 20)
+            | (u4[:, 3::8] << 16)
+            | (u4[:, 4::8] << 12)
+            | (u4[:, 5::8] << 8)
+            | (u4[:, 6::8] << 4)
+            | u4[:, 7::8]
+        ).contiguous()
+    if mode == "i32_lsb":
+        return (
+            u4[:, 0::8]
+            | (u4[:, 1::8] << 4)
+            | (u4[:, 2::8] << 8)
+            | (u4[:, 3::8] << 12)
+            | (u4[:, 4::8] << 16)
+            | (u4[:, 5::8] << 20)
+            | (u4[:, 6::8] << 24)
+            | (u4[:, 7::8] << 28)
+        ).contiguous()
+    raise ValueError(f"Unknown CUDA int4pack mode: {mode}")
+
+
+def _probe_cuda_int4pack_abi(device: torch.device) -> Optional[str]:
+    """One-time runtime verification of PyTorch CUDA `_weight_int4pack_mm` (`sm_80+` BF16) packing ABI."""
+    if (
+        device.type != "cuda"
+        or not torch.cuda.is_available()
+        or not hasattr(torch, "_weight_int4pack_mm")
+        or not hasattr(torch, "_convert_weight_to_int4pack")
+    ):
+        return None
+    dev_key = str(device)
+    if dev_key in _CUDA_INT4PACK_ABI_CACHE:
+        return _CUDA_INT4PACK_ABI_CACHE[dev_key]
+
+    try:
+        if torch.cuda.get_device_capability(device)[0] < 8:
+            _CUDA_INT4PACK_ABI_CACHE[dev_key] = None
+            return None
+        g = torch.Generator(device="cpu").manual_seed(1337)
+        n_t, k_t = 16, 128
+        pb_t = torch.randint(0, 256, (n_t * k_t // 64, 32), generator=g, dtype=torch.uint8).to(device)
+        sb_t = (torch.rand((n_t * k_t // 64, 1), generator=g, dtype=torch.float32) * 0.05 + 0.01).to(
+            device=device, dtype=torch.float16
+        )
+        x_t = torch.randn((4, k_t), generator=g, dtype=torch.float32).to(device=device, dtype=torch.bfloat16).contiguous()
+        w_ref = dequantize_int4_coalesced(pb_t, sb_t, (n_t, k_t), torch.float32)
+        y_ref = F.linear(x_t.float(), w_ref)
+
+        scales_t = sb_t.view(n_t, k_t // 64).transpose(0, 1).to(torch.bfloat16).contiguous()
+        sz_t = torch.stack((scales_t, torch.zeros_like(scales_t)), dim=-1).contiguous()
+        pb_2d = pb_t.view(n_t, k_t // 2)
+
+        for cand in ("u8_swap", "u8_noswap", "i32_msb", "i32_lsb"):
+            try:
+                packed_in = _pack_block64_for_cuda_mode(pb_2d, cand)
+                b_int4 = torch._convert_weight_to_int4pack(packed_in, 8)
+                y_cand = torch._weight_int4pack_mm(x_t, b_int4, 64, sz_t).float()
+                cos = float(F.cosine_similarity(y_ref.reshape(1, -1), y_cand.reshape(1, -1)).item())
+                rel = float((torch.norm(y_ref - y_cand) / torch.norm(y_ref).clamp(min=1e-6)).item())
+                if cos > 0.9999 and rel < 5e-3:
+                    _CUDA_INT4PACK_ABI_CACHE[dev_key] = cand
+                    return cand
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    _CUDA_INT4PACK_ABI_CACHE[dev_key] = None
+    return None
+
+
+def _can_use_cuda_int4pack(device: torch.device, out_features: int, in_features: int, n_blocks: int) -> bool:
+    return (
+        device.type == "cuda"
+        and out_features % 8 == 0
+        and in_features % 128 == 0
+        and n_blocks * 64 == out_features * in_features
+        and _probe_cuda_int4pack_abi(device) is not None
+    )
+
+
+def _swizzle_block64_to_cuda_int4pack(
+    pb: torch.Tensor, sb: torch.Tensor, out_features: int, in_features: int, device: torch.device
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Converts canonical Block-64 symmetric INT4 to verified CUDA `sm_80+` `bfloat16` `int4pack` layout."""
+    mode = _probe_cuda_int4pack_abi(device)
+    if mode is None:
+        raise RuntimeError(f"CUDA _weight_int4pack_mm ABI unavailable on {device}")
+    pb_dev = pb.to(device, non_blocking=True) if pb.device != device else pb
+    sb_dev = sb.to(device, dtype=torch.bfloat16, non_blocking=True) if sb.device != device else sb.to(torch.bfloat16)
+    pb_2d = pb_dev.view(out_features, in_features // 2)
+    packed_in = _pack_block64_for_cuda_mode(pb_2d, mode)
+    b_int4 = torch._convert_weight_to_int4pack(packed_in, 8)
     scales_t = sb_dev.view(out_features, in_features // 64).transpose(0, 1).contiguous()
     sz_int4 = torch.stack((scales_t, torch.zeros_like(scales_t)), dim=-1).contiguous()
     return b_int4, sz_int4
@@ -125,12 +241,16 @@ class CanonicalMoSGroup:
         device: torch.device,
         dtype: torch.dtype,
         cache_mps_int4pack: bool = False,
+        cache_cuda_int4pack: bool = False,
+        cuda_backend: str = "auto",
     ) -> None:
         self.group_idx = group_idx
         self.shard_path = shard_path
         self.device = device
         self.dtype = dtype
         self.cache_mps_int4pack = cache_mps_int4pack
+        self.cache_cuda_int4pack = cache_cuda_int4pack
+        self.cuda_backend = cuda_backend
 
         lpg = int(manifest["layers_per_group"])
         self.start_layer = group_idx * lpg
@@ -177,6 +297,7 @@ class CanonicalMoSGroup:
         b_s = self.tensors[f"{pfx}.B_scar"]
         bi = self.tensors.get(f"{pfx}.bias")
         b_int4_key = f"{pfx}.B_int4"
+        b_int4_cuda_key = f"{pfx}.B_int4_cuda"
 
         if b_int4_key not in self.tensors and self.cache_mps_int4pack:
             pb_raw = self.tensors[f"{pfx}.packed_base"]
@@ -206,8 +327,59 @@ class CanonicalMoSGroup:
                 out_f = out_f + scar
             return out_f.clamp(-65000.0, 65000.0).to(x.dtype) if x.dtype == torch.float16 else out_f.to(x.dtype)
 
+        if b_int4_cuda_key not in self.tensors and self.cache_cuda_int4pack and f"{pfx}.packed_base" in self.tensors:
+            pb_raw = self.tensors[f"{pfx}.packed_base"]
+            if _can_use_cuda_int4pack(self.device, out_features, in_features, int(pb_raw.shape[0])):
+                sb_raw = self.tensors[f"{pfx}.scales_base"]
+                b_int4_c, sz_int4_c = _swizzle_block64_to_cuda_int4pack(
+                    pb_raw, sb_raw, out_features, in_features, self.device
+                )
+                self.tensors[b_int4_cuda_key] = b_int4_c
+                self.tensors[f"{pfx}.sz_int4_cuda"] = sz_int4_c
+                del self.tensors[f"{pfx}.packed_base"]
+                del self.tensors[f"{pfx}.scales_base"]
+                del pb_raw, sb_raw
+
+        if b_int4_cuda_key in self.tensors:
+            b_int4_c = self.tensors[b_int4_cuda_key]
+            sz_int4_c = self.tensors[f"{pfx}.sz_int4_cuda"]
+            orig_lead = x.shape[:-1]
+            xf_2d = x.reshape(-1, in_features).float()
+            sc = (xf_2d.abs().amax(dim=-1, keepdim=True) / 512.0).clamp(min=1e-4)
+            x_scaled = (xf_2d / sc).to(torch.bfloat16).contiguous()
+            out_f = (torch._weight_int4pack_mm(x_scaled, b_int4_c, 64, sz_int4_c).float() * sc).view(
+                *orig_lead, out_features
+            )
+            if bi is not None:
+                out_f = out_f + bi.float()
+            if a_s.numel() > 0:
+                scar = F.linear(F.linear(x.float(), a_s.float()), b_s.float())
+                out_f = out_f + scar
+            return out_f.clamp(-65000.0, 65000.0).to(x.dtype) if x.dtype == torch.float16 else out_f.to(x.dtype)
+
         pb = self.tensors[f"{pfx}.packed_base"]
         sb = self.tensors[f"{pfx}.scales_base"]
+
+        # Fused Triton Block-64 W4A16 + ASVD Scar Epilogue (zero swizzle, works in --streaming & --resident on sm_75+)
+        if (
+            self.device.type == "cuda"
+            and self.cuda_backend in ("auto", "triton")
+            and can_use_triton_int4_mos(self.device, out_features, in_features, int(pb.shape[0]))
+        ):
+            try:
+                return triton_fused_int4_mos_linear(
+                    x=x,
+                    packed_base=pb,
+                    scales_base=sb,
+                    out_features=out_features,
+                    in_features=in_features,
+                    A_scar=a_s,
+                    B_scar=b_s,
+                    bias=bi,
+                )
+            except Exception:
+                pass
+
         w_base = dequantize_int4_coalesced(pb, sb, (out_features, in_features), self.dtype)
         out = safe_gemm(x, w_base, bi)
         del w_base
@@ -322,7 +494,13 @@ class CanonicalMoSEngine:
 
         self.peak_active_device_mib: float = 0.0
         self.post_unload_device_mib: float = 0.0
+        cuda_backend = os.environ.get("MOS_CUDA_BACKEND", "auto").strip().lower()
         use_fused_mps_int4 = (self.device.type == "mps") and (not self.streaming)
+        use_fused_cuda_int4pack = (
+            self.device.type == "cuda"
+            and (not self.streaming)
+            and (cuda_backend == "int4pack" or (cuda_backend == "auto" and not HAS_TRITON))
+        )
 
         self.groups = [
             CanonicalMoSGroup(
@@ -332,6 +510,8 @@ class CanonicalMoSEngine:
                 self.device,
                 self.dtype,
                 cache_mps_int4pack=use_fused_mps_int4,
+                cache_cuda_int4pack=use_fused_cuda_int4pack,
+                cuda_backend=cuda_backend,
             )
             for g in range(self.n_groups)
         ]

@@ -20,6 +20,11 @@ from scar_cache.projections import (
     project_conflicting_gradient,
     project_conflicting_gradients_per_slot,
 )
+from scar_cache.triton_mos_gemm import (
+    fused_int4_mos_linear,
+    fused_mos_linear,
+    triton_fused_int4_mos_linear,
+)
 
 __version__ = "1.2.0"
 
@@ -39,6 +44,9 @@ __all__ = [
     "CanonicalMoSGroup",
     "NativeMoS70B",
     "stream_convert_qwen72b",
+    "fused_mos_linear",
+    "fused_int4_mos_linear",
+    "triton_fused_int4_mos_linear",
     "project_conflicting_gradient",
     "project_conflicting_gradients_per_slot",
     "delta_rule_update",
