@@ -361,8 +361,11 @@ def audit_latex_and_pack(zip_out: Path):
     assert not stack, f"Unclosed envs: {stack}"
 
     bib_keys = set(re.findall(r"@\w+\{([^,\s]+),", bib))
+    bbl = (LATEX_DIR / "main.bbl").read_text(encoding="utf-8")
+    bbl_keys = set(re.findall(r"\\bibitem(?:\[[^\]]*\])?\{([^}]+)\}", bbl))
     cited = {k.strip() for m in re.finditer(r"\\cite\w*\{([^}]+)\}", clean_tex) for k in m.group(1).split(",")}
-    assert not (cited - bib_keys), f"Missing cites: {cited - bib_keys}"
+    assert not (cited - bib_keys), f"Missing cites in .bib: {cited - bib_keys}"
+    assert not (cited - bbl_keys), f"Missing cites in .bbl (arXiv required): {cited - bbl_keys}"
 
     labels = set(re.findall(r"\\label\{([^}]+)\}", clean_tex))
     refs = set(re.findall(r"\\ref\{([^}]+)\}", clean_tex))
@@ -372,7 +375,12 @@ def audit_latex_and_pack(zip_out: Path):
         for p in sorted(LATEX_DIR.rglob("*")):
             if p.is_file() and not p.name.startswith(".") and p.suffix != ".png":
                 zf.write(p, arcname=str(p.relative_to(LATEX_DIR)))
-    print(f"[LATEX v1.3 AUDIT PASS] {len(cited)}/{len(bib_keys)} cites | {len(labels)} labels | {zip_out.name} ({zip_out.stat().st_size} B)")
+
+    arxiv_clean_zip = OUT_DIR / "arXiv_Direct_Upload_v1.3.zip"
+    with zipfile.ZipFile(arxiv_clean_zip, "w", compression=zipfile.ZIP_DEFLATED) as azf:
+        for rel_name in ("main.tex", "main.bbl", "figures/fig1_mos_scache_audit.pdf"):
+            azf.write(LATEX_DIR / rel_name, arcname=rel_name)
+    print(f"[LATEX v1.3 AUDIT PASS] {len(cited)}/{len(bbl_keys)} bbl cites | {len(labels)} labels | {arxiv_clean_zip.name} ({arxiv_clean_zip.stat().st_size} B)")
 
 
 def build_replication_zip_v1_3(zip_path: Path):

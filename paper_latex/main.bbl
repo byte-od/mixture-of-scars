@@ -1,0 +1,81 @@
+\begin{thebibliography}{14}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Dettmers et~al.(2022)Dettmers, Lewis, Belkada, and Zettlemoyer]{dettmers2022llmint8}
+Tim Dettmers, Mike Lewis, Younes Belkada, and Luke Zettlemoyer.
+\newblock {LLM.int8()}: 8-bit matrix multiplication for transformers at scale.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~35, pages 30318--30332, 2022.
+
+\bibitem[Dettmers et~al.(2023)Dettmers, Pagnoni, Holtzman, and Zettlemoyer]{dettmers2023qlora}
+Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and Luke Zettlemoyer.
+\newblock {QLoRA}: Efficient finetuning of quantized {LLMs}.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~36, 2023.
+
+\bibitem[Li et~al.(2024)Li, Yu, Liang, He, Karampatziakis, Chen, and Zhao]{li2024loftq}
+Yixiao Li, Yifan Yu, Chen Liang, Pengcheng He, Nikos Karampatziakis, Weizhu Chen, and Tuo Zhao.
+\newblock {LoftQ}: {LoRA}-fine-tuning-aware quantization for large language models.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2024.
+
+\bibitem[Lin et~al.(2024)Lin, Tang, Tang, Yang, Chen, Wang, Xiao, Dang, Gan, and Han]{lin2024awq}
+Ji~Lin, Jiaming Tang, Haotian Tang, Shang Yang, Wei-Ming Chen, Wei-Chen Wang, Guangxuan Xiao, Xingyu Dang, Chuang Gan, and Song Han.
+\newblock {AWQ}: Activation-aware weight quantization for on-device {LLM} compression and acceleration.
+\newblock In \emph{Proceedings of Machine Learning and Systems (MLSys)}, volume~6, 2024.
+
+\bibitem[Reis~Filho(2026{\natexlab{a}})]{reisfilho2026mos_zenodo}
+Julio~Cesar Reis~Filho.
+\newblock Mixture of scars ({MoS}) and {SCache} $\mathcal{O}(1)$: Breaking the dual memory wall across $0.5\text{B} \to 7.62\text{B} \to 72.71\text{B}$ transformers via fused activation-aware scar experts and $32\text{k}$ {Widrow-Hoff} associative memory (v1.3.0).
+\newblock \emph{Zenodo Preprint}, 2026{\natexlab{a}}.
+\newblock \doi{10.5281/zenodo.24172784}.
+\newblock URL \href{https://doi.org/10.5281/zenodo.24172784}{\texttt{https://doi.org/10.5281/zenodo.24172784}}.
+
+\bibitem[Reis~Filho(2026{\natexlab{b}})]{reisfilho2026qwen72b_mos_v2}
+Julio~Cesar Reis~Filho.
+\newblock {Qwen2.5-72B-Instruct MoS v2} ($72.71\text{B}$, $38.12$~{GiB} canonical \texttt{INT4+ASVD} shards) and official practical local deployment guide.
+\newblock Public SHA-256 Verified Checkpoint Release (\texttt{mos-run --download}) and Step-by-Step Practical Guide (\texttt{docs/GUIA\_PRATICO\_MOS\_SCACHE\_72B.md}), 2026{\natexlab{b}}.
+\newblock URL \href{https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos}{\texttt{https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos}}.
+
+\bibitem[Schlag et~al.(2021)Schlag, Irie, and Schmidhuber]{schlag2021linear}
+Imanol Schlag, Kazuki Irie, and J{\"u}rgen Schmidhuber.
+\newblock Linear transformers are secretly fast weight programmers.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, pages 9355--9366, 2021.
+
+\bibitem[Schmidhuber(1992)]{schmidhuber1992learning}
+J{\"u}rgen Schmidhuber.
+\newblock Learning to control fast-weight memories: An alternative to dynamic recurrent networks.
+\newblock \emph{Neural Computation}, 4\penalty0 (1):\penalty0 131--139, 1992.
+
+\bibitem[Vaswani et~al.(2017)Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser, and Polosukhin]{vaswani2017attention}
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan~N. Gomez, {\L}ukasz Kaiser, and Illia Polosukhin.
+\newblock Attention is all you need.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~30, 2017.
+
+\bibitem[Widrow and Hoff(1960)]{widrow1960adaptive}
+Bernard Widrow and Marcian~E. Hoff.
+\newblock Adaptive switching circuits.
+\newblock In \emph{IRE WESCON Convention Record}, volume~4, pages 96--104, 1960.
+
+\bibitem[Xiao et~al.(2024)Xiao, Tian, Chen, Han, and Lewis]{xiao2024efficient}
+Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, and Mike Lewis.
+\newblock Efficient streaming language models with attention sinks.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2024.
+
+\bibitem[Yang et~al.(2024)Yang, Wang, Zhang, Shen, and Kim]{yang2024parallelizing}
+Songlin Yang, Bailin Wang, Yikang Zhang, Yikang Shen, and Yoon Kim.
+\newblock Parallelizing linear transformers with the delta rule over sequence length.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~37, 2024.
+
+\bibitem[Yuan et~al.(2023)Yuan, Shang, Song, Wu, Yan, and Sun]{yuan2023asvd}
+Zhihang Yuan, Yuzhang Shang, Yue Song, Qiang Wu, Yan Yan, and Guangyu Sun.
+\newblock {ASVD}: Activation-aware singular value decomposition for compressing large language models.
+\newblock \emph{arXiv preprint arXiv:2312.05821}, 2023.
+
+\bibitem[Zhang et~al.(2023)Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian, R{\'e}, Barrett, Wang, and Chen]{zhang2023h2o}
+Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai, Zhao Song, Yuandong Tian, Christopher R{\'e}, Clark Barrett, Zhangyang Wang, and Beidi Chen.
+\newblock {H2O}: Heavy-hitter oracle for efficient generative inference of large language models.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~36, 2023.
+
+\end{thebibliography}
