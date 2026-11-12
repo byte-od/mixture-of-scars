@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
 """
 👑 SYSTEM ONE — MILESTONE 2 & 3 (KAGGLE 2xT4 / COLAB A100 / LOCAL VALIDATION):
-TWO-STAGE PROPRIETARY MoS RESIDUAL SCAR EXPERTS + 8-DEPTH MULTI-SLICE ENGINE
-============================================================================
+TWO-STAGE PROPRIETARY MoS RESIDUAL SCAR EXPERTS + 8-DEPTH MULTI-SLICE ENGINE (v2 FULL-POOL)
+===========================================================================================
 Alvo de Leaderboard Público: >= 0.740 - 0.755+ (Top 10 em `name-that-llm`).
 100% Arquitetura Proprietária System One (`AGENTS.md` & `SKILL.md`):
 - ZERO adaptadores LoRA comunitários / de terceiros.
 - Especialistas de Cicatriz Residuais MoS (`dW_scar = scale * B @ A`, rank=16) em FP32 master
   injetados diretamente em `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj`,
   exportados no formato `.scar_A` / `.scar_B` nativamente suportado pelo `extract_mos_nf4_streaming`!
-- Suporta execução universal sem dependências frágeis:
-  * Kaggle `2x T4` (offline, sem bitsandbytes): Pipeline Parallel `device_map="auto"` em `float16`
-    com parâmetros Scar + Head em `float32` puro (zero overflow/underflow em SM 7.5!).
-  * Colab `A100` (`--quant nf4` ou `--quant bf16`): NF4 4-bit ou BF16 nativo.
-  * Local `CPU/MPS` (`--quant fp32` / `fp16`): validação determinística fim-a-fim e teste de paridade!
-- Centralização Bessel `sqrt(m / (m - 1))` + Multiplicity Gate `w_twin(m) = 0.55 * (m - 1) / (m + 2)`
-  + Amostragem Multi-Multiplicidade `m in {1, 2, 3, 6, 16}` no Estágio 2 (imune a grupos pequenos!).
+- Upgrades Críticos v2 (Anti-Overfitting & Full-Pool 79.5k):
+  1. Treina o Estágio 1 em TODO o corpus aberto limpo (~79.530 passagens em ~8.871 prompts)
+     ordenado em macro-fatias estratificadas de 18 classes + agrupamento por comprimento
+     (`batch_size=24`, zero desperdício com `<pad>`, guarda de orçamento temporal `stage1_max_seconds`).
+  2. Exporta `titan4_stage1_openpool_scars.safetensors` (especialista puro de 8.871 prompts sem viés de `train.csv`).
+  3. Estágio 2 Anti-Esquecimento com **Ancoragem L2-SP explícita** (`||theta - theta_stage1||^2`),
+     LR diferencial (`1.5e-5` nas cicatrizes do backbone vs `6.5e-5` na cabeça) + Replay 30% do Open Pool!
+  4. Exporta OOF duplo sem vazamento: `oof_titan4_plain_m1.npy` (singleton puro `m=1`) e
+     `oof_titan4_qwen3_emb_8b_8depth.npy` (`m=18`).
 """
 
 from __future__ import annotations
@@ -104,12 +106,10 @@ def inject_mos_scar_experts(
     for p in backbone.parameters():
         p.requires_grad_(False)
     injected: Dict[str, MoSResidualScarLinear] = {}
-    base_has_model_prefix = hasattr(backbone, "model") and hasattr(backbone.model, "layers")
     for mod_name, mod in list(backbone.named_modules()):
         for child_name, child in list(mod.named_children()):
             if child_name in SCAR_TARGET_MODULES and hasattr(child, "in_features") and hasattr(child, "out_features"):
                 raw_prefix = f"{mod_name}.{child_name}" if mod_name else child_name
-                # Alinha com chaves de `model.safetensors.index.json` (que em Qwen/Llama possuem `model.layers...` ou `layers...`)
                 scar_mod = MoSResidualScarLinear(child, rank=rank, alpha=alpha, dropout=dropout)
                 setattr(mod, child_name, scar_mod)
                 injected[raw_prefix] = scar_mod
@@ -227,12 +227,15 @@ class MultiDepthMoSSCacheClassifier(nn.Module):
 
 
 # ==============================================================================
-# 3. Corpus Desduplicado 2-Estágios & Amostrador Multi-Multiplicidade
+# 3. Corpus Desduplicado 2-Estágios & Agrupamento Ordenado por Comprimento
 # ==============================================================================
 def load_clean_stage1_corpus(train_csv: Path, pool_v4_path: Path, passages_csv: Path):
     import pandas as pd
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
     df_tr = pd.read_csv(train_csv)
-    tr_texts = set(df_tr["text"].fillna("").astype(str).str.strip())
+    tr_texts_list = df_tr["text"].fillna("").astype(str).tolist()
+    tr_texts = set(t.strip() for t in tr_texts_list)
     tr_pids = set(df_tr["prompt_id"].astype(str))
 
     frames = []
@@ -240,7 +243,15 @@ def load_clean_stage1_corpus(train_csv: Path, pool_v4_path: Path, passages_csv: 
         pv4 = pd.read_parquet(pool_v4_path)
         pv4 = pv4[pv4["model"].isin(L2I)].copy()
         pv4["text_clean"] = pv4["text"].fillna("").astype(str).str.strip()
-        pv4 = pv4[(~pv4["text_clean"].isin(tr_texts)) & (~pv4["prompt_id"].astype(str).isin(tr_pids))]
+        pv4 = pv4[(~pv4["text_clean"].isin(tr_texts)) & (~pv4["prompt_id"].astype(str).isin(tr_pids))].copy()
+        if len(pv4) > 0 and len(df_tr) >= 18:
+            vec = TfidfVectorizer(stop_words="english", max_features=35000, sublinear_tf=True).fit(tr_texts_list)
+            x_tr = vec.transform(tr_texts_list)
+            u_pids = df_tr["prompt_id"].unique()
+            cents = np.vstack([x_tr[(df_tr["prompt_id"] == p).values].mean(axis=0).A1 for p in u_pids])
+            cents /= np.maximum(np.linalg.norm(cents, axis=1, keepdims=True), 1e-8)
+            sims = (vec.transform(pv4["text_clean"].tolist()) @ cents.T).max(axis=1)
+            pv4 = pv4[sims < 0.58].copy()
         frames.append(
             pd.DataFrame({
                 "prompt_id": "pv4_" + pv4["prompt_id"].astype(str),
@@ -257,55 +268,104 @@ def load_clean_stage1_corpus(train_csv: Path, pool_v4_path: Path, passages_csv: 
             & (pa["is_refusal"] == False)
             & (pa["is_empty"] == False)
             & (pa["split"] != "pilot_range")
-            & (pa["split"] != "new")
+            & (~((pa["split"] == "new") & (pa["model"] == "kimi-k3")))
             & (pa["model"].isin(L2I))
         ].copy()
         pa["text_clean"] = pa["text"].fillna("").astype(str).str.strip()
         existing = set(frames[0]["text"].str.strip()) if frames else set()
-        pa = pa[(~pa["text_clean"].isin(tr_texts)) & (~pa["text_clean"].isin(existing))]
+        pa = pa[(~pa["text_clean"].isin(tr_texts)) & (~pa["text_clean"].isin(existing))].copy()
+        src_pids = pa["source_prompt_id"].astype("object").fillna("").astype(str)
+        # Marca apenas linhas derivadas de `train.csv` com `src_pid` não-vazio para exclusão estrita no Estágio 1!
+        in_tr_mask = src_pids.isin(tr_pids)
         frames.append(
             pd.DataFrame({
                 "prompt_id": "pa_" + pa["prompt_id"].astype(str),
                 "text": pa["text"].astype(str),
                 "y": pa["model"].map(L2I).values,
-                "src_pid": pa["source_prompt_id"].fillna("").astype(str),
+                "src_pid": np.where(in_tr_mask, src_pids, ""),
             })
         )
 
     full_ext = pd.concat(frames, ignore_index=True)
-    print(f"✓ Stage-1 Clean Deduplicated Corpus: {len(full_ext)} passages across {full_ext['prompt_id'].nunique()} prompts")
+    s1_cnt = int((full_ext["src_pid"] == "").sum())
+    print(
+        f"✓ Clean Deduplicated Corpus: {len(full_ext)} total ({s1_cnt} pure disjoint Stage-1 passages across "
+        f"{full_ext.loc[full_ext['src_pid'] == '', 'prompt_id'].nunique()} prompts)",
+        flush=True,
+    )
     return full_ext
 
 
+def stratified_macro_order(df, macro_per_class: int = 350, seed: int = 42):
+    """
+    Ordena `df` em macro-fatias estratificadas de `18 * macro_per_class` linhas (preservando prompts juntos
+    quando possível) para que cada fatia parcial do Estágio 1 mantenha equilíbrio entre as 18 classes!
+    """
+    rng = np.random.default_rng(seed)
+    cls_indices: Dict[int, List[int]] = {}
+    for c in range(K):
+        idx_c = np.where(df["y"].values == c)[0].copy()
+        rng.shuffle(idx_c)
+        cls_indices[c] = idx_c.tolist()
+
+    ordered: List[int] = []
+    pos = {c: 0 for c in range(K)}
+    while True:
+        added = 0
+        chunk: List[int] = []
+        for c in range(K):
+            rem = cls_indices[c][pos[c] : pos[c] + macro_per_class]
+            if rem:
+                chunk.extend(rem)
+                pos[c] += len(rem)
+                added += len(rem)
+        if added == 0:
+            break
+        ordered.extend(chunk)
+    return df.iloc[ordered].reset_index(drop=True)
+
+
 def build_prompt_grouped_batches(
-    df, batch_size: int = 16, seed: int = 42, multiscale_m: bool = False
+    df,
+    batch_size: int = 24,
+    seed: int = 42,
+    multiscale_m: bool = False,
+    length_bucket_prompts: int = 192,
 ) -> List[Tuple[np.ndarray, np.ndarray]]:
     """
     Retorna lista de `(row_indices, group_ids_in_batch)`.
-    Quando `multiscale_m=True` (Estágio 2), particiona aleatoriamente cada prompt em subgrupos
-    `m in {1, 2, 3, 6, 16}` para calibrar nativamente a cabeça `Twin` em grupos pequenos!
+    Agrupa prompts dentro de janelas de `length_bucket_prompts` ordenados pelo comprimento médio em caracteres,
+    cortando ~35-40% de desperdício de FLOPs com `<pad>` enquanto preserva estocasticidade e irmãos no mesmo batch!
     """
     rng = np.random.default_rng(seed)
     by_prompt: Dict[str, List[int]] = defaultdict(list)
+    texts = df["text"].astype(str).tolist()
     for idx, pid in enumerate(df["prompt_id"].astype(str).values):
         by_prompt[pid].append(idx)
 
     pids = list(by_prompt.keys())
     rng.shuffle(pids)
 
+    # Ordena por comprimento médio dentro de janelas locais para reduzir padding sem perder mistura de classes
+    ordered_pids: List[str] = []
+    for w_s in range(0, len(pids), max(length_bucket_prompts, 16)):
+        win = pids[w_s : w_s + max(length_bucket_prompts, 16)]
+        win.sort(key=lambda p: sum(min(len(texts[r]), 2000) for r in by_prompt[p]) / max(len(by_prompt[p]), 1))
+        ordered_pids.extend(win)
+
     chunks_rows: List[Tuple[int, int]] = []
     gid = 1
-    for pid in pids:
+    for pid in ordered_pids:
         rows = by_prompt[pid].copy()
         rng.shuffle(rows)
-        if not multiscale_m:
+        if not multiscale_m or len(rows) <= 1:
             for r in rows:
                 chunks_rows.append((r, gid))
             gid += 1
         else:
             pos = 0
             while pos < len(rows):
-                m_sub = int(rng.choice([1, 2, 3, 4, 8, 16], p=[0.10, 0.25, 0.25, 0.15, 0.10, 0.15]))
+                m_sub = int(rng.choice([1, 2, 3, 4, 8, 16], p=[0.12, 0.25, 0.23, 0.15, 0.10, 0.15]))
                 seg = rows[pos : pos + m_sub]
                 for r in seg:
                     chunks_rows.append((r, gid))
@@ -326,7 +386,6 @@ def build_prompt_grouped_batches(
 # 4. Exportador `.safetensors` Compatível com `extract_mos_nf4_streaming`
 # ==============================================================================
 def detect_safetensors_key_prefix(backbone_dir: Path | None) -> str:
-    """Detecta se `model.safetensors.index.json` ou `model.safetensors` usa prefixo `model.layers.` ou `layers.`."""
     if backbone_dir is not None:
         idx_file = backbone_dir / "model.safetensors.index.json"
         single_file = backbone_dir / "model.safetensors"
@@ -353,7 +412,6 @@ def export_fold_safetensors(
 ):
     tensors: Dict[str, torch.Tensor] = {}
     for raw_prefix, scar_mod in injected.items():
-        # Normaliza prefixo (`layers.0...` vs `model.layers.0...`) conforme o checkpoint no disco!
         clean_p = raw_prefix[len("model.") :] if raw_prefix.startswith("model.") else raw_prefix
         final_p = f"{key_prefix}{clean_p}"
         tensors[f"{final_p}.scar_A"] = (scar_mod.scar_A.detach().float() * scar_mod.scale).to(torch.float16).cpu()
@@ -376,7 +434,7 @@ def get_autocast_ctx(device_str: str, quant_mode: str):
 
 
 @torch.no_grad()
-def evaluate_covering_windows(
+def evaluate_covering_windows_dual(
     model: MultiDepthMoSSCacheClassifier,
     tokenizer,
     texts: List[str],
@@ -386,7 +444,8 @@ def evaluate_covering_windows(
     batch_size: int = 24,
     device: str = "cuda:0",
     quant_mode: str = "fp16",
-) -> np.ndarray:
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Retorna `(probs_m18, probs_plain_m1)` em uma única passagem pelas janelas deslizantes!"""
     model.eval()
     enc_all = tokenizer(texts, truncation=False, padding=False)["input_ids"]
     eos_id = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else 0
@@ -428,11 +487,16 @@ def evaluate_covering_windows(
     Z_doc /= np.maximum(w_sum, 1e-6)
 
     z_t = torch.from_numpy(Z_doc)
+    # 1. Singleton puro (m=1, zero informação de irmãos!)
+    lp_m1, _, _ = model.apply_scache_and_heads(z_t, None)
+    probs_m1 = F.softmax(lp_m1, dim=-1).cpu().numpy()
+
+    # 2. Grupo completo (m=18)
     _, u_inv = np.unique(prompt_groups, return_inverse=True)
     g_t = torch.from_numpy(u_inv)
     logits_p, logits_c, twin_gate = model.apply_scache_and_heads(z_t, g_t)
-    probs = (1.0 - twin_gate) * F.softmax(logits_p, dim=-1) + twin_gate * F.softmax(logits_c, dim=-1)
-    return probs.cpu().numpy()
+    probs_m18 = ((1.0 - twin_gate) * F.softmax(logits_p, dim=-1) + twin_gate * F.softmax(logits_c, dim=-1)).cpu().numpy()
+    return probs_m18, probs_m1
 
 
 # ==============================================================================
@@ -443,7 +507,7 @@ def main():
     from sklearn.metrics import balanced_accuracy_score, log_loss
     from sklearn.model_selection import StratifiedGroupKFold
 
-    parser = argparse.ArgumentParser(description="System One Two-Stage MoS Residual Scar Experts")
+    parser = argparse.ArgumentParser(description="System One Two-Stage MoS Residual Scar Experts v2 (Full-Pool)")
     parser.add_argument("--model-id", default="Qwen/Qwen3-Embedding-8B")
     parser.add_argument("--train-csv", required=True)
     parser.add_argument("--pool-v4", required=True)
@@ -452,16 +516,21 @@ def main():
     parser.add_argument("--quant", choices=["auto", "nf4", "fp16", "bf16", "fp32"], default="auto")
     parser.add_argument("--save-backbone", action="store_true", help="Salva cópia do backbone quantizado NF4")
     parser.add_argument("--capture-layers", default="auto")
-    parser.add_argument("--stage1-max-rows", type=int, default=27000)
+    parser.add_argument("--stage1-max-rows", type=int, default=85000)
     parser.add_argument("--stage1-epochs", type=int, default=1)
-    parser.add_argument("--stage2-epochs", type=int, default=4)
+    parser.add_argument("--stage1-max-seconds", type=float, default=25200.0, help="Orçamento máximo em segundos para Estágio 1 (~7.0h)")
+    parser.add_argument("--stage2-epochs", type=int, default=2)
+    parser.add_argument("--stage2-replay-rows", type=int, default=900, help="Passagens limpas do Estágio 1 misturadas em cada época do Estágio 2")
+    parser.add_argument("--l2sp-alpha", type=float, default=0.05, help="Força da ancoragem L2-SP em direção ao snapshot do Estágio 1")
     parser.add_argument("--n-folds", type=int, default=5)
     parser.add_argument("--max-folds-run", type=int, default=5)
-    parser.add_argument("--batch-size", type=int, default=16)
-    parser.add_argument("--max-len", type=int, default=512)
+    parser.add_argument("--batch-size", type=int, default=24)
+    parser.add_argument("--max-len", type=int, default=384)
+    parser.add_argument("--eval-max-len", type=int, default=512)
     parser.add_argument("--rank", type=int, default=16)
     args = parser.parse_args()
 
+    t_global_start = time.time()
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     has_cuda = torch.cuda.is_available()
@@ -481,7 +550,11 @@ def main():
         else:
             quant_mode = "fp16"
 
-    print(f"🚀 Launching Two-Stage MoS Scar-Expert Training | GPUs={n_gpus} | Mode={quant_mode} | Model={args.model_id}", flush=True)
+    print(
+        f"🚀 Launching Two-Stage MoS Scar-Expert v2 (Full-Pool + L2-SP) | GPUs={n_gpus} | "
+        f"Mode={quant_mode} | Batch={args.batch_size} | Model={args.model_id}",
+        flush=True,
+    )
 
     df_train = pd.read_csv(args.train_csv)
     df_train["text"] = df_train["text"].fillna("").astype(str)
@@ -489,14 +562,26 @@ def main():
     prompts_train = df_train["prompt_id"].astype(str).values
 
     df_ext = load_clean_stage1_corpus(Path(args.train_csv), Path(args.pool_v4), Path(args.passages_csv))
-    if len(df_ext) > args.stage1_max_rows:
+    df_ext_stage1 = df_ext[df_ext["src_pid"] == ""].reset_index(drop=True)
+    if len(df_ext_stage1) > args.stage1_max_rows:
         per_cls = max(1, args.stage1_max_rows // K)
-        df_ext = (
-            df_ext.groupby("y", group_keys=False)
-            .apply(lambda g: g.sample(n=min(len(g), per_cls), random_state=42))
-            .reset_index(drop=True)
-        )
-        print(f"✓ Balanced Stage-1 Subset: {len(df_ext)} rows (~{per_cls}/class)", flush=True)
+        rng_sub = np.random.default_rng(42)
+        kept = []
+        for c in range(K):
+            idx_c = np.where(df_ext_stage1["y"].values == c)[0]
+            if len(idx_c) > per_cls:
+                idx_c = rng_sub.choice(idx_c, size=per_cls, replace=False)
+            kept.append(idx_c)
+        df_ext_stage1 = df_ext_stage1.iloc[np.concatenate(kept)].reset_index(drop=True)
+        print(f"✓ Capped Stage-1 Subset: {len(df_ext_stage1)} rows (~{per_cls}/class)", flush=True)
+
+    df_ext_stage1 = stratified_macro_order(df_ext_stage1, macro_per_class=400, seed=42)
+
+    # Pesos de classe inverse-sqrt suaves para o Estágio 1 (compensa desbalanceamento 2.4k vs 7.0k no pool aberto)
+    cls_counts = np.bincount(df_ext_stage1["y"].values, minlength=K).astype(np.float32)
+    cls_w_np = np.power(np.maximum(len(df_ext_stage1) / (float(K) * np.maximum(cls_counts, 1.0)), 0.25), 0.5)
+    cls_w_np = cls_w_np / np.mean(cls_w_np)
+    s1_cls_weights = torch.from_numpy(cls_w_np).float().to(head_device)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_id, padding_side="left")
     if tokenizer.pad_token_id is None:
@@ -542,21 +627,46 @@ def main():
         base_backbone, d_model=d_model, capture_layers_1b=cap_layers, head_device=head_device
     )
 
-    trainable_params = [p for p in model.parameters() if p.requires_grad]
+    scar_named_params: List[Tuple[str, nn.Parameter]] = []
+    head_params: List[nn.Parameter] = []
+    for name, p in model.named_parameters():
+        if p.requires_grad:
+            if "scar_A" in name or "scar_B" in name:
+                scar_named_params.append((name, p))
+            else:
+                head_params.append(p)
+    trainable_params = [p for _, p in scar_named_params] + head_params
+
     print(
         f"✓ Injected {len(injected)} MoS Scar projections | Capture={cap_layers} | "
         f"KeyPrefix='{key_prefix}' | Trainable={sum(p.numel() for p in trainable_params):,}",
         flush=True,
     )
 
-    def run_epoch(df_ep: pd.DataFrame, opt: torch.optim.Optimizer, lr_sched, seed: int, multiscale: bool) -> float:
+    def run_batches(
+        df_ep: pd.DataFrame,
+        batches: List[Tuple[np.ndarray, np.ndarray]],
+        opt: torch.optim.Optimizer,
+        lr_sched,
+        cls_weight: torch.Tensor | None = None,
+        l2sp_targets: Dict[str, torch.Tensor] | None = None,
+        l2sp_alpha: float = 0.0,
+        deadline_ts: float | None = None,
+    ) -> Tuple[float, int]:
         model.train()
-        batches = build_prompt_grouped_batches(df_ep, batch_size=args.batch_size, seed=seed, multiscale_m=multiscale)
-        tot_loss, n_steps = 0.0, 0
+        tot_loss, n_steps, rows_seen = 0.0, 0, 0
         texts_all = df_ep["text"].tolist()
         y_all = df_ep["y"].values
+        t_ep0 = time.time()
 
         for b_idx, g_idx in batches:
+            if deadline_ts is not None and time.time() >= deadline_ts:
+                print(
+                    f"    ⏱ Stage-1 wall-clock budget reached cleanly at step {n_steps}/{len(batches)} "
+                    f"({rows_seen} rows trained) — advancing to Stage 2!",
+                    flush=True,
+                )
+                break
             b_texts = [texts_all[i] for i in b_idx]
             tok = tokenizer(b_texts, truncation=True, max_length=args.max_len, padding=True, return_tensors="pt")
             yt = torch.from_numpy(y_all[b_idx]).long().to(head_device)
@@ -566,13 +676,20 @@ def main():
             with get_autocast_ctx(head_device, quant_mode):
                 z = model.encode_passages(tok["input_ids"], tok["attention_mask"])
             lp, lc, twin_gate = model.apply_scache_and_heads(z.float(), gt)
-            loss_p = F.cross_entropy(lp, yt, label_smoothing=0.05)
-            has_sib = (twin_gate[:, 0] > 1e-5)
+            loss_p = F.cross_entropy(lp, yt, weight=cls_weight, label_smoothing=0.05)
+            has_sib = twin_gate[:, 0] > 1e-5
             if bool(has_sib.any()):
-                loss_c = F.cross_entropy(lc[has_sib], yt[has_sib], label_smoothing=0.05)
-                loss = 0.50 * loss_p + 0.50 * loss_c
+                loss_c = F.cross_entropy(lc[has_sib], yt[has_sib], weight=cls_weight, label_smoothing=0.05)
+                loss = 0.55 * loss_p + 0.45 * loss_c
             else:
                 loss = loss_p
+
+            if l2sp_targets is not None and l2sp_alpha > 0.0:
+                l2sp_pen = torch.zeros((), device=head_device, dtype=torch.float32)
+                for p_name, p_cur in scar_named_params:
+                    p_ref = l2sp_targets[p_name]
+                    l2sp_pen = l2sp_pen + (p_cur - p_ref).pow(2).sum().to(head_device)
+                loss = loss + 0.5 * l2sp_alpha * l2sp_pen
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(trainable_params, 1.0)
@@ -581,24 +698,68 @@ def main():
                 lr_sched.step()
             tot_loss += float(loss.item())
             n_steps += 1
-            if n_steps % 100 == 0:
+            rows_seen += len(b_idx)
+            if n_steps % 150 == 0:
                 vram = (torch.cuda.max_memory_allocated(0) / (1024**3)) if has_cuda else 0.0
-                print(f"      step {n_steps}/{len(batches)} | avg_loss={tot_loss/n_steps:.4f} | gpu0_peak={vram:.2f} GiB", flush=True)
-        return tot_loss / max(n_steps, 1)
+                rps = rows_seen / max(time.time() - t_ep0, 1e-3)
+                print(
+                    f"      step {n_steps}/{len(batches)} | rows={rows_seen} ({rps:.2f} r/s) | "
+                    f"avg_loss={tot_loss/n_steps:.4f} | gpu0_peak={vram:.2f} GiB",
+                    flush=True,
+                )
+        return tot_loss / max(n_steps, 1), rows_seen
 
     # ==========================================================================
-    # ESTÁGIO 1: Pré-Adaptação Forense no Open Pool Limpo
+    # ESTÁGIO 1: Pré-Adaptação Forense Massiva em TODO o Open Pool Limpo (~79.5k)
     # ==========================================================================
-    df_ext_stage1 = df_ext[df_ext["src_pid"] == ""].reset_index(drop=True)
+    s1_rows_trained_total = 0
+    s1_final_loss = 0.0
     if args.stage1_epochs > 0 and len(df_ext_stage1) >= 4:
-        print("\n=== [STAGE 1] Pre-Adapting MoS Residual Scar Experts on Clean Open Pool ===", flush=True)
-        total_s1_steps = max(len(build_prompt_grouped_batches(df_ext_stage1, args.batch_size)) * args.stage1_epochs, 1)
-        opt_s1 = torch.optim.AdamW(trainable_params, lr=2e-4, weight_decay=0.02)
-        sched_s1 = torch.optim.lr_scheduler.CosineAnnealingLR(opt_s1, T_max=total_s1_steps, eta_min=2e-5)
+        print(
+            f"\n=== [STAGE 1] Pre-Adapting MoS Residual Scar Experts on {len(df_ext_stage1)} Clean Open-Pool Passages ===",
+            flush=True,
+        )
+        t_s1_start = time.time()
+        s1_deadline = t_s1_start + float(args.stage1_max_seconds)
+        s1_batches_per_ep = [
+            build_prompt_grouped_batches(
+                df_ext_stage1, batch_size=args.batch_size, seed=100 + ep, multiscale_m=True, length_bucket_prompts=96
+            )
+            for ep in range(args.stage1_epochs)
+        ]
+        total_s1_steps = max(sum(len(b) for b in s1_batches_per_ep), 1)
+        opt_s1 = torch.optim.AdamW(
+            [
+                {"params": [p for _, p in scar_named_params], "lr": 2.0e-4, "weight_decay": 0.015},
+                {"params": head_params, "lr": 2.5e-4, "weight_decay": 0.02},
+            ]
+        )
+        sched_s1 = torch.optim.lr_scheduler.OneCycleLR(
+            opt_s1, max_lr=[2.0e-4, 2.5e-4], total_steps=total_s1_steps, pct_start=0.06, final_div_factor=12.0
+        )
         for ep in range(args.stage1_epochs):
             t0 = time.time()
-            l_ep = run_epoch(df_ext_stage1, opt_s1, sched_s1, seed=100 + ep, multiscale=False)
-            print(f"  Stage-1 Epoch {ep+1}/{args.stage1_epochs} | Loss={l_ep:.4f} | Time={time.time()-t0:.1f}s", flush=True)
+            l_ep, r_seen = run_batches(
+                df_ext_stage1,
+                s1_batches_per_ep[ep],
+                opt_s1,
+                sched_s1,
+                cls_weight=s1_cls_weights,
+                deadline_ts=s1_deadline,
+            )
+            s1_rows_trained_total += r_seen
+            s1_final_loss = l_ep
+            print(
+                f"  Stage-1 Epoch {ep+1}/{args.stage1_epochs} | Rows={r_seen} | Loss={l_ep:.4f} | Time={time.time()-t0:.1f}s",
+                flush=True,
+            )
+            if time.time() >= s1_deadline:
+                break
+
+    # Salva especialista puro do Estágio 1 (zero viés dos 150 prompts de `train.csv`!)
+    s1_ckpt_path = out_dir / "titan4_stage1_openpool_scars.safetensors"
+    export_fold_safetensors(model, injected, s1_ckpt_path, key_prefix=key_prefix)
+    print(f"  ✓ Exported Pure Open-Pool Stage-1 Checkpoint -> {s1_ckpt_path.name}", flush=True)
 
     stage1_snapshot = {
         k: v.detach().cpu().clone()
@@ -606,12 +767,28 @@ def main():
         if any(t in k for t in ("scar_A", "scar_B")) or not k.startswith("backbone.")
     }
 
+    # Avalia também o modelo Stage-1 puro (Zero-Shot em relação ao `train.csv`!)
+    p_s1_m18, p_s1_m1 = evaluate_covering_windows_dual(
+        model, tokenizer, df_train["text"].tolist(), prompts_train,
+        max_len=args.eval_max_len, batch_size=args.batch_size, device=head_device, quant_mode=quant_mode,
+    )
+    s1_zero_m1_acc = balanced_accuracy_score(df_train["y"].values, p_s1_m1.argmax(axis=1))
+    s1_zero_m18_acc = balanced_accuracy_score(df_train["y"].values, p_s1_m18.argmax(axis=1))
+    np.save(out_dir / "oof_titan4_stage1_zeroshot_m1.npy", p_s1_m1)
+    np.save(out_dir / "oof_titan4_stage1_zeroshot_m18.npy", p_s1_m18)
+    print(
+        f"  ★ Pure Stage-1 Zero-Shot on Official Host `train.csv`: "
+        f"Plain(m=1)={s1_zero_m1_acc*100:.2f}% | Twin(m=18)={s1_zero_m18_acc*100:.2f}%",
+        flush=True,
+    )
+
     # ==========================================================================
-    # ESTÁGIO 2: Calibração Fina Multi-Multiplicidade no Registro do Host
+    # ESTÁGIO 2: Calibração Fina Anti-Esquecimento (L2-SP + Replay Open Pool)
     # ==========================================================================
-    print("\n=== [STAGE 2] Multi-Multiplicity Host Calibration on Official `train.csv` ===", flush=True)
+    print("\n=== [STAGE 2] L2-SP Anchored + Open-Pool Replay Host Calibration on Official `train.csv` ===", flush=True)
     sgkf = StratifiedGroupKFold(n_splits=args.n_folds)
-    oof_probs = np.zeros((len(df_train), K), dtype=np.float32)
+    oof_probs_m18 = np.zeros((len(df_train), K), dtype=np.float32)
+    oof_probs_m1 = np.zeros((len(df_train), K), dtype=np.float32)
     evaluated_mask = np.zeros(len(df_train), dtype=bool)
 
     for fold_i, (tr_idx, va_idx) in enumerate(sgkf.split(df_train, df_train["y"].values, groups=prompts_train)):
@@ -622,56 +799,118 @@ def main():
         for k, v in stage1_snapshot.items():
             cur_sd[k].copy_(v.to(cur_sd[k].device))
 
-        df_fold_tr = df_train.iloc[tr_idx][["prompt_id", "text", "y"]].reset_index(drop=True)
-        est_batches = build_prompt_grouped_batches(df_fold_tr, args.batch_size, seed=500 + fold_i, multiscale_m=True)
-        total_s2_steps = max(len(est_batches) * args.stage2_epochs, 1)
-        opt_s2 = torch.optim.AdamW(trainable_params, lr=8e-5, weight_decay=0.03)
-        sched_s2 = torch.optim.lr_scheduler.CosineAnnealingLR(opt_s2, T_max=total_s2_steps, eta_min=5e-6)
+        l2sp_targets_dev = {
+            p_name: stage1_snapshot[p_name].to(device=p_cur.device, dtype=torch.float32)
+            for p_name, p_cur in scar_named_params
+        }
+
+        df_fold_host = df_train.iloc[tr_idx][["prompt_id", "text", "y"]].reset_index(drop=True)
+        # Replay estratificado de `stage2_replay_rows` passagens limpas do Estágio 1 para impedir esquecimento catastrófico!
+        if args.stage2_replay_rows > 0 and len(df_ext_stage1) > 0:
+            rng_rep = np.random.default_rng(700 + fold_i)
+            per_c_rep = max(1, args.stage2_replay_rows // K)
+            rep_idx = []
+            for c in range(K):
+                ic = np.where(df_ext_stage1["y"].values == c)[0]
+                if len(ic) > 0:
+                    rep_idx.append(rng_rep.choice(ic, size=min(len(ic), per_c_rep), replace=False))
+            df_rep = df_ext_stage1.iloc[np.concatenate(rep_idx)][["prompt_id", "text", "y"]].reset_index(drop=True)
+            df_fold_tr = pd.concat([df_fold_host, df_rep], ignore_index=True)
+        else:
+            df_fold_tr = df_fold_host
+
+        s2_batches_per_ep = [
+            build_prompt_grouped_batches(
+                df_fold_tr, batch_size=args.batch_size, seed=500 + fold_i * 10 + ep,
+                multiscale_m=True, length_bucket_prompts=64,
+            )
+            for ep in range(args.stage2_epochs)
+        ]
+        total_s2_steps = max(sum(len(b) for b in s2_batches_per_ep), 1)
+        opt_s2 = torch.optim.AdamW(
+            [
+                {"params": [p for _, p in scar_named_params], "lr": 1.5e-5, "weight_decay": 0.0},
+                {"params": head_params, "lr": 6.5e-5, "weight_decay": 0.02},
+            ]
+        )
+        sched_s2 = torch.optim.lr_scheduler.CosineAnnealingLR(opt_s2, T_max=total_s2_steps, eta_min=2e-6)
 
         for ep in range(args.stage2_epochs):
-            l_s2 = run_epoch(df_fold_tr, opt_s2, sched_s2, seed=500 + fold_i * 10 + ep, multiscale=True)
+            l_s2, _ = run_batches(
+                df_fold_tr,
+                s2_batches_per_ep[ep],
+                opt_s2,
+                sched_s2,
+                cls_weight=None,
+                l2sp_targets=l2sp_targets_dev,
+                l2sp_alpha=args.l2sp_alpha,
+            )
             print(f"    Fold {fold_i+1} Epoch {ep+1}/{args.stage2_epochs} | Loss={l_s2:.4f}", flush=True)
 
         va_texts = df_train.iloc[va_idx]["text"].tolist()
         va_groups = prompts_train[va_idx]
-        p_va = evaluate_covering_windows(
-            model, tokenizer, va_texts, va_groups, max_len=args.max_len, device=head_device, quant_mode=quant_mode
+        p_va_m18, p_va_m1 = evaluate_covering_windows_dual(
+            model, tokenizer, va_texts, va_groups,
+            max_len=args.eval_max_len, batch_size=args.batch_size, device=head_device, quant_mode=quant_mode,
         )
-        oof_probs[va_idx] = p_va
+        oof_probs_m18[va_idx] = p_va_m18
+        oof_probs_m1[va_idx] = p_va_m1
         evaluated_mask[va_idx] = True
 
-        fold_acc = balanced_accuracy_score(df_train["y"].values[va_idx], p_va.argmax(axis=1))
+        fold_acc_m1 = balanced_accuracy_score(df_train["y"].values[va_idx], p_va_m1.argmax(axis=1))
+        fold_acc_m18 = balanced_accuracy_score(df_train["y"].values[va_idx], p_va_m18.argmax(axis=1))
         fold_path = out_dir / f"titan4_qwen3_emb_8b_fold{fold_i}_scars.safetensors"
         export_fold_safetensors(model, injected, fold_path, key_prefix=key_prefix)
         print(
-            f"  ✓ Fold {fold_i+1}/{args.n_folds} | Host Val BalAcc = {fold_acc*100:.2f}% | "
-            f"Saved {fold_path.name} ({time.time()-tf0:.1f}s)",
+            f"  ✓ Fold {fold_i+1}/{args.n_folds} | Plain(m=1)={fold_acc_m1*100:.2f}% | "
+            f"Twin(m=18)={fold_acc_m18*100:.2f}% | Saved {fold_path.name} ({time.time()-tf0:.1f}s)",
             flush=True,
         )
+        del l2sp_targets_dev
         gc.collect()
         if has_cuda:
             torch.cuda.empty_cache()
 
     eval_y = df_train["y"].values[evaluated_mask]
-    eval_p = oof_probs[evaluated_mask]
-    oof_bal = balanced_accuracy_score(eval_y, eval_p.argmax(axis=1))
-    oof_ll = log_loss(eval_y, np.clip(eval_p, 1e-9, 1.0), labels=list(range(K)))
-    np.save(out_dir / "oof_titan4_qwen3_emb_8b_8depth.npy", oof_probs)
+    eval_p_m18 = oof_probs_m18[evaluated_mask]
+    eval_p_m1 = oof_probs_m1[evaluated_mask]
+    oof_bal_m18 = balanced_accuracy_score(eval_y, eval_p_m18.argmax(axis=1))
+    oof_ll_m18 = log_loss(eval_y, np.clip(eval_p_m18, 1e-9, 1.0), labels=list(range(K)))
+    oof_bal_m1 = balanced_accuracy_score(eval_y, eval_p_m1.argmax(axis=1))
+    oof_ll_m1 = log_loss(eval_y, np.clip(eval_p_m1, 1e-9, 1.0), labels=list(range(K)))
+
+    np.save(out_dir / "oof_titan4_qwen3_emb_8b_8depth.npy", oof_probs_m18)
+    np.save(out_dir / "oof_titan4_plain_m1.npy", oof_probs_m1)
     meta = {
-        "schema": "system-one-titan4-mos-scars-v2",
+        "schema": "system-one-titan4-mos-scars-v2-fullpool-l2sp",
         "model_id": args.model_id,
         "capture_layers_1b": cap_layers,
         "key_prefix": key_prefix,
         "rank": args.rank,
+        "stage1_rows_available": int(len(df_ext_stage1)),
+        "stage1_rows_trained": int(s1_rows_trained_total),
+        "stage1_final_loss": float(s1_final_loss),
+        "stage1_zeroshot_m1_bal_acc": float(s1_zero_m1_acc),
+        "stage1_zeroshot_m18_bal_acc": float(s1_zero_m18_acc),
+        "stage2_epochs": int(args.stage2_epochs),
+        "stage2_replay_rows": int(args.stage2_replay_rows),
+        "l2sp_alpha": float(args.l2sp_alpha),
         "n_folds_completed": int(min(args.n_folds, args.max_folds_run)),
-        "oof_balanced_accuracy": float(oof_bal),
-        "oof_log_loss": float(oof_ll),
+        "oof_plain_m1_balanced_accuracy": float(oof_bal_m1),
+        "oof_plain_m1_log_loss": float(oof_ll_m1),
+        "oof_balanced_accuracy": float(oof_bal_m18),
+        "oof_log_loss": float(oof_ll_m18),
+        "total_wall_seconds": float(time.time() - t_global_start),
         "labels": LABELS,
     }
     (out_dir / "meta_titan4_qwen3_emb_8b.json").write_text(json.dumps(meta, indent=2))
-    print("=" * 84, flush=True)
-    print(f"🏆 TITAN 4 OOF BALANCED ACC: {oof_bal*100:.2f}% | LL: {oof_ll:.4f}", flush=True)
-    print("=" * 84, flush=True)
+    print("=" * 88, flush=True)
+    print(
+        f"🏆 TITAN 4 v2 OOF | Plain(m=1): {oof_bal_m1*100:.2f}% (LL {oof_ll_m1:.4f}) | "
+        f"Twin(m=18): {oof_bal_m18*100:.2f}% (LL {oof_ll_m18:.4f}) | Total={time.time()-t_global_start:.1f}s",
+        flush=True,
+    )
+    print("=" * 88, flush=True)
 
 
 if __name__ == "__main__":

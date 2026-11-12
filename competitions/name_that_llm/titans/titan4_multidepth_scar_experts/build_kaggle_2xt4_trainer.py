@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Gera o Kernel Privado Automatizado de Treinamento GPU (`2x T4`) no Kaggle para o Titan 4:
+Gera o Kernel Privado Automatizado de Treinamento GPU (`2x T4`) no Kaggle para o Titan 4 v2 (Full-Pool):
   `thetod/ntl-titan4-qwen3emb-mos-scar-trainer`
 Monta offline (`enable_internet: false`):
   - Modelo oficial Kaggle: `qwen-lm/qwen-3-embedding/Transformers/4b/1` (36 camadas, 8 profundidades)
   - Competição: `name-that-llm` (`train.csv`)
   - Datasets estendidos: `nishantdahal/ntl-handwriting-blend` (`pool_v4.parquet`),
     `prvsiyan/prvsiyans-extended-name-that-llm-dataset` (`passages.csv`)
-Treina 100% na infraestrutura GPU do Kaggle (Estágio 1 + 5-Fold Estágio 2 Multi-Multiplicidade)
-e exporta `titan4_qwen3_emb_8b_fold0..4_scars.safetensors` + `meta_titan4_qwen3_emb_8b.json` + OOF `.npy`
-diretamente em `/kaggle/working` para acoplamento imediato via `kernel_sources`!
+Treina 100% na infraestrutura GPU do Kaggle:
+  - Estágio 1: ~79.5k passagens limpas do Open Pool (macro-fatias estratificadas, `batch_size=24`, teto seguro `25.200s` = `7.0h`)
+  - Estágio 2: 5-Fold com ancoragem explícita L2-SP + Replay Open-Pool (`2` épocas/fold, `~2.5h` total)
+Exporta `titan4_stage1_openpool_scars.safetensors`, `titan4_qwen3_emb_8b_fold0..4_scars.safetensors`,
+`oof_titan4_plain_m1.npy`, `oof_titan4_qwen3_emb_8b_8depth.npy` e `meta_titan4_qwen3_emb_8b.json`!
 """
 
 import json
@@ -40,7 +42,6 @@ def find_one(pattern: str) -> str:
         raise FileNotFoundError(f"Could not find {{pattern}} under /kaggle/input")
     return hits[0]
 
-# Localiza modelo Qwen3-Embedding montado via model_sources
 cfg_hits = [
     p for p in sorted(glob.glob("/kaggle/input/**/config.json", recursive=True))
     if any(k in p.lower() for k in ("qwen-3-embedding", "qwen3-embedding", "qwen3_emb"))
@@ -53,7 +54,7 @@ train_csv = find_one("train.csv")
 pool_v4 = find_one("pool_v4.parquet")
 passages_csv = find_one("passages.csv")
 
-print("=== KAGGLE 2xT4 TITAN-4 TWO-STAGE MoS SCAR TRAINER ===", flush=True)
+print("=== KAGGLE 2xT4 TITAN-4 v2 FULL-POOL + L2-SP MoS SCAR TRAINER ===", flush=True)
 print("  Model Dir   :", model_dir, flush=True)
 print("  Train CSV   :", train_csv, flush=True)
 print("  Pool v4     :", pool_v4, flush=True)
@@ -68,13 +69,17 @@ cmd = [
     "--passages-csv", passages_csv,
     "--out-dir", "/kaggle/working",
     "--quant", "fp16",
-    "--stage1-max-rows", "12600",
+    "--stage1-max-rows", "85000",
     "--stage1-epochs", "1",
-    "--stage2-epochs", "4",
+    "--stage1-max-seconds", "25200",
+    "--stage2-epochs", "2",
+    "--stage2-replay-rows", "900",
+    "--l2sp-alpha", "0.05",
     "--n-folds", "5",
     "--max-folds-run", "5",
-    "--batch-size", "16",
+    "--batch-size", "24",
     "--max-len", "384",
+    "--eval-max-len", "512",
     "--rank", "16",
 ]
 subprocess.check_call(cmd)
@@ -104,4 +109,4 @@ subprocess.check_call(cmd)
         indent=2,
     )
 )
-print("✓ Generated Kaggle 2xT4 trainer package in:", KAGGLE_DIR)
+print("✓ Generated Kaggle 2xT4 trainer v2 package in:", KAGGLE_DIR)
