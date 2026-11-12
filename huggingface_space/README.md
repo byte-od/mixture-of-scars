@@ -54,6 +54,14 @@ cache = SCacheDynamicCache(
 )
 ```
 
+## 📦 Download `70B`-Class Model (`Qwen2.5-72B-Instruct MoS v2`) & Practical Guide
+All `22` **SHA-256 verified** `.safetensors` shards (`38.12 GiB` total, `20 × 1.79 GiB` 4-layer groups) are publicly available with **zero login required**:
+- **Direct Model Download (`HTTP 206 Range`):** [github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
+- **Step-by-Step Practical Local Deployment Guide (Apple Silicon, CUDA & CPU):** [docs/GUIA_PRATICO_MOS_SCACHE_72B.md](https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
+```bash
+mos-run --download --chat --model-dir ./models/qwen25_72b_mos_v2
+```
+
 ## Official Citation
 ```bibtex
 @techreport{reisfilho2026mos_scache,
@@ -65,5 +73,14 @@ cache = SCacheDynamicCache(
   version     = {1.3.0},
   doi         = {10.5281/zenodo.24143839},
   url         = {https://doi.org/10.5281/zenodo.24143839}
+}
+
+@misc{reisfilho2026qwen72b_mos_v2,
+  author       = {Reis Filho, Julio Cesar},
+  title        = {Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint) and Official Practical Local Deployment Guide},
+  howpublished = {Public SHA-256 Verified Checkpoint Release (\texttt{mos-run --download}) and Practical Guide (\texttt{docs/GUIA\_PRATICO\_MOS\_SCACHE\_72B.md})},
+  year         = {2026},
+  url          = {https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos},
+  note         = {Practical Guide: https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md}
 }
 ```

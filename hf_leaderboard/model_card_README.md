@@ -21,7 +21,9 @@ pipeline_tag: text-generation
 
 **Developed by:** Julio Cesar Reis Filho — Byte-OD Research & System One Architecture Lab (2026)  
 **Preprint (CERN / Zenodo DOI):** [https://doi.org/10.5281/zenodo.24143839](https://doi.org/10.5281/zenodo.24143839)  
-**Code & Public `72.71B` Shards:** [https://github.com/byte-od/mixture-of-scars](https://github.com/byte-od/mixture-of-scars)  
+**Code Repository:** [https://github.com/byte-od/mixture-of-scars](https://github.com/byte-od/mixture-of-scars)  
+**Public `70B/72.71B` Download (`38.12 GiB` SHA-256 Shards):** [https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)  
+**Practical Local Deployment Guide:** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md)  
 **License:** MIT  
 
 ---
@@ -68,4 +70,36 @@ inputs = tokenizer("Explain the Widrow-Hoff Delta Rule in three concise sentence
 outputs = model.generate(**inputs, past_key_values=cache, max_new_tokens=100)
 print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 print(f"Constant O(1) SCache Memory: {cache.total_memory_bytes / (1024**2):.2f} MiB")
+```
+
+### Run the Public `72.71B` (`Qwen2.5-72B-Instruct MoS v2`) Checkpoint Locally
+```bash
+# Auto-downloads 22 SHA-256 verified shards (38.12 GiB, resumable HTTP 206) & launches terminal chat:
+mos-run --download --chat --model-dir ./models/qwen25_72b_mos_v2
+```
+Full hardware sizing & CLI guide: [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md).
+
+---
+
+## 📄 Citation
+```bibtex
+@techreport{reisfilho2026mos_scache,
+  author      = {Reis Filho, Julio Cesar},
+  title       = {Mixture of Scars (MoS) and SCache O(1): Breaking the Dual Memory Wall Across 0.5B -> 7.62B -> 72.71B Transformers via Fused Activation-Aware Scar Experts and 32k Widrow-Hoff Associative Memory},
+  institution = {Byte-OD Research \& System One Architecture Lab},
+  year        = {2026},
+  month       = nov,
+  version     = {1.3.0},
+  doi         = {10.5281/zenodo.24143839},
+  url         = {https://doi.org/10.5281/zenodo.24143839}
+}
+
+@misc{reisfilho2026qwen72b_mos_v2,
+  author       = {Reis Filho, Julio Cesar},
+  title        = {Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint) and Official Practical Local Deployment Guide},
+  howpublished = {Public SHA-256 Verified Checkpoint Release (\texttt{mos-run --download}) and Practical Guide (\texttt{docs/GUIA\_PRATICO\_MOS\_SCACHE\_72B.md})},
+  year         = {2026},
+  url          = {https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos},
+  note         = {Practical Guide: https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md}
+}
 ```

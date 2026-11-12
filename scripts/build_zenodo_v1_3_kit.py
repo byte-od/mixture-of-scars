@@ -151,7 +151,7 @@ def build_pdf_v1_3(pdf_path: Path, hero_png: Path):
     story.append(Paragraph(
         "<b>Julio Cesar Reis Filho</b> — Byte-OD Research &amp; System One Architecture Lab<br/>"
         "Preprint Technical Report <b>v1.3.0</b> (16.6k–32.9k Passkey Recall, Fused Metal/CUDA W4A16+ASVD &amp; 72.71B Pareto) — November 12, 2026<br/>"
-        "<b>Concept/Record DOI:</b> 10.5281/zenodo.24143839 &nbsp;|&nbsp; <b>Code &amp; 72B Shards:</b> github.com/byte-od/mixture-of-scars",
+        "<b>DOI:</b> 10.5281/zenodo.24143839 &nbsp;|&nbsp; <b>72B Download &amp; Practical Guide:</b> github.com/byte-od/mixture-of-scars (<code>releases/tag/v1.2.0-qwen72b-mos</code>)",
         s_meta,
     ))
     story.append(HRFlowable(width="100%", thickness=0.8, color=colors.HexColor("#CBD5E1"), spaceAfter=4.2))
@@ -292,16 +292,17 @@ def build_pdf_v1_3(pdf_path: Path, hero_png: Path):
         Paragraph("<b>Table 4 (Vectors 2–6 — Colossal 72.71B Long-Horizon Recall, Anti-Ghosting, DoS Immunity, and Group Streaming).</b>", s_caption),
     ]))
 
-    story.append(Paragraph("4. Boundary Conditions, Local 72B CLI Deployment &amp; Reproducibility", s_h1))
+    story.append(Paragraph("4. Boundary Conditions, Public 70B/72.71B Download, Practical Guide &amp; Reproducibility", s_h1))
     story.append(Paragraph(
         "(1) <b>Cross-Layer SwiGLU Permutation Sensitivity:</b> Sharing one dense base across <i>distinct</i> pretrained layers without permutation "
         "matching incurs distortion (KL &approx; 0.78); off-the-shelf models pair per-layer INT4 bases with ASVD scars (38.12 GiB at 72.71B), "
         "reserving single-base sharing for multi-tenant banks (-96.37% VRAM across 8 specialists at 72.71B). "
         "(2) <b>Associative Slot Budget:</b> Synchronized 32-token micro-page routing + Widrow-Hoff fast weights achieve 100% passkey recall at 32.9k "
         "tokens (<i>S</i><sub>slots</sub>=256); copying dozens of uncorrelated random hashes simultaneously scales with <i>S</i><sub>slots</sub>. "
-        "(3) <b>Open Reproducibility (<code>mos-run</code>):</b> Public SHA-256 verified 20&times;4-layer Qwen2.5-72B-Instruct MoS v2 shards, fused CUDA "
-        "Triton &amp; Apple Metal kernels, <b>44/44 pytest suite</b>, LaTeX source, and raw JSON audits are archived at "
-        "<b>DOI: 10.5281/zenodo.24143839</b> [13] and <b>github.com/byte-od/mixture-of-scars</b>.",
+        "(3) <b>Public 70B-Class Model Download &amp; Practical Guide (<code>mos-run --download</code>):</b> All 22 SHA-256 verified 20&times;4-layer "
+        "<b>Qwen2.5-72B-Instruct MoS v2</b> shards (38.12 GiB, zero-login HTTP 206 Range at <code>github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos</code>) "
+        "and the step-by-step <b>Practical Local Deployment Guide</b> (<code>docs/GUIA_PRATICO_MOS_SCACHE_72B.md</code>) [14], alongside fused CUDA "
+        "Triton &amp; Apple Metal kernels, <b>44/44 pytest suite</b>, and raw JSON audits, are archived at <b>DOI: 10.5281/zenodo.24143839</b> [13].",
         s_body,
     ))
 
@@ -320,6 +321,7 @@ def build_pdf_v1_3(pdf_path: Path, hero_png: Path):
         "[11] Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., et al. (2023). H2O: Heavy-Hitter Oracle for Efficient Generative Inference of LLMs. NeurIPS 36.",
         "[12] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., et al. (2017). Attention Is All You Need. NeurIPS 30.",
         "[13] Reis Filho, J. C. (2026). Mixture of Scars (MoS) and SCache O(1): Multi-Scale 0.5B–72.71B Replication Kit & 32.9k Passkey Telemetry (v1.3.0). Zenodo. DOI: 10.5281/zenodo.24143839.",
+        "[14] Reis Filho, J. C. (2026). Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint) & Practical Local Deployment Guide (docs/GUIA_PRATICO_MOS_SCACHE_72B.md). URL: https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos.",
     ]
     for r in refs:
         story.append(Paragraph(escape(r), s_ref))

@@ -8,6 +8,8 @@
 [![KV Cache Reduction](https://img.shields.io/badge/KV%20Cache%20Reduction-187.5x-success.svg)]()
 [![Static Weights Reduction](https://img.shields.io/badge/Static%20Weights%20Reduction-90x-success.svg)]()
 [![Tests Passing](https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg)]()
+[![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
+[![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)
 
 > **"Breaking the barrier between LLMs and hardware."**  
@@ -240,6 +242,18 @@ print(f"Base Memory:  {layer1.base_bytes / 1024:.1f} KB (Shared once)")
 print(f"Scars Memory: {layer1.scars_bytes / 1024:.1f} KB (L1/L2 cache resident)")
 ```
 
+### 3. Download & Run the `70B`-Class Model Locally (`Qwen2.5-72B-Instruct MoS v2` + Practical Guide)
+
+You do **not** need a multi-GPU cluster to quantize `72B` yourself — all `22` **SHA-256 verified** `.safetensors` shards (`38.12 GiB` total, `< 1.80 GiB` per 4-layer group) are publicly available with **zero login required**:
+
+- **📦 Direct Model Download (`HTTP 206 Range` resumable):** [github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
+- **📘 Official Step-by-Step Practical Guide (Apple Silicon `16 GB`–`64 GB+`, NVIDIA `CUDA` & `CPU`):** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
+
+```bash
+# Auto-download with SHA-256 verification (resumes interrupted downloads) & start interactive 72.71B chat:
+mos-run --download --chat --model-dir ./models/qwen25_72b_mos_v2
+```
+
 ---
 
 ## 🔬 Mathematical Architecture
@@ -320,5 +334,14 @@ Developed by **Julio Cesar Reis Filho** & **Byte-OD Research Lab** (2026).
   version     = {1.3.0},
   doi         = {10.5281/zenodo.24143839},
   url         = {https://doi.org/10.5281/zenodo.24143839}
+}
+
+@misc{reisfilho2026qwen72b_mos_v2,
+  author       = {Reis Filho, Julio Cesar},
+  title        = {Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint) and Official Practical Local Deployment Guide},
+  howpublished = {Public SHA-256 Verified Checkpoint Release (\texttt{mos-run --download}) and Practical Guide (\texttt{docs/GUIA\_PRATICO\_MOS\_SCACHE\_72B.md})},
+  year         = {2026},
+  url          = {https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos},
+  note         = {Practical Guide: https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md}
 }
 ```

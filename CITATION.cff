@@ -8,6 +8,8 @@ authors:
 doi: "10.5281/zenodo.24143839"
 url: "https://doi.org/10.5281/zenodo.24143839"
 repository-code: "https://github.com/byte-od/mixture-of-scars"
+repository-artifact: "https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos"
+abstract: "Training-free Mixture of Scars (MoS: canonical Block-64 INT4 bases + Activation-Aware SVD scar experts + fused Apple Metal & NVIDIA CUDA Triton W4A16+ASVD kernels) and SCache O(1) (Widrow-Hoff Delta fast weights + synchronized 32-token micro-page routing). Includes public zero-login downloadable 70B-class checkpoint (Qwen2.5-72B-Instruct MoS v2, 72.71B, 38.12 GiB via mos-run --download) and step-by-step Practical Local Deployment Guide (docs/GUIA_PRATICO_MOS_SCACHE_72B.md)."
 version: "1.3.0"
 date-released: "2026-11-12"
 license: "CC-BY-4.0"
@@ -20,5 +22,15 @@ keywords:
   - "Low-Rank Quantization"
   - "Triton GPU Kernels"
   - "Apple Silicon Metal"
+  - "Qwen2.5-72B"
   - "Mixture of Scars"
   - "SCache"
+references:
+  - type: software
+    title: "Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint) & Practical Local Deployment Guide"
+    authors:
+      - family-names: "Reis Filho"
+        given-names: "Julio Cesar"
+    year: 2026
+    url: "https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos"
+    notes: "Step-by-step Practical Deployment Guide: https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md"

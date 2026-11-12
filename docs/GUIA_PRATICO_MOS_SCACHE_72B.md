@@ -165,3 +165,31 @@ MOS_CUDA_BACKEND=triton python -m scar_cache.cli_72b --model-dir ./models/qwen25
 ```
 
 - **Preprint Acadêmico Oficial (`v1.3.0`, CERN / Zenodo DOI):** [`10.5281/zenodo.24143839`](https://doi.org/10.5281/zenodo.24143839) ([`Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf`](../zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf))
+
+---
+
+## 8. Citação Oficial (Preprint `v1.3.0` + Checkpoint `72.71B MoS v2` & Guia Prático)
+
+Ao utilizar a arquitetura `MoS + SCache O(1)`, o checkpoint público `Qwen2.5-72B-Instruct MoS v2` (`38.12 GiB`) ou este Guia Prático em artigos, benchmarks ou aplicações, cite:
+
+```bibtex
+@techreport{reisfilho2026mos_scache,
+  author      = {Reis Filho, Julio Cesar},
+  title       = {Mixture of Scars (MoS) and SCache O(1): Breaking the Dual Memory Wall Across 0.5B -> 7.62B -> 72.71B Transformers via Fused Activation-Aware Scar Experts and 32k Widrow-Hoff Associative Memory},
+  institution = {Byte-OD Research \& System One Architecture Lab},
+  year        = {2026},
+  month       = nov,
+  version     = {1.3.0},
+  doi         = {10.5281/zenodo.24143839},
+  url         = {https://doi.org/10.5281/zenodo.24143839}
+}
+
+@misc{reisfilho2026qwen72b_mos_v2,
+  author       = {Reis Filho, Julio Cesar},
+  title        = {Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint) and Official Practical Local Deployment Guide},
+  howpublished = {Public SHA-256 Verified Checkpoint Release (\texttt{mos-run --download}) and Practical Guide (\texttt{docs/GUIA\_PRATICO\_MOS\_SCACHE\_72B.md})},
+  year         = {2026},
+  url          = {https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos},
+  note         = {Practical Guide: https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md}
+}
+```
