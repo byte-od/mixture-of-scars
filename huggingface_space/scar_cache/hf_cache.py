@@ -12,8 +12,10 @@ Substitui o DynamicCache linear O(T) do HuggingFace por uma arquitetura híbrida
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from dataclasses import dataclass
 import math
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 import torch
 import torch.nn.functional as F
 from transformers.cache_utils import DynamicCache, DynamicLayer
@@ -606,6 +608,139 @@ class SCacheDynamicLayer(DynamicLayer):
         return total
 
 
+@dataclass
+class SCacheLayerSnapshot:
+    """Snapshot atômico O(1) de uma camada `SCacheDynamicLayer` para rollback especulativo exato."""
+
+    is_initialized: bool
+    prev_cached_len: int
+    cumulative_length: int
+    active_slots: int
+    total_tokens_absorbed: int
+    err_baseline_ema: float
+    err_mad_ema: float
+    err_chunks_seen: int
+    fast_window_only: bool
+    keys: Optional[torch.Tensor] = None
+    values: Optional[torch.Tensor] = None
+    W_scar: Optional[torch.Tensor] = None
+    scars_count: Optional[torch.Tensor] = None
+    scar_keys: Optional[torch.Tensor] = None
+    scar_vals: Optional[torch.Tensor] = None
+    scar_salience: Optional[torch.Tensor] = None
+
+
+@dataclass
+class SCacheSnapshot:
+    """Snapshot completo de `SCacheDynamicCache` (fast-path zero-copy quando dentro de `window_size`)."""
+
+    num_layers: int
+    fast_window_only: bool
+    layers: List[SCacheLayerSnapshot]
+
+
+class SpeculativeCaptureContext:
+    """Gerencia captura causal temporária de `(K, V)` e commit/rollback atômico O(1) sem reter bytes."""
+
+    def __init__(self, cache: "SCacheDynamicCache", snapshot: SCacheSnapshot, multi_step: bool = False):
+        self.cache = cache
+        self.snapshot = snapshot
+        self.multi_step = bool(multi_step)
+        self.captured_steps: List[Dict[int, Tuple[torch.Tensor, torch.Tensor]]] = []
+        self._cur_step: Dict[int, Tuple[torch.Tensor, torch.Tensor]] = {}
+
+    def record(self, layer_idx: int, k: torch.Tensor, v: torch.Tensor) -> None:
+        if layer_idx == 0 and self._cur_step:
+            self.captured_steps.append(self._cur_step)
+            self._cur_step = {}
+        self._cur_step[layer_idx] = (k.detach().clone(), v.detach().clone())
+
+    def finalize_capture(self) -> None:
+        if self._cur_step:
+            self.captured_steps.append(self._cur_step)
+            self._cur_step = {}
+
+    @property
+    def total_submitted_tokens(self) -> int:
+        if not self.captured_steps:
+            return 0
+        return sum(step[0][0].shape[-2] for step in self.captured_steps if 0 in step)
+
+    @torch.no_grad()
+    def commit(self, num_valid_tokens: int) -> None:
+        """Confirma exatamente `num_valid_tokens` e descarta átomos rejeitados com 0 bytes residuais."""
+        self.finalize_capture()
+        total_sub = self.total_submitted_tokens
+        if num_valid_tokens < 0 or num_valid_tokens > total_sub:
+            raise ValueError(f"Invalid num_valid_tokens={num_valid_tokens} for total_sub={total_sub}")
+
+        if num_valid_tokens == total_sub:
+            self.clear()
+            return
+
+        if self.snapshot.fast_window_only:
+            if self.snapshot.num_layers == 0 and num_valid_tokens == 0:
+                self.cache.layers.clear()
+            else:
+                for l_idx, lyr in enumerate(self.cache.layers):
+                    assert isinstance(lyr, SCacheDynamicLayer)
+                    if l_idx < self.snapshot.num_layers:
+                        snap_l = self.snapshot.layers[l_idx]
+                        prev_len = snap_l.prev_cached_len
+                        prev_cum = snap_l.cumulative_length
+                        was_init = snap_l.is_initialized
+                    else:
+                        prev_len = 0
+                        prev_cum = 0
+                        was_init = False
+
+                    if not was_init and num_valid_tokens == 0:
+                        lyr.keys = torch.tensor([], dtype=torch.float32)
+                        lyr.values = torch.tensor([], dtype=torch.float32)
+                        lyr.is_initialized = False
+                        lyr.cumulative_length = 0
+                    else:
+                        keep = prev_len + num_valid_tokens
+                        assert lyr.keys is not None and lyr.values is not None
+                        lyr.keys = lyr.keys[..., :keep, :].clone()
+                        lyr.values = lyr.values[..., :keep, :].clone()
+                        lyr.cumulative_length = prev_cum + num_valid_tokens
+            self.cache._step_pre_sal = None
+            self.cache._step_in_sal = None
+            self.clear()
+            return
+
+        # Full O(1) state rollback (restores W_scar, micro-page slots, EMAs & window) + causal KV prefix replay
+        self.cache.restore(self.snapshot)
+        if num_valid_tokens > 0 and self.captured_steps:
+            if self.multi_step:
+                rem = num_valid_tokens
+                for step_dict in self.captured_steps:
+                    if rem <= 0:
+                        break
+                    step_q = step_dict[0][0].shape[-2]
+                    take = min(rem, step_q)
+                    for l_idx in sorted(step_dict.keys()):
+                        ks, vs = step_dict[l_idx]
+                        self.cache.update(ks[..., :take, :].clone(), vs[..., :take, :].clone(), l_idx)
+                    rem -= take
+            else:
+                step_dict = self.captured_steps[0]
+                for l_idx in sorted(step_dict.keys()):
+                    ks, vs = step_dict[l_idx]
+                    self.cache.update(
+                        ks[..., :num_valid_tokens, :].clone(),
+                        vs[..., :num_valid_tokens, :].clone(),
+                        l_idx,
+                    )
+        self.clear()
+
+    def clear(self) -> None:
+        self.captured_steps.clear()
+        self._cur_step.clear()
+        self.snapshot.layers.clear()
+
+
 class SCacheDynamicCache(DynamicCache):
     """Drop-in Replacement O(1) para DynamicCache do HuggingFace compatível com qualquer LLM."""
 
@@ -627,6 +762,7 @@ class SCacheDynamicCache(DynamicCache):
         self.delta_blend = float(delta_blend)
         self._step_pre_sal: Optional[List[List[float]]] = None
         self._step_in_sal: Optional[List[List[float]]] = None
+        self._spec_capture_ctx: Optional[SpeculativeCaptureContext] = None
         self.layer_class_to_replicate = lambda: SCacheDynamicLayer(
             window_size=self.window_size,
             num_slots=self.num_slots,
@@ -661,6 +797,9 @@ class SCacheDynamicCache(DynamicCache):
         layer_idx: int,
         cache_kwargs: Optional[dict[str, Any]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self._spec_capture_ctx is not None:
+            self._spec_capture_ctx.record(layer_idx, key_states, value_states)
+
         while len(self.layers) <= layer_idx:
             self.layers.append(self.layer_class_to_replicate())
 
@@ -759,3 +898,119 @@ class SCacheDynamicCache(DynamicCache):
             if isinstance(layer, SCacheDynamicLayer) and layer.keys is not None
         ]
         return max(lengths) if lengths else 0
+
+    @torch.no_grad()
+    def snapshot(self, expected_new_tokens: int = 0) -> SCacheSnapshot:
+        """Captura snapshot atômico O(1) do cache (zero alocação de tensores se dentro de `window_size`)."""
+        max_cur_len = self.get_max_physical_length()
+        fast_only = bool(expected_new_tokens > 0 and (max_cur_len + expected_new_tokens) <= self.window_size)
+        snaps: List[SCacheLayerSnapshot] = []
+        for layer in self.layers:
+            assert isinstance(layer, SCacheDynamicLayer)
+            c_len = layer.keys.shape[-2] if (layer.is_initialized and layer.keys is not None and layer.keys.ndim >= 2) else 0
+            if fast_only:
+                snaps.append(
+                    SCacheLayerSnapshot(
+                        is_initialized=bool(layer.is_initialized),
+                        prev_cached_len=int(c_len),
+                        cumulative_length=int(layer.cumulative_length),
+                        active_slots=int(layer.active_slots),
+                        total_tokens_absorbed=int(layer.total_tokens_absorbed),
+                        err_baseline_ema=float(layer.err_baseline_ema),
+                        err_mad_ema=float(layer.err_mad_ema),
+                        err_chunks_seen=int(layer.err_chunks_seen),
+                        fast_window_only=True,
+                    )
+                )
+            else:
+                snaps.append(
+                    SCacheLayerSnapshot(
+                        is_initialized=bool(layer.is_initialized),
+                        prev_cached_len=int(c_len),
+                        cumulative_length=int(layer.cumulative_length),
+                        active_slots=int(layer.active_slots),
+                        total_tokens_absorbed=int(layer.total_tokens_absorbed),
+                        err_baseline_ema=float(layer.err_baseline_ema),
+                        err_mad_ema=float(layer.err_mad_ema),
+                        err_chunks_seen=int(layer.err_chunks_seen),
+                        fast_window_only=False,
+                        keys=layer.keys.detach().clone() if (layer.is_initialized and layer.keys is not None) else None,
+                        values=layer.values.detach().clone() if (layer.is_initialized and layer.values is not None) else None,
+                        W_scar=layer.scache.W_scar.detach().clone() if layer.scache is not None else None,
+                        scars_count=layer.scache.scars_count.detach().clone() if layer.scache is not None else None,
+                        scar_keys=layer.scar_keys.detach().clone() if layer.scar_keys is not None else None,
+                        scar_vals=layer.scar_vals.detach().clone() if layer.scar_vals is not None else None,
+                        scar_salience=layer.scar_salience.detach().clone() if layer.scar_salience is not None else None,
+                    )
+                )
+        return SCacheSnapshot(num_layers=len(snaps), fast_window_only=fast_only, layers=snaps)
+
+    @torch.no_grad()
+    def restore(self, snap: SCacheSnapshot) -> None:
+        """Restaura estado O(1) exato (`W_scar`, slots de micro-páginas, EMAs e janela) sem vazar storage."""
+        if snap.num_layers == 0:
+            self.layers.clear()
+            self._step_pre_sal = None
+            self._step_in_sal = None
+            return
+
+        del self.layers[snap.num_layers :]
+        for l_idx, snap_l in enumerate(snap.layers):
+            lyr = self.layers[l_idx]
+            assert isinstance(lyr, SCacheDynamicLayer)
+            lyr.is_initialized = snap_l.is_initialized
+            lyr.cumulative_length = snap_l.cumulative_length
+            lyr.active_slots = snap_l.active_slots
+            lyr.total_tokens_absorbed = snap_l.total_tokens_absorbed
+            lyr.err_baseline_ema = snap_l.err_baseline_ema
+            lyr.err_mad_ema = snap_l.err_mad_ema
+            lyr.err_chunks_seen = snap_l.err_chunks_seen
+
+            if not snap_l.is_initialized:
+                lyr.keys = torch.tensor([], dtype=torch.float32)
+                lyr.values = torch.tensor([], dtype=torch.float32)
+                lyr.scache = None
+                lyr.scar_keys = None
+                lyr.scar_vals = None
+                lyr.scar_salience = None
+                lyr.scar_decay = None
+                continue
+
+            if snap_l.fast_window_only:
+                assert lyr.keys is not None and lyr.values is not None
+                lyr.keys = lyr.keys[..., : snap_l.prev_cached_len, :].clone()
+                lyr.values = lyr.values[..., : snap_l.prev_cached_len, :].clone()
+            else:
+                assert snap_l.keys is not None and snap_l.values is not None
+                lyr.keys = snap_l.keys.clone()
+                lyr.values = snap_l.values.clone()
+                if snap_l.W_scar is not None and lyr.scache is not None:
+                    lyr.scache.W_scar.copy_(snap_l.W_scar)
+                if snap_l.scars_count is not None and lyr.scache is not None:
+                    lyr.scache.scars_count.copy_(snap_l.scars_count)
+                if snap_l.scar_keys is not None and lyr.scar_keys is not None:
+                    lyr.scar_keys.copy_(snap_l.scar_keys)
+                if snap_l.scar_vals is not None and lyr.scar_vals is not None:
+                    lyr.scar_vals.copy_(snap_l.scar_vals)
+                if snap_l.scar_salience is not None and lyr.scar_salience is not None:
+                    lyr.scar_salience.copy_(snap_l.scar_salience)
+
+        self._step_pre_sal = None
+        self._step_in_sal = None
+
+    @contextmanager
+    def speculative_capture(
+        self,
+        expected_new_tokens: int,
+        multi_step: bool = False,
+    ) -> Iterator[SpeculativeCaptureContext]:
+        """Context manager de verificação especulativa Ghost-Jump com rollback O(1) exato e 0 bytes residuais."""
+        snap = self.snapshot(expected_new_tokens=expected_new_tokens)
+        ctx = SpeculativeCaptureContext(self, snap, multi_step=multi_step)
+        prev_ctx = self._spec_capture_ctx
+        self._spec_capture_ctx = ctx
+        try:
+            yield ctx
+        finally:
+            ctx.finalize_capture()
+            self._spec_capture_ctx = prev_ctx

@@ -39,6 +39,8 @@ from safetensors.torch import load_file
 from transformers import AutoTokenizer
 
 from scar_cache.hf_cache import SCacheDynamicCache
+from scar_cache.speculative_ghost_jump import GhostJumpSpeculativeEngine
+from scar_cache.sub2bit_mos import sub2bit_mos_linear
 from scar_cache.triton_mos_gemm import (
     HAS_TRITON,
     can_use_triton_int4_mos,
@@ -296,6 +298,21 @@ class CanonicalMoSGroup:
         a_s = self.tensors[f"{pfx}.A_scar"]
         b_s = self.tensors[f"{pfx}.B_scar"]
         bi = self.tensors.get(f"{pfx}.bias")
+
+        # Horizon 1 (v1.4) Sub-2-Bit (`2.25 bpw` + ASVD Scar) native path (~20.4 GiB 72.71B!)
+        p2_key = f"{pfx}.packed_2bit"
+        if p2_key in self.tensors:
+            return sub2bit_mos_linear(
+                x=x,
+                packed_2bit=self.tensors[p2_key],
+                scales_2bit=self.tensors[f"{pfx}.scales_2bit"],
+                out_features=out_features,
+                in_features=in_features,
+                A_scar=a_s,
+                B_scar=b_s,
+                bias=bi,
+            )
+
         b_int4_key = f"{pfx}.B_int4"
         b_int4_cuda_key = f"{pfx}.B_int4_cuda"
 
@@ -459,7 +476,10 @@ class CanonicalMoSEngine:
                 f"Run with `--download --model-dir {self.model_dir}` first!"
             )
         self.manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        assert self.manifest.get("format") == "mos_canonical_v2", "Expected mos_canonical_v2 checkpoint."
+        assert self.manifest.get("format") in (
+            "mos_canonical_v2",
+            "mos_canonical_v2_sub2bit",
+        ), f"Unsupported manifest format: {self.manifest.get('format')}"
 
         if device == "auto":
             if torch.cuda.is_available():
@@ -680,6 +700,61 @@ class CanonicalMoSEngine:
         )
         return self.tokenizer.decode(gen_tokens, skip_special_tokens=True), scache
 
+    @torch.no_grad()
+    def generate_speculative(
+        self,
+        prompt: str,
+        draft_model: object,
+        draft_cache: Optional[SCacheDynamicCache] = None,
+        target_cache: Optional[SCacheDynamicCache] = None,
+        max_new_tokens: int = 128,
+        max_draft_tokens: int = 6,
+        temperature: float = 0.0,
+        use_chat_template: bool = True,
+    ) -> Tuple[str, SCacheDynamicCache, SCacheDynamicCache]:
+        """Horizon 1 (v1.4) Ghost-Jump Speculative Reflex Coupling (`System 1` Scout + `72B MoS` Verifier)."""
+        if target_cache is None:
+            target_cache = self.make_scache()
+        if draft_cache is None:
+            draft_cache = self.make_scache()
+
+        if use_chat_template and hasattr(self.tokenizer, "apply_chat_template") and self.tokenizer.chat_template:
+            if target_cache.get_seq_length() > 0 and "<|im_start|>" in str(self.tokenizer.chat_template):
+                formatted = f"<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+            else:
+                formatted = self.tokenizer.apply_chat_template(
+                    [{"role": "user", "content": prompt}], tokenize=False, add_generation_prompt=True
+                )
+        else:
+            formatted = prompt
+
+        ids = self.tokenizer(formatted, return_tensors="pt").input_ids
+        spec_engine = GhostJumpSpeculativeEngine(
+            draft_model=draft_model,
+            target_model=self,
+            max_draft_tokens=max_draft_tokens,
+        )
+        eos_set = {self.tokenizer.eos_token_id, 151645, 151643} - {None}
+        res = spec_engine.generate(
+            ids,
+            max_new_tokens=max_new_tokens,
+            draft_cache=draft_cache,
+            target_cache=target_cache,
+            temperature=temperature,
+            eos_token_id=list(eos_set),
+        )
+        text = self.tokenizer.decode(res.generated_ids, skip_special_tokens=True)
+        print(text, flush=True)
+        print(
+            f"[GhostJump Telemetry] Decode={res.decode_tok_per_s:.2f} tok/s "
+            f"({len(res.generated_ids)} tok in {res.target_sweeps} sweeps = "
+            f"{res.mean_tokens_per_target_sweep:.2f}x tok/sweep, accept={res.acceptance_rate*100:.1f}%) | "
+            f"Draft SCache={res.draft_scache_bytes / (1024**2):.2f} MiB | "
+            f"Target SCache={res.target_scache_bytes / (1024**2):.2f} MiB (Δrec=0 B)",
+            flush=True,
+        )
+        return text, draft_cache, target_cache
+
 
 def _sha256_path(path: Path) -> str:
     h = hashlib.sha256()
@@ -802,6 +877,8 @@ def main() -> None:
     p.add_argument("--num-slots", type=int, default=24, help="SCache O(1) associative scar slots S")
     p.add_argument("--max-new-tokens", type=int, default=128)
     p.add_argument("--temperature", type=float, default=0.0)
+    p.add_argument("--draft-model", type=str, default=None, help="Optional System 1 Scout model ID (e.g. Qwen/Qwen2.5-0.5B-Instruct) for Ghost-Jump Speculative Decode")
+    p.add_argument("--max-draft-tokens", type=int, default=6, help="Max Ghost-Jump speculative draft horizon K")
     p.add_argument("--prompt", type=str, default=None, help="Single-shot prompt to generate")
     p.add_argument("--chat", action="store_true", help="Launch interactive multi-turn terminal chat with O(1) SCache")
     args = p.parse_args()
@@ -814,14 +891,33 @@ def main() -> None:
 
     engine = CanonicalMoSEngine(model_dir=model_dir, device=args.device, streaming=not args.resident)
     scache = engine.make_scache(window_size=args.window_size, num_slots=args.num_slots)
+    draft_model = None
+    draft_scache = None
+    if args.draft_model:
+        from transformers import AutoModelForCausalLM
+        draft_model = AutoModelForCausalLM.from_pretrained(
+            args.draft_model, dtype=engine.dtype
+        ).to(engine.device).eval()
+        draft_scache = engine.make_scache(window_size=args.window_size, num_slots=args.num_slots)
 
     if args.prompt:
-        engine.generate_stream(
-            args.prompt,
-            scache=scache,
-            max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature,
-        )
+        if draft_model is not None:
+            engine.generate_speculative(
+                args.prompt,
+                draft_model=draft_model,
+                draft_cache=draft_scache,
+                target_cache=scache,
+                max_new_tokens=args.max_new_tokens,
+                max_draft_tokens=args.max_draft_tokens,
+                temperature=args.temperature,
+            )
+        else:
+            engine.generate_stream(
+                args.prompt,
+                scache=scache,
+                max_new_tokens=args.max_new_tokens,
+                temperature=args.temperature,
+            )
     elif args.chat:
         print("=" * 76)
         print("💬 Qwen2.5-72B-Instruct Canonical MoS + SCache O(1) Interactive Local Chat")
@@ -839,15 +935,28 @@ def main() -> None:
                 break
             if user_msg.lower() == "reset":
                 scache = engine.make_scache(window_size=args.window_size, num_slots=args.num_slots)
+                if draft_model is not None:
+                    draft_scache = engine.make_scache(window_size=args.window_size, num_slots=args.num_slots)
                 print("✓ SCache O(1) memory reset.")
                 continue
             print("Assistant > ", end="", flush=True)
-            engine.generate_stream(
-                user_msg,
-                scache=scache,
-                max_new_tokens=args.max_new_tokens,
-                temperature=args.temperature,
-            )
+            if draft_model is not None:
+                engine.generate_speculative(
+                    user_msg,
+                    draft_model=draft_model,
+                    draft_cache=draft_scache,
+                    target_cache=scache,
+                    max_new_tokens=args.max_new_tokens,
+                    max_draft_tokens=args.max_draft_tokens,
+                    temperature=args.temperature,
+                )
+            else:
+                engine.generate_stream(
+                    user_msg,
+                    scache=scache,
+                    max_new_tokens=args.max_new_tokens,
+                    temperature=args.temperature,
+                )
 
 
 if __name__ == "__main__":

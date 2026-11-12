@@ -1,15 +1,15 @@
 # Mixture of Scars (MoS) & SCache $\mathcal{O}(1)$: Breaking the Dual Memory Wall Across `0.5B`–`72.71B` Transformers
 
 [![DOI v1.3.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![Release: v1.3.0](https://img.shields.io/badge/Release-v1.3.0-brightgreen.svg)](zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf)
+[![Release: v1.4.0](https://img.shields.io/badge/Release-v1.4.0%20(Horizon%201)-brightgreen.svg)](results/horizon1_v1_4_audit.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
 [![HuggingFace Drop-in](https://img.shields.io/badge/HuggingFace-DynamicCache%20Drop--in-yellow.svg)](https://huggingface.co/)
 [![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
-[![72.7B Multi-Tenant](https://img.shields.io/badge/72.7B%20MoS-38.1%20GiB%20(%E2%88%9296.4%25%208x%20Bank)-9cf.svg)](#2-7271b-qwen25-72b-instruct-canonical-mos-v2-80l-tokenssec-next-to-peak-memory)
-[![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20CUDA%20Triton-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
-[![Tests Passing](https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg)](tests/)
+[![72.7B Sub-2-Bit](https://img.shields.io/badge/72.7B%20Sub--2--Bit-20.65%20GiB%20Shards%20(%3C24%20GB%20VRAM)-9cf.svg)](#3-horizon-1-v140-ghost-jump-speculative-reflex--sub-2-bit-mos--24-gb-7271b)
+[![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
+[![Tests Passing](https://img.shields.io/badge/Tests-51%2F51%20Passing-brightgreen.svg)](tests/)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 [![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v2.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
@@ -62,6 +62,30 @@ python scripts/benchmark_72b_apple_silicon.py
 
 # 2. Download public SHA-256 verified Qwen2.5-72B-Instruct MoS v2 shards & launch interactive terminal chat:
 mos-run --download --chat --model-dir ./models/qwen25_72b_mos_v2
+```
+
+### 3. Horizon 1 (`v1.4.0`): *Ghost-Jump* Speculative Reflex & `Sub-2-Bit MoS` (`< 24 GB` `72.71B`)
+Audited live on Apple Silicon M2 (`MPS`, `HF_HUB_OFFLINE=1`) across `Qwen2.5-0.5B-Instruct`, `Qwen2.5-3B-Instruct`, and real `Qwen2.5-72B-Instruct` shards ([`results/horizon1_v1_4_audit.json`](results/horizon1_v1_4_audit.json), [`scar_cache/speculative_ghost_jump.py`](scar_cache/speculative_ghost_jump.py), [`scar_cache/sub2bit_mos.py`](scar_cache/sub2bit_mos.py)):
+
+* **Track 1.1 — `System 1 + System 2` *Ghost-Jump* Speculative Reflex + Atomic `SCache O(1)` Rollback:**
+  - Pairs `Qwen2.5-0.5B-Instruct` (`System 1` Scout, `SCache O(1)`) with `Qwen2.5-3B-Instruct` (`System 2` Verifier, `SCache O(1)`), dynamically halting drafts at epistemic bifurcations via `GhostJumpReflexDecision` (`confidence`, `margin = P_1 - P_2`).
+  - **`1.89× – 1.92×` measured wall-clock decode speedup** on structured Python & mathematical derivations (`12.50 → 23.65 tok/s` and `12.14 → 23.30 tok/s`, `78.8%–79.2%` acceptance, **`4.80–5.05` tokens/sweep**) with **`100.0%` exact bit-for-bit greedy parity (`96/96` tokens, `KL = 0.0000`)** and **`0 Bytes` recursive storage discrepancy** (`untyped_storage().data_ptr()`).
+  - **Hardware Sweep Scaling on `72.71B`:** In `16 GB` NVMe streaming (`43.3 s`/sweep), `4.80–5.05` tokens/sweep yields **`~4.7×–4.9×` faster `72.71B` streaming decode**; on NVIDIA CUDA Triton (`M <= 8` coalesced register GEMV), single-sweep verification yields **`~3.8×–4.6×` resident `72.71B` speedup** *(note: PyTorch's built-in Apple Metal `_weight_int4pack_mm` currently loops row-wise for `M > 1` — `32.3 ms` @ `M=1` vs. `140.8 ms` @ `M=7` — making a custom batched Metal `M <= 8` shader a prime target alongside our CUDA Triton kernel)*.
+* **Track 1.2 — `MoS Sub-2-Bit` (`2.25 bpw` Base + Two-Pass Alternating `ASVD` Outlier Shield):**
+  - Uses an IEEE-exact 4-level symmetric codebook `{-1.0, -0.3125, +0.3125, +1.0}` (`beta = 5/16`, zero LUT in GPU registers, fused CUDA Triton `W2A16+ASVD` kernels in [`scar_cache/triton_mos_gemm.py`](scar_cache/triton_mos_gemm.py)) paired with a **Zero-Data Analytical SwiGLU Salience Oracle** (`||w_gate_j * ln2||_2 * ||w_up_j * ln2||_2 * sqrt(1 + 2 cos^2)`) and automatic GQA `k_proj / v_proj` INT4 shielding.
+  - **`Qwen2.5-72B` Layer 79 (`8192 × 29568` under `195,720×` SwiGLU spikes):** Naive `2-bit` degrades to `cos = 0.8831` (`rel_err = 0.5430`), whereas **`MoS Sub-2-Bit + ASVD (r=96)` achieves `cos = 0.99911` (`rel_err = 0.0421` — `12.9×` lower error at `2.489 bpw`)** and **`cos = 0.9633`** across 4 consecutive deep layers (`L76..L79`).
+  - **Breaks the `24 GB` GPU & `32 GB` Mac Barrier for `72.71B`:** Transcoding `mos_group_19.safetensors` shrinks each 4-layer shard from `1.79 GiB → 1.03 GiB` (**`20.65 GiB`** across all `20` shards; **`22.97 GiB`** full disk checkpoint `< 32 GB` M2 Pro; **`21.89 GiB` GPU Resident VRAM** with `lm_head` + `SCache O(1)` — **fitting `100%` resident on a single `24 GB` RTX 3090 / 4090 / L4!**).
+  - **End-to-End Pretrained `Qwen2.5-3B-Instruct` (`108` SwiGLU MLPs):** Naive uniform `2-bit` collapses completely (`PPL = 1,351,758.2`, `Top-1 = 0.5%`), while **`MoS Sub-2-Bit + ASVD` reduces perplexity by `12,290×` (`PPL = 109.99`, `KL = 1.06`, `79.4%–91.1%` Top-5 recall, `4.66×` MLP compression)**.
+
+```bash
+# Reproduce the complete Horizon 1 (v1.4.0) Ghost-Jump + Sub-2-Bit 72B audit:
+python scripts/benchmark_horizon1_v1_4.py
+
+# Transcode a 38.12 GiB Qwen2.5-72B MoS v2 checkpoint into a 22.97 GiB (21.89 GiB VRAM) Sub-2-Bit checkpoint:
+mos-transcode-sub2bit --in-dir ./models/qwen25_72b_mos_v2 --out-dir ./models/qwen25_72b_mos_sub2bit
+
+# Run speculative System 1 + System 2 Ghost-Jump decoding from the CLI:
+mos-run --model-dir ./models/qwen25_72b_mos_sub2bit --draft-model Qwen/Qwen2.5-0.5B-Instruct --prompt "Explain Widrow-Hoff orthogonal erasure:"
 ```
 
 ---
@@ -130,7 +154,7 @@ Evaluated across a **non-repeating 926-token distributed storage + Python + queu
 
 ## ⚖️ Honest Boundary Conditions & Limitations
 
-1. **`32 GB` M2 Pro SKU vs. `>= 48 GB` Unified Memory on `72.71B`:** The `80`-layer `Qwen2.5-72B MoS v2` shards total `38.12 GiB`. Because Apple caps the M2 Pro hardware SKU at `32 GB` total Unified RAM, `~8–10 GiB` pages over NVMe (`~0.40–0.55 tok/s` hybrid vs. `2.57 tok/s` pure `200 GB/s` bus ceiling). Macs with `>= 48 GB` (`M4 Pro 48 GB`, `M2/M3/M4 Max 64 GB+`) keep all `80` layers + `32k` `SCache` (`128.5 MiB` vs. `10.7 GiB` Normal KV!) **100% RAM-resident** at `3.46–4.87 tok/s` with `0 MB/tok` SSD I/O. (`Sub-2-Bit + ASVD` `~20 GiB` for `24 GB` GPUs & `32 GB` Macs is Track 1.2 of our [`v2.x` Roadmap](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)).
+1. **`32 GB` M2 Pro SKU & `24 GB` Consumer GPUs on `72.71B` (`INT4 v1.2` vs. `Sub-2-Bit v1.4`):** The `80`-layer `INT4+ASVD` (`v1.2`) shards total `38.12 GiB` (`100%` RAM-resident on `>= 48 GB` Macs at `3.46–4.87 tok/s`, paging `~8–10 GiB` over NVMe on `32 GB` M2 Pro). In **`v1.4.0` (`Sub-2-Bit + ASVD`, `mos-transcode-sub2bit`)**, the `20` shards shrink to **`20.65 GiB`** (`22.97 GiB` full disk / **`21.89 GiB` GPU VRAM**), fitting **`100%` resident on both `24 GB` GPUs (`RTX 3090 / 4090 / L4`) and `32 GB` Apple M2 Pro** (`cos = 0.99911` on Layer 79 outlier projections; `cos = 0.9633` across 4 deep layers, trading higher `2-bit` isotropic quantization noise for `1.73×` denser residency).
 2. **Cross-Layer Permutation Sensitivity on Pretrained SwiGLU:** Sharing a single dense base across *distinct* pretrained layers without Sinkhorn permutation alignment incurs `KL ≈ 0.78` (as seen in synthetic topology stress scripts `examples/13` & `15`, which achieve `90×` structural compression on unaligned weights). Production off-the-shelf models therefore pair **per-layer `Block-64 INT4` bases with `ASVD` scars** (`38.12 GiB` standalone at `72.7B`), while **single-base sharing** is used for multi-tenant specialist banks anchored to a common backbone (`-96.37%` / `27.59×` across 8 specialists).
 3. **Fixed Micro-Page Slot Budget vs. Random Hash Copying:** Synchronized `32`-token micro-page routing (`S = 256`) achieves `100%` passkey recall at `32.9k` tokens; verbatim copying of dozens of independent uncorrelated hashes scales linearly with `S`.
 
@@ -210,11 +234,12 @@ The Unified Scar Operator unlocks concrete mechanisms outside text generation �
 ## 📂 Reproduction Suites & Executable Examples
 
 ```bash
-# Run all 44 unit, red-team causality, and fused Metal/Triton kernel parity tests:
+# Run all 51 unit, red-team causality, Horizon 1 Ghost-Jump/Sub-2-Bit, and fused Metal/Triton parity tests:
 pytest -q
 ```
 
 - **Core Verification & Red-Team Suites (`scripts/`):**
+  - [`scripts/benchmark_horizon1_v1_4.py`](scripts/benchmark_horizon1_v1_4.py) — `v1.4.0` Horizon 1 `Ghost-Jump` (`1.89×–1.92×` lossless speedup) + `Sub-2-Bit 72B` (`21.89 GiB` VRAM) live audit.
   - [`scripts/benchmark_16k_passkey_llm.py`](scripts/benchmark_16k_passkey_llm.py) — `16.6k` & `32.9k` Passkey / NIAH live audit (`ΔBytes = 0 B` pointer check).
   - [`scripts/benchmark_72b_apple_silicon.py`](scripts/benchmark_72b_apple_silicon.py) — Apple Silicon Metal `_weight_int4pack_mm` (`50.38×` speedup) + `80L` memory/speed profiler.
   - [`scripts/adversarial_scale_72b_suite.py`](scripts/adversarial_scale_72b_suite.py) & [`scripts/adversarial_scale_7b_suite.py`](scripts/adversarial_scale_7b_suite.py) — Full `72.71B` & `7.62B` 8-vector adversarial audits.

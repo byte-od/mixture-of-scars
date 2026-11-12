@@ -1,0 +1,152 @@
+{
+  "version": "1.4.0",
+  "horizon": "Horizon 1 \u2014 Speed & Density Frontier (Ghost-Jump Speculative Reflex + Sub-2-Bit MoS)",
+  "elapsed_total_s": 926.94,
+  "track_1_1_ghost_jump_speculative_reflex": {
+    "scout_model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "verifier_model": "Qwen/Qwen2.5-3B-Instruct",
+    "device": "mps",
+    "dtype": "torch.float16",
+    "mean_standalone_3b_tok_per_s": 10.73,
+    "mean_ghost_jump_tok_per_s": 17.34,
+    "mean_measured_speedup": 1.616,
+    "mean_acceptance_rate": 0.644,
+    "mean_tokens_per_target_sweep": 4.005,
+    "workloads": [
+      {
+        "workload": "python_associative_ring_buffer",
+        "prompt_tokens": 88,
+        "generated_tokens": 96,
+        "window_size": 1024,
+        "standalone_3b_tok_per_s": 12.5,
+        "ghost_jump_tok_per_s": 23.65,
+        "measured_decode_speedup": 1.892,
+        "acceptance_rate": 0.7879,
+        "mean_tokens_per_target_sweep": 5.053,
+        "target_sweeps": 19,
+        "exact_greedy_token_match": true,
+        "exact_prefix_match_tokens": 96,
+        "mean_scout_confidence": 0.9084,
+        "epistemic_bifurcation_halts": 4,
+        "draft_scache_kib": 3197.06,
+        "target_scache_kib": 11887.59,
+        "draft_storage_discrepancy_bytes": 0,
+        "target_storage_discrepancy_bytes": 0,
+        "sample_output_preview": "class AssociativeRingCache:\n    def __init__(self, capacity: int):\n        self.capacity = capacity\n        self.cache = [None] * capacity\n        self.pos = 0\n"
+      },
+      {
+        "workload": "math_widrow_hoff_derivation",
+        "prompt_tokens": 100,
+        "generated_tokens": 96,
+        "window_size": 1024,
+        "standalone_3b_tok_per_s": 12.14,
+        "ghost_jump_tok_per_s": 23.3,
+        "measured_decode_speedup": 1.919,
+        "acceptance_rate": 0.7917,
+        "mean_tokens_per_target_sweep": 4.8,
+        "target_sweeps": 20,
+        "exact_greedy_token_match": true,
+        "exact_prefix_match_tokens": 96,
+        "mean_scout_confidence": 0.8613,
+        "epistemic_bifurcation_halts": 9,
+        "draft_scache_kib": 3329.06,
+        "target_scache_kib": 12319.59,
+        "draft_storage_discrepancy_bytes": 0,
+        "target_storage_discrepancy_bytes": 0,
+        "sample_output_preview": "To derive the expression for \\( W_{t+1} k_t \\) and determine the condition on \\(\\eta\\) for exact one-step recall, we will follow these steps:\n\n1. **"
+      },
+      {
+        "workload": "eviction_active_o1_scache_long_context",
+        "prompt_tokens": 187,
+        "generated_tokens": 80,
+        "window_size": 96,
+        "standalone_3b_tok_per_s": 7.56,
+        "ghost_jump_tok_per_s": 5.08,
+        "measured_decode_speedup": 0.672,
+        "acceptance_rate": 0.3525,
+        "mean_tokens_per_target_sweep": 2.162,
+        "target_sweeps": 37,
+        "exact_greedy_token_match": false,
+        "exact_prefix_match_tokens": 34,
+        "mean_scout_confidence": 0.5709,
+        "epistemic_bifurcation_halts": 52,
+        "draft_scache_kib": 2153.06,
+        "target_scache_kib": 8755.59,
+        "draft_storage_discrepancy_bytes": 0,
+        "target_storage_discrepancy_bytes": 0,
+        "sample_output_preview": " The system employs a novel ASVD (Alternating Sign Singular Value Decomposition) technique to decompose data into a low-rank component and a sparse outlier component, reducing complexity from \\(O(n^"
+      }
+    ]
+  },
+  "track_1_1_qwen72b_sweep_scaling": {
+    "shard_tested": "mos_group_00.safetensors",
+    "int4_metal_fused_enabled": true,
+    "batch_sweep_telemetry": {
+      "M=1": {
+        "group_4layers_ms": 32.281,
+        "projected_80layers_resident_ms": 645.61,
+        "sweep_overhead_vs_M1": 1.0
+      },
+      "M=5": {
+        "group_4layers_ms": 103.346,
+        "projected_80layers_resident_ms": 2066.92,
+        "sweep_overhead_vs_M1": 3.201
+      },
+      "M=7": {
+        "group_4layers_ms": 140.81,
+        "projected_80layers_resident_ms": 2816.2,
+        "sweep_overhead_vs_M1": 4.362
+      },
+      "M=9": {
+        "group_4layers_ms": 181.206,
+        "projected_80layers_resident_ms": 3624.11,
+        "sweep_overhead_vs_M1": 5.613
+      }
+    },
+    "empirical_tokens_per_sweep_from_phase1": 4.005,
+    "resident_80layer_single_token_tok_per_s": 1.549,
+    "resident_80layer_ghost_jump_tok_per_s": 1.413,
+    "resident_72b_decode_speedup_factor": 0.912
+  },
+  "track_1_2_sub2bit_end_to_end_llm": {
+    "model": "Qwen/Qwen2.5-3B-Instruct",
+    "eval_tokens": 219,
+    "num_swiglu_mlps_converted": 108,
+    "asvd_rank": 128,
+    "fp16_ppl": 42.5724,
+    "naive_uniform_2bit_ppl": 1351758.1771,
+    "mos_sub2bit_asvd_ppl": 109.9867,
+    "naive_2bit_kl_div": 10.9415,
+    "mos_sub2bit_kl_div": 1.0641,
+    "naive_2bit_top1_agreement": 0.0046,
+    "mos_sub2bit_top1_agreement": 0.4633,
+    "naive_2bit_top5_recall": 0.0046,
+    "mos_sub2bit_top5_recall": 0.7936,
+    "mlp_fp16_mib": 4644.0,
+    "mlp_sub2bit_mib": 997.31,
+    "mlp_compression_vs_fp16": 4.657,
+    "mean_effective_bpw": 3.436
+  },
+  "track_1_2_qwen72b_sub2bit_shard_audit": {
+    "layer79_down_proj_shape": [
+      8192,
+      29568
+    ],
+    "layer79_naive_2bit_cos_sim": 0.88308,
+    "layer79_naive_2bit_rel_error": 0.54303,
+    "layer79_mos_sub2bit_cos_sim": 0.99911,
+    "layer79_mos_sub2bit_rel_error": 0.04215,
+    "layer79_effective_bpw": 2.4894,
+    "transcoded_shard_name": "mos_group_19.safetensors",
+    "transcode_elapsed_s": 575.25,
+    "mos_v2_shard_gib": 1.7899,
+    "mos_sub2bit_shard_gib": 1.0325,
+    "shard_reduction_ratio": 1.7335,
+    "group19_4layer_forward_cos_sim": 0.96327,
+    "projected_80layer_20shards_gib": 20.651,
+    "projected_full_checkpoint_with_embed_head_gib": 22.971,
+    "gpu_resident_vram_20shards_head_scache_gib": 21.889,
+    "fits_single_24gb_gpu_resident": true,
+    "fits_32gb_apple_silicon_resident": true
+  }
+}
