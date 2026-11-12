@@ -11,7 +11,7 @@ Open `main.tex` line 10:
 
 ## Submitting to arXiv (`cs.LG` primary, `cs.CL` secondary)
 1. Upload `zenodo_deposit_v1_3/MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip` at https://arxiv.org/submit.
-2. Set **Report-no / DOI** field to: `10.5281/zenodo.24143839`.
+2. Set **Report-no / DOI** field to: `10.5281/zenodo.24172784`.
 3. License: `CC BY 4.0`.
 
 ## Public `70B`-Class Model Download (`Qwen2.5-72B-Instruct MoS v2`) & Practical Guide Citation

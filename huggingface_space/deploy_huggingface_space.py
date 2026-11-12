@@ -35,7 +35,7 @@ def main():
         repo_id=args.repo_id,
         repo_type="space",
         ignore_patterns=["__pycache__/*", "*.pyc", "deploy_huggingface_space.py"],
-        commit_message="Deploy Mixture of Scars & SCache O(1) Red-Team Lab v1.0.0 (DOI: 10.5281/zenodo.24143839)",
+        commit_message="Deploy Mixture of Scars & SCache O(1) Red-Team Lab v1.0.0 (DOI: 10.5281/zenodo.24172784)",
     )
     print(f"✓ Live Space deployed: https://huggingface.co/spaces/{args.repo_id}")
 

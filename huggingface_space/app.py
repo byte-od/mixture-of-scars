@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Mixture of Scars (MoS) & SCache O(1) — Live Adversarial Red-Team Laboratory
-Official Hugging Face Gradio Space | DOI: 10.5281/zenodo.24143839
+Official Hugging Face Gradio Space | DOI: 10.5281/zenodo.24172784
 Author: Julio Cesar Reis Filho (Byte-OD Research)
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ DEFAULT_UNSEEN_PROBES: Dict[str, str] = {
         "    return dist\n"
     ),
     "Unseen Strict JSON Schema": (
-        '{"audit_version":"1.0.0","doi":"10.5281/zenodo.24143839","primitives":['
+        '{"audit_version":"1.0.0","doi":"10.5281/zenodo.24172784","primitives":['
         '{"name":"SCache","complexity":"O(1)","window":64,"slots":24,"delta_bytes":0},'
         '{"name":"MoS","base_bits":4,"scar_rank":32,"multi_tenant_saving_pct":92.6}]}'
     ),
@@ -517,7 +517,7 @@ def build_demo():
     with gr.Blocks(title="Mixture of Scars & SCache O(1) — Red-Team Lab") as demo:
         gr.Markdown(
             "# ⚡ Mixture of Scars (`MoS`) & `SCache` O(1) — Live Red-Team Laboratory\n"
-            "**Permanent Preprint (CERN/Zenodo DOI):** [10.5281/zenodo.24143839](https://doi.org/10.5281/zenodo.24143839) | "
+            "**Permanent Preprint (CERN/Zenodo DOI):** [10.5281/zenodo.24172784](https://doi.org/10.5281/zenodo.24172784) | "
             "**GitHub (`v1.0.0`):** [byte-od/mixture-of-scars](https://github.com/byte-od/mixture-of-scars)"
         )
         with gr.Tabs():

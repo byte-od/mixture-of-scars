@@ -17,7 +17,7 @@ Official interactive demonstration of **Mixture of Scars (MoS)** and **SCache**.
 See how long contexts (up to 50,000+ tokens) and deep 70B-scale architectures that traditionally cause **Out-Of-Memory (OOM)** errors run smoothly inside a **Free 16GB CPU Space**!
 
 * **GitHub Repository:** [https://github.com/byte-od/mixture-of-scars](https://github.com/byte-od/mixture-of-scars)
-* **Zenodo Preprint & Replication Deposit (`v1.3.0`):** [10.5281/zenodo.24143839](https://doi.org/10.5281/zenodo.24143839)
+* **Zenodo Preprint & Replication Deposit (`v1.3.0`):** [10.5281/zenodo.24172784](https://doi.org/10.5281/zenodo.24172784)
 * **Public `70B/72.71B` Model Download (`Qwen2.5-72B-Instruct MoS v2`, `38.12 GiB` SHA-256 Shards):** [releases/tag/v1.2.0-qwen72b-mos](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos) (`mos-run --download --chat`)
 * **Practical Local Deployment Guide:** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 * **Audited Highlights (`v1.3.0`):** `100%` Passkey recall at `16.6k` & `32.9k` tokens (`22.71 MiB` constant `O(1)` KV RAM, `+0.00 B` drift, `50.9x` less KV RAM & `5.84x` faster than Normal KV), `72.71B` `Qwen2.5-72B-Instruct` `100%` Top-5 retention (`195,720x` SwiGLU outlier neutralization), and `50.38x` Fused Apple Metal + NVIDIA CUDA Triton `W4A16+ASVD` kernels.

@@ -25,6 +25,6 @@ Interactive demonstration of:
 3. **Needle In A Haystack (NIAH):** Audited on real non-repeating Python documentation up to `32,868` tokens and synthetic stress sweeps up to `64k` tokens.
 
 * **GitHub Repository:** [https://github.com/byte-od/mixture-of-scars](https://github.com/byte-od/mixture-of-scars)
-* **Zenodo Preprint & Replication Deposit (`v1.3.0`):** [10.5281/zenodo.24143839](https://doi.org/10.5281/zenodo.24143839)
+* **Zenodo Preprint & Replication Deposit (`v1.3.0`):** [10.5281/zenodo.24172784](https://doi.org/10.5281/zenodo.24172784)
 * **Public `70B/72.71B` Model Download (`Qwen2.5-72B-Instruct MoS v2`, `38.12 GiB`):** [releases/tag/v1.2.0-qwen72b-mos](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos) (`mos-run --download --chat`)
 * **Step-by-Step Practical Local Deployment Guide:** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md)

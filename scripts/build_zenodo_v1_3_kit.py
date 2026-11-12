@@ -77,7 +77,7 @@ def add_page_number(canvas, doc):
     canvas.drawString(
         0.58 * inch,
         0.34 * inch,
-        "Reis Filho (2026) — Mixture of Scars (MoS) & SCache O(1) v1.3.0 (32.9k NIAH & 72.71B Metal/CUDA) | DOI: 10.5281/zenodo.24143839",
+        "Reis Filho (2026) — Mixture of Scars (MoS) & SCache O(1) v1.3.0 (32.9k NIAH & 72.71B Metal/CUDA) | DOI: 10.5281/zenodo.24172784",
     )
     canvas.drawRightString(LETTER[0] - 0.58 * inch, 0.34 * inch, f"Page {doc.page}")
     canvas.restoreState()
@@ -151,7 +151,7 @@ def build_pdf_v1_3(pdf_path: Path, hero_png: Path):
     story.append(Paragraph(
         "<b>Julio Cesar Reis Filho</b> — Byte-OD Research &amp; System One Architecture Lab<br/>"
         "Preprint Technical Report <b>v1.3.0</b> (16.6k–32.9k Passkey Recall, Fused Metal/CUDA W4A16+ASVD &amp; 72.71B Pareto) — November 12, 2026<br/>"
-        "<b>DOI:</b> 10.5281/zenodo.24143839 &nbsp;|&nbsp; <b>72B Download &amp; Practical Guide:</b> github.com/byte-od/mixture-of-scars (<code>releases/tag/v1.2.0-qwen72b-mos</code>)",
+        "<b>DOI:</b> 10.5281/zenodo.24172784 &nbsp;|&nbsp; <b>72B Download &amp; Practical Guide:</b> github.com/byte-od/mixture-of-scars (<code>releases/tag/v1.2.0-qwen72b-mos</code>)",
         s_meta,
     ))
     story.append(HRFlowable(width="100%", thickness=0.8, color=colors.HexColor("#CBD5E1"), spaceAfter=4.2))
@@ -302,7 +302,7 @@ def build_pdf_v1_3(pdf_path: Path, hero_png: Path):
         "(3) <b>Public 70B-Class Model Download &amp; Practical Guide (<code>mos-run --download</code>):</b> All 22 SHA-256 verified 20&times;4-layer "
         "<b>Qwen2.5-72B-Instruct MoS v2</b> shards (38.12 GiB, zero-login HTTP 206 Range at <code>github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos</code>) "
         "and the step-by-step <b>Practical Local Deployment Guide</b> (<code>docs/GUIA_PRATICO_MOS_SCACHE_72B.md</code>) [14], alongside fused CUDA "
-        "Triton &amp; Apple Metal kernels, <b>44/44 pytest suite</b>, and raw JSON audits, are archived at <b>DOI: 10.5281/zenodo.24143839</b> [13].",
+        "Triton &amp; Apple Metal kernels, <b>44/44 pytest suite</b>, and raw JSON audits, are archived at <b>DOI: 10.5281/zenodo.24172784</b> [13].",
         s_body,
     ))
 
@@ -320,7 +320,7 @@ def build_pdf_v1_3(pdf_path: Path, hero_png: Path):
         "[10] Li, Y., Yu, Y., Liang, C., He, P., Karampatziakis, N., Chen, W., & Zhao, T. (2024). LoftQ: LoRA-Fine-Tuning-Aware Quantization for LLMs. ICLR 2024.",
         "[11] Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., et al. (2023). H2O: Heavy-Hitter Oracle for Efficient Generative Inference of LLMs. NeurIPS 36.",
         "[12] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., et al. (2017). Attention Is All You Need. NeurIPS 30.",
-        "[13] Reis Filho, J. C. (2026). Mixture of Scars (MoS) and SCache O(1): Multi-Scale 0.5B–72.71B Replication Kit & 32.9k Passkey Telemetry (v1.3.0). Zenodo. DOI: 10.5281/zenodo.24143839.",
+        "[13] Reis Filho, J. C. (2026). Mixture of Scars (MoS) and SCache O(1): Multi-Scale 0.5B–72.71B Replication Kit & 32.9k Passkey Telemetry (v1.3.0). Zenodo. DOI: 10.5281/zenodo.24172784.",
         "[14] Reis Filho, J. C. (2026). Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint) & Practical Local Deployment Guide (docs/GUIA_PRATICO_MOS_SCACHE_72B.md). URL: https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos.",
     ]
     for r in refs:

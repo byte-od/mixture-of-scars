@@ -1,6 +1,6 @@
 # 🗺️ Official Roadmap (`v1.4` → `v2.x`): Next-Generation `MoS`, `SCache O(1)` & Cross-Domain Applications
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24143839.svg)](https://doi.org/10.5281/zenodo.24143839)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
 [![Baseline Release](https://img.shields.io/badge/Baseline-v1.3.0%20Audited-brightgreen.svg)](../README.md)
 [![72B MoS Checkpoint](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Public-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Architectural Integrity](https://img.shields.io/badge/Mandate-Zero%20Facades%20%2F%20Strict%20O(1)-critical.svg)]()

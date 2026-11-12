@@ -164,7 +164,7 @@ python scripts/benchmark_72b_apple_silicon.py
 MOS_CUDA_BACKEND=triton python -m scar_cache.cli_72b --model-dir ./models/qwen25_72b_mos_v2 --chat
 ```
 
-- **Preprint Acadêmico Oficial (`v1.3.0`, CERN / Zenodo DOI):** [`10.5281/zenodo.24143839`](https://doi.org/10.5281/zenodo.24143839) ([`Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf`](../zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf))
+- **Preprint Acadêmico Oficial (`v1.3.0`, CERN / Zenodo DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) ([`Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf`](../zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf))
 
 ---
 
@@ -180,8 +180,8 @@ Ao utilizar a arquitetura `MoS + SCache O(1)`, o checkpoint público `Qwen2.5-72
   year        = {2026},
   month       = nov,
   version     = {1.3.0},
-  doi         = {10.5281/zenodo.24143839},
-  url         = {https://doi.org/10.5281/zenodo.24143839}
+  doi         = {10.5281/zenodo.24172784},
+  url         = {https://doi.org/10.5281/zenodo.24172784}
 }
 
 @misc{reisfilho2026qwen72b_mos_v2,

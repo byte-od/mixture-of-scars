@@ -21,10 +21,10 @@ tags:
 
 # Mixture of Scars (`MoS`) & `SCache` $\mathcal{O}(1)$ — Live Adversarial Red-Team Laboratory (`v1.3.0`)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24143839.svg)](https://doi.org/10.5281/zenodo.24143839)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
 [![GitHub Release](https://img.shields.io/badge/GitHub-v1.3.0-181717.svg)](https://github.com/byte-od/mixture-of-scars)
 
-Interactive verification laboratory for **[Mixture of Scars (MoS) & SCache $\mathcal{O}(1)$](https://doi.org/10.5281/zenodo.24143839)** by **Julio Cesar Reis Filho (*Byte-OD Research & System One Architecture Lab*)**.
+Interactive verification laboratory for **[Mixture of Scars (MoS) & SCache $\mathcal{O}(1)$](https://doi.org/10.5281/zenodo.24172784)** by **Julio Cesar Reis Filho (*Byte-OD Research & System One Architecture Lab*)**.
 
 ## Highlights Verified in `v1.3.0` (`44/44` `pytest` Suite)
 - **`16.6k` & `32.9k` Passkey / Needle-in-a-Haystack (`100%` Recall, `+0.00 B` Drift):** On `Qwen/Qwen2.5-3B-Instruct` (`36L`) across non-repeating Python documentation, `SCacheDynamicCache` ($W=256, S=256$) achieves **`100%` recall** at both `16,568` (`5/5`) and `32,868` tokens (`3/3`) inside a strictly constant **`22.71 MiB`** (`50.9x` smaller than `1,155.80 MiB` Normal KV) while running **`5.84x` faster** (`300.8` vs. `51.5 tok/s` at `32.9k`), whereas `StreamingLLM` scores **`0%`**.
@@ -71,8 +71,8 @@ mos-run --download --chat --model-dir ./models/qwen25_72b_mos_v2
   year        = {2026},
   month       = nov,
   version     = {1.3.0},
-  doi         = {10.5281/zenodo.24143839},
-  url         = {https://doi.org/10.5281/zenodo.24143839}
+  doi         = {10.5281/zenodo.24172784},
+  url         = {https://doi.org/10.5281/zenodo.24172784}
 }
 
 @misc{reisfilho2026qwen72b_mos_v2,

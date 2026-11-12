@@ -1,6 +1,6 @@
 # Mixture of Scars (MoS) & SCache: Breaking the Barrier Between LLMs and Hardware
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24143839.svg)](https://doi.org/10.5281/zenodo.24143839)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
@@ -64,7 +64,7 @@ python -m scar_cache.cli_72b --download --chat --model-dir ./models/qwen25_72b_m
 ---
 
 ### 📄 Official Preprint (`v1.3.0`), Public `72.71B` Shards & Interactive Red-Team Lab
-- **Permanent Preprint (CERN / Zenodo DOI):** [`10.5281/zenodo.24143839`](https://doi.org/10.5281/zenodo.24143839) ([**Preprint v1.3 PDF — 16k/32.9k Passkey, Fused Metal/CUDA Kernels & 72.71B Pareto**](zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
+- **Permanent Preprint (CERN / Zenodo DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) ([**Preprint v1.3 PDF — 16k/32.9k Passkey, Fused Metal/CUDA Kernels & 72.71B Pareto**](zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
 - **Academic LaTeX Manuscript (arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/) & [`MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip`](zenodo_deposit_v1_3/MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip)
 - **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `20 × 1.79 GiB` Shards) & Practical Guide:**
   - **Practical Local Guide (PT-BR / CLI):** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
@@ -334,8 +334,8 @@ Developed by **Julio Cesar Reis Filho** & **Byte-OD Research Lab** (2026).
   year        = {2026},
   month       = nov,
   version     = {1.3.0},
-  doi         = {10.5281/zenodo.24143839},
-  url         = {https://doi.org/10.5281/zenodo.24143839}
+  doi         = {10.5281/zenodo.24172784},
+  url         = {https://doi.org/10.5281/zenodo.24172784}
 }
 
 @misc{reisfilho2026qwen72b_mos_v2,

@@ -20,7 +20,7 @@ pipeline_tag: text-generation
 # 🧬 Mixture of Scars (`MoS v2`) & `SCache` $\mathcal{O}(1)$ (`v1.3.0`)
 
 **Developed by:** Julio Cesar Reis Filho — Byte-OD Research & System One Architecture Lab (2026)  
-**Preprint (CERN / Zenodo DOI):** [https://doi.org/10.5281/zenodo.24143839](https://doi.org/10.5281/zenodo.24143839)  
+**Preprint (CERN / Zenodo DOI):** [https://doi.org/10.5281/zenodo.24172784](https://doi.org/10.5281/zenodo.24172784)  
 **Code Repository:** [https://github.com/byte-od/mixture-of-scars](https://github.com/byte-od/mixture-of-scars)  
 **Public `70B/72.71B` Download (`38.12 GiB` SHA-256 Shards):** [https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)  
 **Practical Local Deployment Guide:** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](https://github.com/byte-od/mixture-of-scars/blob/main/docs/GUIA_PRATICO_MOS_SCACHE_72B.md)  
@@ -90,8 +90,8 @@ Full hardware sizing & CLI guide: [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](https:
   year        = {2026},
   month       = nov,
   version     = {1.3.0},
-  doi         = {10.5281/zenodo.24143839},
-  url         = {https://doi.org/10.5281/zenodo.24143839}
+  doi         = {10.5281/zenodo.24172784},
+  url         = {https://doi.org/10.5281/zenodo.24172784}
 }
 
 @misc{reisfilho2026qwen72b_mos_v2,
