@@ -4,6 +4,7 @@
 [![Baseline Release](https://img.shields.io/badge/Baseline-v1.3.0%20Audited-brightgreen.svg)](../README.md)
 [![72B MoS Checkpoint](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Public-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Architectural Integrity](https://img.shields.io/badge/Mandate-Zero%20Facades%20%2F%20Strict%20O(1)-critical.svg)]()
+[![Sponsor Research](https://img.shields.io/badge/Sponsor-Open%20GPU%20Research-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/byte-od)
 
 > **Core Thesis — The Unified Scar Principle:**  
 > Do not spend high-precision memory storing predictable routine. Compress the common substrate to its physical hardware floor (`INT4` / `2-bit` bases in space; fixed `O(1)` windows in time) and allocate capacity **strictly where error, outlier amplification, or prediction surprise occurs** — gated by one-sided directional cones with exact `0.000000` out-of-hemisphere interference.

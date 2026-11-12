@@ -11,6 +11,7 @@
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 [![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v2.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
+[![Sponsor Research](https://img.shields.io/badge/Sponsor-Byte--OD%20Research-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/byte-od)
 [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)
 
 > **"Breaking the barrier between LLMs and hardware."**  
@@ -317,6 +318,21 @@ Run the full unit and adversarial red-team test suite (**44/44 tests passing**):
 ```bash
 pytest tests/
 ```
+
+---
+
+## ❤️ Sponsor Open Research & GPU Compute
+
+**Mixture of Scars (`MoS`)** and **`SCache O(1)`** are developed independently under the permissive **MIT License** — with full source code, fused Apple Metal & CUDA Triton kernels, reproducible red-team benchmarks, and zero-login `72.71B` weights released free to the community.
+
+If this research, its mathematical primitives, or its GPU/Unified-Memory kernels save infrastructure costs or inspire new mechanisms in your team, consider sponsoring our lab via **[GitHub Sponsors (`@byte-od`)](https://github.com/sponsors/byte-od)**:
+
+* **100% of sponsorships fund dedicated multi-GPU & Unified-Memory compute** for our [`v1.4 → v2.x` Open Roadmap](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md):
+  1. **`MoS Sub-2-Bit + ASVD` (`72B` in `~20 GiB` & `405B` Shards):** Public SHA-256 checkpoints fitting `100%` resident on single `24 GB` GPUs and `32 GB` Macs.
+  2. **`System 1 + 72B` Speculative Reflex Fusion:** `3×–5×` faster lossless decode via Ghost-Jump draft verification.
+  3. **`128k–1M` Multi-Needle `SCache` & `.scache` Post-RAG Cartridges:** Continuous long-horizon benchmarks, lossless `SCache + ANS` storage, and native `WebGPU / WGSL` browser kernels.
+
+👉 **[Become a GitHub Sponsor (`github.com/sponsors/byte-od`)](https://github.com/sponsors/byte-od)**
 
 ---
 
