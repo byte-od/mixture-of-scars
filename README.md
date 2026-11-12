@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24143839.svg)](https://doi.org/10.5281/zenodo.24143839)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 [![HuggingFace Drop-in](https://img.shields.io/badge/HuggingFace-Compatible-yellow.svg)](https://huggingface.co/)
 [![KV Cache Reduction](https://img.shields.io/badge/KV%20Cache%20Reduction-187.5x-success.svg)]()
@@ -60,9 +60,9 @@ python -m scar_cache.cli_72b --download --chat --model-dir ./models/qwen25_72b_m
 
 ---
 
-### 📄 Official Preprint (`v1.2.0`), Public `72.71B` Shards & Interactive Red-Team Lab
-- **Permanent Preprint (CERN / Zenodo DOI):** [`10.5281/zenodo.24143839`](https://doi.org/10.5281/zenodo.24143839) ([**Preprint v1.2 PDF — 0.5B → 7.62B → 72.71B → 123B & 3D Pareto**](zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
-- **Academic LaTeX Manuscript (arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/) & [`MoS_SCache_LaTeX_arXiv_TMLR_v1.2.zip`](zenodo_deposit_v1_2/MoS_SCache_LaTeX_arXiv_TMLR_v1.2.zip)
+### 📄 Official Preprint (`v1.3.0`), Public `72.71B` Shards & Interactive Red-Team Lab
+- **Permanent Preprint (CERN / Zenodo DOI):** [`10.5281/zenodo.24143839`](https://doi.org/10.5281/zenodo.24143839) ([**Preprint v1.3 PDF — 16k/32.9k Passkey, Fused Metal/CUDA Kernels & 72.71B Pareto**](zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
+- **Academic LaTeX Manuscript (arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/) & [`MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip`](zenodo_deposit_v1_3/MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip)
 - **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `20 × 1.79 GiB` Shards) & Practical Guide:**
   - **Practical Local Guide (PT-BR / CLI):** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
   - **Zero-Login HTTPS Release (`HTTP 206 Range` + `SHA-256`):** [`github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos`](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
@@ -214,7 +214,7 @@ inputs = tokenizer("Your massive context here...", return_tensors="pt")
 out = model.generate(**inputs, past_key_values=cache, max_new_tokens=100)
 
 print(tokenizer.decode(out[0], skip_special_tokens=True))
-print(f"KV Cache Memory: {cache.total_physical_bytes / 1024:.2f} KB (Permanently frozen!)")
+print(f"KV Cache Memory: {cache.total_memory_bytes / 1024:.2f} KB (Permanently frozen!)")
 ```
 
 ### 2. Mixture of Scars (MoS) for Linear & MLP Layers
@@ -296,7 +296,7 @@ The repository includes **16 standalone, self-contained reproduction scripts** i
 
 ## 🧪 Testing
 
-Run the full unit and adversarial red-team test suite (**39/39 tests passing**):
+Run the full unit and adversarial red-team test suite (**44/44 tests passing**):
 
 ```bash
 pytest tests/
@@ -311,11 +311,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Developed by **Julio Cesar Reis Filho** & **Byte-OD Research Lab** (2026).
 
 ```bibtex
-@software{reisfilho2026mixtureofscars,
-  author = {Reis Filho, Julio Cesar and Byte-OD Research Team},
-  title = {Mixture of Scars (MoS) and SCache: Breaking the Barrier Between LLMs and Hardware},
-  year = {2026},
-  url = {https://github.com/byte-od/mixture-of-scars},
-  license = {MIT}
+@techreport{reisfilho2026mos_scache,
+  author      = {Reis Filho, Julio Cesar},
+  title       = {Mixture of Scars (MoS) and SCache O(1): Breaking the Dual Memory Wall Across 0.5B -> 7.62B -> 72.71B Transformers via Fused Activation-Aware Scar Experts and 32k Widrow-Hoff Associative Memory},
+  institution = {Byte-OD Research \& System One Architecture Lab},
+  year        = {2026},
+  month       = nov,
+  version     = {1.3.0},
+  doi         = {10.5281/zenodo.24143839},
+  url         = {https://doi.org/10.5281/zenodo.24143839}
 }
 ```

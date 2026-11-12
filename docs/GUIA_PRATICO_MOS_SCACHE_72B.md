@@ -142,3 +142,26 @@ python scripts/export_canonical_72b_mos.py \
   --mlp-rank 48 \
   --attn-rank 32
 ```
+
+---
+
+## 7. Auditoria Reprodutível de `16.6k` & `32.9k` Passkey / Needle-in-a-Haystack e Seleção de Kernels
+
+### 7.1 Benchmark `16.6k` & `32.9k` Passkey (`SCache O(1)` vs. Normal KV vs. `StreamingLLM`)
+```bash
+# Reproduz a auditoria oficial em documentação real da biblioteca padrão do Python (salva JSON com prova ΔBytes = 0 B):
+python scripts/benchmark_16k_passkey_llm.py \
+  --models Qwen/Qwen2.5-0.5B-Instruct Qwen/Qwen2.5-3B-Instruct \
+  --lengths 16500 32800
+```
+
+### 7.2 Benchmark de Velocidade & Memória `72.71B` Fused Metal (`Apple Silicon`) e `CUDA`
+```bash
+# Apple Silicon (mede paridade cos=1.000000 do _weight_int4pack_mm e roda 80L --resident automaticamente em Macs >=48 GB):
+python scripts/benchmark_72b_apple_silicon.py
+
+# NVIDIA CUDA — seleção explícita opcional do backend INT4 (padrão: auto = triton -> int4pack -> dequant):
+MOS_CUDA_BACKEND=triton python -m scar_cache.cli_72b --model-dir ./models/qwen25_72b_mos_v2 --chat
+```
+
+- **Preprint Acadêmico Oficial (`v1.3.0`, CERN / Zenodo DOI):** [`10.5281/zenodo.24143839`](https://doi.org/10.5281/zenodo.24143839) ([`Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf`](../zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf))

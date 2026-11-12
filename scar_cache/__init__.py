@@ -26,7 +26,7 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 __all__ = [
     "SCache",

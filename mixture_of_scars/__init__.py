@@ -1,9 +1,12 @@
-"""Mixture of Scars (MoS) & SCache: Radical Static Weight Compression & O(1) Constant Memory KV-Cache Replacement for LLMs."""
+"""Mixture of Scars (MoS) & SCache O(1): Fused INT4+ASVD Weight Compression & Constant-Memory Widrow-Hoff KV-Cache Replacement."""
 
 from scar_cache import (
+    CanonicalMoSEngine,
+    CanonicalMoSGroup,
     GradientScarMemory,
     MixtureOfScarsLinear,
     MultiSlotSCache,
+    NativeMoS70B,
     SCache,
     SCacheDynamicCache,
     SCacheDynamicLayer,
@@ -14,9 +17,12 @@ from scar_cache import (
     SlotScarLinear,
     __version__,
     delta_rule_update,
+    fused_int4_mos_linear,
+    fused_mos_linear,
     hebbian_outer_product,
     project_conflicting_gradient,
     project_conflicting_gradients_per_slot,
+    triton_fused_int4_mos_linear,
 )
 
 __all__ = [
@@ -31,6 +37,12 @@ __all__ = [
     "SlotScarLinear",
     "ScarExpert",
     "MixtureOfScarsLinear",
+    "CanonicalMoSEngine",
+    "CanonicalMoSGroup",
+    "NativeMoS70B",
+    "fused_mos_linear",
+    "fused_int4_mos_linear",
+    "triton_fused_int4_mos_linear",
     "project_conflicting_gradient",
     "project_conflicting_gradients_per_slot",
     "delta_rule_update",

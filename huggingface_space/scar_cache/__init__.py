@@ -10,6 +10,7 @@ from scar_cache.core import GradientScarMemory, SCache
 from scar_cache.hf_cache import SCacheDynamicCache, SCacheDynamicLayer
 from scar_cache.modules import ScarGatedLayer, ScarLinear, SlotScarLinear
 from scar_cache.mos import MixtureOfScarsLinear, ScarExpert
+from scar_cache.cli_72b import CanonicalMoSEngine, CanonicalMoSGroup
 from scar_cache.native_70b import NativeMoS70B
 from scar_cache.convert_qwen import stream_convert_qwen72b
 from scar_cache.multi_slot import MultiSlotSCache
@@ -19,8 +20,13 @@ from scar_cache.projections import (
     project_conflicting_gradient,
     project_conflicting_gradients_per_slot,
 )
+from scar_cache.triton_mos_gemm import (
+    fused_int4_mos_linear,
+    fused_mos_linear,
+    triton_fused_int4_mos_linear,
+)
 
-__version__ = "0.4.0"
+__version__ = "1.3.0"
 
 __all__ = [
     "SCache",
@@ -34,8 +40,13 @@ __all__ = [
     "SlotScarLinear",
     "ScarExpert",
     "MixtureOfScarsLinear",
+    "CanonicalMoSEngine",
+    "CanonicalMoSGroup",
     "NativeMoS70B",
     "stream_convert_qwen72b",
+    "fused_mos_linear",
+    "fused_int4_mos_linear",
+    "triton_fused_int4_mos_linear",
     "project_conflicting_gradient",
     "project_conflicting_gradients_per_slot",
     "delta_rule_update",

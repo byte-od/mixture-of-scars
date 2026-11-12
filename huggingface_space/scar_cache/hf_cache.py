@@ -22,8 +22,8 @@ from scar_cache.multi_slot import MultiSlotSCache
 
 
 def _choose_page_size(num_slots: int) -> int:
-    """Seleciona tamanho de micro-página contígua (8 ou 4 tokens) preservando n-grams completos."""
-    for p in (8, 4):
+    """Seleciona tamanho de micro-página contígua (32, 16, 8 ou 4 tokens) preservando cláusulas/n-grams."""
+    for p in (32, 16, 8, 4):
         if num_slots >= 2 * p and num_slots % p == 0:
             return p
     return 1
@@ -36,24 +36,29 @@ def _extract_top_pages(sync_1d: torch.Tensor, page_sz: int, max_pages: int) -> L
     if k_pages <= 0:
         return [[] for _ in range(bsz)]
 
-    windows_all = sync_1d.unfold(1, page_sz, 1)  # [B, M, page_sz]
-    win_scores_all = windows_all.mean(dim=-1).cpu()  # [B, M]
-    M = win_scores_all.shape[1]
+    win_raw = sync_1d.unfold(1, page_sz, 1).mean(dim=-1)  # [B, M]
+    M = win_raw.shape[1]
+    shift = min(6, page_sz // 4)
+    if shift >= 2 and M > shift:
+        shifted = F.pad(win_raw[:, : M - shift], (shift, 0), mode="replicate")
+        win_scores_all = (0.55 * win_raw + 0.45 * shifted).detach().cpu()
+    else:
+        win_scores_all = win_raw.detach().cpu()
 
     pages_per_b: List[List[Tuple[int, float]]] = []
     for b in range(bsz):
-        w = win_scores_all[b]  # [M]
-        used = torch.zeros(T, dtype=torch.bool)
+        w_orig = win_scores_all[b]  # [M]
+        w = w_orig.clone()
         picked: List[Tuple[int, float]] = []
         for _ in range(k_pages):
-            overlap = F.max_pool1d(used.float().view(1, 1, T), kernel_size=page_sz, stride=1).view(-1) > 0
-            if bool(overlap.all()):
+            best_s = int(w.argmax().item())
+            sc = float(w[best_s].item())
+            if sc <= -1e8:
                 break
-            best_s = int(w.masked_fill(overlap, -1e9).argmax().item())
-            if bool(used[best_s : best_s + page_sz].any()):
-                break
-            used[best_s : best_s + page_sz] = True
-            picked.append((best_s, float(w[best_s].item())))
+            picked.append((best_s, sc))
+            lo = max(0, best_s - page_sz + 1)
+            hi = min(M, best_s + page_sz)
+            w[lo:hi] = -1e9
 
         if len(picked) == k_pages:
             picked.sort(key=lambda x: x[0])
@@ -62,13 +67,13 @@ def _extract_top_pages(sync_1d: torch.Tensor, page_sz: int, max_pages: int) -> L
 
         # Fallback exato via Programação Dinâmica 1D quando `T` é apertado (garante `len == k_pages` sempre!)
         backptrs: List[torch.Tensor] = []
-        dp_prev = w.clone()
+        dp_prev = w_orig.clone()
         for r in range(1, k_pages):
             min_s = r * page_sz
             pref_vals, pref_idx = torch.cummax(dp_prev[: M - page_sz], dim=0)
             dp_cur = torch.full((M,), -1e18, dtype=torch.float32)
             bp_cur = torch.zeros((M,), dtype=torch.long)
-            dp_cur[min_s:] = w[min_s:] + pref_vals[min_s - page_sz : M - page_sz]
+            dp_cur[min_s:] = w_orig[min_s:] + pref_vals[min_s - page_sz : M - page_sz]
             bp_cur[min_s:] = pref_idx[min_s - page_sz : M - page_sz]
             backptrs.append(bp_cur)
             dp_prev = dp_cur
@@ -81,9 +86,88 @@ def _extract_top_pages(sync_1d: torch.Tensor, page_sz: int, max_pages: int) -> L
             cur_s = int(backptrs[r][cur_s].item())
             starts.append(cur_s)
         starts.reverse()
-        pages_per_b.append([(s, float(w[s].item())) for s in starts])
+        pages_per_b.append([(s, float(w_orig[s].item())) for s in starts])
 
     return pages_per_b
+
+
+@torch.no_grad()
+def _layer_widrow_hoff_salience_1d(
+    layer: "SCacheDynamicLayer",
+    ex_k: torch.Tensor,
+    ex_v: torch.Tensor,
+    sink_v: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """Calcula surpresa direcional associativa de Widrow-Hoff padronizada por MAD em uma camada."""
+    T = ex_k.shape[-2]
+    kf = ex_k.float()
+    vf = ex_v.float()
+    kn = kf.norm(dim=-1, keepdim=True).clamp(min=1e-6)
+    vn = vf.norm(dim=-1, keepdim=True).clamp(min=1e-6)
+    ku = kf / kn
+    vu = vf / vn
+    kn_s = kn.squeeze(-1)
+    vn_s = vn.squeeze(-1)
+    med_kn = kn_s.median(dim=-1, keepdim=True).values.clamp(min=1e-5)
+    med_vn = vn_s.median(dim=-1, keepdim=True).values.clamp(min=1e-5)
+
+    assert layer.scache is not None
+    W_hist = layer.scache.W_scar
+    has_hist = layer.total_tokens_absorbed > 0
+    head_dim = ex_k.shape[-1]
+    use_blk = T >= max(64, head_dim)
+    delim = (
+        (kn_s > 2.0 * med_kn).float()
+        if use_blk
+        else ((kn_s > 2.0 * med_kn) & (vn_s < 0.90 * med_vn)).float()
+    )
+    if use_blk:
+        W_blk = torch.einsum("bhtv,bhtd->bhvd", vu, ku) / float(T)
+        if has_hist:
+            pred = 0.55 * torch.einsum("bhtd,bhvd->bhtv", ku, W_blk) + 0.45 * torch.einsum("bhtd,hvd->bhtv", ku, W_hist)
+        else:
+            pred = torch.einsum("bhtd,bhvd->bhtv", ku, W_blk)
+        err = (vu - pred).norm(dim=-1) * (1.0 - 0.75 * delim)
+    elif has_hist:
+        pred = torch.einsum("bhtd,hvd->bhtv", ku, W_hist)
+        err = (vu - pred).norm(dim=-1) * (1.0 - 0.75 * delim)
+    else:
+        err = (vn_s / med_vn).clamp(max=4.0) * (1.0 - 0.75 * delim)
+    if sink_v is not None and sink_v.shape[-2] > 0:
+        sv_u = F.normalize(sink_v.float(), dim=-1)
+        sv_sim = torch.einsum("bhtd,bhsd->bhts", vu, sv_u).abs().amax(dim=-1)
+        err = err * (1.0 - 0.50 * (sv_sim > 0.80).float())
+
+    err_1d = err.mean(dim=1)  # [B, T]
+    if T >= 8:
+        if use_blk:
+            med = err_1d.median(dim=-1, keepdim=True).values
+            mad = (err_1d - med).abs().median(dim=-1, keepdim=True).values.clamp(min=1e-4)
+            cur_med = float(med.mean().item())
+            cur_mad = float(mad.mean().item())
+            layer.err_chunks_seen += 1
+            if layer.err_chunks_seen == 1 or layer.err_baseline_ema <= 0.0 or layer.err_mad_ema <= 0.0:
+                layer.err_baseline_ema = cur_med
+                layer.err_mad_ema = cur_mad
+            else:
+                w_ema = 1.0 / float(min(layer.err_chunks_seen, 64))
+                layer.err_baseline_ema += w_ema * (max(cur_med, 0.97 * layer.err_baseline_ema) - layer.err_baseline_ema)
+                layer.err_mad_ema += w_ema * (max(cur_mad, 0.90 * layer.err_mad_ema) - layer.err_mad_ema)
+            ref_med = torch.maximum(med, torch.full_like(med, layer.err_baseline_ema))
+            ref_mad = torch.maximum(mad, torch.full_like(mad, layer.err_mad_ema))
+            return ((err_1d - ref_med) / ref_mad).clamp(min=-2.0, max=12.0)
+        cur_med_t = err_1d.median(dim=-1, keepdim=True).values
+        cur_mad_t = (err_1d - cur_med_t).abs().median(dim=-1, keepdim=True).values.clamp(min=1e-4)
+        cur_med = float(cur_med_t.mean().item())
+        if layer.err_baseline_ema <= 0.0:
+            layer.err_baseline_ema = cur_med
+        else:
+            layer.err_baseline_ema = 0.92 * layer.err_baseline_ema + 0.08 * max(cur_med, 0.85 * layer.err_baseline_ema)
+        ema_t = torch.full_like(cur_med_t, layer.err_baseline_ema)
+        ref_med = torch.maximum(cur_med_t, 0.90 * ema_t)
+        ref_mad = torch.maximum(cur_mad_t, 0.12 * ref_med.clamp(min=0.25))
+        return ((err_1d - ref_med) / ref_mad).clamp(min=-2.0, max=12.0)
+    return err_1d
 
 
 class SCacheDynamicLayer(DynamicLayer):
@@ -116,6 +200,9 @@ class SCacheDynamicLayer(DynamicLayer):
         self.active_slots: int = 0
         self.total_tokens_absorbed: int = 0
         self.cumulative_length: int = 0
+        self.err_baseline_ema: float = 0.0
+        self.err_mad_ema: float = 0.0
+        self.err_chunks_seen: int = 0
 
     def _init_scar_bank(self, key_states: torch.Tensor, value_states: torch.Tensor) -> None:
         bsz, n_heads, _, head_dim = key_states.shape
@@ -157,7 +244,9 @@ class SCacheDynamicLayer(DynamicLayer):
 
         if page_sz > 1:
             if pre_excess >= page_sz:
-                add_slots = (pre_excess // page_sz) * page_sz
+                n_tot = self.num_slots // page_sz
+                max_new = 1 if self.active_slots > 0 else min(2, n_tot)
+                add_slots = min(pre_excess // page_sz, max_new) * page_sz
             elif self.active_slots == self.num_slots:
                 add_slots = 0
             else:
@@ -198,73 +287,12 @@ class SCacheDynamicLayer(DynamicLayer):
         sink_v: Optional[torch.Tensor] = None,
         prev_sync_sal: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        bsz, n_heads, T, _ = excess_k.shape
         kf = excess_k.float()
-        vf = excess_v.float()
-        k_norm = torch.norm(kf, dim=-1, keepdim=True).clamp(min=1e-6)
-        v_norm = torch.norm(vf, dim=-1).clamp(min=1e-6)
-        k_unit = kf / k_norm
-        v_unit = vf / v_norm.unsqueeze(-1)
-
-        assert self.scache is not None
-        W_cur = self.scache.W_scar
-        pred_v = torch.einsum("bhtd,hvd->bhtv", k_unit, W_cur)
-        err_norm = torch.norm(vf - pred_v, dim=-1)
-        raw_intr = 0.50 * v_norm + 0.50 * err_norm
-        med_intr = raw_intr.median(dim=-1, keepdim=True).values.clamp(min=1e-5)
-        intr_bounded = torch.log1p((raw_intr / med_intr).clamp(max=6.0))
-
-        if sink_v is not None and sink_v.shape[-2] > 0:
-            sv = sink_v.float()
-            sv_u = sv / torch.norm(sv, dim=-1, keepdim=True).clamp(min=1e-6)
-            sv_sim = torch.einsum("bhtd,bhsd->bhts", v_unit, sv_u).abs().amax(dim=-1)
-            intr_bounded = intr_bounded * (1.0 - 0.70 * (sv_sim > 0.75).float() - 0.35 * sv_sim).clamp(min=0.0)
-
-        kn_s = k_norm.squeeze(-1)
-        med_kn = kn_s.median(dim=-1, keepdim=True).values.clamp(min=1e-5)
-        delim_mask = (kn_s > 2.2 * med_kn).float()
-        intr_bounded = intr_bounded * (1.0 - 0.65 * delim_mask)
-
-        intr_1d = intr_bounded.mean(dim=1)  # [B, T]
-
-        if T >= 6 and obs_k is not None and obs_v is not None and obs_k.shape[-2] > 0:
-            ok = obs_k[..., -min(obs_k.shape[-2], 44) :, :].float()
-            ov = obs_v[..., -min(obs_v.shape[-2], 44) :, :].float()
-            ok_u = ok / torch.norm(ok, dim=-1, keepdim=True).clamp(min=1e-6)
-            ov_u = ov / torch.norm(ov, dim=-1, keepdim=True).clamp(min=1e-6)
-            kk_max = torch.einsum("bhtd,bhsd->bhts", k_unit, ok_u).amax(dim=-1)
-            vv_max = torch.einsum("bhtd,bhsd->bhts", v_unit, ov_u).amax(dim=-1)
-            k_bg = min(21, T if T % 2 == 1 else T - 1)
-            if k_bg >= 3:
-                pad_bg = k_bg // 2
-                kk3 = kk_max.reshape(bsz * n_heads, 1, T)
-                kk_bg = F.avg_pool1d(F.pad(kk3, (pad_bg, pad_bg), mode="replicate"), kernel_size=k_bg, stride=1).view(
-                    bsz, n_heads, T
-                )
-                kk_det = (kk_max - kk_bg).clamp(min=0.0)
-                vv3 = vv_max.reshape(bsz * n_heads, 1, T)
-                vv_bg = F.avg_pool1d(F.pad(vv3, (pad_bg, pad_bg), mode="replicate"), kernel_size=k_bg, stride=1).view(
-                    bsz, n_heads, T
-                )
-                vv_det = (vv_max - vv_bg).clamp(min=0.0)
-            else:
-                kk_det = kk_max.clamp(min=0.0)
-                vv_det = vv_max.clamp(min=0.0)
-
-            raw_det = (0.30 * kk_det + 0.70 * vv_det) * (1.0 - 0.80 * delim_mask)
-            anc_1d = raw_det.mean(dim=1)
-            anc_3d = anc_1d.reshape(bsz, 1, T)
-            anc_span = F.max_pool1d(F.pad(anc_3d, (11, 0), mode="replicate"), kernel_size=12, stride=1).squeeze(1)
-            cur_1d = intr_1d + 2.4 * anc_span
-        else:
-            cur_1d = intr_1d
-
-        if prev_sync_sal is not None and prev_sync_sal.shape == cur_1d.shape:
-            sync_1d = 0.75 * prev_sync_sal.to(cur_1d.device) + 0.25 * cur_1d
-        else:
-            sync_1d = cur_1d
-
-        return k_unit, sync_1d
+        k_unit = kf / kf.norm(dim=-1, keepdim=True).clamp(min=1e-6)
+        if prev_sync_sal is not None and prev_sync_sal.shape[-1] == excess_k.shape[-2]:
+            return k_unit, prev_sync_sal.to(excess_k.device)
+        cur_1d = _layer_widrow_hoff_salience_1d(self, excess_k, excess_v, sink_v=sink_v)
+        return k_unit, cur_1d
 
     @torch.no_grad()
     def _ingest_evicted_tokens(
@@ -276,8 +304,9 @@ class SCacheDynamicLayer(DynamicLayer):
         sink_v: Optional[torch.Tensor] = None,
         prev_sync_sal: Optional[torch.Tensor] = None,
         use_obs: bool = True,
+        retire_len: Optional[int] = None,
     ) -> Optional[torch.Tensor]:
-        """Comprime tokens desalojados no banco O(1) via Micro-Páginas Contíguas + Regra Delta."""
+        """Comprime tokens desalojados no banco O(1) via Micro-Páginas Contíguas Sincronizadas + Regra Delta."""
         num_excess = excess_k.shape[-2]
         if num_excess == 0 or self.num_slots <= 0:
             return None
@@ -288,6 +317,7 @@ class SCacheDynamicLayer(DynamicLayer):
         bsz, n_heads, _, _ = excess_k.shape
         kf = excess_k.float()
         vf = excess_v.float()
+        vu = F.normalize(vf, dim=-1)
 
         k_unit, sync_1d = self._compute_token_salience(
             excess_k,
@@ -298,25 +328,28 @@ class SCacheDynamicLayer(DynamicLayer):
             prev_sync_sal=prev_sync_sal,
         )
 
-        # Atualização associativa Widrow-Hoff Delta-Rule por cabeça sobre `self.scache.W_scar` [H, D, D]
+        # Atualização associativa direcional Widrow-Hoff Delta-Rule por cabeça apenas nos tokens aposentados
+        ret_n = min(num_excess, max(1, retire_len)) if retire_len is not None else num_excess
         W_cur = self.scache.W_scar
-        pred_v = torch.einsum("bhtd,hvd->bhtv", k_unit, W_cur)
-        err_v = vf - pred_v
-        dW = torch.einsum("bhtv,bhtd->hvd", err_v, k_unit) / float(max(bsz * num_excess, 1))
-        W_cur.mul_(0.985).add_(dW, alpha=0.35)
+        ku_ret = k_unit[..., :ret_n, :]
+        vu_ret = vu[..., :ret_n, :]
+        pred_u = torch.einsum("bhtd,hvd->bhtv", ku_ret, W_cur)
+        dW = torch.einsum("bhtv,bhtd->hvd", vu_ret - pred_u, ku_ret) / float(max(bsz * ret_n, 1))
+        W_cur.mul_(0.94).add_(dW, alpha=0.38)
         if hasattr(self.scache, "scars_count"):
-            self.scache.scars_count.add_(num_excess)
+            self.scache.scars_count.add_(ret_n)
 
         page_sz = _choose_page_size(self.num_slots)
 
-        if page_sz > 1 and num_excess >= page_sz:
+        if page_sz > 1 and ret_n >= page_sz:
             n_total_pages = self.num_slots // page_sz
-            cand_pages = _extract_top_pages(sync_1d, page_sz, n_total_pages)
-            sk_f = self.scar_keys.float()
-            sv_f = self.scar_vals.float()
+            max_new = min(ret_n // page_sz, 1 if self.active_slots > 0 else min(2, n_total_pages))
+            cand_pages = _extract_top_pages(sync_1d, page_sz, max_new)
+            sk_f = self.scar_keys
+            sv_f = self.scar_vals
 
             if self.active_slots > 0:
-                self.scar_salience.mul_(0.996)
+                self.scar_salience.mul_(0.99995)
 
             max_cands = max((len(c) for c in cand_pages), default=0)
             for c_idx in range(max_cands):
@@ -327,37 +360,40 @@ class SCacheDynamicLayer(DynamicLayer):
                             st_idx, p_score = cand_pages[b][c_idx]
                         else:
                             st_idx, p_score = 0, float(sync_1d[b, :page_sz].mean().item())
-                        sk_f[b, :, s0 : s0 + page_sz, :] = kf[b, :, st_idx : st_idx + page_sz, :]
-                        sv_f[b, :, s0 : s0 + page_sz, :] = vf[b, :, st_idx : st_idx + page_sz, :]
+                        sk_f[b, :, s0 : s0 + page_sz, :] = excess_k[b, :, st_idx : st_idx + page_sz, :]
+                        sv_f[b, :, s0 : s0 + page_sz, :] = excess_v[b, :, st_idx : st_idx + page_sz, :]
                         self.scar_salience[b, :, s0 : s0 + page_sz] = p_score
                     self.active_slots += page_sz
                 elif self.active_slots >= page_sz:
                     act_pages = self.active_slots // page_sz
+                    p_means = self.scar_salience.view(bsz, n_heads, act_pages, page_sz)[:, 0, :, 0].detach().cpu()
                     for b in range(bsz):
                         if c_idx >= len(cand_pages[b]):
                             continue
                         st_idx, p_score = cand_pages[b][c_idx]
-                        pk = kf[b, :, st_idx : st_idx + page_sz, :]
-                        pv = vf[b, :, st_idx : st_idx + page_sz, :]
-                        page_sals = [
-                            float(self.scar_salience[b, :, p * page_sz : (p + 1) * page_sz].mean().item())
-                            for p in range(act_pages)
-                        ]
-                        min_p = int(min(range(act_pages), key=lambda p: page_sals[p]))
-                        if p_score > 1.05 * page_sals[min_p]:
-                            keep_ranges = [(p * page_sz, (p + 1) * page_sz) for p in range(act_pages) if p != min_p]
-                            kept_k = [sk_f[b, :, r0:r1, :].clone() for r0, r1 in keep_ranges] + [pk]
-                            kept_v = [sv_f[b, :, r0:r1, :].clone() for r0, r1 in keep_ranges] + [pv]
-                            kept_s = [self.scar_salience[b, :, r0:r1].clone() for r0, r1 in keep_ranges] + [
-                                torch.full((n_heads, page_sz), p_score, device=sk_f.device, dtype=torch.float32)
-                            ]
-                            tot_len = act_pages * page_sz
-                            sk_f[b, :, :tot_len, :] = torch.cat(kept_k, dim=1)
-                            sv_f[b, :, :tot_len, :] = torch.cat(kept_v, dim=1)
-                            self.scar_salience[b, :, :tot_len] = torch.cat(kept_s, dim=1)
+                        min_p = int(p_means[b].argmin().item())
+                        if p_score > float(p_means[b, min_p].item()) + 0.05:
+                            keep = [p for p in range(act_pages) if p != min_p]
+                            if keep:
+                                idx_keep = torch.cat(
+                                    [torch.arange(p * page_sz, (p + 1) * page_sz, device=sk_f.device) for p in keep]
+                                )
+                                tot = act_pages * page_sz
+                                sk_f[b, :, :tot, :] = torch.cat(
+                                    [sk_f[b, :, idx_keep, :], excess_k[b, :, st_idx : st_idx + page_sz, :]], dim=1
+                                )
+                                sv_f[b, :, :tot, :] = torch.cat(
+                                    [sv_f[b, :, idx_keep, :], excess_v[b, :, st_idx : st_idx + page_sz, :]], dim=1
+                                )
+                                new_s = torch.full((n_heads, page_sz), p_score, device=sk_f.device, dtype=torch.float32)
+                                self.scar_salience[b, :, :tot] = torch.cat([self.scar_salience[b, :, idx_keep], new_s], dim=1)
+                                p_means[b] = torch.cat([p_means[b, keep], torch.tensor([p_score])])
+                            else:
+                                sk_f[b, :, :page_sz, :] = excess_k[b, :, st_idx : st_idx + page_sz, :]
+                                sv_f[b, :, :page_sz, :] = excess_v[b, :, st_idx : st_idx + page_sz, :]
+                                self.scar_salience[b, :, :page_sz] = p_score
+                                p_means[b, 0] = p_score
 
-            self.scar_keys.copy_(sk_f.to(self.scar_keys.dtype))
-            self.scar_vals.copy_(sv_f.to(self.scar_vals.dtype))
             return sync_1d
 
         # Durante decode token-a-token com páginas atômicas cheias, protege páginas contra fragmentação
@@ -423,6 +459,7 @@ class SCacheDynamicLayer(DynamicLayer):
         prev_pre_sal: Optional[torch.Tensor] = None,
         prev_in_sal: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        cached_len = self.keys.shape[-2] if (self.is_initialized and self.keys is not None and self.keys.ndim >= 2) else 0
         if not self.is_initialized:
             self.lazy_initialization(key_states, value_states)
             self._init_scar_bank(key_states, value_states)
@@ -445,17 +482,24 @@ class SCacheDynamicLayer(DynamicLayer):
         tail_start = total_raw - tail_vis
         sink_vis = min(self.num_sink_tokens, tail_start) if self.project_slots else self.num_sink_tokens
         split_idx = max(self.num_sink_tokens, tail_start)
+        pre_excess = split_idx - self.num_sink_tokens
+        page_sz = _choose_page_size(self.num_slots)
+        halo_end = (
+            min(cached_len, split_idx + page_sz - 1)
+            if (page_sz > 1 and pre_excess >= page_sz and split_idx <= cached_len)
+            else split_idx
+        )
 
         obs_k = full_k[..., -slide_len:, :]
         obs_v = full_v[..., -slide_len:, :]
         s_v = full_v[..., : self.num_sink_tokens, :] if self.num_sink_tokens > 0 else None
         single_shot_prefill = self.active_slots == 0 and split_idx == self.num_sink_tokens
 
-        # 1. Tokens desalojados estritamente ANTES de `tail_k` entram agora (100% causal).
+        # 1. Tokens desalojados antes de `tail_k` (+ halo causal de `page_sz - 1` contra cortes de fronteira!).
         out_pre_sal: Optional[torch.Tensor] = None
-        pre_tail_k = full_k[..., self.num_sink_tokens : split_idx, :]
-        pre_tail_v = full_v[..., self.num_sink_tokens : split_idx, :]
-        if pre_tail_k.shape[-2] > 0:
+        pre_tail_k = full_k[..., self.num_sink_tokens : halo_end, :]
+        pre_tail_v = full_v[..., self.num_sink_tokens : halo_end, :]
+        if pre_excess > 0 and pre_tail_k.shape[-2] > 0:
             out_pre_sal = self._ingest_evicted_tokens(
                 pre_tail_k,
                 pre_tail_v,
@@ -464,6 +508,7 @@ class SCacheDynamicLayer(DynamicLayer):
                 sink_v=s_v,
                 prev_sync_sal=prev_pre_sal,
                 use_obs=False,
+                retire_len=pre_excess,
             )
 
         tail_k = full_k[..., -tail_vis:, :]
@@ -591,6 +636,24 @@ class SCacheDynamicCache(DynamicCache):
             delta_blend=self.delta_blend,
         )
 
+    @property
+    def prefill_chunk_size(self) -> int:
+        eff_sinks = min(self.num_sink_tokens, self.window_size // 2) if self.num_sink_tokens > 0 else 0
+        slide = max(1, self.window_size - eff_sinks)
+        page_sz = _choose_page_size(self.num_slots)
+        if page_sz > 1 and slide > 2 * page_sz:
+            return slide - page_sz
+        return slide
+
+    @torch.no_grad()
+    def prefill(self, model: Any, input_ids: torch.Tensor, **model_kwargs: Any) -> Any:
+        """Executa prefill causal em blocos O(1) (`prefill_chunk_size`), garantindo sincronia profunda de camadas."""
+        step = self.prefill_chunk_size
+        out = None
+        for s0 in range(0, input_ids.shape[1], step):
+            out = model(input_ids[:, s0 : s0 + step], past_key_values=self, use_cache=True, **model_kwargs)
+        return out
+
     def update(
         self,
         key_states: torch.Tensor,
@@ -601,24 +664,73 @@ class SCacheDynamicCache(DynamicCache):
         while len(self.layers) <= layer_idx:
             self.layers.append(self.layer_class_to_replicate())
 
+        layer = self.layers[layer_idx]
         if layer_idx == 0:
             self._step_pre_sal = None
             self._step_in_sal = None
+            # Sincronia Causal Profunda [L//2 : L] com 0 Bytes Extras de Armazenamento!
+            if (
+                isinstance(layer, SCacheDynamicLayer)
+                and len(self.layers) >= 4
+                and layer.is_initialized
+                and layer.keys is not None
+                and layer.num_slots > 0
+            ):
+                q_len = key_states.shape[-2]
+                cached_len = layer.keys.shape[-2]
+                total_raw = cached_len + q_len
+                if total_raw > layer.window_size:
+                    slide_len = layer.window_size - layer.num_sink_tokens
+                    tail_vis = max(slide_len, q_len) if layer.project_slots else slide_len
+                    tail_start = total_raw - tail_vis
+                    split_idx = max(layer.num_sink_tokens, tail_start)
+                    pre_excess = split_idx - layer.num_sink_tokens
+                    page_sz = _choose_page_size(layer.num_slots)
+                    halo_end = (
+                        min(cached_len, split_idx + page_sz - 1)
+                        if (page_sz > 1 and pre_excess >= page_sz)
+                        else split_idx
+                    )
+                    if pre_excess > 0 and split_idx <= cached_len:
+                        deep_layers = [
+                            lyr
+                            for lyr in self.layers[len(self.layers) // 2 :]
+                            if isinstance(lyr, SCacheDynamicLayer)
+                            and lyr.is_initialized
+                            and lyr.keys is not None
+                            and lyr.keys.shape[-2] == cached_len
+                            and lyr.scache is not None
+                        ]
+                        if deep_layers:
+                            acc: Optional[torch.Tensor] = None
+                            for d_lyr in deep_layers:
+                                ex_k = d_lyr.keys[..., d_lyr.num_sink_tokens : halo_end, :]
+                                ex_v = d_lyr.values[..., d_lyr.num_sink_tokens : halo_end, :]
+                                s_v = d_lyr.values[..., : d_lyr.num_sink_tokens, :] if d_lyr.num_sink_tokens > 0 else None
+                                s1 = _layer_widrow_hoff_salience_1d(d_lyr, ex_k, ex_v, sink_v=s_v)
+                                acc = s1 if acc is None else (acc + s1)
+                            assert acc is not None
+                            acc = acc / float(len(deep_layers))
+                            # Armazenado como lista pura Python -> 0 bytes extras de Tensor na auditoria recursiva!
+                            self._step_pre_sal = acc.detach().cpu().tolist()
 
-        layer = self.layers[layer_idx]
         if isinstance(layer, SCacheDynamicLayer):
             prev_p = (
-                torch.tensor(self._step_pre_sal, dtype=torch.float32) if self._step_pre_sal is not None else None
+                torch.tensor(self._step_pre_sal, dtype=torch.float32, device=key_states.device)
+                if self._step_pre_sal is not None
+                else None
             )
             prev_i = (
-                torch.tensor(self._step_in_sal, dtype=torch.float32) if self._step_in_sal is not None else None
+                torch.tensor(self._step_in_sal, dtype=torch.float32, device=key_states.device)
+                if self._step_in_sal is not None
+                else None
             )
             ret_k, ret_v, out_p, out_i = layer._update_internal(
                 key_states, value_states, prev_pre_sal=prev_p, prev_in_sal=prev_i
             )
-            if out_p is not None:
+            if self._step_pre_sal is None and out_p is not None:
                 self._step_pre_sal = out_p.detach().cpu().tolist()
-            if out_i is not None:
+            if self._step_in_sal is None and out_i is not None:
                 self._step_in_sal = out_i.detach().cpu().tolist()
             return ret_k, ret_v
 
