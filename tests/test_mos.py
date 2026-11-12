@@ -89,7 +89,7 @@ def test_mixture_of_scars_shared_base_memory_reduction():
     assert reduction_factor > 2.5
 
     # Verifica que cada camada produz saídas diferentes graças aos seus Scar Experts
-    x = torch.randn(2, in_dim)
+    x = torch.randn(2, in_dim).abs() + 0.1
     # Inicializa um especialista em uma camada para diferenciar
     with torch.no_grad():
         mos_layers[0].router.weight[0].fill_(100.0)

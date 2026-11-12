@@ -22,6 +22,7 @@ import hashlib
 import json
 import math
 import os
+import resource
 import sys
 import time
 import urllib.error
@@ -54,6 +55,37 @@ def _warm_os_page_cache(shard_path: Path) -> Path:
         while f.readinto(mv):
             pass
     return shard_path
+
+
+def _process_peak_rss_gib() -> float:
+    rss = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    # macOS reports ru_maxrss in bytes; Linux reports in KiB
+    return rss / (1024.0**3) if sys.platform == "darwin" else rss / (1024.0**2)
+
+
+def _can_use_mps_int4pack(device: torch.device, out_features: int, in_features: int, n_blocks: int) -> bool:
+    return (
+        device.type == "mps"
+        and hasattr(torch, "_weight_int4pack_mm")
+        and hasattr(torch, "_convert_weight_to_int4pack")
+        and out_features % 8 == 0
+        and in_features % 128 == 0
+        and n_blocks * 64 == out_features * in_features
+    )
+
+
+def _swizzle_block64_to_mps_int4pack(
+    pb: torch.Tensor, sb: torch.Tensor, out_features: int, in_features: int, device: torch.device
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Converts canonical Block-64 symmetric INT4 (`(u - 8) * scale`) to Apple Metal fused `int4pack` layout."""
+    pb_dev = pb.to(device, non_blocking=True) if pb.device != device else pb
+    sb_dev = sb.to(device, dtype=torch.float16, non_blocking=True) if sb.device != device else sb.to(torch.float16)
+    pb_2d = pb_dev.view(out_features, in_features // 2)
+    u8_swapped = (((pb_2d & 0x0F) << 4) | (pb_2d >> 4)).contiguous()
+    b_int4 = torch._convert_weight_to_int4pack(u8_swapped, 8)
+    scales_t = sb_dev.view(out_features, in_features // 64).transpose(0, 1).contiguous()
+    sz_int4 = torch.stack((scales_t, torch.zeros_like(scales_t)), dim=-1).contiguous()
+    return b_int4, sz_int4
 
 
 def dequantize_int4_coalesced(
@@ -92,11 +124,13 @@ class CanonicalMoSGroup:
         manifest: Dict[str, object],
         device: torch.device,
         dtype: torch.dtype,
+        cache_mps_int4pack: bool = False,
     ) -> None:
         self.group_idx = group_idx
         self.shard_path = shard_path
         self.device = device
         self.dtype = dtype
+        self.cache_mps_int4pack = cache_mps_int4pack
 
         lpg = int(manifest["layers_per_group"])
         self.start_layer = group_idx * lpg
@@ -112,10 +146,10 @@ class CanonicalMoSGroup:
         self.tensors: Dict[str, torch.Tensor] = {}
         self.is_loaded = False
 
-    def load(self) -> None:
+    def load(self, prefetched_cpu: Optional[Dict[str, torch.Tensor]] = None) -> None:
         if self.is_loaded:
             return
-        cpu_tensors = load_file(str(self.shard_path), device="cpu")
+        cpu_tensors = prefetched_cpu if prefetched_cpu is not None else load_file(str(self.shard_path), device="cpu")
         if self.device.type == "cpu":
             self.tensors = cpu_tensors
         else:
@@ -139,12 +173,41 @@ class CanonicalMoSGroup:
         return (xf * torch.rsqrt(var + self.rms_eps) * w.float()).to(self.dtype)
 
     def _mos_linear(self, x: torch.Tensor, pfx: str, out_features: int, in_features: int) -> torch.Tensor:
-        pb = self.tensors[f"{pfx}.packed_base"]
-        sb = self.tensors[f"{pfx}.scales_base"]
         a_s = self.tensors[f"{pfx}.A_scar"]
         b_s = self.tensors[f"{pfx}.B_scar"]
         bi = self.tensors.get(f"{pfx}.bias")
+        b_int4_key = f"{pfx}.B_int4"
 
+        if b_int4_key not in self.tensors and self.cache_mps_int4pack:
+            pb_raw = self.tensors[f"{pfx}.packed_base"]
+            if _can_use_mps_int4pack(self.device, out_features, in_features, pb_raw.shape[0]):
+                sb_raw = self.tensors[f"{pfx}.scales_base"]
+                b_int4, sz_int4 = _swizzle_block64_to_mps_int4pack(
+                    pb_raw, sb_raw, out_features, in_features, self.device
+                )
+                self.tensors[b_int4_key] = b_int4
+                self.tensors[f"{pfx}.sz_int4"] = sz_int4
+                del self.tensors[f"{pfx}.packed_base"]
+                del self.tensors[f"{pfx}.scales_base"]
+                del pb_raw, sb_raw
+
+        if b_int4_key in self.tensors:
+            b_int4 = self.tensors[b_int4_key]
+            sz_int4 = self.tensors[f"{pfx}.sz_int4"]
+            orig_lead = x.shape[:-1]
+            xf_2d = x.reshape(-1, in_features).float()
+            sc = (xf_2d.abs().amax(dim=-1, keepdim=True) / 512.0).clamp(min=1e-4)
+            x_scaled = (xf_2d / sc).to(torch.float16).contiguous()
+            out_f = (torch._weight_int4pack_mm(x_scaled, b_int4, 64, sz_int4).float() * sc).view(*orig_lead, out_features)
+            if bi is not None:
+                out_f = out_f + bi.float()
+            if a_s.numel() > 0:
+                scar = F.linear(F.linear(x.float(), a_s.float()), b_s.float())
+                out_f = out_f + scar
+            return out_f.clamp(-65000.0, 65000.0).to(x.dtype) if x.dtype == torch.float16 else out_f.to(x.dtype)
+
+        pb = self.tensors[f"{pfx}.packed_base"]
+        sb = self.tensors[f"{pfx}.scales_base"]
         w_base = dequantize_int4_coalesced(pb, sb, (out_features, in_features), self.dtype)
         out = safe_gemm(x, w_base, bi)
         del w_base
@@ -257,6 +320,10 @@ class CanonicalMoSEngine:
             self.head_q = f.get_tensor("lm_head.qweight")
             self.head_s = f.get_tensor("lm_head.scales")
 
+        self.peak_active_device_mib: float = 0.0
+        self.post_unload_device_mib: float = 0.0
+        use_fused_mps_int4 = (self.device.type == "mps") and (not self.streaming)
+
         self.groups = [
             CanonicalMoSGroup(
                 g,
@@ -264,6 +331,7 @@ class CanonicalMoSEngine:
                 self.manifest,
                 self.device,
                 self.dtype,
+                cache_mps_int4pack=use_fused_mps_int4,
             )
             for g in range(self.n_groups)
         ]
@@ -310,14 +378,32 @@ class CanonicalMoSEngine:
                         x = g.forward_layer(l_idx, x, cos, sin, scache)
                     if self.device.type == "mps" and hasattr(torch, "mps"):
                         torch.mps.synchronize()
+                        self.peak_active_device_mib = max(
+                            self.peak_active_device_mib, torch.mps.current_allocated_memory() / (1024.0**2)
+                        )
                     elif self.device.type == "cuda":
                         torch.cuda.synchronize()
+                        self.peak_active_device_mib = max(
+                            self.peak_active_device_mib, torch.cuda.max_memory_allocated() / (1024.0**2)
+                        )
                     g.unload()
+                    if self.device.type == "mps" and hasattr(torch, "mps"):
+                        self.post_unload_device_mib = torch.mps.current_allocated_memory() / (1024.0**2)
+                    elif self.device.type == "cuda":
+                        self.post_unload_device_mib = torch.cuda.memory_allocated() / (1024.0**2)
         else:
             for g in self.groups:
                 g.load()
                 for l_idx in range(g.start_layer, g.end_layer):
                     x = g.forward_layer(l_idx, x, cos, sin, scache)
+                if self.device.type == "mps" and hasattr(torch, "mps"):
+                    self.peak_active_device_mib = max(
+                        self.peak_active_device_mib, torch.mps.current_allocated_memory() / (1024.0**2)
+                    )
+                elif self.device.type == "cuda":
+                    self.peak_active_device_mib = max(
+                        self.peak_active_device_mib, torch.cuda.max_memory_allocated() / (1024.0**2)
+                    )
                 if self.streaming:
                     g.unload()
 
@@ -384,6 +470,7 @@ class CanonicalMoSEngine:
 
         gen_tokens: List[int] = []
         eos_set = {self.tokenizer.eos_token_id, 151645, 151643}
+        t_dec0 = time.perf_counter()
         for _ in range(max_new_tokens):
             assert logits is not None
             nxt_lg = logits[0, -1, :]
@@ -401,9 +488,14 @@ class CanonicalMoSEngine:
             piece = self.tokenizer.decode([nxt_id], skip_special_tokens=True)
             print(piece, end="", flush=True)
             logits = self.forward(torch.tensor([[nxt_id]], dtype=torch.long), scache=scache, return_all_logits=False)
+        dec_dt = time.perf_counter() - t_dec0
+        dec_tps = len(gen_tokens) / max(dec_dt, 1e-6)
         print(
-            f"\n[Telemetry] Context={scache.get_seq_length()} tok | "
-            f"SCache Constant Footprint={scache.total_memory_bytes / (1024**2):.2f} MiB (O(1))",
+            f"\n[Telemetry] Decode={dec_tps:.2f} tok/s ({len(gen_tokens)} tok in {dec_dt:.2f}s) | "
+            f"Peak Active Device={self.peak_active_device_mib:.1f} MiB | "
+            f"Peak Python RSS={_process_peak_rss_gib():.2f} GiB | "
+            f"Context={scache.get_seq_length()} tok | "
+            f"SCache={scache.total_memory_bytes / (1024**2):.2f} MiB (O(1))",
             flush=True,
         )
         return self.tokenizer.decode(gen_tokens, skip_special_tokens=True), scache

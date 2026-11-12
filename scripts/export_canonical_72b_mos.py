@@ -27,7 +27,14 @@ from typing import Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from accelerate import init_empty_weights
+from contextlib import contextmanager
+try:
+    from accelerate import init_empty_weights
+except ImportError:  # pragma: no cover
+    @contextmanager
+    def init_empty_weights():
+        with torch.device("meta"):
+            yield
 from huggingface_hub import snapshot_download
 from safetensors import safe_open
 from safetensors.torch import save_file

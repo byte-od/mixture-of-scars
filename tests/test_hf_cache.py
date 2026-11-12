@@ -92,3 +92,25 @@ def test_scache_mask_alignment_and_zero_byte_discrepancy():
     b_after_real = _recursive_tensor_storage_bytes(cache)
     assert b_after_real == b_prefill_real, f"O(1) storage drift detected: {b_prefill_real} -> {b_after_real}"
     assert b_after_real == cache.total_memory_bytes
+
+
+def test_scache_32token_pages_boundary_overlap_and_zero_drift():
+    """Verifica páginas contíguas de 32 tokens (S=128), overlap de fronteira sem mismatch e 0 B de deriva."""
+    cache = SCacheDynamicCache(window_size=256, num_slots=128, num_sink_tokens=4, project_slots=True)
+    assert cache.prefill_chunk_size == 220
+
+    step = cache.prefill_chunk_size
+    b_first = None
+    for chunk_idx in range(6):
+        q_len = step if chunk_idx < 5 else 1
+        for l_idx in range(6):
+            pred_kv, _ = cache.layers[l_idx].get_mask_sizes(q_len) if l_idx < len(cache.layers) else (q_len, 0)
+            rk, _ = cache.update(torch.randn(1, 4, q_len, 64), torch.randn(1, 4, q_len, 64), layer_idx=l_idx)
+            if chunk_idx > 0:
+                assert rk.shape[-2] == pred_kv, f"Chunk {chunk_idx} layer {l_idx}: {rk.shape[-2]} != {pred_kv}"
+        cur_real = _recursive_tensor_storage_bytes(cache)
+        assert cur_real == cache.total_memory_bytes
+        if chunk_idx == 1:
+            b_first = cur_real
+        elif chunk_idx > 1:
+            assert cur_real == b_first, f"Storage drifted: {b_first} -> {cur_real}"

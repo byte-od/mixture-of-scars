@@ -7,7 +7,7 @@
 [![HuggingFace Drop-in](https://img.shields.io/badge/HuggingFace-Compatible-yellow.svg)](https://huggingface.co/)
 [![KV Cache Reduction](https://img.shields.io/badge/KV%20Cache%20Reduction-187.5x-success.svg)]()
 [![Static Weights Reduction](https://img.shields.io/badge/Static%20Weights%20Reduction-90x-success.svg)]()
-[![Tests Passing](https://img.shields.io/badge/Tests-39%2F39%20Passing-brightgreen.svg)]()
+[![Tests Passing](https://img.shields.io/badge/Tests-41%2F41%20Passing-brightgreen.svg)]()
 [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)
 
 > **"Breaking the barrier between LLMs and hardware."**  
@@ -15,6 +15,50 @@
 > **Mixture of Scars (MoS)** and **SCache** provide the architectural breakthrough to eliminate both bottlenecks simultaneously:
 > 1. **Mixture of Scars (MoS):** Radical static weight ($W_0$) compression (`135.43 GiB → 38.12 GiB` standalone at `72.71B`, and `27.59x` / `-96.37%` across an 8-specialist bank) via symmetric `INT4` bases, Activation-Aware SVD (`ASVD`) low-rank scar experts, and `20 × 4`-layer streaming shards (`1.79 GiB`/shard).
 > 2. **SCache ($O(1)$ Dynamic Context):** Drop-in HuggingFace KV-cache replacement that freezes memory into a constant physical window backed by Widrow-Hoff associative fast-weights (`0.00 B` growth at any sequence length).
+
+---
+
+## 🔥 Red-Team Benchmarks (Top-of-README Quick-Look)
+
+### 1. `16.6k` & `32.9k` Passkey / Needle-in-a-Haystack: `SCache O(1)` vs. Normal KV Cache
+Measured live on Apple Silicon M2 (`16 GB`, `MPS`, `FP16`) across **100% non-repeating Python standard library documentation** (`5%, 25%, 50%, 75%, 95%` needle depths, zero fine-tuning, recursive `untyped_storage().data_ptr()` byte audit in [`results/passkey_16k_32k_llm_audit.json`](results/passkey_16k_32k_llm_audit.json)):
+
+| Pretrained Model | Context (`L`) | Cache Engine | Physical KV Memory (`Δrec = 0 B`) | Throughput (`tok/s` · Wall Time) | Passkey Recall (`5%–95%` Depths) | KV Reduction & Speed vs. Normal KV |
+|---|---|---|---|---|---|---|
+| **`Qwen2.5-3B-Instruct`** (`36L`) | `16,568` tok | Normal KV $O(T)$ (`DynamicCache`) | `582.75 MiB` *(linear growth)* | `245.3 tok/s` (`67.5s`) | `100%` | `1.0x` RAM · `1.00x` speed |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | `16,568` tok | `StreamingLLM` $O(1)$ ($W=256$) | `9.00 MiB` *(constant)* | `394.0 tok/s` (`42.1s`) | **`0%` (Evicted)** | `64.8x` less RAM · Amnesia outside $W$ |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | **`16,568` tok** | **`SCache` $O(1)$ ($W=256, S=256$)** | **`22.71 MiB` (`+0.00 B` drift)** | **`299.0 tok/s` (`55.4s`)** | **`100%` (`5/5` depths)** | **`25.7x` less KV RAM · `1.22x` faster** |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | `32,868` tok | Normal KV $O(T)$ (`DynamicCache`) | `1,155.80 MiB` (`1.13 GiB`) | `51.5 tok/s` (`638.3s` / `10.6m`) | `100%` | `1.0x` RAM · Quadratic $O(T^2)$ stall |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | `32,868` tok | `StreamingLLM` $O(1)$ ($W=256$) | `9.00 MiB` *(constant)* | `391.4 tok/s` (`84.0s`) | **`0%` (Evicted)** | `128.4x` less RAM · Amnesia outside $W$ |
+| **`Qwen2.5-3B-Instruct`** (`36L`) | **`32,868` tok** | **`SCache` $O(1)$ ($W=256, S=256$)** | **`22.71 MiB` (`Δ = +0 B` vs `16.6k`!)** | **`300.8 tok/s` (`109.3s`)** | **`100%` (`3/3`: `5%, 25%, 75%`)** | **`50.9x` less KV RAM · `5.84x` faster!** |
+| **`Qwen2.5-0.5B-Instruct`** (`24L`) | **`16,568` tok** | **`SCache` $O(1)$ ($W=256, S=256$ / $S=128$)** | **`6.86 MiB` (`5.32 MiB` @ $S=128$)** | **`1,159.4 tok/s` (`14.3s` vs `15.0s`)** | **`80%` (`4/5`) / `100%` (`5/5` @ $S=128$)** | **`28.3x–36.5x` less KV RAM · `1.06x–1.12x` faster** |
+| **`Qwen2.5-0.5B-Instruct`** (`24L`) | **`32,868` tok** | **`SCache` $O(1)$ ($W=256, S=256$)** | **`6.86 MiB` (`Δ = +0 B` vs `16.6k`!)** | **`1,176.9 tok/s` (`27.9s` vs `44.5s`)** | **`100%` (`5/5` depths)** | **`56.2x` less KV RAM · `1.60x` faster!** |
+
+```bash
+# Reproduce the 16.6k & 32.9k Passkey / NIAH audit on your own GPU or Mac (writes JSON + verifies ΔBytes = 0 B):
+python scripts/benchmark_16k_passkey_llm.py --models Qwen/Qwen2.5-0.5B-Instruct Qwen/Qwen2.5-3B-Instruct --lengths 16500 32800
+```
+
+### 2. `72.71B` (`Qwen2.5-72B-Instruct` Canonical `MoS v2`, `80L`): `tokens/sec` Next to Peak Memory
+Measured with PyTorch's native Apple Metal `_weight_int4pack_mm` fused `INT4` + Rank-48 `ASVD` scars (**`cos = 1.000000` parity**, **`50.38x` faster 4-layer compute**: `1,495.3 ms → 29.7 ms` in [`results/scale_72b_audit/apple_m2_72b_speed_memory_audit.json`](results/scale_72b_audit/apple_m2_72b_speed_memory_audit.json)) alongside Apple Silicon Unified Memory bus scaling and measured NVIDIA `CUDA` telemetry:
+
+| Hardware & Mode (`72.71B`, `80` Layers, `38.12 GiB` Shards) | Prefill `tok/s` | Decode `tok/s` | Peak Active GPU / MPS Memory | Constant `SCache` $O(1)$ (`W=256, S=24`) | Hardware Bottleneck & Operational Notes |
+|---|---|---|---|---|---|
+| **Apple M2 (`16 GB` Unified RAM, `100 GB/s`) — `--streaming`** *(Measured Live)* | **`4.23 tok/s`** | `0.023 tok/s` (`43.3 s/tok`) | **`1.92 GiB` MPS** (`120.6 MiB` post-unload · `0.52 GiB` RSS) | **`120.4–128.5 MiB`** (`+0 B` @ `16k+`) | Runs full `72.7B` on a base `16 GB` laptop with zero OOM; decode is NVMe SSD I/O-bound (`38.1 GiB`/tok). |
+| **Apple M2 (`100 GB/s` bus) — Fused Metal `INT4` Compute** *(Measured Unpaged)* | **`2.53 tok/s`** *(128-blk)* | **`1.28 tok/s`** | `1.90 GiB`/group (`38.56 GiB` 80L eq.) | **`128.51 MiB`** (`+0 B`) | Direct unpaged Metal `_weight_int4pack_mm` + `ASVD` scar rate (`29.7 ms` / 4-layer group). |
+| **Apple M2 Pro (`32 GB` max SKU, `200 GB/s`) — Hybrid Page-Cache / Streaming** | `~5.0–6.5 tok/s` | **`~0.40–0.55 tok/s`** *(2.57 tok/s bus ceiling\*)* | **`1.92 GiB` Active MPS** (`~24 GiB` OS RAM cache) | **`128.51 MiB`** (`+0 B`) | \*M2 Pro hardware maxes out at `32 GB` Unified RAM (`< 38.12 GiB` shards), so `~10–12 GiB` spills to `5.5 GB/s` Pro NVMe; pure `200 GB/s` Metal bus ceiling is **`2.57 tok/s`**. |
+| **Apple M4 Pro (`48 GB`, `273 GB/s`) / M2 Max (`64 GB+`, `400 GB/s`) — `--resident`** | `~6.8–9.6 tok/s` | **`~3.46 – 4.87 tok/s`** | **`38.56 GiB` Unified MPS** (`0 MB/tok` SSD) | **`128.51 MiB`** (`+0 B` vs `10.7 GiB` KV @ `32k`) | `100%` of `20 × 4L` shards stay wired in Metal Unified Memory; `SCache` saves **`>10.5 GiB`** RAM at `32k` so `72B + 32k` fits in `48 GB`! |
+| **NVIDIA `24 GB` GPU (`CUDA`, e.g. T4x2 / L4 / 3090 / 4090)** *(Measured)* | `18+ tok/s` | **`4.03 – 7.27 tok/s`** | **`14.1 – 38.6 GiB` VRAM** (`1.79 GiB`/shard stream) | **`126.0 – 166.0 MiB`** (`+0 B`) | `4.03 tok/s` PCIe pinned-RAM streaming (`155x` faster than `AirLLM` FP16); `7.27 tok/s` resident. |
+
+```bash
+# 1. Run the Apple Silicon 72B Fused-Metal speed + peak memory audit (auto-runs 80L --resident on >=48 GB Macs):
+python scripts/benchmark_72b_apple_silicon.py
+
+# 2. Download public SHA-256 verified Qwen2.5-72B-Instruct MoS v2 shards & launch interactive terminal chat:
+python -m scar_cache.cli_72b --download --chat --model-dir ./models/qwen25_72b_mos_v2
+```
+
+---
 
 ### 📄 Official Preprint (`v1.2.0`), Public `72.71B` Shards & Interactive Red-Team Lab
 - **Permanent Preprint (CERN / Zenodo DOI):** [`10.5281/zenodo.24143839`](https://doi.org/10.5281/zenodo.24143839) ([**Preprint v1.2 PDF — 0.5B → 7.62B → 72.71B → 123B & 3D Pareto**](zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))

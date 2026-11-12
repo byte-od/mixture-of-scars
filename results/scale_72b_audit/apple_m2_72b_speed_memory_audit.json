@@ -1,0 +1,57 @@
+{
+  "hardware": {
+    "chip": "Apple M2",
+    "cpu_cores": "8",
+    "unified_ram_gib": 16.0,
+    "os_version": "27.0.1",
+    "pytorch_version": "2.15.0",
+    "mps_available": true,
+    "has_fused_mps_int4pack": true
+  },
+  "checkpoint": {
+    "name": "Qwen2.5-72B-Instruct Canonical MoS v2",
+    "layers": 80,
+    "groups": 20,
+    "layers_per_group": 4,
+    "total_disk_gib": 38.12,
+    "dense_fp16_gib": 135.43
+  },
+  "fused_metal_int4pack_audit": {
+    "group0_cosine_similarity_vs_canonical": 1.0,
+    "group0_relative_l2_diff": 0.000624,
+    "legacy_4layer_ms": 1495.27,
+    "fused_int4pack_4layer_ms": 29.68,
+    "compute_speedup_x": 50.38,
+    "single_4layer_group_mps_mib": 1944.78
+  },
+  "resident_mps_80l_benchmark": {
+    "measured_resident_groups": 1,
+    "measured_sub_mps_mib": 1951.23,
+    "m2_100gbs_bus_80l_prefill_tok_s": 2.53,
+    "m2_100gbs_bus_80l_decode_tok_s": 1.28,
+    "m2_pro_200gbs_bus_compute_equivalent_decode_tok_s": 2.57,
+    "m2_pro_32gb_hybrid_pagecache_nvme_est_decode_tok_s": "0.40-0.55 (38.12 GiB > 32 GB max M2 Pro SKU; ~10-12 GiB spills to 5.5 GB/s NVMe, Peak Active MPS = 1.89 GiB)",
+    "m4_pro_48gb_273gbs_resident_projected_decode_tok_s": 3.46,
+    "m2_max_64gb_400gbs_resident_projected_decode_tok_s": 4.87,
+    "resident_80l_peak_mps_gib": 38.56,
+    "scache_o1_80l_mib": 128.51
+  },
+  "streaming_16gb_m2_80l_live": {
+    "mode": "80_layer_ssd_streaming_mps",
+    "prefill_tokens": 228,
+    "prefill_elapsed_s": 53.95,
+    "prefill_tok_per_s": 4.23,
+    "decode_tokens": 2,
+    "decode_elapsed_s": 86.65,
+    "decode_tok_per_s": 0.0231,
+    "decode_s_per_tok": 43.32,
+    "peak_active_mps_mib": 1967.92,
+    "peak_active_mps_gib": 1.922,
+    "post_unload_mps_mib": 120.56,
+    "peak_python_rss_gib": 0.524,
+    "scache_window_256_slots_24_mib": 120.39,
+    "scache_bytes_prefill": 125578240,
+    "scache_bytes_after_decode": 126233600,
+    "generated_preview": "The Wid"
+  }
+}

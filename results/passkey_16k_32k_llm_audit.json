@@ -1,0 +1,381 @@
+{
+  "device": "mps",
+  "dtype": "torch.float16",
+  "window_size": 256,
+  "num_slots": 256,
+  "passkey": "739184",
+  "models": {
+    "Qwen/Qwen2.5-0.5B-Instruct": {
+      "haystack_16500": {
+        "baselines_at_25pct": {
+          "normal_kv": {
+            "mode": "normal_kv",
+            "context_tokens": 16568,
+            "elapsed_s": 15.022,
+            "tok_per_s": 1102.9,
+            "kv_mib": 194.25,
+            "kv_bytes": 203685888,
+            "recursive_storage_bytes": 203685888,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184.<|endoftext|>"
+          },
+          "streaming_llm": {
+            "mode": "streaming_llm",
+            "context_tokens": 16568,
+            "elapsed_s": 8.72,
+            "tok_per_s": 1899.9,
+            "kv_mib": 3.0,
+            "kv_bytes": 3145728,
+            "recursive_storage_bytes": 3145728,
+            "storage_discrepancy_bytes": 0,
+            "hit": false,
+            "generated": "123456. \n\n"
+          }
+        },
+        "scache_depths": [
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 14.201,
+            "tok_per_s": 1166.7,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": false,
+            "generated": "123456. The",
+            "depth": 0.05
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 14.543,
+            "tok_per_s": 1139.2,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. This",
+            "depth": 0.25
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 14.377,
+            "tok_per_s": 1152.4,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. Remember",
+            "depth": 0.5
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 14.153,
+            "tok_per_s": 1170.7,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. \n\n",
+            "depth": 0.75
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 14.186,
+            "tok_per_s": 1167.9,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. The",
+            "depth": 0.95
+          }
+        ],
+        "scache_passkey_recall_pct": 80.0,
+        "kv_reduction_vs_normal_x": 28.33,
+        "speedup_vs_normal_x": 1.06
+      },
+      "haystack_32800": {
+        "baselines_at_25pct": {
+          "normal_kv": {
+            "mode": "normal_kv",
+            "context_tokens": 32868,
+            "elapsed_s": 44.514,
+            "tok_per_s": 738.4,
+            "kv_mib": 385.266,
+            "kv_bytes": 403980288,
+            "recursive_storage_bytes": 403980288,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184.<|endoftext|>"
+          },
+          "streaming_llm": {
+            "mode": "streaming_llm",
+            "context_tokens": 32868,
+            "elapsed_s": 17.391,
+            "tok_per_s": 1889.9,
+            "kv_mib": 3.0,
+            "kv_bytes": 3145728,
+            "recursive_storage_bytes": 3145728,
+            "storage_discrepancy_bytes": 0,
+            "hit": false,
+            "generated": "123456.<|endoftext|>"
+          }
+        },
+        "scache_depths": [
+          {
+            "mode": "scache_o1",
+            "context_tokens": 32868,
+            "elapsed_s": 27.819,
+            "tok_per_s": 1181.5,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. \n\n",
+            "depth": 0.05
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 32868,
+            "elapsed_s": 27.951,
+            "tok_per_s": 1175.9,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. Remember",
+            "depth": 0.25
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 32868,
+            "elapsed_s": 27.975,
+            "tok_per_s": 1174.9,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184.<|endoftext|>",
+            "depth": 0.5
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 32869,
+            "elapsed_s": 27.938,
+            "tok_per_s": 1176.5,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184.<|endoftext|>",
+            "depth": 0.75
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 32868,
+            "elapsed_s": 27.961,
+            "tok_per_s": 1175.5,
+            "kv_mib": 6.856,
+            "kv_bytes": 7189056,
+            "recursive_storage_bytes": 7189056,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. Remember",
+            "depth": 0.95
+          }
+        ],
+        "scache_passkey_recall_pct": 100.0,
+        "kv_reduction_vs_normal_x": 56.19,
+        "speedup_vs_normal_x": 1.6
+      },
+      "scache_byte_growth_across_lengths": 0
+    },
+    "Qwen/Qwen2.5-3B-Instruct": {
+      "haystack_16500": {
+        "baselines_at_25pct": {
+          "normal_kv": {
+            "mode": "normal_kv",
+            "context_tokens": 16568,
+            "elapsed_s": 67.528,
+            "tok_per_s": 245.3,
+            "kv_mib": 582.75,
+            "kv_bytes": 611057664,
+            "recursive_storage_bytes": 611057664,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184\n7"
+          },
+          "streaming_llm": {
+            "mode": "streaming_llm",
+            "context_tokens": 16568,
+            "elapsed_s": 42.054,
+            "tok_per_s": 394.0,
+            "kv_mib": 9.0,
+            "kv_bytes": 9437184,
+            "recursive_storage_bytes": 9437184,
+            "storage_discrepancy_bytes": 0,
+            "hit": false,
+            "generated": "123456. ```"
+          }
+        },
+        "scache_depths": [
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 55.574,
+            "tok_per_s": 298.1,
+            "kv_mib": 22.712,
+            "kv_bytes": 23815008,
+            "recursive_storage_bytes": 23815008,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. The",
+            "depth": 0.05
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 55.615,
+            "tok_per_s": 297.9,
+            "kv_mib": 22.712,
+            "kv_bytes": 23815008,
+            "recursive_storage_bytes": 23815008,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. The",
+            "depth": 0.25
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 55.47,
+            "tok_per_s": 298.7,
+            "kv_mib": 22.712,
+            "kv_bytes": 23815008,
+            "recursive_storage_bytes": 23815008,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. The",
+            "depth": 0.5
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 55.391,
+            "tok_per_s": 299.1,
+            "kv_mib": 22.712,
+            "kv_bytes": 23815008,
+            "recursive_storage_bytes": 23815008,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. The",
+            "depth": 0.75
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 16568,
+            "elapsed_s": 55.21,
+            "tok_per_s": 300.1,
+            "kv_mib": 22.712,
+            "kv_bytes": 23815008,
+            "recursive_storage_bytes": 23815008,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. The",
+            "depth": 0.95
+          }
+        ],
+        "scache_passkey_recall_pct": 100.0,
+        "kv_reduction_vs_normal_x": 25.66,
+        "speedup_vs_normal_x": 1.22
+      },
+      "haystack_32800": {
+        "baselines_at_25pct": {
+          "normal_kv": {
+            "mode": "normal_kv",
+            "context_tokens": 32868,
+            "elapsed_s": 638.315,
+            "tok_per_s": 51.5,
+            "kv_mib": 1155.797,
+            "kv_bytes": 1211940864,
+            "recursive_storage_bytes": 1211940864,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. To"
+          },
+          "streaming_llm": {
+            "mode": "streaming_llm",
+            "context_tokens": 32868,
+            "elapsed_s": 83.975,
+            "tok_per_s": 391.4,
+            "kv_mib": 9.0,
+            "kv_bytes": 9437184,
+            "recursive_storage_bytes": 9437184,
+            "storage_discrepancy_bytes": 0,
+            "hit": false,
+            "generated": "123456. Based"
+          }
+        },
+        "scache_depths": [
+          {
+            "mode": "scache_o1",
+            "context_tokens": 32868,
+            "elapsed_s": 109.467,
+            "tok_per_s": 300.3,
+            "kv_mib": 22.712,
+            "kv_bytes": 23815008,
+            "recursive_storage_bytes": 23815008,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184\nTherefore",
+            "depth": 0.05
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 32868,
+            "elapsed_s": 109.395,
+            "tok_per_s": 300.5,
+            "kv_mib": 22.712,
+            "kv_bytes": 23815008,
+            "recursive_storage_bytes": 23815008,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. The",
+            "depth": 0.25
+          },
+          {
+            "mode": "scache_o1",
+            "context_tokens": 32869,
+            "elapsed_s": 109.018,
+            "tok_per_s": 301.5,
+            "kv_mib": 22.712,
+            "kv_bytes": 23815008,
+            "recursive_storage_bytes": 23815008,
+            "storage_discrepancy_bytes": 0,
+            "hit": true,
+            "generated": "739184. The",
+            "depth": 0.75
+          }
+        ],
+        "scache_passkey_recall_pct": 100.0,
+        "kv_reduction_vs_normal_x": 50.89,
+        "speedup_vs_normal_x": 5.83
+      },
+      "scache_byte_growth_across_lengths": 0
+    }
+  }
+}

@@ -12,8 +12,18 @@ import torch.nn.functional as F
 from safetensors.torch import save_file
 from transformers import AutoTokenizer, Qwen2Config, Qwen2ForCausalLM
 
-from scar_cache.cli_72b import CanonicalMoSEngine, download_canonical_checkpoint
-from scripts.export_canonical_72b_mos import export_canonical_mos, merge_partial_manifests
+from scar_cache.cli_72b import (
+    CanonicalMoSEngine,
+    _can_use_mps_int4pack,
+    _swizzle_block64_to_mps_int4pack,
+    dequantize_int4_coalesced,
+    download_canonical_checkpoint,
+)
+from scripts.export_canonical_72b_mos import (
+    export_canonical_mos,
+    merge_partial_manifests,
+    quantize_int4_blockwise,
+)
 
 
 def _create_tiny_qwen2_checkpoint(ckpt_dir: Path) -> Qwen2ForCausalLM:
@@ -111,3 +121,24 @@ def test_canonical_mos_v2_multipart_export_streaming_and_http_download(tmp_path:
         mem_sizes.append(sc.total_memory_bytes)
 
     assert max(mem_sizes) - min(mem_sizes) == 0, f"Expected 0 B SCache drift, got {mem_sizes}"
+
+
+def test_mps_fused_int4pack_numerical_parity() -> None:
+    if not (hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and hasattr(torch, "_weight_int4pack_mm")):
+        return
+    dev = torch.device("mps")
+    torch.manual_seed(7)
+    out_f, in_f = 512, 256
+    w_orig = torch.randn(out_f, in_f) * 0.08
+    pb, sb, shape = quantize_int4_blockwise(w_orig, block_size=64)
+    assert _can_use_mps_int4pack(dev, out_f, in_f, pb.shape[0])
+
+    x = (torch.randn(4, in_f, device=dev) * 0.5).to(torch.float16)
+    w_ref = dequantize_int4_coalesced(pb.to(dev), sb.to(dev), shape, torch.float16)
+    y_ref = F.linear(x, w_ref).float()
+
+    b_int4, sz_int4 = _swizzle_block64_to_mps_int4pack(pb, sb, out_f, in_f, dev)
+    y_fus = torch._weight_int4pack_mm(x.contiguous(), b_int4, 64, sz_int4).float()
+
+    cos = float(F.cosine_similarity(y_ref.reshape(1, -1), y_fus.reshape(1, -1)).item())
+    assert cos > 0.9999, f"Expected >0.9999 cosine parity on fused MPS int4pack, got {cos}"
