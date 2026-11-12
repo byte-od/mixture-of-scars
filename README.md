@@ -10,6 +10,7 @@
 [![Tests Passing](https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg)]()
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
+[![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v2.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
 [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)
 
 > **"Breaking the barrier between LLMs and hardware."**  
@@ -68,6 +69,7 @@ python -m scar_cache.cli_72b --download --chat --model-dir ./models/qwen25_72b_m
 - **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `20 × 1.79 GiB` Shards) & Practical Guide:**
   - **Practical Local Guide (PT-BR / CLI):** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
   - **Zero-Login HTTPS Release (`HTTP 206 Range` + `SHA-256`):** [`github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos`](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
+- **Official `v1.4 → v2.x` Innovation & Cross-Domain Applications Roadmap:** [`docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md`](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md) *(System 1 Speculative Fusion, Sub-2-Bit `72B` in `24 GB`, Artificial Sleep Cycle `SCache → MoS`, Sinkhorn Re-Basin, Scar-Storage, Scar-Search & `WebGPU/WGSL`)*
 - **Interactive Gradio Red-Team Laboratory (Hugging Face Space):** [`huggingface_space/`](huggingface_space/)
 - **8-Vector Multi-Scale Adversarial Suites (`0.5B`, `7.62B` & `72.71B` Telemetry):**
   - `72.71B` (`Qwen/Qwen2.5-72B-Instruct`, `80L`, `240` SwiGLU MLPs, `195,720x` outliers, `2x Tesla T4` + Live `16 GB` Apple M2 `MPS`): [`scripts/adversarial_scale_72b_suite.py`](scripts/adversarial_scale_72b_suite.py), [`results/scale_72b_audit/adversarial_scale_72b_report.json`](results/scale_72b_audit/adversarial_scale_72b_report.json) & [`results/scale_72b_audit/apple_m2_live_72b_generation.json`](results/scale_72b_audit/apple_m2_live_72b_generation.json)
