@@ -1,7 +1,7 @@
 # 🗺️ Official Roadmap (`v1.4` → `v2.x`): Next-Generation `MoS`, `SCache O(1)` & Cross-Domain Applications
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![Current Release](https://img.shields.io/badge/Current%20Release-v2.1.0%20(ScarStore%20v2%20Stages%201--4%20Audited)-brightgreen.svg)](SCAR_STORE_V2_ARCHITECTURE.md)
+[![Current Release](https://img.shields.io/badge/Current%20Release-v2.2.0%20(ScarStore%20v2%20Stages%201--5%20%2B%20Red--Team%20Audited)-brightgreen.svg)](SCAR_STORE_V2_ARCHITECTURE.md)
 [![72B MoS Checkpoint](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20(v1.2)%20%7C%2020.65%20GiB%20(v1.4%20Sub--2--Bit)-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Architectural Integrity](https://img.shields.io/badge/Mandate-Zero%20Facades%20%2F%20Strict%20O(1)-critical.svg)]()
 [![Sponsor Research](https://img.shields.io/badge/Sponsor-Open%20GPU%20Research-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/byte-od)
@@ -77,10 +77,10 @@ Audited telemetry stored in [`results/horizon1_v1_4_audit.json`](../results/hori
 
 ---
 
-## 🧠 4. Horizon 2 — Core Algorithmic & Scientific Innovations (`v2.1.0`, `67/67` `pytest` Passing)
+## 🧠 4. Horizon 2 — Core Algorithmic & Scientific Innovations (`v2.2.0`, `70/70` `pytest` Passing)
 
-### ✅ Track 2.1 + `ScarStore v2` (Stages 1–4): Closed-Form `72.71B → 0.5B` Scar Grafting, `896×896` Kronecker `mmap` Paging, `Span-Max` Orchestration, Dual-Depth Sleep Bridges & Dynamic Scar-Attention Head Expansion — **SHIPPED & AUDITED**
-* **Architecture & Full Stage 1–4 Audit:** [`docs/SCAR_STORE_V2_ARCHITECTURE.md`](SCAR_STORE_V2_ARCHITECTURE.md) · [`scar_cache/scar_grafting.py`](../scar_cache/scar_grafting.py) · [`scar_cache/scar_store_v2.py`](../scar_cache/scar_store_v2.py) · [`scar_cache/dual_depth_bridge.py`](../scar_cache/dual_depth_bridge.py) · [`scar_cache/head_expanded_attention.py`](../scar_cache/head_expanded_attention.py) · [`results/scar_store_v2_stage1_audit.json`](../results/scar_store_v2_stage1_audit.json) · [`results/scar_store_v2_stage2_audit.json`](../results/scar_store_v2_stage2_audit.json) · [`results/scar_store_v2_stage3_audit.json`](../results/scar_store_v2_stage3_audit.json) · [`results/scar_store_v2_stage4_audit.json`](../results/scar_store_v2_stage4_audit.json).
+### ✅ Track 2.1 + `ScarStore v2` (Stages 1–5 + Adversarial Red-Team): Closed-Form `72.71B → 0.5B & 3B` Scar Grafting, `2048×2048` Kronecker `mmap` Paging (`140.00 KB = 35×4KB`), `Span-Max` Orchestration, Dual-Depth Sleep Bridges & Dynamic Scar-Attention Head Expansion — **SHIPPED & AUDITED**
+* **Architecture & Full Stage 1–5 + Red-Team Audit:** [`docs/SCAR_STORE_V2_ARCHITECTURE.md`](SCAR_STORE_V2_ARCHITECTURE.md) · [`scar_cache/scar_grafting.py`](../scar_cache/scar_grafting.py) · [`scar_cache/scar_store_v2.py`](../scar_cache/scar_store_v2.py) · [`scar_cache/dual_depth_bridge.py`](../scar_cache/dual_depth_bridge.py) · [`scar_cache/head_expanded_attention.py`](../scar_cache/head_expanded_attention.py) · [`results/scar_store_v2_stage5_3b_vs_0p5b_audit.json`](../results/scar_store_v2_stage5_3b_vs_0p5b_audit.json) · [`results/adversarial_0p5b_vs_3b_audit.json`](../results/adversarial_0p5b_vs_3b_audit.json).
 * **Modules Shipped:** [`scar_cache/scar_grafting.py`](../scar_cache/scar_grafting.py) (`SleepEpisode`, `ScarCapsule`, `ScarBank`, `ScarGraftEngine`, Active-Set Cutting-Plane Woodbury Vocabulary Rosetta Inversion, AlphaEdit Exact Null-Space Projector `P_null`, `mos-graft` CLI), packed multi-stream `72.71B` engine methods (`generate_packed_greedy`, `forward_packed_sequences` in [`scar_cache/cli_72b.py`](../scar_cache/cli_72b.py)), [`scripts/benchmark_scar_grafting_v2.py`](../scripts/benchmark_scar_grafting_v2.py), and [`tests/test_scar_grafting_v2.py`](../tests/test_scar_grafting_v2.py) (`6/6` passing).
 * **Audited `Qwen2.5-72B-Instruct MoS (72.71B) → Qwen2.5-0.5B-Instruct (0.49B)` Results ([`results/horizon2_scar_grafting_v2_audit.json`](../results/horizon2_scar_grafting_v2_audit.json)):**
   * **100% Closed-Form Synthesis (`ZERO Backpropagation / ZERO SGD`):** Calibrates the frozen `0.5B` null-space in `276.9 ms` and synthesizes each `72.71B` domain `ScarCapsule` in **`~0.90 s`** (`2,802.8 ms` total for 3 orthogonal scientific domains on Apple M2 `MPS`).

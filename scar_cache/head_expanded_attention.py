@@ -27,7 +27,11 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+import json
 import math
+import mmap
+from pathlib import Path
+import struct
 import time
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
@@ -51,9 +55,32 @@ from scar_cache.scar_grafting import (
 )
 from scar_cache.scar_store_v2 import (
     BLOCK_SIZE_INT4,
+    HEADER_ALIGN,
+    MissingCapsuleAlert,
+    PAGE_ALIGN,
+    SCARSTORE_MAGIC,
+    _align_up,
+    _bitmap_get,
+    _bitmap_set,
+    _build_deterministic_orthogonal_rotation,
     dequantize_block64_int4,
     quantize_block64_int4,
 )
+
+
+def _find_subsequence_last_end_strict(seq: Sequence[int], pattern: Optional[Sequence[int]]) -> int:
+    """Returns index right after last match of `pattern` in `seq`, or `-1` when absent."""
+    if not pattern:
+        return -1
+    plen = len(pattern)
+    slen = len(seq)
+    if slen < plen:
+        return -1
+    pat = list(pattern)
+    for idx in range(slen - plen, -1, -1):
+        if list(seq[idx : idx + plen]) == pat:
+            return idx + plen
+    return -1
 
 
 def extract_head_expansion_modules(
@@ -286,6 +313,8 @@ class HeadExpandedAttentionBank(nn.Module):
         self._paused: bool = False
         self._current_pass_is_prefill: bool = True
         self._current_query_start: int = 0
+        self._rolling_id_tail: List[int] = []
+        self._query_hidden_buf: Optional[torch.Tensor] = None
         self._tf_prompt_len: Optional[int] = None
         self._active_gates: List[Tuple[str, float]] = []
         self._cached_q_heads: Optional[torch.Tensor] = None  # [B, S_target, H, d_h]
@@ -494,14 +523,34 @@ class HeadExpandedAttentionBank(nn.Module):
         past_kv = kwargs.get("past_key_values")
         if past_kv is None and len(args) > 2:
             past_kv = args[2]
-        self._current_pass_is_prefill = (_past_kv_seen_length(past_kv) == 0)
+        past_len = _past_kv_seen_length(past_kv)
+        ids_1d: List[int] = []
+        if isinstance(input_ids, torch.Tensor) and input_ids.numel() > 0:
+            ids_1d = input_ids[0].tolist() if input_ids.ndim >= 2 else input_ids.tolist()
+        seq_len = len(ids_1d)
+        is_prefill_chunk = (past_len == 0) or (seq_len > 1)
+        self._current_pass_is_prefill = is_prefill_chunk
         self._cached_q_heads = None
-        if self._current_pass_is_prefill:
+
+        if past_len == 0:
+            self._rolling_id_tail = []
+            self._query_hidden_buf = None
             self.last_step_weights_history = []
             self.last_inter_head_spread_history = []
-            if isinstance(input_ids, torch.Tensor) and input_ids.numel() > 0:
-                ids_1d = input_ids[0].tolist() if input_ids.ndim >= 2 else input_ids.tolist()
-                self._current_query_start = find_subsequence_last_end(ids_1d, self.user_turn_prefix_ids)
+
+        if is_prefill_chunk and seq_len > 0:
+            tail = self._rolling_id_tail
+            combined = tail + ids_1d
+            match_end = _find_subsequence_last_end_strict(combined, self.user_turn_prefix_ids)
+            keep_tail = max(0, len(self.user_turn_prefix_ids) - 1) if self.user_turn_prefix_ids else 0
+            self._rolling_id_tail = combined[-keep_tail:] if keep_tail > 0 else []
+            if match_end > len(tail):
+                self._query_hidden_buf = None
+                self.last_step_weights_history = []
+                self.last_inter_head_spread_history = []
+                self._current_query_start = match_end - len(tail)
+            else:
+                self._current_query_start = 0
 
     def _last_block_pre_hook(self, _module: nn.Module, args: Tuple[Any, ...]) -> None:
         """Read-only routing hook on `layers[-1]` input (`x_in`): NEVER modifies `x_in`!"""
@@ -519,8 +568,16 @@ class HeadExpandedAttentionBank(nn.Module):
                 q_start = min(self._current_query_start, lp - 1)
                 self._active_gates = self.route_query(x_3d[0, q_start:lp, :])
         elif self._current_pass_is_prefill:
-            q_start = min(self._current_query_start, seq_len - 1)
-            self._active_gates = self.route_query(x_3d[0, q_start:seq_len, :])
+            qs = self._current_query_start
+            if qs < seq_len:
+                new_q = x_3d[0, qs:seq_len, :].detach()
+                buf = new_q if self._query_hidden_buf is None else torch.cat([self._query_hidden_buf, new_q], dim=0)
+                if buf.shape[0] > 192:
+                    buf = buf[-192:]
+                self._query_hidden_buf = buf
+                self._active_gates = self.route_query(buf)
+            elif self._query_hidden_buf is None:
+                self._active_gates = []
 
     def _q_proj_forward_hook(self, _module: nn.Module, _inputs: Tuple[Any, ...], output: torch.Tensor) -> None:
         """Zero-FLOP read-only view over `layers[-1].self_attn.q_proj` output ONLY when cones are active."""
@@ -1038,3 +1095,892 @@ class HeadExpandedAttentionEngine:
         )
         head_bank.add_capsule(bridge_cap)
         return bridge_cap
+
+
+class HeadExpandedScarStore(nn.Module):
+    """Zero-Copy `mmap` + `d x d` Kronecker Sparse Grid Engine for `HeadExpandedScarCapsule` (`v2.2.0`).
+
+    Unifies:
+      - Exact page-aligned `mmap` streaming (`143,360 B = 140.00 KB = 35 x 4,096 B` OS pages at `d=2048`
+        on `Qwen2.5-3B-Instruct`; `62,720 B = 61.25 KB` at `d=896` on `Qwen2.5-0.5B-Instruct`),
+      - Encyclopedic `d x d` Rotated Dual-Subspace Kronecker Grid (`4,194,304` cells & `512.00 KB` bitmap
+        at `d=2048`; `802,816` cells & `98.00 KB` bitmap at `d=896`),
+      - Zero Mid-Transformer Cut (`36/36` blocks on `3B` and `24/24` blocks on `0.5B` stay `torch.equal`),
+      - On-Demand Dynamic Scar-Attention Head Expansion (`+M` competitive Per-Head Query-Key heads),
+      - Consumer slice packs (`export_subset`), `MissingCapsuleAlert` + `on_demand_fetcher`, and `< 1 ms`
+        surgical GDPR `unlearn(capsule_id)`.
+    """
+
+    def __init__(
+        self,
+        store_path: Path,
+        header: Dict[str, Any],
+        mu_query_last: torch.Tensor,
+        mu_hidden_final: torch.Tensor,
+        mu_q_heads: torch.Tensor,
+        R_rot: torch.Tensor,
+        U_codebook: torch.Tensor,
+        V_codebook: torch.Tensor,
+        presence_bitmap: torch.Tensor,
+        z_anchors_installed: torch.Tensor,
+        payload_offset: int,
+        on_demand_fetcher: Optional[Callable[[Tuple[int, int], str], Optional[bytes]]] = None,
+    ) -> None:
+        super().__init__()
+        self.store_path = Path(store_path)
+        self.header = header
+        self.hidden_dim = int(header["hidden_dim"])
+        self.num_heads = int(header["num_heads"])
+        self.head_dim = int(header["head_dim"])
+        self.rank = int(header["rank"])
+        self.num_key_prototypes = int(header["num_key_prototypes"])
+        self.record_bytes = int(header["record_bytes"])
+        self.routing_tier: str = str(header["routing_tier"])
+        self.attention_beta: float = float(header.get("attention_beta", 14.0))
+        self.user_turn_prefix_ids: Optional[List[int]] = header.get("user_turn_prefix_ids")
+        self.payload_offset = int(payload_offset)
+        self.on_demand_fetcher = on_demand_fetcher
+
+        self.register_buffer("mu_query_last", mu_query_last.detach().float().clone())
+        self.register_buffer("mu_hidden_final", mu_hidden_final.detach().float().clone())
+        self.register_buffer("mu_q_heads", mu_q_heads.detach().float().view(self.num_heads, self.head_dim).clone())
+        self.register_buffer("R_rot", R_rot.detach().float().clone())
+        self.register_buffer("U_codebook", U_codebook.detach().float().clone())
+        self.register_buffer("V_codebook", V_codebook.detach().float().clone())
+        self._presence_bitmap_bytes = bytearray(presence_bitmap.detach().to(torch.uint8).cpu().numpy().tobytes())
+        self.register_buffer("z_anchors_installed", z_anchors_installed.detach().float().clone())
+
+        self._slot_descriptors: List[Dict[str, Any]] = list(header.get("slot_descriptors", []))
+        self._coord_to_slot: Dict[Tuple[int, int], int] = {}
+        self._cid_to_slot: Dict[str, int] = {}
+        self._unlearned_cids: set[str] = set()
+        for desc in self._slot_descriptors:
+            s_idx = int(desc["slot_idx"])
+            coord = (int(desc["row_i"]), int(desc["col_j"]))
+            self._coord_to_slot[coord] = s_idx
+            self._cid_to_slot[str(desc["capsule_id"])] = s_idx
+
+        self._global_directory: Dict[Tuple[int, int], Dict[str, Any]] = {}
+        for entry in header.get("global_directory", []):
+            c = (int(entry["row_i"]), int(entry["col_j"]))
+            self._global_directory[c] = dict(entry)
+
+        self._file_obj = open(self.store_path, "rb")
+        self._mmap = mmap.mmap(self._file_obj.fileno(), 0, access=mmap.ACCESS_READ)
+
+        self._hot_fetched_capsules: Dict[str, HeadExpandedScarCapsule] = {}
+        self._turn_slot_cache: Dict[int, HeadExpandedScarCapsule] = {}
+        self._turn_mmap_bytes_read: int = 0
+        self._active_turn_capsules: List[Tuple[HeadExpandedScarCapsule, float]] = []
+
+        self.routing_mode: str = "span_max"
+        self.span_window: int = 10
+        self.span_stride: int = 3
+        self.strict_missing_guard: bool = False
+
+        self.last_routing_cosines: Dict[str, float] = {}
+        self.last_active_gates: Dict[str, float] = {}
+        self.last_num_expanded_heads: int = 0
+        self.last_mmap_bytes_read: int = 0
+        self.last_missing_alerts: List[MissingCapsuleAlert] = []
+        self.last_step_weights_history: List[Dict[str, float]] = []
+        self.last_inter_head_spread_history: List[float] = []
+
+        self._backbone_pre_handle: Optional[Any] = None
+        self._last_block_pre_handle: Optional[Any] = None
+        self._q_proj_hook_handle: Optional[Any] = None
+        self._norm_hook_handle: Optional[Any] = None
+        self._paused: bool = False
+        self._current_pass_is_prefill: bool = True
+        self._current_query_start: int = 0
+        self._rolling_id_tail: List[int] = []
+        self._query_hidden_buf: Optional[torch.Tensor] = None
+        self._tf_prompt_len: Optional[int] = None
+        self._cached_q_heads: Optional[torch.Tensor] = None
+
+    def close(self) -> None:
+        self.detach()
+        if getattr(self, "_mmap", None) is not None:
+            self._mmap.close()
+            self._mmap = None  # type: ignore[assignment]
+        if getattr(self, "_file_obj", None) is not None:
+            self._file_obj.close()
+            self._file_obj = None  # type: ignore[assignment]
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    @property
+    def num_grid_cells(self) -> int:
+        return self.hidden_dim * self.hidden_dim
+
+    @property
+    def presence_bitmap_bytes(self) -> int:
+        return len(self._presence_bitmap_bytes)
+
+    @property
+    def num_installed_slots(self) -> int:
+        return len(self._coord_to_slot)
+
+    def slot_byte_offset(self, slot_idx: int) -> int:
+        return self.payload_offset + slot_idx * self.record_bytes
+
+    def read_raw_slot_bytes(self, slot_idx: int) -> bytes:
+        if slot_idx < 0 or slot_idx >= len(self._slot_descriptors):
+            raise IndexError(f"slot_idx={slot_idx} out of range")
+        off = self.slot_byte_offset(slot_idx)
+        return bytes(self._mmap[off : off + self.record_bytes])
+
+    def read_raw_capsule_bytes_by_coord(self, coord: Tuple[int, int]) -> bytes:
+        if coord not in self._coord_to_slot:
+            raise KeyError(f"Coordinate {coord} is not installed locally in {self.store_path}")
+        return self.read_raw_slot_bytes(self._coord_to_slot[coord])
+
+    def load_slot_capsule(self, slot_idx: int, device: Union[str, torch.device]) -> HeadExpandedScarCapsule:
+        if slot_idx in self._turn_slot_cache:
+            return self._turn_slot_cache[slot_idx].to_device(device)
+        desc = self._slot_descriptors[slot_idx]
+        raw = self.read_raw_slot_bytes(slot_idx)
+        self._turn_mmap_bytes_read += len(raw)
+        self.last_mmap_bytes_read = self._turn_mmap_bytes_read
+        cap = HeadExpandedScarCapsule.from_int4_bytes(
+            raw_bytes=raw,
+            capsule_id=str(desc["capsule_id"]),
+            hidden_dim=self.hidden_dim,
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
+            rank=self.rank,
+            num_key_prototypes=self.num_key_prototypes,
+            tau=float(desc["tau"]),
+            ramp=float(desc["ramp"]),
+            parent_capsules=desc.get("parent_capsules", ()),
+            device=device,
+            metadata=dict(desc.get("metadata", {})),
+        )
+        self._turn_slot_cache[slot_idx] = cap
+        return cap
+
+    def unlearn(self, capsule_id: str) -> Dict[str, Any]:
+        """Sub-millisecond surgical GDPR unlearning: clears Kronecker bitmap bit & hot state (`0` bleed)."""
+        t0 = time.perf_counter()
+        cid = str(capsule_id)
+        if cid not in self._cid_to_slot:
+            raise KeyError(f"Capsule {cid!r} not installed in {self.store_path}")
+        s_idx = self._cid_to_slot.pop(cid)
+        desc = self._slot_descriptors[s_idx]
+        coord = (int(desc["row_i"]), int(desc["col_j"]))
+        flat_idx = coord[0] * self.hidden_dim + coord[1]
+        byte_idx = flat_idx >> 3
+        bit_mask = ~(1 << (flat_idx & 7)) & 0xFF
+        self._presence_bitmap_bytes[byte_idx] &= bit_mask
+        self._coord_to_slot.pop(coord, None)
+        self._global_directory.pop(coord, None)
+        self._hot_fetched_capsules.pop(cid, None)
+        self._turn_slot_cache.pop(s_idx, None)
+        self._unlearned_cids.add(cid)
+        self._active_turn_capsules = [(c, g) for c, g in self._active_turn_capsules if c.capsule_id != cid]
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        return {"capsule_id": cid, "coord": coord, "unlearn_ms": round(elapsed_ms, 4)}
+
+    @classmethod
+    def build_from_bank(
+        cls,
+        head_bank: HeadExpandedAttentionBank,
+        out_path: Union[str, Path],
+        force_kronecker: bool = True,
+        kronecker_threshold: int = 2048,
+    ) -> "HeadExpandedScarStore":
+        d = head_bank.hidden_dim
+        if d % 2 != 0:
+            raise ValueError(f"hidden_dim={d} must be even for dual-subspace Kronecker routing")
+        half_d = d // 2
+        caps = list(head_bank.capsules.values())
+        rank = caps[0].rank if caps else 60
+        num_kp = caps[0].num_key_prototypes if caps else 8
+        for c in caps:
+            if c.rank != rank or c.num_key_prototypes != num_kp:
+                raise ValueError("All capsules in HeadExpandedScarStore must share uniform (rank, num_key_prototypes)")
+
+        dummy_ab = ((d * rank) // BLOCK_SIZE_INT4) * 34 * 2
+        dummy_k = ((num_kp * head_bank.num_heads * head_bank.head_dim) // BLOCK_SIZE_INT4) * 34
+        rec_bytes = dummy_ab + dummy_k + (d * 2)
+        routing_tier = "kronecker" if (force_kronecker or len(caps) > kronecker_threshold) else "flat"
+
+        R_rot = _build_deterministic_orthogonal_rotation(d)
+        gen = torch.Generator(device="cpu")
+        gen.manual_seed(20261113)
+        U_cb = F.normalize(torch.randn((d, half_d), generator=gen, dtype=torch.float32), dim=-1)
+        V_cb = F.normalize(torch.randn((d, half_d), generator=gen, dtype=torch.float32), dim=-1)
+
+        bitmap = bytearray((d * d + 7) // 8)
+        used_coords: set[Tuple[int, int]] = set()
+        raw_blobs: List[bytes] = []
+        z_list: List[torch.Tensor] = []
+        slot_descriptors: List[Dict[str, Any]] = []
+        global_directory: List[Dict[str, Any]] = []
+
+        for idx, cap in enumerate(caps):
+            z_f = F.normalize(cap.z_anchor.detach().cpu().float(), dim=-1, eps=1e-8)
+            z_rot = torch.mv(R_rot, z_f)
+            z1 = F.normalize(z_rot[:half_d], dim=-1, eps=1e-8)
+            z2 = F.normalize(z_rot[half_d:], dim=-1, eps=1e-8)
+            w1 = float(z_rot[:half_d].norm().item())
+            w2 = float(z_rot[half_d:].norm().item())
+
+            if idx < d:
+                row_i, col_j = idx, idx
+                U_cb[row_i] = z1
+                V_cb[col_j] = z2
+            else:
+                s1 = torch.mv(U_cb, z1)
+                s2 = torch.mv(V_cb, z2)
+                ti = s1.topk(min(32, d)).indices.tolist()
+                tj = s2.topk(min(32, d)).indices.tolist()
+                best_pair: Optional[Tuple[int, int]] = None
+                best_val = -1e9
+                for ri in ti:
+                    for cj in tj:
+                        if (ri, cj) not in used_coords:
+                            val = float(s1[ri].item() + s2[cj].item())
+                            if val > best_val:
+                                best_val = val
+                                best_pair = (ri, cj)
+                if best_pair is None:
+                    raise RuntimeError("Kronecker grid candidate neighborhood saturated")
+                row_i, col_j = best_pair
+
+            used_coords.add((row_i, col_j))
+            _bitmap_set(bitmap, row_i * d + col_j)
+            blob = cap.to_int4_bytes()
+            assert len(blob) == rec_bytes
+            raw_blobs.append(blob)
+            z_list.append(z_f.to(torch.float16))
+            slot_descriptors.append(
+                {
+                    "slot_idx": idx,
+                    "capsule_id": cap.capsule_id,
+                    "row_i": row_i,
+                    "col_j": col_j,
+                    "w1": round(w1, 6),
+                    "w2": round(w2, 6),
+                    "tau": float(cap.tau),
+                    "ramp": float(cap.ramp),
+                    "parent_capsules": list(cap.parent_capsules),
+                    "metadata": dict(cap.metadata),
+                }
+            )
+            global_directory.append(
+                {
+                    "capsule_id": cap.capsule_id,
+                    "row_i": row_i,
+                    "col_j": col_j,
+                    "w1": round(w1, 6),
+                    "w2": round(w2, 6),
+                    "tau": float(cap.tau),
+                    "ramp": float(cap.ramp),
+                    "parent_capsules": list(cap.parent_capsules),
+                }
+            )
+
+        return cls._write_and_open(
+            out_path=Path(out_path),
+            hidden_dim=d,
+            num_heads=head_bank.num_heads,
+            head_dim=head_bank.head_dim,
+            rank=rank,
+            num_key_prototypes=num_kp,
+            record_bytes=rec_bytes,
+            routing_tier=routing_tier,
+            attention_beta=head_bank.attention_beta,
+            user_turn_prefix_ids=head_bank.user_turn_prefix_ids,
+            slot_descriptors=slot_descriptors,
+            global_directory=global_directory,
+            mu_query_last=head_bank.mu_query_last.detach().cpu().float(),
+            mu_hidden_final=head_bank.mu_hidden_final.detach().cpu().float(),
+            mu_q_heads=head_bank.mu_q_heads.detach().cpu().float(),
+            R_rot=R_rot,
+            U_cb=U_cb,
+            V_cb=V_cb,
+            bitmap=bytes(bitmap),
+            z_list_fp16=z_list,
+            raw_blobs=raw_blobs,
+        )
+
+    @classmethod
+    def _write_and_open(
+        cls,
+        out_path: Path,
+        hidden_dim: int,
+        num_heads: int,
+        head_dim: int,
+        rank: int,
+        num_key_prototypes: int,
+        record_bytes: int,
+        routing_tier: str,
+        attention_beta: float,
+        user_turn_prefix_ids: Optional[List[int]],
+        slot_descriptors: List[Dict[str, Any]],
+        global_directory: List[Dict[str, Any]],
+        mu_query_last: torch.Tensor,
+        mu_hidden_final: torch.Tensor,
+        mu_q_heads: torch.Tensor,
+        R_rot: torch.Tensor,
+        U_cb: torch.Tensor,
+        V_cb: torch.Tensor,
+        bitmap: bytes,
+        z_list_fp16: List[torch.Tensor],
+        raw_blobs: List[bytes],
+    ) -> "HeadExpandedScarStore":
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        n_slots = len(raw_blobs)
+        header_obj = {
+            "format": "HeadExpandedScarStoreV2",
+            "version": "2.2.0",
+            "hidden_dim": hidden_dim,
+            "num_heads": num_heads,
+            "head_dim": head_dim,
+            "rank": rank,
+            "num_key_prototypes": num_key_prototypes,
+            "record_bytes": record_bytes,
+            "num_slots": n_slots,
+            "routing_tier": routing_tier,
+            "attention_beta": attention_beta,
+            "user_turn_prefix_ids": user_turn_prefix_ids,
+            "slot_descriptors": slot_descriptors,
+            "global_directory": global_directory,
+        }
+        header_bytes = json.dumps(header_obj, ensure_ascii=False).encode("utf-8")
+        router_offset = _align_up(16 + len(header_bytes), HEADER_ALIGN)
+
+        router_blobs = [
+            mu_query_last.contiguous().to(torch.float32).numpy().tobytes(),
+            mu_hidden_final.contiguous().to(torch.float32).numpy().tobytes(),
+            mu_q_heads.contiguous().to(torch.float32).numpy().tobytes(),
+            R_rot.contiguous().to(torch.float16).numpy().tobytes(),
+            U_cb.contiguous().to(torch.float16).numpy().tobytes(),
+            V_cb.contiguous().to(torch.float16).numpy().tobytes(),
+            bitmap,
+        ]
+        if n_slots > 0:
+            z_mat = torch.stack(z_list_fp16, dim=0).contiguous().to(torch.float16)
+            router_blobs.append(z_mat.numpy().tobytes())
+        router_bytes = b"".join(router_blobs)
+        payload_offset = _align_up(router_offset + len(router_bytes), PAGE_ALIGN)
+
+        with open(out_path, "wb") as f:
+            f.write(SCARSTORE_MAGIC)
+            f.write(struct.pack("<Q", len(header_bytes)))
+            f.write(header_bytes)
+            f.write(b"\x00" * (router_offset - (16 + len(header_bytes))))
+            f.write(router_bytes)
+            f.write(b"\x00" * (payload_offset - (router_offset + len(router_bytes))))
+            for b in raw_blobs:
+                f.write(b)
+
+        return cls.open(out_path)
+
+    @classmethod
+    def open(
+        cls,
+        store_path: Union[str, Path],
+        device: Union[str, torch.device] = "cpu",
+        on_demand_fetcher: Optional[Callable[[Tuple[int, int], str], Optional[bytes]]] = None,
+    ) -> "HeadExpandedScarStore":
+        p = Path(store_path)
+        with open(p, "rb") as f:
+            magic = f.read(8)
+            if magic != SCARSTORE_MAGIC:
+                raise ValueError(f"Invalid ScarStore magic in {p}: {magic!r}")
+            (hdr_len,) = struct.unpack("<Q", f.read(8))
+            header = json.loads(f.read(hdr_len).decode("utf-8"))
+            router_offset = _align_up(16 + hdr_len, HEADER_ALIGN)
+            f.seek(router_offset)
+
+            d = int(header["hidden_dim"])
+            n_heads = int(header["num_heads"])
+            d_head = int(header["head_dim"])
+            q_numel = n_heads * d_head
+            half_d = d // 2
+            n_slots = int(header["num_slots"])
+            bm_len = (d * d + 7) // 8
+
+            mu_ql = torch.frombuffer(bytearray(f.read(d * 4)), dtype=torch.float32, count=d).clone()
+            mu_hf = torch.frombuffer(bytearray(f.read(d * 4)), dtype=torch.float32, count=d).clone()
+            mu_qh = torch.frombuffer(bytearray(f.read(q_numel * 4)), dtype=torch.float32, count=q_numel).view(n_heads, d_head).clone()
+            R_rot = torch.frombuffer(bytearray(f.read(d * d * 2)), dtype=torch.float16, count=d * d).view(d, d).float().clone()
+            U_cb = torch.frombuffer(bytearray(f.read(d * half_d * 2)), dtype=torch.float16, count=d * half_d).view(d, half_d).float().clone()
+            V_cb = torch.frombuffer(bytearray(f.read(d * half_d * 2)), dtype=torch.float16, count=d * half_d).view(d, half_d).float().clone()
+            bm_t = torch.frombuffer(bytearray(f.read(bm_len)), dtype=torch.uint8, count=bm_len).clone()
+
+            if n_slots > 0:
+                z_inst = (
+                    torch.frombuffer(bytearray(f.read(n_slots * d * 2)), dtype=torch.float16, count=n_slots * d)
+                    .view(n_slots, d)
+                    .float()
+                    .clone()
+                )
+            else:
+                z_inst = torch.empty((0, d), dtype=torch.float32)
+
+            payload_offset = _align_up(f.tell(), PAGE_ALIGN)
+
+        store = cls(
+            store_path=p,
+            header=header,
+            mu_query_last=mu_ql,
+            mu_hidden_final=mu_hf,
+            mu_q_heads=mu_qh,
+            R_rot=R_rot,
+            U_codebook=U_cb,
+            V_codebook=V_cb,
+            presence_bitmap=bm_t,
+            z_anchors_installed=z_inst,
+            payload_offset=payload_offset,
+            on_demand_fetcher=on_demand_fetcher,
+        )
+        return store.to(torch.device(device))
+
+    def export_subset(
+        self,
+        out_path: Union[str, Path],
+        include_capsule_ids: Sequence[str],
+    ) -> "HeadExpandedScarStore":
+        """Exports a selective consumer `.scarstore` (`0 B` on disk for omitted domains!) while preserving
+        universal `d x d` Kronecker coordinates and `MissingCapsuleAlert` / `on_demand_fetcher` awareness."""
+        keep = set(str(x) for x in include_capsule_ids)
+        d = self.hidden_dim
+        bitmap = bytearray((d * d + 7) // 8)
+        new_descs: List[Dict[str, Any]] = []
+        z_list_fp16: List[torch.Tensor] = []
+        raw_blobs: List[bytes] = []
+
+        for old_desc in self._slot_descriptors:
+            cid = str(old_desc["capsule_id"])
+            if cid in self._unlearned_cids or cid not in keep:
+                continue
+            ri, cj = int(old_desc["row_i"]), int(old_desc["col_j"])
+            old_slot = int(old_desc["slot_idx"])
+            raw = self.read_raw_slot_bytes(old_slot)
+            raw_blobs.append(raw)
+            z_list_fp16.append(self.z_anchors_installed[old_slot].detach().cpu().to(torch.float16))
+            _bitmap_set(bitmap, ri * d + cj)
+            desc_copy = dict(old_desc)
+            desc_copy["slot_idx"] = len(new_descs)
+            new_descs.append(desc_copy)
+
+        return self._write_and_open(
+            out_path=Path(out_path),
+            hidden_dim=d,
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
+            rank=self.rank,
+            num_key_prototypes=self.num_key_prototypes,
+            record_bytes=self.record_bytes,
+            routing_tier=self.routing_tier,
+            attention_beta=self.attention_beta,
+            user_turn_prefix_ids=self.user_turn_prefix_ids,
+            slot_descriptors=new_descs,
+            global_directory=[v for v in self._global_directory.values() if str(v["capsule_id"]) not in self._unlearned_cids],
+            mu_query_last=self.mu_query_last.detach().cpu().float(),
+            mu_hidden_final=self.mu_hidden_final.detach().cpu().float(),
+            mu_q_heads=self.mu_q_heads.detach().cpu().float(),
+            R_rot=self.R_rot.detach().cpu().float(),
+            U_cb=self.U_codebook.detach().cpu().float(),
+            V_cb=self.V_codebook.detach().cpu().float(),
+            bitmap=bytes(bitmap),
+            z_list_fp16=z_list_fp16,
+            raw_blobs=raw_blobs,
+        )
+
+    @torch.no_grad()
+    def route_and_page_query(
+        self,
+        x_query_2d: torch.Tensor,
+        top_coarse_m: int = 8,
+    ) -> List[Tuple[HeadExpandedScarCapsule, float]]:
+        """Routes via `d x d` Kronecker Dual-Subspace Grid + `mmap` Page-In WITHOUT `0.50/0.50` gate dilution!"""
+        self.last_routing_cosines = {}
+        self.last_active_gates = {}
+        self.last_num_expanded_heads = 0
+        self.last_mmap_bytes_read = self._turn_mmap_bytes_read
+        self.last_missing_alerts = []
+
+        if x_query_2d.numel() == 0:
+            return []
+        dev = x_query_2d.device
+        if self.mu_query_last.device != dev:
+            self.to(dev)
+
+        probes_2d, _ = extract_span_query_probes(
+            query_hidden_2d=x_query_2d,
+            mu_query=self.mu_query_last,
+            routing_mode=self.routing_mode,
+            span_window=self.span_window,
+            span_stride=self.span_stride,
+        )
+        n_probes = int(probes_2d.shape[0])
+        half_d = self.hidden_dim // 2
+        q_rot = torch.matmul(probes_2d, self.R_rot.T)
+        nq1 = q_rot[:, :half_d].norm(dim=-1, keepdim=True).clamp(min=1e-8)
+        nq2 = q_rot[:, half_d:].norm(dim=-1, keepdim=True).clamp(min=1e-8)
+        q1 = q_rot[:, :half_d] / nq1
+        q2 = q_rot[:, half_d:] / nq2
+
+        s1_mat = torch.matmul(q1, self.U_codebook.T)
+        s2_mat = torch.matmul(q2, self.V_codebook.T)
+        m = min(top_coarse_m, self.hidden_dim)
+        top_r = s1_mat.topk(m, dim=-1).indices.tolist()
+        top_c = s2_mat.topk(m, dim=-1).indices.tolist()
+
+        candidate_installed_slots: set[int] = set()
+        candidate_missing_coords: set[Tuple[int, int]] = set()
+        for p_i in range(n_probes):
+            for ri in top_r[p_i]:
+                for cj in top_c[p_i]:
+                    coord = (ri, cj)
+                    flat_bit = ri * self.hidden_dim + cj
+                    is_present = _bitmap_get(self._presence_bitmap_bytes, flat_bit)
+                    if is_present and coord in self._coord_to_slot:
+                        s_i = self._coord_to_slot[coord]
+                        candidate_installed_slots.add(s_i)
+                        for p_cid in self._slot_descriptors[s_i].get("parent_capsules", []):
+                            if p_cid in self._cid_to_slot:
+                                candidate_installed_slots.add(self._cid_to_slot[p_cid])
+                    elif not is_present and coord in self._global_directory:
+                        candidate_missing_coords.add(coord)
+
+        paged_by_cid: Dict[str, HeadExpandedScarCapsule] = {}
+        raw_gates: Dict[str, float] = {}
+        parents_by_cid: Dict[str, Tuple[str, ...]] = {}
+        ordered_cids: List[str] = []
+
+        for coord in sorted(candidate_missing_coords):
+            ri, cj = coord
+            g_meta = self._global_directory[coord]
+            w1 = float(g_meta.get("w1", math.sqrt(0.5)))
+            w2 = float(g_meta.get("w2", math.sqrt(0.5)))
+            coarse_vec = (nq1.squeeze(-1) * w1 * s1_mat[:, ri]) + (nq2.squeeze(-1) * w2 * s2_mat[:, cj])
+            coarse_cos = float(coarse_vec.max().item())
+            tau_g = float(g_meta["tau"])
+            cid_g = str(g_meta["capsule_id"])
+            self.last_routing_cosines[cid_g] = coarse_cos
+            if coarse_cos > tau_g:
+                cap_stream: Optional[HeadExpandedScarCapsule] = None
+                if cid_g in self._hot_fetched_capsules:
+                    cap_stream = self._hot_fetched_capsules[cid_g].to_device(dev)
+                elif self.on_demand_fetcher is not None:
+                    fetched_bytes = self.on_demand_fetcher(coord, cid_g)
+                    if fetched_bytes is not None:
+                        self._turn_mmap_bytes_read += len(fetched_bytes)
+                        self.last_mmap_bytes_read = self._turn_mmap_bytes_read
+                        cap_stream = HeadExpandedScarCapsule.from_int4_bytes(
+                            raw_bytes=fetched_bytes,
+                            capsule_id=cid_g,
+                            hidden_dim=self.hidden_dim,
+                            num_heads=self.num_heads,
+                            head_dim=self.head_dim,
+                            rank=self.rank,
+                            num_key_prototypes=self.num_key_prototypes,
+                            tau=tau_g,
+                            ramp=float(g_meta["ramp"]),
+                            parent_capsules=g_meta.get("parent_capsules", ()),
+                            device=dev,
+                        )
+                        self._hot_fetched_capsules[cid_g] = cap_stream
+                if cap_stream is not None:
+                    exact_c = float(torch.mv(probes_2d, cap_stream.z_anchor.float()).max().item())
+                    self.last_routing_cosines[cid_g] = exact_c
+                    g_f = max(0.0, min(1.0, (exact_c - cap_stream.tau) / cap_stream.ramp))
+                    if g_f > 0.0:
+                        paged_by_cid[cid_g] = cap_stream
+                        raw_gates[cid_g] = g_f
+                        parents_by_cid[cid_g] = cap_stream.parent_capsules
+                        ordered_cids.append(cid_g)
+                else:
+                    self.last_missing_alerts.append(
+                        MissingCapsuleAlert(coord=coord, capsule_id=cid_g, coarse_cosine=coarse_cos, tau=tau_g)
+                    )
+
+        for s_idx in sorted(candidate_installed_slots):
+            desc = self._slot_descriptors[s_idx]
+            cid = str(desc["capsule_id"])
+            if cid in self._unlearned_cids:
+                continue
+            exact_cos = float(torch.mv(probes_2d, self.z_anchors_installed[s_idx]).max().item())
+            self.last_routing_cosines[cid] = exact_cos
+            g_val = max(0.0, min(1.0, (exact_cos - float(desc["tau"])) / float(desc["ramp"])))
+            if g_val > 0.0:
+                cap = self.load_slot_capsule(s_idx, device=dev)
+                paged_by_cid[cid] = cap
+                raw_gates[cid] = g_val
+                parents_by_cid[cid] = cap.parent_capsules
+                ordered_cids.append(cid)
+
+        if self.strict_missing_guard and self.last_missing_alerts:
+            a0 = self.last_missing_alerts[0]
+            raise RuntimeError(
+                f"MissingCapsuleAlert: Query triggered uninstalled capsule {a0.capsule_id!r} "
+                f"at Kronecker coordinate {a0.coord} (cosine={a0.coarse_cosine:.4f} > tau={a0.tau:.4f})"
+            )
+
+        if not ordered_cids:
+            return []
+
+        base_cone = dict(raw_gates)
+        for cid in list(ordered_cids):
+            parents = parents_by_cid.get(cid, ())
+            if not parents:
+                continue
+            if any(p not in base_cone or base_cone[p] <= 0.0 for p in parents):
+                raw_gates[cid] = 0.0
+                continue
+            parent_min = min(base_cone[p] for p in parents)
+            eff_bg = raw_gates[cid] * min(1.0, parent_min / 0.50)
+            raw_gates[cid] = eff_bg
+            if eff_bg > 0.0:
+                atten = max(0.0, 1.0 - eff_bg)
+                for p in parents:
+                    raw_gates[p] *= atten
+
+        active: List[Tuple[HeadExpandedScarCapsule, float]] = [
+            (paged_by_cid[cid], float(raw_gates[cid])) for cid in ordered_cids if raw_gates[cid] > 1e-6
+        ]
+        self.last_active_gates = {c.capsule_id: g for c, g in active}
+        self.last_num_expanded_heads = len(active)
+        return active
+
+    def _compute_expanded_scar_heads(
+        self,
+        h_fin_3d: torch.Tensor,
+        q_heads_4d: Optional[torch.Tensor],
+        active: List[Tuple[HeadExpandedScarCapsule, float]],
+    ) -> torch.Tensor:
+        orig_dtype = h_fin_3d.dtype
+        hf = h_fin_3d.float()
+        hc = hf - self.mu_hidden_final.view(1, 1, -1)
+
+        if len(active) == 1 or q_heads_4d is None:
+            delta = torch.zeros_like(hf)
+            w_sum = sum(g for _, g in active)
+            norm_div = w_sum if (len(active) > 1 and w_sum > 1.0) else 1.0
+            step_dict: Dict[str, float] = {}
+            for cap, g_val in active:
+                eff_w = g_val / norm_div
+                delta = delta + eff_w * torch.matmul(torch.matmul(hc, cap.A_scar.float().T), cap.B_scar.float().T)
+                step_dict[cap.capsule_id] = round(float(eff_w), 4)
+            for _ in range(int(hf.shape[1])):
+                self.last_step_weights_history.append(dict(step_dict))
+                self.last_inter_head_spread_history.append(0.0)
+            return (hf + delta).to(orig_dtype)
+
+        q_norm = F.normalize(q_heads_4d.float() - self.mu_q_heads.view(1, 1, self.num_heads, self.head_dim), dim=-1, eps=1e-8)
+        beta = self.attention_beta
+        head_logits_list: List[torch.Tensor] = []
+        for cap, g_val in active:
+            k_proto = F.normalize(cap.K_heads.float(), dim=-1, eps=1e-8)
+            sim_p = torch.einsum("bshd,phd->bsph", q_norm, k_proto)
+            s_max = sim_p.amax(dim=2)
+            head_logits_list.append(beta * s_max + math.log(max(float(g_val), 1e-6)))
+
+        alpha_m_bsh = F.softmax(torch.stack(head_logits_list, dim=0), dim=0)
+        w_m_bs1 = alpha_m_bsh.mean(dim=-1, keepdim=True)
+        s_len = int(hf.shape[1])
+        for t_idx in range(s_len):
+            a_mh = alpha_m_bsh[:, 0, t_idx, :]
+            spread = float((a_mh.amax(dim=-1) - a_mh.amin(dim=-1)).amax().item())
+            self.last_inter_head_spread_history.append(spread)
+            self.last_step_weights_history.append(
+                {active[m_i][0].capsule_id: round(float(w_m_bs1[m_i, 0, t_idx, 0].item()), 4) for m_i in range(len(active))}
+            )
+
+        delta = torch.zeros_like(hf)
+        for m_i, (cap, _g_val) in enumerate(active):
+            v_scar = torch.matmul(torch.matmul(hc, cap.A_scar.float().T), cap.B_scar.float().T)
+            delta = delta + w_m_bs1[m_i] * v_scar
+        return (hf + delta).to(orig_dtype)
+
+    def get_last_telemetry(self) -> HeadExpandedTelemetry:
+        cids = [c.capsule_id for c, _ in self._active_turn_capsules]
+        hist = list(self.last_step_weights_history)
+        if not cids or not hist:
+            return HeadExpandedTelemetry(
+                active_capsules=cids,
+                num_expanded_heads=len(cids),
+                per_capsule_mean_weight={c: 0.0 for c in cids},
+                per_capsule_min_weight={c: 0.0 for c in cids},
+                per_capsule_max_weight={c: 0.0 for c in cids},
+                max_inter_head_spread=0.0,
+                step_weights=hist,
+            )
+        means, mins, maxs = {}, {}, {}
+        for cid in cids:
+            vals = [step.get(cid, 0.0) for step in hist]
+            means[cid] = round(sum(vals) / len(vals), 4)
+            mins[cid] = round(min(vals), 4)
+            maxs[cid] = round(max(vals), 4)
+        max_spread = round(max(self.last_inter_head_spread_history) if self.last_inter_head_spread_history else 0.0, 4)
+        return HeadExpandedTelemetry(
+            active_capsules=cids,
+            num_expanded_heads=len(cids),
+            per_capsule_mean_weight=means,
+            per_capsule_min_weight=mins,
+            per_capsule_max_weight=maxs,
+            max_inter_head_spread=max_spread,
+            step_weights=hist,
+        )
+
+    def _backbone_pre_hook(self, _module: nn.Module, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+        if self._paused:
+            return
+        input_ids = kwargs.get("input_ids")
+        if input_ids is None and len(args) > 0 and isinstance(args[0], torch.Tensor):
+            input_ids = args[0]
+        past_kv = kwargs.get("past_key_values")
+        if past_kv is None and len(args) > 2:
+            past_kv = args[2]
+        past_len = _past_kv_seen_length(past_kv)
+        ids_1d: List[int] = []
+        if isinstance(input_ids, torch.Tensor) and input_ids.numel() > 0:
+            ids_1d = input_ids[0].tolist() if input_ids.ndim >= 2 else input_ids.tolist()
+        seq_len = len(ids_1d)
+        is_prefill_chunk = (past_len == 0) or (seq_len > 1)
+        self._current_pass_is_prefill = is_prefill_chunk
+        self._cached_q_heads = None
+
+        if past_len == 0:
+            self._rolling_id_tail = []
+            self._query_hidden_buf = None
+            self._turn_slot_cache.clear()
+            self._turn_mmap_bytes_read = 0
+            self.last_step_weights_history = []
+            self.last_inter_head_spread_history = []
+
+        if is_prefill_chunk and seq_len > 0:
+            tail = self._rolling_id_tail
+            combined = tail + ids_1d
+            match_end = _find_subsequence_last_end_strict(combined, self.user_turn_prefix_ids)
+            keep_tail = max(0, len(self.user_turn_prefix_ids) - 1) if self.user_turn_prefix_ids else 0
+            self._rolling_id_tail = combined[-keep_tail:] if keep_tail > 0 else []
+            if match_end > len(tail):
+                self._query_hidden_buf = None
+                self._turn_slot_cache.clear()
+                self._turn_mmap_bytes_read = 0
+                self.last_step_weights_history = []
+                self.last_inter_head_spread_history = []
+                self._current_query_start = match_end - len(tail)
+            else:
+                self._current_query_start = 0
+
+    def _last_block_pre_hook(self, _module: nn.Module, args: Tuple[Any, ...]) -> None:
+        if self._paused or len(args) == 0 or not isinstance(args[0], torch.Tensor):
+            return
+        x_in = args[0]
+        x_3d = x_in.unsqueeze(0) if x_in.ndim == 2 else x_in
+        if x_3d.ndim != 3 or int(x_3d.shape[1]) == 0:
+            return
+        seq_len = int(x_3d.shape[1])
+        if self._tf_prompt_len is not None:
+            lp = max(1, min(int(self._tf_prompt_len), seq_len))
+            if len(self.last_step_weights_history) == 0:
+                q_start = min(self._current_query_start, lp - 1)
+                self._active_turn_capsules = self.route_and_page_query(x_3d[0, q_start:lp, :])
+        elif self._current_pass_is_prefill:
+            qs = self._current_query_start
+            if qs < seq_len:
+                new_q = x_3d[0, qs:seq_len, :].detach()
+                buf = new_q if self._query_hidden_buf is None else torch.cat([self._query_hidden_buf, new_q], dim=0)
+                if buf.shape[0] > 192:
+                    buf = buf[-192:]
+                self._query_hidden_buf = buf
+                self._active_turn_capsules = self.route_and_page_query(buf)
+            elif self._query_hidden_buf is None:
+                self._active_turn_capsules = []
+
+    def _q_proj_forward_hook(self, _module: nn.Module, _inputs: Tuple[Any, ...], output: torch.Tensor) -> None:
+        if self._paused or not self._active_turn_capsules:
+            return
+        q_3d = output.unsqueeze(0) if output.ndim == 2 else output
+        if q_3d.ndim != 3 or int(q_3d.shape[1]) == 0:
+            return
+        bsz, seq_len, _ = q_3d.shape
+        if self._tf_prompt_len is not None:
+            lp = max(1, min(int(self._tf_prompt_len), seq_len))
+            q_sl = q_3d[:, lp - 1 :, :]
+        elif self._current_pass_is_prefill:
+            q_sl = q_3d[:, -1:, :]
+        else:
+            q_sl = q_3d
+        self._cached_q_heads = q_sl.detach().view(bsz, int(q_sl.shape[1]), self.num_heads, self.head_dim)
+
+    def _final_norm_hook(self, _module: nn.Module, _inputs: Tuple[Any, ...], output: torch.Tensor) -> torch.Tensor:
+        if self._paused or not self._active_turn_capsules:
+            return output
+        squeezed = False
+        out_3d = output
+        if output.ndim == 2:
+            out_3d = output.unsqueeze(0)
+            squeezed = True
+        elif output.ndim != 3:
+            return output
+        seq_len = int(out_3d.shape[1])
+        if seq_len == 0:
+            return output
+        active = self._active_turn_capsules
+        q_cached = self._cached_q_heads
+        self._cached_q_heads = None
+
+        if self._tf_prompt_len is not None:
+            lp = max(1, min(int(self._tf_prompt_len), seq_len))
+            out_mod = out_3d.clone()
+            out_mod[:, lp - 1 :, :] = self._compute_expanded_scar_heads(out_3d[:, lp - 1 :, :], q_cached, active)
+            return out_mod.squeeze(0) if squeezed else out_mod
+        if self._current_pass_is_prefill:
+            out_mod = out_3d.clone()
+            out_mod[:, -1:, :] = self._compute_expanded_scar_heads(out_3d[:, -1:, :], q_cached, active)
+            return out_mod.squeeze(0) if squeezed else out_mod
+        out_mod = self._compute_expanded_scar_heads(out_3d, q_cached, active)
+        return out_mod.squeeze(0) if squeezed else out_mod
+
+    def attach(self, student_model: nn.Module) -> "HeadExpandedScarStore":
+        self.detach()
+        dev = _infer_model_device(student_model)
+        self.to(dev)
+        backbone, last_block, q_proj, _, _, norm_mod, _ = extract_head_expansion_modules(student_model)
+        self._backbone_pre_handle = backbone.register_forward_pre_hook(self._backbone_pre_hook, with_kwargs=True)
+        self._last_block_pre_handle = last_block.register_forward_pre_hook(self._last_block_pre_hook)
+        self._q_proj_hook_handle = q_proj.register_forward_hook(self._q_proj_forward_hook)
+        self._norm_hook_handle = norm_mod.register_forward_hook(self._final_norm_hook)
+        return self
+
+    def detach(self) -> None:
+        for attr in ("_backbone_pre_handle", "_last_block_pre_handle", "_q_proj_hook_handle", "_norm_hook_handle"):
+            h = getattr(self, attr, None)
+            if h is not None:
+                h.remove()
+                setattr(self, attr, None)
+        self._active_turn_capsules = []
+        self._cached_q_heads = None
+
+    @contextmanager
+    def paused(self) -> Iterator[None]:
+        prev = self._paused
+        self._paused = True
+        try:
+            yield
+        finally:
+            self._paused = prev
+
+    @contextmanager
+    def teacher_forcing_scope(self, prompt_len: int) -> Iterator[None]:
+        prev = self._tf_prompt_len
+        self._tf_prompt_len = int(prompt_len)
+        self.last_step_weights_history = []
+        self.last_inter_head_spread_history = []
+        try:
+            yield
+        finally:
+            self._tf_prompt_len = prev
+

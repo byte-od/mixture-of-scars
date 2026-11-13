@@ -1,0 +1,520 @@
+{
+  "suite": "Adversarial Red-Team Core Comparison (v2.2.0): Qwen2.5-0.5B vs Qwen2.5-3B + MoS + SCache O(1) + HeadExpandedScarStore",
+  "zero_autograd_verified": true,
+  "all_passed": true,
+  "total_elapsed_s": 204.19,
+  "head_to_head_summary": {
+    "all_passed_both_cores": true,
+    "capsule_footprint": {
+      "0p5b_bytes": 62720,
+      "3b_bytes": 143360,
+      "3b_exact_35_os_pages_4kb": true
+    },
+    "kronecker_addressable_domains": {
+      "0p5b_cells": 802816,
+      "3b_cells": 4194304,
+      "capacity_expansion_x": 5.22
+    },
+    "scache_o1_drift_bytes_128_to_1536": {
+      "0p5b": 0.0,
+      "3b": 0.0
+    },
+    "lexical_trap_max_cosine_vs_tau_0p62": {
+      "0p5b_max_cos": 0.5019,
+      "3b_max_cos": 0.5002,
+      "0p5b_safety_margin": 0.1181,
+      "3b_safety_margin": 0.1198,
+      "both_zero_false_positives": true
+    },
+    "evicted_passkey_likelihood_gain_vs_streaming_llm": {
+      "0p5b_gain_x": 1.02,
+      "3b_gain_x": 1.05,
+      "0p5b_scache_nll": 4.1599,
+      "3b_scache_nll": 3.3349
+    },
+    "poisoned_1500tok_haystack_synthesis": {
+      "0p5b_text": "Landauer's principle states that the minimum heat dissipated when erasing one bit of information at temperature \\( T \\) is \\( T \\) bit of heat.",
+      "3b_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\) is \\( kT \\ln 2 \\), where \\( k \\) is"
+    },
+    "two_way_interdisciplinary_synthesis": {
+      "0p5b_spread": 0.8701,
+      "3b_spread": 0.9303,
+      "0p5b_text": "Landauer's principle states that the minimum thermodynamic heat dissipated to erase one bit of information at temperature \\( T \\) is \\( T \\) bits of heat. Immerman-Szelepcsenyi theorem states that nondeterministic space complementation irreversibly er",
+      "3b_text": "The minimum thermodynamic heat \\( T \\cdot m \\) must be dissipated to irreversibly erase \\( m \\) bits during nondeterministic space complementation, according to a unified approach combining Landauer's principle and Immerman-Szelepcsenyi theorem."
+    },
+    "three_way_all_domains_simultaneous": {
+      "0p5b_text": "The Kabatiansky-Levenshtein theorem establishes an upper bound of the maximum packing density of spheres that can be packed in a sphere of radius \\( R \\) in the minimum number of spheres that are packed in a sphere of radius \\( T \\) at temperature \\( T \\) (Landauer's principle). The Immerman-Szelepcsenyi theorem proves that the closure of NSPACE(s(n)) is the class of all computable functions that are comput",
+      "3b_text": "The Kabatiansky-Levenshtein theorem establishes an upper bound of the sphere packing radius for error-correcting codes, Landauer's principle states that the minimum heat dissipated to erase one bit is Boltzmann's constant times the temperature T, and the Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation."
+    },
+    "fullstack_mos_scache_scarstore_immerman_top1_pct": {
+      "0p5b": 100.0,
+      "3b": 100.0
+    },
+    "gdpr_unlearn_latency_ms": {
+      "0p5b_ms": 0.0106,
+      "3b_ms": 0.018
+    }
+  },
+  "core_0p5b": {
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "layers": 24,
+    "hidden_dim": 896,
+    "num_q_heads": 14,
+    "head_dim": 64,
+    "capsule_int4_bytes": 62720,
+    "capsule_int4_kb": 61.25,
+    "exact_4kb_page_multiple": false,
+    "solve_ms_by_capsule": {
+      "titan72b_kabatiansky_levenshtein": 861.148,
+      "titan72b_landauer_principle": 867.431,
+      "titan72b_immerman_szelepcsenyi": 794.699
+    },
+    "attacks": {
+      "attack_1_anti_facade_and_causality": {
+        "passed": true,
+        "memory_scaling_128_to_1536": [
+          {
+            "tokens": 128,
+            "vanilla_actual_kb": 1536.0,
+            "scache_actual_recursive_kb": 1769.06,
+            "scache_reported_kb": 1769.06,
+            "kv_reduction_x": 0.87
+          },
+          {
+            "tokens": 512,
+            "vanilla_actual_kb": 6144.0,
+            "scache_actual_recursive_kb": 1769.06,
+            "scache_reported_kb": 1769.06,
+            "kv_reduction_x": 3.47
+          },
+          {
+            "tokens": 1024,
+            "vanilla_actual_kb": 12288.0,
+            "scache_actual_recursive_kb": 1769.06,
+            "scache_reported_kb": 1769.06,
+            "kv_reduction_x": 6.95
+          },
+          {
+            "tokens": 1536,
+            "vanilla_actual_kb": 18432.0,
+            "scache_actual_recursive_kb": 1769.06,
+            "scache_reported_kb": 1769.06,
+            "kv_reduction_x": 10.42
+          }
+        ],
+        "scache_drift_bytes_128_to_1536": 0.0,
+        "reported_vs_recursive_diff_kb": 0.0,
+        "scache_causal_max_logit_shift": 0.3975,
+        "capsule_causal_max_logit_shift": 13.4758,
+        "all_internal_blocks_bit_exact": true,
+        "verified_intact_blocks": "24/24"
+      },
+      "attack_2_lexical_keyword_trap": {
+        "passed": true,
+        "num_hostile_traps": 6,
+        "false_positive_activations": 0,
+        "exact_torch_equal_count": 6,
+        "total_mmap_bytes_read": 0,
+        "max_adversarial_trap_cosine": 0.5019,
+        "margin_below_tau_0p62": 0.1181,
+        "traps": [
+          {
+            "trap_idx": 0,
+            "prompt_excerpt": "In PostgreSQL, write an UPDATE statement to irreversibly erase m bits from a sensor bitm...",
+            "peak_cosine": 0.5019,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.2086,
+              "titan72b_landauer_principle": 0.5019,
+              "titan72b_immerman_szelepcsenyi": 0.1902
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 1,
+            "prompt_excerpt": "In CSS Grid and Flexbox, how should circular icon badges and unit spheres be packed insi...",
+            "peak_cosine": 0.2921,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.2921,
+              "titan72b_landauer_principle": 0.2338,
+              "titan72b_immerman_szelepcsenyi": 0.1988
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 2,
+            "prompt_excerpt": "When baking artisan sourdough bread at oven temperature T, how much heat escapes when op...",
+            "peak_cosine": 0.3757,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.1798,
+              "titan72b_landauer_principle": 0.3757
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 3,
+            "prompt_excerpt": "In a Python 3 warehouse packing script, pack spherical ball bearings into cubic crates a...",
+            "peak_cosine": 0.3632,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.3042,
+              "titan72b_landauer_principle": 0.3632,
+              "titan72b_immerman_szelepcsenyi": 0.1661
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 4,
+            "prompt_excerpt": "Explain how git rebase --interactive erases temporary fixup commits in local workspace h...",
+            "peak_cosine": 0.2297,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.1792,
+              "titan72b_landauer_principle": 0.2049,
+              "titan72b_immerman_szelepcsenyi": 0.2297
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 5,
+            "prompt_excerpt": "Configure a Linux nftables firewall rule that drops nondeterministic UDP bursts whenever...",
+            "peak_cosine": 0.3413,
+            "cosines": {
+              "titan72b_landauer_principle": 0.3413,
+              "titan72b_immerman_szelepcsenyi": 0.1774
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          }
+        ]
+      },
+      "attack_3_poisoned_haystack_and_evicted_passkey": {
+        "passed": true,
+        "evicted_passkey_tokens": 1359,
+        "streaming_llm_nll": 4.1837,
+        "scache_o1_nll": 4.1599,
+        "scache_vs_streaming_likelihood_gain_x": 1.02,
+        "scache_o1_kv_kb": 1867.31,
+        "poisoned_chat_tokens": 1560,
+        "poisoned_chat_active_gates": {
+          "titan72b_landauer_principle": 1.0
+        },
+        "resisted_false_999j_rumor": true,
+        "post_haystack_scache_text": "Landauer's principle states that the minimum heat dissipated when erasing one bit of information at temperature \\( T \\) is \\( T \\) bit of heat.",
+        "post_haystack_tok_per_s": 6.32
+      },
+      "attack_4_multicartridge_collision": {
+        "passed": true,
+        "two_way_landauer_x_immerman": {
+          "active_capsules": [
+            "titan72b_landauer_principle",
+            "titan72b_immerman_szelepcsenyi"
+          ],
+          "num_expanded_heads": 2,
+          "max_inter_head_spread": 0.8701,
+          "per_capsule_min_weight": {
+            "titan72b_landauer_principle": 0.0029,
+            "titan72b_immerman_szelepcsenyi": 0.0021
+          },
+          "per_capsule_max_weight": {
+            "titan72b_landauer_principle": 0.9979,
+            "titan72b_immerman_szelepcsenyi": 0.9971
+          },
+          "generated_text": "Landauer's principle states that the minimum thermodynamic heat dissipated to erase one bit of information at temperature \\( T \\) is \\( T \\) bits of heat. Immerman-Szelepcsenyi theorem states that nondeterministic space complementation irreversibly er",
+          "tok_per_s": 38.69
+        },
+        "three_way_simultaneous_all_domains": {
+          "active_gates": {
+            "titan72b_kabatiansky_levenshtein": 1.0,
+            "titan72b_landauer_principle": 1.0,
+            "titan72b_immerman_szelepcsenyi": 1.0
+          },
+          "num_expanded_heads": 3,
+          "mmap_bytes_paged": 188160,
+          "max_inter_head_spread": 0.9178,
+          "per_capsule_min_weight": {
+            "titan72b_kabatiansky_levenshtein": 0.0035,
+            "titan72b_landauer_principle": 0.0038,
+            "titan72b_immerman_szelepcsenyi": 0.0097
+          },
+          "per_capsule_max_weight": {
+            "titan72b_kabatiansky_levenshtein": 0.9624,
+            "titan72b_landauer_principle": 0.9857,
+            "titan72b_immerman_szelepcsenyi": 0.9682
+          },
+          "generated_text": "The Kabatiansky-Levenshtein theorem establishes an upper bound of the maximum packing density of spheres that can be packed in a sphere of radius \\( R \\) in the minimum number of spheres that are packed in a sphere of radius \\( T \\) at temperature \\( T \\) (Landauer's principle). The Immerman-Szelepcsenyi theorem proves that the closure of NSPACE(s(n)) is the class of all computable functions that are comput",
+          "tok_per_s": 39.01
+        }
+      },
+      "attack_5_fullstack_mos_scache_scarstore": {
+        "passed": true,
+        "mos_compressed_layers": "L18..L23 (18 SwiGLU matrices)",
+        "dense_tail_mlp_mb": 149.62,
+        "mos_tail_mlp_mb": 49.24,
+        "tail_mlp_compression_x": 3.04,
+        "mos_active_scar_logit_shift": 16.5508,
+        "immerman_72b_fullstack_top1_pct": 100.0,
+        "immerman_72b_fullstack_kl_div": 0.0242,
+        "immerman_fullstack_scache_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+        "scache_actual_kb": 2061.56
+      },
+      "attack_6_missing_capsule_guard_and_gdpr_unlearn": {
+        "passed": true,
+        "kronecker_grid_cells": 802816,
+        "presence_bitmap_kb": 98.0,
+        "missing_capsule_blocked_before_hallucination": true,
+        "missing_alert_coordinate": [
+          2,
+          2
+        ],
+        "http_range_streamed_bytes": 62720,
+        "post_stream_recovered_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+        "gdpr_unlearn_ms": 0.0106,
+        "exact_torch_equal_to_base_after_unlearn": true,
+        "exact_zero_collateral_damage_on_other_capsules": true
+      }
+    },
+    "all_attacks_passed": true,
+    "elapsed_s": 36.28
+  },
+  "core_3b": {
+    "model_id": "Qwen/Qwen2.5-3B-Instruct",
+    "layers": 36,
+    "hidden_dim": 2048,
+    "num_q_heads": 16,
+    "head_dim": 128,
+    "capsule_int4_bytes": 143360,
+    "capsule_int4_kb": 140.0,
+    "exact_4kb_page_multiple": true,
+    "solve_ms_by_capsule": {
+      "titan72b_kabatiansky_levenshtein": 4231.079,
+      "titan72b_landauer_principle": 2930.977,
+      "titan72b_immerman_szelepcsenyi": 3255.282
+    },
+    "attacks": {
+      "attack_1_anti_facade_and_causality": {
+        "passed": true,
+        "memory_scaling_128_to_1536": [
+          {
+            "tokens": 128,
+            "vanilla_actual_kb": 4608.0,
+            "scache_actual_recursive_kb": 7603.59,
+            "scache_reported_kb": 7603.59,
+            "kv_reduction_x": 0.61
+          },
+          {
+            "tokens": 512,
+            "vanilla_actual_kb": 18432.0,
+            "scache_actual_recursive_kb": 7603.59,
+            "scache_reported_kb": 7603.59,
+            "kv_reduction_x": 2.42
+          },
+          {
+            "tokens": 1024,
+            "vanilla_actual_kb": 36864.0,
+            "scache_actual_recursive_kb": 7603.59,
+            "scache_reported_kb": 7603.59,
+            "kv_reduction_x": 4.85
+          },
+          {
+            "tokens": 1536,
+            "vanilla_actual_kb": 55296.0,
+            "scache_actual_recursive_kb": 7603.59,
+            "scache_reported_kb": 7603.59,
+            "kv_reduction_x": 7.27
+          }
+        ],
+        "scache_drift_bytes_128_to_1536": 0.0,
+        "reported_vs_recursive_diff_kb": 0.0,
+        "scache_causal_max_logit_shift": 0.709,
+        "capsule_causal_max_logit_shift": 8.9963,
+        "all_internal_blocks_bit_exact": true,
+        "verified_intact_blocks": "36/36"
+      },
+      "attack_2_lexical_keyword_trap": {
+        "passed": true,
+        "num_hostile_traps": 6,
+        "false_positive_activations": 0,
+        "exact_torch_equal_count": 6,
+        "total_mmap_bytes_read": 0,
+        "max_adversarial_trap_cosine": 0.5002,
+        "margin_below_tau_0p62": 0.1198,
+        "traps": [
+          {
+            "trap_idx": 0,
+            "prompt_excerpt": "In PostgreSQL, write an UPDATE statement to irreversibly erase m bits from a sensor bitm...",
+            "peak_cosine": 0.5002,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.4033,
+              "titan72b_landauer_principle": 0.5002,
+              "titan72b_immerman_szelepcsenyi": 0.3345
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 1,
+            "prompt_excerpt": "In CSS Grid and Flexbox, how should circular icon badges and unit spheres be packed insi...",
+            "peak_cosine": 0.3973,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.3825,
+              "titan72b_landauer_principle": 0.3973,
+              "titan72b_immerman_szelepcsenyi": 0.2523
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 2,
+            "prompt_excerpt": "When baking artisan sourdough bread at oven temperature T, how much heat escapes when op...",
+            "peak_cosine": 0.4463,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.2904,
+              "titan72b_landauer_principle": 0.4463,
+              "titan72b_immerman_szelepcsenyi": 0.2401
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 3,
+            "prompt_excerpt": "In a Python 3 warehouse packing script, pack spherical ball bearings into cubic crates a...",
+            "peak_cosine": 0.4466,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.3889,
+              "titan72b_landauer_principle": 0.4466,
+              "titan72b_immerman_szelepcsenyi": 0.2873
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 4,
+            "prompt_excerpt": "Explain how git rebase --interactive erases temporary fixup commits in local workspace h...",
+            "peak_cosine": 0.3599,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.2922,
+              "titan72b_landauer_principle": 0.351,
+              "titan72b_immerman_szelepcsenyi": 0.3599
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          },
+          {
+            "trap_idx": 5,
+            "prompt_excerpt": "Configure a Linux nftables firewall rule that drops nondeterministic UDP bursts whenever...",
+            "peak_cosine": 0.4021,
+            "cosines": {
+              "titan72b_kabatiansky_levenshtein": 0.3186,
+              "titan72b_landauer_principle": 0.4021,
+              "titan72b_immerman_szelepcsenyi": 0.3245
+            },
+            "expanded_heads_triggered": 0,
+            "exact_torch_equal_logits": true,
+            "mmap_bytes_read": 0
+          }
+        ]
+      },
+      "attack_3_poisoned_haystack_and_evicted_passkey": {
+        "passed": true,
+        "evicted_passkey_tokens": 1359,
+        "streaming_llm_nll": 3.3834,
+        "scache_o1_nll": 3.3349,
+        "scache_vs_streaming_likelihood_gain_x": 1.05,
+        "scache_o1_kv_kb": 7894.97,
+        "poisoned_chat_tokens": 1560,
+        "poisoned_chat_active_gates": {
+          "titan72b_landauer_principle": 1.0
+        },
+        "resisted_false_999j_rumor": true,
+        "post_haystack_scache_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\) is \\( kT \\ln 2 \\), where \\( k \\) is",
+        "post_haystack_tok_per_s": 3.15
+      },
+      "attack_4_multicartridge_collision": {
+        "passed": true,
+        "two_way_landauer_x_immerman": {
+          "active_capsules": [
+            "titan72b_landauer_principle",
+            "titan72b_immerman_szelepcsenyi"
+          ],
+          "num_expanded_heads": 2,
+          "max_inter_head_spread": 0.9303,
+          "per_capsule_min_weight": {
+            "titan72b_landauer_principle": 0.0001,
+            "titan72b_immerman_szelepcsenyi": 0.001
+          },
+          "per_capsule_max_weight": {
+            "titan72b_landauer_principle": 0.999,
+            "titan72b_immerman_szelepcsenyi": 0.9999
+          },
+          "generated_text": "The minimum thermodynamic heat \\( T \\cdot m \\) must be dissipated to irreversibly erase \\( m \\) bits during nondeterministic space complementation, according to a unified approach combining Landauer's principle and Immerman-Szelepcsenyi theorem.",
+          "tok_per_s": 11.25
+        },
+        "three_way_simultaneous_all_domains": {
+          "active_gates": {
+            "titan72b_kabatiansky_levenshtein": 1.0,
+            "titan72b_landauer_principle": 1.0,
+            "titan72b_immerman_szelepcsenyi": 1.0
+          },
+          "num_expanded_heads": 3,
+          "mmap_bytes_paged": 430080,
+          "max_inter_head_spread": 0.9699,
+          "per_capsule_min_weight": {
+            "titan72b_kabatiansky_levenshtein": 0.0003,
+            "titan72b_landauer_principle": 0.0001,
+            "titan72b_immerman_szelepcsenyi": 0.0006
+          },
+          "per_capsule_max_weight": {
+            "titan72b_kabatiansky_levenshtein": 0.9991,
+            "titan72b_landauer_principle": 0.9991,
+            "titan72b_immerman_szelepcsenyi": 0.9992
+          },
+          "generated_text": "The Kabatiansky-Levenshtein theorem establishes an upper bound of the sphere packing radius for error-correcting codes, Landauer's principle states that the minimum heat dissipated to erase one bit is Boltzmann's constant times the temperature T, and the Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation.",
+          "tok_per_s": 11.11
+        }
+      },
+      "attack_5_fullstack_mos_scache_scarstore": {
+        "passed": true,
+        "mos_compressed_layers": "L30..L35 (18 SwiGLU matrices)",
+        "dense_tail_mlp_mb": 774.0,
+        "mos_tail_mlp_mb": 227.11,
+        "tail_mlp_compression_x": 3.41,
+        "mos_active_scar_logit_shift": 12.0332,
+        "immerman_72b_fullstack_top1_pct": 100.0,
+        "immerman_72b_fullstack_kl_div": 0.0029,
+        "immerman_fullstack_scache_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+        "scache_actual_kb": 8474.34
+      },
+      "attack_6_missing_capsule_guard_and_gdpr_unlearn": {
+        "passed": true,
+        "kronecker_grid_cells": 4194304,
+        "presence_bitmap_kb": 512.0,
+        "missing_capsule_blocked_before_hallucination": true,
+        "missing_alert_coordinate": [
+          2,
+          2
+        ],
+        "http_range_streamed_bytes": 143360,
+        "post_stream_recovered_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+        "gdpr_unlearn_ms": 0.018,
+        "exact_torch_equal_to_base_after_unlearn": true,
+        "exact_zero_collateral_damage_on_other_capsules": true
+      }
+    },
+    "all_attacks_passed": true,
+    "elapsed_s": 167.52
+  }
+}

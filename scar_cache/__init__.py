@@ -53,6 +53,7 @@ from scar_cache.head_expanded_attention import (
     HeadExpandedAttentionBank,
     HeadExpandedAttentionEngine,
     HeadExpandedScarCapsule,
+    HeadExpandedScarStore,
     HeadExpandedTelemetry,
     extract_head_expansion_modules,
 )
@@ -83,7 +84,7 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 __all__ = [
     "SCache",
@@ -119,6 +120,7 @@ __all__ = [
     "HeadExpandedScarCapsule",
     "HeadExpandedAttentionBank",
     "HeadExpandedAttentionEngine",
+    "HeadExpandedScarStore",
     "extract_head_expansion_modules",
     "SUB2BIT_BETA",
     "Sub2BitDecompositionStats",
