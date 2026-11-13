@@ -1,4 +1,4 @@
-# 🏛️ `ScarStore v2` (`v2.0.0`): Arquitetura Pós-Monolítica de Conhecimento em Cones Esparsos
+# 🏛️ `ScarStore v2` (`v2.1.0`): Arquitetura Pós-Monolítica de Conhecimento em Cones Esparsos & Atenção Expandida sob Demanda
 
 > **Mandato de Integridade Arquitetural (Zero Fachadas):**  
 > Todo componente documentado neste guia executa matemática algébrica real em PyTorch puro (`ZERO backpropagation / ZERO SGD`), quantização simétrica `Block-64 INT4` nativa, roteamento esférico com **`0.0000000000` (`torch.equal`)** de interferência fora do cone e paginação `mmap` real sobre o SSD.
@@ -58,5 +58,34 @@
 * **Reflexo Epistêmico (`BridgeEscalationDecision`) + Consolidação de Ponte Interdisciplinar (`61,25 KB INT4`):**
   * Antes do sono (`Landauer × Immerman`), `assess_interdisciplinary_epistemic_uncertainty` detecta interseção não consolidada (`is_uncertain = true`, `margin = 0,7053`).
   * Após `consolidate_interdisciplinary_bridge(...)`, a cápsula-ponte `bridge_landauer__immerman` (`parent_capsules` conjuntivos — **zero vazamento** nos domínios puros: `landauer_exact_text_match = true`, `immerman_exact_text_match = true`) eleva `confidence: 0,8398 → 0,9788`, `margin: 0,7053 → 0,9702` e derruba `uncertainty: 0,0345 → 0,0123` (`is_uncertain = false`).
+
+---
+
+## ✅ Etapa 4 (`v2.1.0`): Expansão Dinâmica de Cabeças de Atenção sob Demanda (*Zero Mid-Transformer Cut*)
+
+**Arquivos Canônicos:** [`scar_cache/head_expanded_attention.py`](../scar_cache/head_expanded_attention.py) · [`tests/test_scar_store_v2_stage4.py`](../tests/test_scar_store_v2_stage4.py) · [`scripts/audit_scar_store_v2_stage4.py`](../scripts/audit_scar_store_v2_stage4.py) · [`results/scar_store_v2_stage4_audit.json`](../results/scar_store_v2_stage4_audit.json)
+
+### 4.1. Formulação Matemática: Aumentar a Atenção no Raciocínio Sem Cortar o Transformer ao Meio
+Em vez de cortar o Transformer na `Layer 12/24` (Etapa 3) ou fatiar o prompt (Etapa 2), `HeadExpandedAttentionBank` mantém **todos os `24` blocos internos do Transformer `100%` intactos bit-a-bit (`torch.equal == True`)** e expande dinamicamente o operador de atenção na saída contextual final **apenas quando $M \ge 1$ cones disparam**:
+1. **Reuso Zero-FLOP das `14` Cabeças Pré-Treinadas (`q_proj`):** A `Layer 24` já computa $\mathbf{Q}_t = \mathbf{W}_Q \operatorname{LN}_{\text{in}}(\mathbf{x}_t) \in \mathbb{R}^{14 \times 64}$ (`14 × 64 = 896`). Um *hook* somente-leitura reutiliza essas `14` cabeças sem nenhum GEMM extra de $\mathbf{W}_Q$.
+2. **Mesmíssimo Orçamento Físico de `62.720 B` (`61,25 KB` `Block-64 INT4`):** Trocando apenas `4` valores singulares residuais (`rank: 64 → 60`, retendo `100%` da energia espectral em episódios de `48` passos), cada `HeadExpandedScarCapsule` armazena `P = 8` protótipos de chave por cabeça (`8 × 14 = 112` chaves de `64` dimensões = `3.808 B` INT4) + `(B_scar, A_scar)` (`57.120 B`) + `z_anchor` (`1.792 B`) = **exatos `62.720 bytes` (`61,25 KB`)**!
+3. **Atenção Competitiva por Cabeça e por Token (`M >= 2`):**
+   $$s_{t, m, h} = \max_{p \in \{1..P\}} \langle \hat{\mathbf{q}}_{t, h}, \hat{\mathbf{k}}_{m, p, h} \rangle + \frac{1}{\beta}\ln(g_m), \qquad \alpha_{t, m, h} = \frac{\exp(\beta s_{t, m, h})}{\sum_{m'=1}^M \exp(\beta s_{t, m', h})}, \qquad w_{t, m} = \frac{1}{H}\sum_{h=0}^{H-1} \alpha_{t, m, h}$$
+   Elimina o colapso estático `0,50 / 0,50`: cabeças semânticas distintas especializam-se em cartuchos distintos no mesmo token (`87,02%` de divergência entre as `14` cabeças!), e o peso $w_{t, m}$ alterna dinamicamente token a token (`0,9979 ↔ 0,0029`) conforme a frase transita entre *Landauer* e *Immerman-Szelepcsényi*!
+
+### 4.2. Experimento Controlado *Head-to-Head*: Etapa 3 (`Dual-Depth`) vs. Etapa 4 (`Head-Expanded`)
+
+| Métrica Auditada (`Qwen2.5-72B MoS → Qwen2.5-0.5B` + `SCache O(1)`) | Etapa 3 (`Dual-Depth L12+L24`) | Etapa 4 (`Head-Expanded`, Sem Corte) | Veredito Técnico |
+| :--- | :---: | :---: | :--- |
+| **Tamanho Físico por Cápsula (`Block-64 INT4`)** | `62.720 B` (`61,25 KB`) | **`62.720 B` (`61,25 KB`)** | Paridade exata byte a byte (`r=60, P=8`) |
+| **Blocos do Transformer Intactos no Raciocínio** | `11 / 24` (corta `Layer 12`) | **`24 / 24` (`torch.equal = true`)** | **Etapa 4** preserva `100%` do backbone |
+| **Vazamento Off-Diagonal em Domínio Único** | `28,43%` (`K-L → Immerman`) | **`0,00%` (`0.0000` em todos)** | **Etapa 4** elimina confusão semântica de meio de rede |
+| **Tempo Médio de Síntese `ZERO Backprop` / Cápsula** | `1.941,6 ms` (`2` passes) | **`942,6 ms` (`1` passe — `2,06×` mais rápido)** | **Etapa 4** corta pela metade o custo de consolidação |
+| **Top-1 / KL Inédito — *Immerman-Szelepcsényi*** | `100,0%` (`KL 0,0364`) | **`100,0%` (`KL 0,0267`)** | **Etapa 4** atinge menor divergência KL |
+| **Top-1 / KL Inédito — *Princípio de Landauer*** | `95,83%` (`KL 0,0445`) | **`95,83%`** (`KL 0,1285`) | Empate em Top-1 (`23/24`); Etapa 3 tem menor KL |
+| **Top-1 / KL Inédito — *Kabatiansky-Levenshtein*** | **`91,67%`** (`KL 0,3412`) | `87,50%` (`KL 0,3782`, base `83,33%`) | **Etapa 3** vence por `1/24` token em paráfrase geométrica |
+| **Síntese Interdisciplinar *Pré-Sono* (`conf` / `margin`)** | `0,8398` / `0,7053` (`uncertain=true`) | **`0,9720` / `0,9607` (`+25,5 p.p.`, `uncertain=false`)** | **Etapa 4** elimina colisão `0,5/0,5` e alterna `0,998 ↔ 0,003` |
+| **Síntese Interdisciplinar *Pós-Sono* (`bridge_A__B`)** | `0,9788` / `0,9702` (`4,04 s` solve) | **`0,9884` / `0,9840` (`2,08 s` solve, `m k_B T`)** | **Etapa 4** suporta ponte de sono `1,94×` mais rápida e mais nítida |
+
 
 

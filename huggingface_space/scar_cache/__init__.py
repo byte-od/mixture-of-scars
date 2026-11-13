@@ -49,6 +49,13 @@ from scar_cache.dual_depth_bridge import (
     DualDepthScarCapsule,
     extract_mid_and_final_modules,
 )
+from scar_cache.head_expanded_attention import (
+    HeadExpandedAttentionBank,
+    HeadExpandedAttentionEngine,
+    HeadExpandedScarCapsule,
+    HeadExpandedTelemetry,
+    extract_head_expansion_modules,
+)
 from scar_cache.speculative_ghost_jump import (
     GhostJumpGenerationResult,
     GhostJumpReflexDecision,
@@ -76,7 +83,7 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 __all__ = [
     "SCache",
@@ -108,6 +115,11 @@ __all__ = [
     "DualDepthScarBank",
     "DualDepthBridgeEngine",
     "extract_mid_and_final_modules",
+    "HeadExpandedTelemetry",
+    "HeadExpandedScarCapsule",
+    "HeadExpandedAttentionBank",
+    "HeadExpandedAttentionEngine",
+    "extract_head_expansion_modules",
     "SUB2BIT_BETA",
     "Sub2BitDecompositionStats",
     "Sub2BitMoSLinear",

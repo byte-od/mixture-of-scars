@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mixture-of-scars"
-version = "2.0.0"
+version = "2.1.0"
 description = "Mixture of Scars (MoS) & SCache O(1): Sub-2-Bit/INT4+ASVD Weight Compression, Ghost-Jump Speculative Reflex & Constant-Memory Widrow-Hoff KV-Cache Replacement for 0.5B–72B+ LLMs"
 readme = "README.md"
 requires-python = ">=3.10"

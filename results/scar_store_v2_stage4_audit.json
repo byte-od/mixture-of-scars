@@ -1,0 +1,290 @@
+{
+  "stage": "Stage 4 (v2.1.0) — On-Demand Dynamic Scar-Attention Head Expansion (Zero Mid-Transformer Cut)",
+  "student_model": "Qwen/Qwen2.5-0.5B-Instruct (24 layers, 14 Q-heads x 64, d=896)",
+  "teacher_source": "Qwen2.5-72B-Instruct-MoS (72.71B real cached episodes)",
+  "zero_autograd_verified": true,
+  "zero_mid_layer_cut_all_24_blocks_verified": true,
+  "calibration_ms": 702.02,
+  "capsules": {
+    "titan72b_kabatiansky_levenshtein": {
+      "int4_bytes": 62720,
+      "int4_kb": 61.25,
+      "rank": 60,
+      "num_key_prototypes": 8,
+      "total_per_head_keys": 112,
+      "solve_ms": 971.52,
+      "zero_backpropagation": true,
+      "zero_mid_layer_cut": true
+    },
+    "titan72b_landauer_principle": {
+      "int4_bytes": 62720,
+      "int4_kb": 61.25,
+      "rank": 60,
+      "num_key_prototypes": 8,
+      "total_per_head_keys": 112,
+      "solve_ms": 903.442,
+      "zero_backpropagation": true,
+      "zero_mid_layer_cut": true
+    },
+    "titan72b_immerman_szelepcsenyi": {
+      "int4_bytes": 62720,
+      "int4_kb": 61.25,
+      "rank": 60,
+      "num_key_prototypes": 8,
+      "total_per_head_keys": 112,
+      "solve_ms": 952.918,
+      "zero_backpropagation": true,
+      "zero_mid_layer_cut": true
+    }
+  },
+  "out_of_cone_invariance": {
+    "num_controls": 6,
+    "zero_extra_heads_allocated": true,
+    "exact_torch_equal_layer12": true,
+    "exact_torch_equal_layer20": true,
+    "exact_torch_equal_logits": true,
+    "max_control_cosine_layer24_in": 0.3122,
+    "tau": 0.62
+  },
+  "zero_off_diagonal_single_domain_bleed": true,
+  "unseen_paraphrase_72b_fidelity": {
+    "titan72b_kabatiansky_levenshtein": {
+      "routing_cosines_layer24_in": {
+        "titan72b_kabatiansky_levenshtein": 0.8399,
+        "titan72b_landauer_principle": 0.3876,
+        "titan72b_immerman_szelepcsenyi": 0.5595
+      },
+      "active_gates": {
+        "titan72b_kabatiansky_levenshtein": 1.0
+      },
+      "num_expanded_heads": 1,
+      "base_top1_pct": 83.33,
+      "head_expanded_int4_top1_pct": 87.5,
+      "base_kl_div": 0.6181,
+      "head_expanded_int4_kl_div": 0.3782,
+      "live_scache_text": "The Kabatiansky-Levenshtein theorem proves an upper bound on the number of unit spheres that can be packed",
+      "titan_72b_ref_text": "The Kabatiansky-Levenshtein theorem provides an upper bound on the number of points that can be placed on",
+      "live_tok_per_s": 20.29
+    },
+    "titan72b_landauer_principle": {
+      "routing_cosines_layer24_in": {
+        "titan72b_kabatiansky_levenshtein": 0.3893,
+        "titan72b_landauer_principle": 0.9139,
+        "titan72b_immerman_szelepcsenyi": 0.3647
+      },
+      "active_gates": {
+        "titan72b_landauer_principle": 1.0
+      },
+      "num_expanded_heads": 1,
+      "base_top1_pct": 91.67,
+      "head_expanded_int4_top1_pct": 95.83,
+      "base_kl_div": 0.2934,
+      "head_expanded_int4_kl_div": 0.1285,
+      "live_scache_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit at temperature \\( T \\) is \\(",
+      "titan_72b_ref_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\)",
+      "live_tok_per_s": 19.64
+    },
+    "titan72b_immerman_szelepcsenyi": {
+      "routing_cosines_layer24_in": {
+        "titan72b_kabatiansky_levenshtein": 0.5281,
+        "titan72b_landauer_principle": 0.3995,
+        "titan72b_immerman_szelepcsenyi": 0.9151
+      },
+      "active_gates": {
+        "titan72b_immerman_szelepcsenyi": 1.0
+      },
+      "num_expanded_heads": 1,
+      "base_top1_pct": 87.5,
+      "head_expanded_int4_top1_pct": 100.0,
+      "base_kl_div": 0.4757,
+      "head_expanded_int4_kl_div": 0.0267,
+      "live_scache_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+      "titan_72b_ref_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+      "live_tok_per_s": 19.9
+    }
+  },
+  "interdisciplinary_reasoning_audit": {
+    "unseen_synthesis_query": "By uniting Landauer's principle at temperature T with the Immerman-Szelepcsenyi theorem for NSPACE(s(n)), what minimum thermodynamic heat must be dissipated to irreversibly erase m bits during nondeterministic space complementation?",
+    "pre_sleep_dynamic_head_expansion": {
+      "active_capsules": [
+        "titan72b_landauer_principle",
+        "titan72b_immerman_szelepcsenyi"
+      ],
+      "num_expanded_scar_heads": 2,
+      "confidence": 0.972,
+      "uncertainty": 0.0136,
+      "margin": 0.9607,
+      "is_uncertain": false,
+      "probe8_max_inter_head_spread": 0.8169,
+      "full_rollout_max_inter_head_spread": 0.8702,
+      "per_capsule_mean_weight": {
+        "titan72b_landauer_principle": 0.5345,
+        "titan72b_immerman_szelepcsenyi": 0.4655
+      },
+      "per_capsule_min_weight": {
+        "titan72b_landauer_principle": 0.0029,
+        "titan72b_immerman_szelepcsenyi": 0.0021
+      },
+      "per_capsule_max_weight": {
+        "titan72b_landauer_principle": 0.9979,
+        "titan72b_immerman_szelepcsenyi": 0.9971
+      },
+      "landauer_step_weight_trace": [
+        0.6255,
+        0.9208,
+        0.4669,
+        0.8359,
+        0.7839,
+        0.7375,
+        0.321,
+        0.4295,
+        0.5807,
+        0.687,
+        0.7996,
+        0.8271,
+        0.9875,
+        0.9709,
+        0.4617,
+        0.4359,
+        0.5225,
+        0.5509,
+        0.9185,
+        0.5618,
+        0.7235,
+        0.7549,
+        0.9285,
+        0.9979,
+        0.6356,
+        0.4695,
+        0.5351,
+        0.7939,
+        0.9711,
+        0.8265,
+        0.6366,
+        0.6289,
+        0.8622,
+        0.7099,
+        0.2774,
+        0.0988,
+        0.1042,
+        0.0166,
+        0.1279,
+        0.0701,
+        0.0665,
+        0.0029,
+        0.0665,
+        0.2303,
+        0.8562,
+        0.3487,
+        0.1477,
+        0.0293,
+        0.2714,
+        0.3197,
+        0.5492,
+        0.3143,
+        0.4518,
+        0.5682,
+        0.537,
+        0.5792
+      ],
+      "pre_sleep_scache_text": "Landauer's principle states that the minimum thermodynamic heat dissipated to erase one bit of information at temperature \\( T \\) is \\( T \\) bits of heat. Immerman-Szelepcsenyi theorem states that nondeterministic space complementation irreversibly er",
+      "pre_sleep_tok_per_s": 20.59
+    },
+    "optional_post_sleep_bridge": {
+      "capsule_id": "bridge_landauer__immerman",
+      "parent_capsules": [
+        "titan72b_landauer_principle",
+        "titan72b_immerman_szelepcsenyi"
+      ],
+      "int4_bytes": 62720,
+      "int4_kb": 61.25,
+      "solve_ms": 2082.276,
+      "post_sleep_confidence": 0.9884,
+      "post_sleep_uncertainty": 0.0073,
+      "post_sleep_margin": 0.984,
+      "post_sleep_is_uncertain": false,
+      "post_sleep_scache_text": "By the Immerman-Szelepcsenyi theorem, the minimum thermodynamic heat required to irreversibly erase m bits during nondeterministic space complementation is m k_B T, where k_B is the Boltzmann constant",
+      "post_sleep_tok_per_s": 20.22
+    },
+    "zero_single_domain_bleed_after_bridge": {
+      "landauer_active_gates": {
+        "titan72b_landauer_principle": 1.0
+      },
+      "landauer_exact_text_match": true,
+      "immerman_active_gates": {
+        "titan72b_immerman_szelepcsenyi": 1.0
+      },
+      "immerman_exact_text_match": true
+    }
+  },
+  "stage3_vs_stage4_comparison": {
+    "capsule_int4_bytes_stage3_vs_stage4": [
+      62720,
+      62720
+    ],
+    "cuts_transformer_mid_layer": {
+      "stage3_dual_depth": true,
+      "stage4_head_expanded": false
+    },
+    "all_24_blocks_bit_exact_during_reasoning": {
+      "stage3_dual_depth": false,
+      "stage4_head_expanded": true
+    },
+    "single_domain_off_diagonal_bleed": {
+      "stage3_kabatiansky_immerman_bleed": 0.2843,
+      "stage4_off_diagonal_bleed": 0.0
+    },
+    "mean_closed_form_solve_ms_per_capsule": {
+      "stage3_two_pass_ms": 1941.58,
+      "stage4_single_pass_ms": 942.63,
+      "speedup_x": 2.06
+    },
+    "unseen_72b_top1_pct": {
+      "titan72b_kabatiansky_levenshtein": {
+        "stage3": 91.67,
+        "stage4": 87.5
+      },
+      "titan72b_landauer_principle": {
+        "stage3": 95.83,
+        "stage4": 95.83
+      },
+      "titan72b_immerman_szelepcsenyi": {
+        "stage3": 100.0,
+        "stage4": 100.0
+      }
+    },
+    "unseen_72b_kl_div": {
+      "titan72b_kabatiansky_levenshtein": {
+        "stage3": 0.3412,
+        "stage4": 0.3782
+      },
+      "titan72b_landauer_principle": {
+        "stage3": 0.0445,
+        "stage4": 0.1285
+      },
+      "titan72b_immerman_szelepcsenyi": {
+        "stage3": 0.0364,
+        "stage4": 0.0267
+      }
+    },
+    "pre_sleep_interdisciplinary_synthesis": {
+      "stage3_confidence": 0.8398,
+      "stage4_confidence": 0.972,
+      "stage3_margin": 0.7053,
+      "stage4_margin": 0.9607,
+      "stage3_uncertainty": 0.0345,
+      "stage4_uncertainty": 0.0136,
+      "stage3_is_uncertain": true,
+      "stage4_is_uncertain": false,
+      "stage4_max_14_head_spread": 0.8702,
+      "stage4_landauer_dynamic_weight_range": [
+        0.0029,
+        0.9979
+      ],
+      "stage4_immerman_dynamic_weight_range": [
+        0.0021,
+        0.9971
+      ]
+    }
+  }
+}

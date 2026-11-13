@@ -1,7 +1,7 @@
 # Mixture of Scars (MoS) & SCache $\mathcal{O}(1)$: Breaking the Dual Memory Wall Across `0.5B`–`72.71B` Transformers
 
 [![DOI v1.3.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![Release: v2.0.0](https://img.shields.io/badge/Release-v2.0.0%20(ScarStore%20v2%20%2B%20Dual--Depth%20Grafting)-brightgreen.svg)](docs/SCAR_STORE_V2_ARCHITECTURE.md)
+[![Release: v2.1.0](https://img.shields.io/badge/Release-v2.1.0%20(ScarStore%20v2%20%2B%20Dynamic%20Scar--Head%20Expansion)-brightgreen.svg)](docs/SCAR_STORE_V2_ARCHITECTURE.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
@@ -9,7 +9,7 @@
 [![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
 [![72.7B Sub-2-Bit](https://img.shields.io/badge/72.7B%20Sub--2--Bit-20.65%20GiB%20Shards%20(%3C24%20GB%20VRAM)-9cf.svg)](#3-horizon-1-v140-ghost-jump-speculative-reflex--sub-2-bit-mos--24-gb-7271b)
 [![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
-[![Tests Passing](https://img.shields.io/badge/Tests-64%2F64%20Passing-brightgreen.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/Tests-67%2F67%20Passing-brightgreen.svg)](tests/)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 [![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v2.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
@@ -88,11 +88,12 @@ mos-transcode-sub2bit --in-dir ./models/qwen25_72b_mos_v2 --out-dir ./models/qwe
 mos-run --model-dir ./models/qwen25_72b_mos_sub2bit --draft-model Qwen/Qwen2.5-0.5B-Instruct --prompt "Explain Widrow-Hoff orthogonal erasure:"
 ```
 
-### 4. Horizon 2 (`v2.0.0`): Closed-Form `72.71B → 0.5B` Scar Grafting, `ScarStore v2` (`61.25 KB INT4` + `896×896` Kronecker `mmap`) & Dual-Depth Sleep Bridges (`ZERO Backprop`)
-Audited live on Apple Silicon M2 (`16 GB`, `MPS`) transplanting **100% pure standalone `Qwen2.5-72B-Instruct MoS` (`72.71B`, `80` layers, `d = 8192`)** scientific knowledge directly into a **frozen `Qwen2.5-0.5B-Instruct` (`0.49B`, `d = 896`)** via closed-form Woodbury Vocabulary Rosetta Inversion + AlphaEdit Null-Space Dual Ridge SVD ([`docs/SCAR_STORE_V2_ARCHITECTURE.md`](docs/SCAR_STORE_V2_ARCHITECTURE.md), [`scar_cache/scar_grafting.py`](scar_cache/scar_grafting.py), [`scar_cache/scar_store_v2.py`](scar_cache/scar_store_v2.py), [`scar_cache/dual_depth_bridge.py`](scar_cache/dual_depth_bridge.py)):
+### 4. Horizon 2 (`v2.1.0`): Closed-Form `72.71B → 0.5B` Scar Grafting, `ScarStore v2` (`61.25 KB INT4` + `896×896` Kronecker `mmap`), Dual-Depth Sleep Bridges & Dynamic Scar-Attention Head Expansion (`ZERO Backprop`)
+Audited live on Apple Silicon M2 (`16 GB`, `MPS`) transplanting **100% pure standalone `Qwen2.5-72B-Instruct MoS` (`72.71B`, `80` layers, `d = 8192`)** scientific knowledge directly into a **frozen `Qwen2.5-0.5B-Instruct` (`0.49B`, `d = 896`)** via closed-form Woodbury Vocabulary Rosetta Inversion + AlphaEdit Null-Space Dual Ridge SVD ([`docs/SCAR_STORE_V2_ARCHITECTURE.md`](docs/SCAR_STORE_V2_ARCHITECTURE.md), [`scar_cache/scar_grafting.py`](scar_cache/scar_grafting.py), [`scar_cache/scar_store_v2.py`](scar_cache/scar_store_v2.py), [`scar_cache/dual_depth_bridge.py`](scar_cache/dual_depth_bridge.py), [`scar_cache/head_expanded_attention.py`](scar_cache/head_expanded_attention.py)):
 * **Stage 1 (`ScarStoreV2`):** Exact **`62,720 B` (`61.25 KB` `Block-64 INT4`, `2,318,508.5×` smaller than `72B` BF16)** `mmap`-paged capsules over an `802,816`-cell (`896 × 896`) Dual-Subspace Kronecker Grid (`98.0 KB` presence bitmap, `MissingCapsuleAlert` anti-hallucination guard, consumer pack slicing).
 * **Stage 2 (`Span-Max` + Voronoi `SCache O(1)`):** Sliding-window routing (`0.8502–0.8849` cosine vs. `0.6151` diluted global mean) + zero-bleed multi-capsule generation across composite 3-domain queries (`exact_torch_equal = True` on all controls).
 * **Stage 3 (`DualDepthScarBank` + Interdisciplinary Sleep Bridges):** Golden-Slice `Layer 12 + Layer 24` causal injection (`91.67%`, `95.83%`, **`100.0%`** unseen `72.71B` Top-1 match at `61.25 KB` INT4) + `BridgeEscalationDecision` epistemic telemetry & `consolidate_interdisciplinary_bridge` (`confidence: 0.8398 → 0.9788`, `margin: 0.7053 → 0.9702`, zero single-domain bleed).
+* **Stage 4 (`HeadExpandedAttentionBank` — Zero Mid-Cut Dynamic Scar-Head Expansion):** Keeps **all `24/24` Transformer blocks `100%` bit-exact (`torch.equal = True`)**, synthesizes `2.06×` faster (`942.6 ms`/cap) inside the **exact same `62,720 B` (`61.25 KB` INT4) budget** (`rank=60, P=8`, `112` per-head keys), eliminates `100%` of mid-layer off-diagonal bleed (`0.0000`), and raises **pre-sleep** interdisciplinary margin from **`0.7053 → 0.9607` (`+25.54 p.p.`, `87.02%` 14-head spread, dynamic `0.9979 ↔ 0.0029` token switching)**!
 
 * **Zero Backpropagation / Zero SGD (`~0.90 s` per capsule):** Calibrates the Student null-space in `276.9 ms` and mints each `225.75 KB` FP16 (`64.75 KB` INT4-eq) `ScarCapsule` `(B_scar, A_scar, z_anchor)` in `< 1.0 s` (`629,052.7×` smaller active transfer than `135.43 GiB` `72B` BF16; `5.25 KB` L1 router index).
 * **Breaks the `d = 896` Linear Weight-Editing Ceiling via Spherical-Cap Cones:** Unlike static linear merges (`AlphaEdit`/`MEMIT`) bounded by `d = 896` orthogonal directions, one-sided `ReLU` spherical cones (`g_k(q) = clamp((cos(q, z_k) - tau) / ramp, 0, 1)`, `strictly_disjoint_at_anchors = True`) isolate domains exponentially in $\mathbb{S}^{895}$ (`0.0000000000` out-of-cone perturbation across 6 unrelated controls, `torch.equal = True`; `< 2 ms` surgical `bank.unlearn()`).
