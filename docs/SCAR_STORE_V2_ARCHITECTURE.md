@@ -139,6 +139,21 @@ Durante a execução da bateria hostil [`scripts/adversarial_core_0p5b_vs_3b_sui
 3. **Apagamento Forense `0x00` em Disco (`mos-store unlearn --persist`):**
    * Além do desligamento instantâneo em RAM, sobrescreve cirurgicamente *in-place* (via `seek + write + fsync`, sem deslocar cápsulas vizinhas) o bit no `presence_bitmap` do arquivo, os `4.096 B` do `z_anchor` e todas as **`35 × 4 KB` páginas (`143.360 B`)** do slot com zeros criptográficos **`0x00`** (`147.456 B` zerados em `7,64 ms` com `fsync`), garantindo reversão `torch.equal == True` ao reabrir o arquivo do zero e `0` dano colateral nos demais domínios.
 
+---
+
+## ✅ Etapa 7 / Fase 2.2 (`v2.4.0` — Horizonte 2 `100%` Concluído): *Sinkhorn Monomial–Procrustes Re-Basin*, *Tiled Online Dual-Potential Log-Sinkhorn* & Lei de Ortogonalidade de Marchenko-Pastur (`72.71B`)
+
+**Arquivos Canônicos:** [`scar_cache/sinkhorn_rebasin.py`](../scar_cache/sinkhorn_rebasin.py) (`mos-rebasin` CLI) · [`scripts/audit_sinkhorn_rebasin_v2_4.py`](../scripts/audit_sinkhorn_rebasin_v2_4.py) · [`tests/test_sinkhorn_rebasin.py`](../tests/test_sinkhorn_rebasin.py) · [`results/sinkhorn_rebasin_v2_4_audit.json`](../results/sinkhorn_rebasin_v2_4_audit.json)
+
+1. **Grupo de Calibre Monomial Exato SwiGLU ($\mathcal{G}_{\text{SwiGLU}} = \mathrm{GL}_1(\mathbb{R})^{d_{\text{ff}}} \rtimes S_{d_{\text{ff}}}$):**
+   * Preserva algebricamente $\operatorname{SwiGLU}(\mathbf{x})$ (`FP32 max_abs_diff = 5,25e-06`) dobrando 100% do fator contínuo $\alpha_i$ **e** da escala intermediária RMS da `down_proj` diretamente nas escalas assinadas `FP16` de cada bloco de `64` pesos (`transposed_grid=True`, **`0` FLOPs extras em inferência** e **`0 B` de discrepância** recursiva em `untyped_storage().data_ptr()`).
+2. **KPI `< 0.08` Superado & Escala em `12` Camadas (`Qwen2.5-3B-Instruct` & `Qwen2.5-0.5B-Instruct`):**
+   * **Especialistas Permutados (*Git Re-Basin*, `0.5B` `L12`):** Cosseno de alinhamento salta de `0,0678 → 0,9817`, reduzindo a divergência KL de base compartilhada em **`56,36×` (`0,1578 → 0,0028`, `97,41%` Top-1, `100,0%` Top-5)**.
+   * **Compartilhamento Entre Camadas (`3B`, compressão `5,09×` = `-80,37%` vs FP16):** No par interior `L22-L23`, a base ingênua falha (`KL = 0,1190`), enquanto o **Sinkhorn Monomial atinge `KL = 0,0395 < 0,08` (`3,01×` menor, `99,77%` Top-5)** e o **Sinkhorn–Procrustes crava `KL = 0,0353 < 0,08` (`3,37×` menor)**! Em **`12` camadas consecutivas (`L18..L29` = `1/3` da rede, `1.548 → 303,92 MiB`)**, o compartilhamento ingênuo colapsa (`KL = 6,4634`), enquanto o Sinkhorn Monomial sustenta **`KL = 0,4403` (`14,68×` menor KL, `95,02%` Top-5)**!
+3. ***Fused Single-Pass Online Dual-Potential Log-Sinkhorn* (`< 350 MiB` VRAM) & Lei de Marchenko-Pastur no `Qwen2.5-72B` (`29.568 × 8.192`):**
+   * Executa transporte ótimo exato em `72B+` usando `57×` menos memória GPU, alcançando ganhos de produto interno de **`51,11×` (`L40-L41`)** e **`109,21×` (`L78-L79`)**, compressão de **`6,226×` (`2.772,0 → 445,21 MiB`, `0 B` diff)** e elevando o cosseno da `Layer 79` (sob picos SwiGLU de `195.720×`) de `0,1626 → 0,8835` (`2,73×` menos erro).
+   * Demonstra empiricamente a **Lei de Ortogonalidade Residual de Marchenko-Pastur**: blocos residuais adjacentes pré-treinados auto-organizam-se próximo ao piso aleatório Gaussiano ($\mathbb{E}[\max_j \cos] = 0,0633\text{–}0,1228$ vs. $\sqrt{2\ln(29568)/8192} = 0,0501$), provando por primeiros princípios por que o *Sinkhorn Re-Basin* domina em bancos multi-especialistas e pares interiores seletivos, enquanto a compressão integral das 80 camadas atinge Pareto superior via bases independentes `Sub-2-Bit MoS` de `2,25 bpw` (`cos = 0,99911` em `20,65 GiB`).
+
 
 
 

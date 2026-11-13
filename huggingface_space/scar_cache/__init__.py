@@ -64,6 +64,25 @@ from scar_cache.cli_scar_store import (
     generate_with_scar_store,
     make_http_range_capsule_fetcher,
 )
+from scar_cache.sinkhorn_rebasin import (
+    ActivationWhitener,
+    SharedGridMoSLinear,
+    SwiGLUMonomialAlignment,
+    apply_exact_swiglu_monomial_gauge,
+    audit_72b_shard_layer_pair_rebasin,
+    audit_unique_module_bytes,
+    build_activation_whitener,
+    build_rebasin_shared_swiglu_pair,
+    compute_whitened_asvd_scar,
+    convert_llm_cross_layer_rebasin_mos,
+    dequantize_signed_int4_block64,
+    pack_signed_int4_nibbles,
+    project_sinkhorn_bijection,
+    project_tiled_swiglu_sinkhorn_bijection,
+    quantize_principal_shared_block64_int4,
+    sinkhorn_knopp_log_bistochastic,
+    solve_swiglu_sinkhorn_rebasin,
+)
 from scar_cache.speculative_ghost_jump import (
     GhostJumpGenerationResult,
     GhostJumpReflexDecision,
@@ -91,7 +110,7 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 
 __all__ = [
     "SCache",
@@ -134,6 +153,23 @@ __all__ = [
     "ScarStoreQueryResult",
     "generate_with_scar_store",
     "make_http_range_capsule_fetcher",
+    "ActivationWhitener",
+    "SwiGLUMonomialAlignment",
+    "SharedGridMoSLinear",
+    "pack_signed_int4_nibbles",
+    "dequantize_signed_int4_block64",
+    "audit_unique_module_bytes",
+    "build_activation_whitener",
+    "compute_whitened_asvd_scar",
+    "sinkhorn_knopp_log_bistochastic",
+    "project_sinkhorn_bijection",
+    "project_tiled_swiglu_sinkhorn_bijection",
+    "apply_exact_swiglu_monomial_gauge",
+    "solve_swiglu_sinkhorn_rebasin",
+    "quantize_principal_shared_block64_int4",
+    "build_rebasin_shared_swiglu_pair",
+    "convert_llm_cross_layer_rebasin_mos",
+    "audit_72b_shard_layer_pair_rebasin",
     "SUB2BIT_BETA",
     "Sub2BitDecompositionStats",
     "Sub2BitMoSLinear",

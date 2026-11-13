@@ -1,7 +1,7 @@
 # Mixture of Scars (MoS) & SCache $\mathcal{O}(1)$: Breaking the Dual Memory Wall Across `0.5B`–`72.71B` Transformers
 
 [![DOI v1.3.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![Release: v2.2.0](https://img.shields.io/badge/Release-v2.2.0%20(3B%20HeadExpandedScarStore%20%2B%20Red--Team%20Audited)-brightgreen.svg)](docs/SCAR_STORE_V2_ARCHITECTURE.md)
+[![Release: v2.4.0](https://img.shields.io/badge/Release-v2.4.0%20(Horizon%202%20Complete%3A%20mos--store%20%2B%20Sinkhorn%20Re--Basin)-brightgreen.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
@@ -9,7 +9,7 @@
 [![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
 [![72.7B Sub-2-Bit](https://img.shields.io/badge/72.7B%20Sub--2--Bit-20.65%20GiB%20Shards%20(%3C24%20GB%20VRAM)-9cf.svg)](#3-horizon-1-v140-ghost-jump-speculative-reflex--sub-2-bit-mos--24-gb-7271b)
 [![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
-[![Tests Passing](https://img.shields.io/badge/Tests-70%2F70%20Passing-brightgreen.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/Tests-77%2F77%20Passing-brightgreen.svg)](tests/)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 [![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v2.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
@@ -88,8 +88,8 @@ mos-transcode-sub2bit --in-dir ./models/qwen25_72b_mos_v2 --out-dir ./models/qwe
 mos-run --model-dir ./models/qwen25_72b_mos_sub2bit --draft-model Qwen/Qwen2.5-0.5B-Instruct --prompt "Explain Widrow-Hoff orthogonal erasure:"
 ```
 
-### 4. Horizon 2 (`v2.2.0`): Closed-Form `72.71B → 0.5B & 3B` Scar Grafting, `HeadExpandedScarStore` (`61.25 KB` / `140.00 KB = 35×4KB` `mmap`), Dynamic Scar-Attention Heads & `6/6` Adversarial Red-Team Audit (`ZERO Backprop`)
-Audited live on Apple Silicon M2 (`16 GB`, `MPS`) transplanting **100% pure standalone `Qwen2.5-72B-Instruct MoS` (`72.71B`, `80` layers, `d = 8192`)** scientific knowledge directly into frozen **`Qwen2.5-0.5B-Instruct` (`24L`, `d = 896`)** and **`Qwen2.5-3B-Instruct` (`36L`, `d = 2048`)** cores via closed-form Woodbury Vocabulary Rosetta Inversion + AlphaEdit Null-Space Dual Ridge SVD ([`docs/SCAR_STORE_V2_ARCHITECTURE.md`](docs/SCAR_STORE_V2_ARCHITECTURE.md), [`scar_cache/scar_grafting.py`](scar_cache/scar_grafting.py), [`scar_cache/scar_store_v2.py`](scar_cache/scar_store_v2.py), [`scar_cache/dual_depth_bridge.py`](scar_cache/dual_depth_bridge.py), [`scar_cache/head_expanded_attention.py`](scar_cache/head_expanded_attention.py)):
+### 4. Horizon 2 COMPLETE (`v2.4.0`): Closed-Form `72.71B → 0.5B & 3B` Scar Grafting, `mos-store` (`HTTP 206` + `0x00` SSD Wipe) & *Sinkhorn Monomial–Procrustes Re-Basin* (`KL = 0.0353 < 0.08`)
+Audited live on Apple Silicon M2 (`16 GB`, `MPS`) transplanting **100% pure standalone `Qwen2.5-72B-Instruct MoS` (`72.71B`, `80` layers, `d = 8192`)** scientific knowledge directly into frozen **`Qwen2.5-0.5B-Instruct` (`24L`, `d = 896`)** and **`Qwen2.5-3B-Instruct` (`36L`, `d = 2048`)** cores via closed-form Woodbury Vocabulary Rosetta Inversion + AlphaEdit Null-Space Dual Ridge SVD ([`docs/SCAR_STORE_V2_ARCHITECTURE.md`](docs/SCAR_STORE_V2_ARCHITECTURE.md), [`scar_cache/scar_grafting.py`](scar_cache/scar_grafting.py), [`scar_cache/scar_store_v2.py`](scar_cache/scar_store_v2.py), [`scar_cache/dual_depth_bridge.py`](scar_cache/dual_depth_bridge.py), [`scar_cache/head_expanded_attention.py`](scar_cache/head_expanded_attention.py), [`scar_cache/cli_scar_store.py`](scar_cache/cli_scar_store.py), [`scar_cache/sinkhorn_rebasin.py`](scar_cache/sinkhorn_rebasin.py)):
 * **Stage 1 (`ScarStoreV2`):** Exact **`62,720 B` (`61.25 KB` `Block-64 INT4`, `2,318,508.5×` smaller than `72B` BF16)** `mmap`-paged capsules over an `802,816`-cell (`896 × 896`) Dual-Subspace Kronecker Grid (`98.0 KB` presence bitmap, `MissingCapsuleAlert` anti-hallucination guard, consumer pack slicing).
 * **Stage 2 (`Span-Max` + Voronoi `SCache O(1)`):** Sliding-window routing (`0.8502–0.8849` cosine vs. `0.6151` diluted global mean) + zero-bleed multi-capsule generation across composite 3-domain queries (`exact_torch_equal = True` on all controls).
 * **Stage 3 (`DualDepthScarBank` + Interdisciplinary Sleep Bridges):** Golden-Slice `Layer 12 + Layer 24` causal injection (`91.67%`, `95.83%`, **`100.0%`** unseen `72.71B` Top-1 match at `61.25 KB` INT4) + `BridgeEscalationDecision` epistemic telemetry & `consolidate_interdisciplinary_bridge` (`confidence: 0.8398 → 0.9788`, `margin: 0.7053 → 0.9702`, zero single-domain bleed).
@@ -111,7 +111,25 @@ python scripts/benchmark_scar_grafting_v2.py
 
 # Graft or query portable .scargraft.safetensors knowledge cartridges from the CLI:
 mos-graft --query "Explain concisely what the Immerman-Szelepcsenyi theorem proves about nondeterministic space complexity classes." --cartridge results/qwen72b_to_0p5b_v2.scargraft.safetensors
+
+# Serve, page over HTTP/1.1 206 Range, consolidate sleep bridges, or cryptographically wipe (0x00) capsules:
+mos-store serve --store results/qwen72b_to_3b_stage5.scarstore --port 8765
+mos-store query --store ./consumer_pack.scarstore --remote http://127.0.0.1:8765 --prompt "State the Immerman-Szelepcsenyi theorem."
+mos-store unlearn --store ./consumer_pack.scarstore --coord 2,2 --persist
+
+# Run Track 2.2 Sinkhorn Monomial-Procrustes Re-Basin audit (0.5B, 3B & 72.71B shards):
+python scripts/audit_sinkhorn_rebasin_v2_4.py
+mos-rebasin audit-72b-shard --shard ./models/qwen25_72b_mos_v2/mos_group_19.safetensors --layer-a 78 --layer-b 79 --json
 ```
+
+* **Stage 6 (`mos-store` Production CLI/SDK + Live RFC 7233 `HTTP/1.1 206` Streaming + Forensic `0x00` SSD Unlearn, `v2.3.0`):**
+  - Ships the unified 7-subcommand `mos-store` CLI (`build`, `inspect`, `slice`, `serve`, `query`/`--chat`, `sleep-bridge`, `unlearn --persist` in [`scar_cache/cli_scar_store.py`](scar_cache/cli_scar_store.py), audited in [`results/mos_store_v2_3_cli_http206_audit.json`](results/mos_store_v2_3_cli_http206_audit.json)).
+  - Streams missing capsules over a live TCP `HTTP/1.1 206 Partial Content` socket at exact `4,096 B` OS page boundaries (`Range: bytes=17629184-17772543`, `143,360 B = 35 × 4 KB` in `58.3 ms`) and executes **in-place `0x00` disk erasure** (`147,456 B` zeroed + `fsync` in `7.64 ms`, `torch.equal = True` upon reload).
+* **Track 2.2 (`Sinkhorn Monomial–Procrustes Re-Basin`, `v2.4.0` — Resolves Preprint Section 5 Limitation #1):**
+  - Exploits the exact **SwiGLU Monomial Gauge Group** $\mathcal{G}_{\text{SwiGLU}} = \mathrm{GL}_1(\mathbb{R})^{d_{\text{ff}}} \rtimes S_{d_{\text{ff}}}$ (`FP32 max_diff = 5.25e-06`, **`0` runtime FLOPs** by folding $\alpha_i$ + `down_proj` intermediate RMS `100%` into `FP16` `Block-64` scales via `transposed_grid=True`), **Fused Single-Pass Online Dual-Potential Log-Sinkhorn** (`< 350 MiB` tile VRAM at `72B+`, `57×` less GPU memory), `2×2` Gram principal `Block-64 INT4` shared grids (`same untyped_storage().data_ptr()`, **`0 B` byte discrepancy** across CPU/MPS/CUDA), and optional whitened Procrustes rotations ([`results/sinkhorn_rebasin_v2_4_audit.json`](results/sinkhorn_rebasin_v2_4_audit.json)):
+    - **Permuted Multi-Specialist *Git Re-Basin* (`0.5B` `L12`):** Alignment cosine `0.0678 → 0.9817`, cutting shared-base KL **`56.36×` (`0.1578 → 0.0028`, `97.41%` Top-1, `100.0%` Top-5)**.
+    - **Cross-Layer Shared-Base `Qwen2.5-3B-Instruct` (`5.09×` pair compression, `-80.37%` vs FP16):** Interior `pair_L22_L23` drops from Naive `KL = 0.1190` to **`KL = 0.0395` Monomial (`3.01×` lower, `99.77%` Top-5, `0` extra FLOPs)** and **`KL = 0.0353 < 0.08` Procrustes (`3.37×` lower)**! Across **`12` consecutive layers (`L18..L29`, `1/3` of the network)**, Naive collapses (`KL = 6.4634`) while Sinkhorn Monomial achieves **`KL = 0.4403` (`14.68×` lower KL, `95.02%` Top-5)**!
+    - **Colossal `Qwen2.5-72B` (`29,568 × 8,192`, `6.23×` pair compression: `2,772 → 445.21 MiB`) & *Residual Stream Marchenko-Pastur Orthogonality Law*:** Achieves **`51.1×` (`L40-L41`)** and **`109.2×` (`L78-L79`)** inner-product gains, raising `L79` output cosine under `195,720×` SwiGLU spikes from `0.1626 → 0.8835` (`2.73×` lower error), while uncovering that adjacent pretrained residual blocks self-organize near the random Marchenko-Pastur orthogonality floor ($\mathbb{E}[\max_j \cos] = 0.0633\text{–}0.1228$ vs. $\sqrt{2\ln(29568)/8192} = 0.0501$) — establishing mathematically why *Sinkhorn Re-Basin* is optimal for selective interior pairs and multi-specialist banks, whereas full 80-layer standalone compression achieves higher Pareto fidelity via independent `2.25 bpw` `Sub-2-Bit MoS` bases (`cos = 0.99911`, `20.65 GiB`).
 
 ---
 
