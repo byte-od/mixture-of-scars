@@ -1,118 +1,116 @@
-"""Teste de Verificação e Integridade Estrutural do Modelo Qwen 2.5 72B MoS.
+"""Structural & Numerical Integrity Tests for Canonical `Qwen2.5-72B-Instruct MoS v2` (`72.71B`, `80` Layers).
 
-Valida:
-1. Leitura de model.safetensors.index.json.
-2. Presença de todos os 1.525 tensores reais distribuídos nos 10 grupos MoS + embeddings/head.
-3. Dimensões corretas dos pesos INT4 e das matrizes residuais de Scar (rank 64).
-4. Execução de um forward pass real em 1 bloco MoS com base INT4 e scar BF16.
+Verifies:
+  1. Git-tracked `models/qwen25_72b_mos_v2/mos_manifest.json` (`mos_canonical_v2`): exact `80` layers,
+     `20 x 4`-layer streaming shards, `22` SHA-256 verified files (`38.12 GiB`), `Block-64 INT4` + `ASVD` ranks.
+  2. When local `Qwen2.5-72B MoS v2` shards are present on disk (`mos_group_00.safetensors`), executes a live
+     4-layer `CanonicalMoSGroup` forward pass with GQA (`64` Q / `8` KV heads), RoPE, `SCacheDynamicCache` O(1)
+     (`0 B` storage discrepancy), fused `W4A16 + ASVD` SwiGLU MLP, and deterministic `unload()` deallocation.
 """
 
+from __future__ import annotations
+
 import json
-import os
-import sys
-import time
 from pathlib import Path
+import pytest
 import torch
-import torch.nn.functional as F
-from safetensors import safe_open
 
-MODEL_DIR = Path(__file__).resolve().parent.parent / "models" / "qwen25_72b_mos"
+from scar_cache.cli_72b import CanonicalMoSGroup
+from scar_cache.hf_cache import SCacheDynamicCache
+from scar_cache.speculative_ghost_jump import recursive_scache_storage_bytes
 
-
-def dequantize_int4(packed: torch.Tensor, scales: torch.Tensor, shape: tuple) -> torch.Tensor:
-    """Desquantiza INT4 packed (2 pesos por uint8) para BF16 usando escala em bloco."""
-    low = (packed & 0x0F).to(torch.int16) - 8
-    high = ((packed >> 4) & 0x0F).to(torch.int16) - 8
-    unpacked = torch.empty((packed.shape[0], packed.shape[1] * 2), dtype=torch.bfloat16)
-    unpacked[:, 0::2] = low.to(torch.bfloat16)
-    unpacked[:, 1::2] = high.to(torch.bfloat16)
-    return (unpacked * scales.to(torch.bfloat16)).view(shape)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MANIFEST_V2 = REPO_ROOT / "models" / "qwen25_72b_mos_v2" / "mos_manifest.json"
+MODEL_V2_DIR = REPO_ROOT / "models" / "qwen25_72b_mos_v2"
 
 
-def run_integrity_audit():
-    index_path = MODEL_DIR / "model.safetensors.index.json"
-    if not index_path.exists():
-        print(f"❌ Índice não encontrado: {index_path}")
-        return False
-
-    with open(index_path, "r") as f:
-        index_data = json.load(f)
-
-    weight_map = index_data.get("weight_map", {})
-    total_tensors = len(weight_map)
-    print("=" * 80)
-    print(f"🔍 AUDITORIA DE INTEGRIDADE: QWEN 2.5 72B MoS ({total_tensors} tensores mapeados)")
-    print("=" * 80)
-
-    # 1. Verifica presença física dos shards safetensors
-    shards = sorted(list(set(weight_map.values())))
-    print(f"\n[1/3] Verificando existência de {len(shards)} arquivos safetensors:")
-    missing_shards = []
-    total_bytes = 0
-    for s in shards:
-        p = MODEL_DIR / s
-        if p.exists():
-            sz = p.stat().st_size
-            total_bytes += sz
-            print(f"  ✓ {s}: {sz / (1024**2):.1f} MB")
-        else:
-            print(f"  ❌ FALTANDO: {s}")
-            missing_shards.append(s)
-
-    print(f"Tamanho total em disco: {total_bytes / (1024**3):.2f} GB")
-    if missing_shards:
-        print(f"❌ Erro: {len(missing_shards)} shards ausentes.")
-        return False
-
-    # 2. Amostragem e validação dos 10 grupos
-    print("\n[2/3] Auditando tensores por grupo MoS:")
-    tensors_per_group = {}
-    for tensor_name, shard in weight_map.items():
-        tensors_per_group[shard] = tensors_per_group.get(shard, 0) + 1
-
-    for shard, count in sorted(tensors_per_group.items()):
-        print(f"  • {shard}: {count} tensores")
-
-    # 3. Teste de Forward Pass em 1 Bloco Real (Grupo 0, Camada 0 Base e Camada 1 Adaptada)
-    print("\n[3/3] Testando inferência real com desquantização on-demand e epilogue residual:")
-    g0_path = MODEL_DIR / "mos_group_0.safetensors"
-    with safe_open(g0_path, framework="pt", device="cpu") as f:
-        # Base universal do Grupo 0
-        base_down_packed = f.get_tensor("mos_base.group_0.mlp.down_proj.weight")
-        base_down_scales = f.get_tensor("mos_base.group_0.mlp.down_proj.weight.scales")
-        print(f"  ✓ Grupo 0 Base down_proj: packed={list(base_down_packed.shape)}, scales={list(base_down_scales.shape)}")
-
-        # Desquantiza para BF16
-        t0 = time.time()
-        w_base = dequantize_int4(base_down_packed, base_down_scales, (8192, 29568))
-        dt_deq = time.time() - t0
-        print(f"  ✓ Desquantização on-demand: {dt_deq*1000:.2f} ms | Shape desquantizado: {list(w_base.shape)}")
-
-        # Scar residual da camada 1
-        scar_A = f.get_tensor("model.layers.1.mlp.down_proj.expert.A")  # [29568, 64] ou [8192, 64]
-        scar_B = f.get_tensor("model.layers.1.mlp.down_proj.expert.B")  # [64, 8192] ou [64, 29568]
-        print(f"  ✓ Camada 1 Scar down_proj: A={list(scar_A.shape)}, B={list(scar_B.shape)}")
-
-        # Simula forward pass
-        # Entrada x tem dimensão intermediária 29568 para down_proj
-        x = torch.randn(1, 16, 29568, dtype=torch.bfloat16)
-        t_fwd = time.time()
-        # y_base: x @ W_base.T (W_base é [8192, 29568]) -> [1, 16, 8192]
-        y_base = F.linear(x, w_base)
-        # y_scar: x @ diff.T onde diff = U @ S @ V.T = A @ B.T
-        # diff.T = B @ A.T -> x @ (B @ A.T) = (x @ B) @ A.T
-        # y_scar: x @ scar_A @ scar_B = [1, 16, 29568] @ [29568, 64] @ [64, 8192] -> [1, 16, 8192]
-        y_scar = (x @ scar_A) @ scar_B
-        y = y_base + y_scar
-        dt_fwd = time.time() - t_fwd
-        print(f"  ✓ Forward pass completo (Seq 16, Dim 29568 -> 8192): {dt_fwd*1000:.2f} ms")
-        print(f"  ✓ Saída do Bloco MoS Real: mean={y.mean().item():.4f}, std={y.std().item():.4f}")
-
-    print("\n" + "=" * 80)
-    print("🏆 AUDITORIA CONCLUÍDA COM SUCESSO: O MODELO 70B MoS É 100% OPERACIONAL!")
-    print("=" * 80)
-    return True
+def _compute_rope(seq_len: int, head_dim: int, theta: float, device: torch.device, dtype: torch.dtype):
+    inv_freq = 1.0 / (theta ** (torch.arange(0, head_dim, 2, dtype=torch.float32, device=device) / head_dim))
+    pos = torch.arange(seq_len, dtype=torch.float32, device=device)
+    freqs = torch.outer(pos, inv_freq)
+    emb = torch.cat((freqs, freqs), dim=-1)
+    cos = emb.cos().to(dtype).view(1, 1, seq_len, head_dim)
+    sin = emb.sin().to(dtype).view(1, 1, seq_len, head_dim)
+    return cos, sin
 
 
-if __name__ == "__main__":
-    run_integrity_audit()
+def test_canonical_qwen72b_mos_v2_manifest_integrity() -> None:
+    """Always runs in every environment: audits the tracked SHA-256 manifest of the 72.71B MoS v2 release."""
+    assert MANIFEST_V2.exists(), f"Missing tracked 72B manifest: {MANIFEST_V2}"
+    manifest = json.loads(MANIFEST_V2.read_text(encoding="utf-8"))
+
+    assert manifest["format"] == "mos_canonical_v2"
+    assert manifest["source_model"] == "Qwen/Qwen2.5-72B-Instruct"
+    assert manifest["num_hidden_layers"] == 80
+    assert manifest["layers_per_group"] == 4
+    assert manifest["num_groups"] == 20
+    assert manifest["hidden_size"] == 8192
+    assert manifest["intermediate_size"] == 29568
+    assert manifest["num_attention_heads"] == 64
+    assert manifest["num_key_value_heads"] == 8
+    assert manifest["head_dim"] == 128
+    assert manifest["vocab_size"] == 152064
+    assert manifest["block_size"] == 64
+    assert manifest["mlp_scar_rank"] == 48
+    assert manifest["attn_scar_rank"] == 32
+
+    files = manifest["files"]
+    assert len(files) == 22  # embed + 20 groups + lm_head
+    total_bytes = sum(int(entry["bytes"]) for entry in files)
+    total_gib = total_bytes / (1024**3)
+    assert 38.0 <= total_gib <= 38.3, f"Expected ~38.12 GiB canonical checkpoint, got {total_gib:.2f} GiB"
+
+    for entry in files:
+        sha = entry["sha256"]
+        assert isinstance(sha, str) and len(sha) == 64
+        int(sha, 16)  # Valid lowercase hex SHA-256
+
+
+def test_local_qwen72b_mos_v2_group_forward_scache_and_unload() -> None:
+    """Runs live 4-layer 72.71B CanonicalMoSGroup forward + SCache O(1) audit when local shards exist."""
+    shard_0 = MODEL_V2_DIR / "mos_group_00.safetensors"
+    if not shard_0.exists():
+        pytest.skip("Local 38.12 GiB Qwen2.5-72B MoS v2 shards not downloaded (run `mos-run --download`).")
+
+    manifest = json.loads(MANIFEST_V2.read_text(encoding="utf-8"))
+    assert shard_0.stat().st_size == manifest["files"][1]["bytes"]
+
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    dtype = torch.float16 if device.type != "cpu" else torch.float32
+
+    grp = CanonicalMoSGroup(0, shard_0, manifest, device=device, dtype=dtype)
+    grp.load()
+    assert grp.is_loaded is True
+    assert len(grp.tensors) > 0
+
+    # Verify genuine Block-64 INT4 uint8 packing + Rank-48 ASVD scars on Layer 0 SwiGLU gate_proj
+    gate_pb = grp.tensors["layers.0.mlp.gate_proj.packed_base"]
+    gate_sb = grp.tensors["layers.0.mlp.gate_proj.scales_base"]
+    gate_a = grp.tensors["layers.0.mlp.gate_proj.A_scar"]
+    gate_b = grp.tensors["layers.0.mlp.gate_proj.B_scar"]
+    assert gate_pb.dtype == torch.uint8
+    assert gate_pb.numel() * 2 == 29568 * 8192  # Exact 4-bit packing (2 weights per byte)
+    assert gate_sb.shape[0] == (29568 * 8192) // 64
+    assert gate_a.shape == (48, 8192)
+    assert gate_b.shape == (29568, 48)
+
+    # Execute 4 real 72.71B layers with GQA + RoPE + SCacheDynamicCache O(1)
+    torch.manual_seed(72)
+    seq_len = 12
+    x = (torch.randn(1, seq_len, 8192) * 0.05).to(device=device, dtype=dtype)
+    cos, sin = _compute_rope(seq_len, 128, 1000000.0, device=device, dtype=dtype)
+    scache = SCacheDynamicCache(window_size=16, num_slots=8, num_sink_tokens=2, project_slots=True)
+
+    with torch.no_grad():
+        for l_idx in range(4):
+            x = grp.forward_layer(l_idx, x, cos, sin, scache=scache)
+
+    assert x.shape == (1, seq_len, 8192)
+    assert torch.isfinite(x.float()).all()
+    assert len(scache.layers) == 4
+    assert recursive_scache_storage_bytes(scache) == scache.total_memory_bytes
+
+    # Verify streaming unload releases all group tensors cleanly
+    grp.unload()
+    assert grp.is_loaded is False
+    assert grp.tensors == {}

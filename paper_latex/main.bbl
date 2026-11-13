@@ -1,9 +1,14 @@
-\begin{thebibliography}{14}
+\begin{thebibliography}{21}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Ainsworth et~al.(2023)Ainsworth, Hayase, and Srinivasa]{ainsworth2023git}
+Samuel~K. Ainsworth, Jonathan Hayase, and Siddhartha Srinivasa.
+\newblock Git {Re-Basin}: Merging models modulo permutation symmetries.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2023.
 
 \bibitem[Dettmers et~al.(2022)Dettmers, Lewis, Belkada, and Zettlemoyer]{dettmers2022llmint8}
 Tim Dettmers, Mike Lewis, Younes Belkada, and Luke Zettlemoyer.
@@ -15,6 +20,21 @@ Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and Luke Zettlemoyer.
 \newblock {QLoRA}: Efficient finetuning of quantized {LLMs}.
 \newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~36, 2023.
 
+\bibitem[Fang et~al.(2025)Fang, Jiang, Wang, Ma, Wang, He, and Chua]{fang2025alphaedit}
+Junfeng Fang, Houcheng Jiang, Kun Wang, Yunshan Ma, Xiang Wang, Xiangnan He, and Tat-Seng Chua.
+\newblock {AlphaEdit}: Null-space constrained knowledge editing for language models.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2025.
+
+\bibitem[Kabatiansky and Levenshtein(1978)]{kabatiansky1978bounds}
+Grigory~A. Kabatiansky and Vladimir~I. Levenshtein.
+\newblock Bounds for packings on a sphere and in space.
+\newblock \emph{Problems of Information Transmission}, 14\penalty0 (1):\penalty0 1--17, 1978.
+
+\bibitem[Leviathan et~al.(2023)Leviathan, Kalman, and Matias]{leviathan2023fast}
+Yaniv Leviathan, Matan Kalman, and Yossi Matias.
+\newblock Fast inference from transformers via speculative decoding.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, pages 19274--19286, 2023.
+
 \bibitem[Li et~al.(2024)Li, Yu, Liang, He, Karampatziakis, Chen, and Zhao]{li2024loftq}
 Yixiao Li, Yifan Yu, Chen Liang, Pengcheng He, Nikos Karampatziakis, Weizhu Chen, and Tuo Zhao.
 \newblock {LoftQ}: {LoRA}-fine-tuning-aware quantization for large language models.
@@ -25,16 +45,26 @@ Ji~Lin, Jiaming Tang, Haotian Tang, Shang Yang, Wei-Ming Chen, Wei-Chen Wang, Gu
 \newblock {AWQ}: Activation-aware weight quantization for on-device {LLM} compression and acceleration.
 \newblock In \emph{Proceedings of Machine Learning and Systems (MLSys)}, volume~6, 2024.
 
+\bibitem[Marchenko and Pastur(1967)]{marchenko1967distribution}
+Vladimir~A. Marchenko and Leonid~A. Pastur.
+\newblock Distribution of eigenvalues for some sets of random matrices.
+\newblock \emph{Mathematics of the USSR-Sbornik}, 1\penalty0 (4):\penalty0 457--483, 1967.
+
+\bibitem[Meng et~al.(2022)Meng, Bau, Andonian, and Belinkov]{meng2022locating}
+Kevin Meng, David Bau, Alex Andonian, and Yonatan Belinkov.
+\newblock Locating and editing factual associations in {GPT}.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~35, pages 17359--17372, 2022.
+
 \bibitem[Reis~Filho(2026{\natexlab{a}})]{reisfilho2026mos_zenodo}
 Julio~Cesar Reis~Filho.
-\newblock Mixture of scars ({MoS}) and {SCache} $\mathcal{O}(1)$: Breaking the dual memory wall across $0.5\text{B} \to 7.62\text{B} \to 72.71\text{B}$ transformers via fused activation-aware scar experts and $32\text{k}$ {Widrow-Hoff} associative memory (v1.3.0).
+\newblock Mixture of scars ({MoS}) v3.0 and {SCache} $\mathcal{O}(1)$: Sub-2-bit colossal compression ($<24$~{GB} $72.7\text{B}$), closed-form $140$~{KB} scar cartridges, {Sinkhorn Re-Basin}, and constant-memory $32\text{k}$ attention.
 \newblock \emph{Zenodo Preprint}, 2026{\natexlab{a}}.
 \newblock \doi{10.5281/zenodo.24172784}.
 \newblock URL \href{https://doi.org/10.5281/zenodo.24172784}{\texttt{https://doi.org/10.5281/zenodo.24172784}}.
 
 \bibitem[Reis~Filho(2026{\natexlab{b}})]{reisfilho2026qwen72b_mos_v2}
 Julio~Cesar Reis~Filho.
-\newblock {Qwen2.5-72B-Instruct MoS v2} ($72.71\text{B}$, $38.12$~{GiB} canonical \texttt{INT4+ASVD} shards) and official practical local deployment guide.
+\newblock {Qwen2.5-72B-Instruct MoS v2} ($72.71\text{B}$, $38.12$~{GiB} canonical \texttt{INT4+ASVD} shards; $20.65$~{GiB} \texttt{Sub-2-Bit}) and official practical local deployment guide.
 \newblock Public SHA-256 Verified Checkpoint Release (\texttt{mos-run --download}) and Step-by-Step Practical Guide (\texttt{docs/GUIA\_PRATICO\_MOS\_SCACHE\_72B.md}), 2026{\natexlab{b}}.
 \newblock URL \href{https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos}{\texttt{https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos}}.
 
@@ -47,6 +77,11 @@ Imanol Schlag, Kazuki Irie, and J{\"u}rgen Schmidhuber.
 J{\"u}rgen Schmidhuber.
 \newblock Learning to control fast-weight memories: An alternative to dynamic recurrent networks.
 \newblock \emph{Neural Computation}, 4\penalty0 (1):\penalty0 131--139, 1992.
+
+\bibitem[Sinkhorn and Knopp(1967)]{sinkhorn1967concerning}
+Richard Sinkhorn and Paul Knopp.
+\newblock Concerning nonnegative matrices and doubly stochastic matrices.
+\newblock \emph{Pacific Journal of Mathematics}, 21\penalty0 (2):\penalty0 343--348, 1967.
 
 \bibitem[Vaswani et~al.(2017)Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser, and Polosukhin]{vaswani2017attention}
 Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan~N. Gomez, {\L}ukasz Kaiser, and Illia Polosukhin.

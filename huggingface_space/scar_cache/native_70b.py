@@ -24,10 +24,17 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from scar_cache.mos import MixtureOfScarsLinear
 from scar_cache.hf_cache import SCacheDynamicCache
+from scar_cache.speculative_ghost_jump import recursive_scache_storage_bytes
 
 
 class NativeMoS70B:
-    """Instância de Modelo em Escala 70B/72B com Mixture of Scars (MoS) e SCache O(1)."""
+    """Topologia Recorrente Profunda (72–80 camadas) via Base Compartilhada + MoS + SCache O(1).
+
+    Expande ciclicamente camadas pré-treinadas compactas (regime Universal Transformer) com
+    micro-especialistas `MixtureOfScarsLinear`. Para inferência nos pesos pré-treinados reais
+    do `Qwen2.5-72B-Instruct` (`72.71B`, `80` camadas distintas), utilize `CanonicalMoSEngine`
+    em `scar_cache.cli_72b`.
+    """
 
     def __init__(
         self,
@@ -152,17 +159,22 @@ class NativeMoS70B:
         output_text = self.tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True)
 
         phys_bytes = cache.total_physical_bytes
+        rec_bytes = recursive_scache_storage_bytes(cache)
         cache_mb = phys_bytes / (1024 * 1024)
 
         evicted = max(0, outputs.shape[1] - window_size)
         metrics = {
             "num_layers": self.num_layers,
+            "base_layers": self.base_layers,
             "input_tokens": input_len,
             "generated_tokens": generated_tokens,
             "total_tokens": outputs.shape[1],
             "elapsed_sec": elapsed,
             "tokens_per_sec": generated_tokens / max(0.001, elapsed),
             "kv_cache_mb": cache_mb,
+            "kv_cache_reported_bytes": cache.total_memory_bytes,
+            "kv_cache_recursive_bytes": rec_bytes,
+            "kv_storage_discrepancy_bytes": abs(rec_bytes - cache.total_memory_bytes),
             "tokens_evicted": evicted,
         }
 

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mixture-of-scars"
-version = "2.4.0"
-description = "Mixture of Scars (MoS) & SCache O(1): Sub-2-Bit/INT4+ASVD Weight Compression, Ghost-Jump Speculative Reflex & Constant-Memory Widrow-Hoff KV-Cache Replacement for 0.5B–72B+ LLMs"
+version = "3.0.0"
+description = "Mixture of Scars (MoS) v3.0 & SCache O(1): Sub-2-Bit (<24 GB 72.7B), 140 KB Scar Cartridges (HTTP 206 & GDPR Wipe), Sinkhorn Re-Basin, Ghost-Jump Reflex & Constant-Memory Widrow-Hoff KV-Cache Replacement"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

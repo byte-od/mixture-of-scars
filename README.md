@@ -1,7 +1,7 @@
 # Mixture of Scars (MoS) & SCache $\mathcal{O}(1)$: Breaking the Dual Memory Wall Across `0.5B`–`72.71B` Transformers
 
-[![DOI v1.3.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![Release: v2.4.0](https://img.shields.io/badge/Release-v2.4.0%20(Horizon%202%20Complete%3A%20mos--store%20%2B%20Sinkhorn%20Re--Basin)-brightgreen.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
+[![DOI v3.0.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
+[![Release: v3.0.0](https://img.shields.io/badge/Release-v3.0.0%20(Preprint%20v3.0%3A%20Sub--2--Bit%20%3C24GB%20%7C%20140KB%20ScarStore%20%7C%20Sinkhorn%20Re--Basin)-brightgreen.svg)](zenodo_deposit_v3_0/Mixture_of_Scars_and_SCache_Preprint_v3.0.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
@@ -9,18 +9,21 @@
 [![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
 [![72.7B Sub-2-Bit](https://img.shields.io/badge/72.7B%20Sub--2--Bit-20.65%20GiB%20Shards%20(%3C24%20GB%20VRAM)-9cf.svg)](#3-horizon-1-v140-ghost-jump-speculative-reflex--sub-2-bit-mos--24-gb-7271b)
 [![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
-[![Tests Passing](https://img.shields.io/badge/Tests-77%2F77%20Passing-brightgreen.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/Tests-84%2F84%20Passing-brightgreen.svg)](tests/)
+[![Forensic Audit Guide](https://img.shields.io/badge/Audit%20Guide-v3.0%20Zero--Facade-0ea5e9.svg)](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
-[![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v2.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
+[![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v3.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
 [![Sponsor Research](https://img.shields.io/badge/Sponsor-Byte--OD%20Research-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/byte-od)
 [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)
 
-> **Unified Scar Operator (`v1.3.0`):** Autoregressive Transformers hit two compounding hardware walls: static parameter bloat $\mathcal{O}(N)$ (`135.43 GiB` FP16 at `72.71B`) and linear/quadratic KV-cache growth $\mathcal{O}(T) / \mathcal{O}(T^2)$. **Mixture of Scars (`MoS`)** and **`SCache`** attack both walls *training-free* under a single directional residual formulation:
-> 1. **Mixture of Scars (`MoS` — Spatial Weights):** Pairs canonical `Block-64 INT4` bases with **Activation-Aware SVD (`ASVD`)** low-rank scar experts, `20 × 4`-layer streaming shards (`1.79 GiB`/shard), and **fused in-register `W4A16+ASVD` GPU kernels** on Apple Silicon Metal (`50.38×` group compute speedup at `cos = 1.000000`) and NVIDIA CUDA Triton (`sm_75+` Turing `T4` through Hopper `H100`) — neutralizing **`195,720×`** SwiGLU outliers at `72.71B` (`135.43 → 38.12 GiB` standalone; **`27.59×` / `-96.37%`** across an 8-specialist bank) with **`100.0%` Top-5 agreement**.
-> 2. **`SCache` (`SCacheDynamicCache` — Temporal $\mathcal{O}(1)$ Memory):** Drop-in HuggingFace `DynamicCache` combining attention sinks, a rolling FIFO window, synchronized deep-layer `[L/2 : L)` Widrow-Hoff prediction-surprise routing over `32`-token micro-pages, and orthogonal Delta fast weights (`+0.00 Bytes` drift from `16.6k` to `32.9k` tokens).
+> **Unified Scar Operator (`v3.0.0`):** Autoregressive Transformers hit four compounding hardware walls: static parameter bloat $\mathcal{O}(N)$ (`135.43 GiB` FP16 at `72.71B`), linear/quadratic KV-cache growth $\mathcal{O}(T) / \mathcal{O}(T^2)$, memory-bound single-token decode, and backpropagation-bound specialization. **Mixture of Scars (`MoS v3.0`)** and **`SCache`** unify all four regimes *training-free* under one directional residual law:
+> 1. **Mixture of Scars (`MoS` & `Sub-2-Bit MoS` — Spatial Weights):** Pairs canonical `Block-64 INT4` (`38.12 GiB`, `100.0%` Top-5, `50.38×` fused Apple Metal & CUDA Triton `W4A16+ASVD`) and `2.25 bpw` symmetric ternary-quaternary bases + two-pass alternating `ASVD` shields (`cos = 0.99911` under `195,720×` SwiGLU spikes; `12,290×` PPL reduction vs. naive `2-bit`), shrinking `72.71B` into **`20.65 GiB` shards and `21.89 GiB` GPU Resident VRAM (`< 24 GB` RTX 3090/4090 & `< 32 GB` laptops)**.
+> 2. **`SCache` $\mathcal{O}(1)$ & `Ghost-Jump` Speculative Reflex (Temporal Memory & Decode):** Drop-in HuggingFace `DynamicCache` combining attention sinks, rolling FIFO, synchronized deep-layer `[L/2 : L)` Widrow-Hoff prediction-surprise routing over `32`-token micro-pages (`+0.00 Bytes` drift from `16.6k` to `32.9k` tokens; `50.9×` smaller & `5.84×` faster), and atomic $\mathcal{O}(1)$ speculative rollback (`KL = 0.0000`, `1.89×–1.92×` speedup).
+> 3. **Closed-Form `140 KB` `HeadExpandedScarStore` (`mos-store` — Zero-SGD Knowledge Cartridges):** Transplants `72.71B` derivations with **`0` SGD / `0` backprop** into OS-page-aligned **`140.00 KB` (`35 × 4 KB` `mmap`)** cartridges on a `3B` core (`98.61%` unseen Top-1 parity, `58.3 ms` live `HTTP/1.1 206` Range streaming, and `18 µs` RAM / `7.64 ms` `0x00` SSD GDPR unlearning).
+> 4. **Sinkhorn Monomial–Procrustes Re-Basin (`mos-rebasin`):** Exploits exact SwiGLU monomial gauge symmetry via tiled single-pass log-Sinkhorn (`< 350 MiB` VRAM at `72B+`, `0` extra runtime FLOPs), slashing shared-base KL by **`56.36×` (`0.1578 → 0.0028`)** on permuted specialists and **`3.37×` (`0.1190 → 0.0353 < 0.08`)** on `3B` cross-layer pairs.
 
-![Multi-Scale v1.3.0 Empirical Audit — 32.9k Passkey Recall, 72.71B Outliers & Fused Metal/CUDA Speed](zenodo_deposit_v1_3/mos_scache_v1_3_hero.png)
+![Multi-Scale v3.0.0 Empirical Audit — 32.9k Passkey O(1) KV, <24 GB 72.71B Sub-2-Bit, 140 KB ScarStore & Sinkhorn Re-Basin](zenodo_deposit_v3_0/mos_scache_v3_0_hero.png)
 
 ---
 
@@ -133,14 +136,15 @@ mos-rebasin audit-72b-shard --shard ./models/qwen25_72b_mos_v2/mos_group_19.safe
 
 ---
 
-## 📄 Official Preprint (`v1.3.0`), Public `72.71B` Shards & Replication Assets
-- **Permanent Preprint (CERN / Zenodo `v1.3.0` DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) · *Concept DOI (all versions):* [`10.5281/zenodo.24144512`](https://doi.org/10.5281/zenodo.24144512) ([**Preprint v1.3 PDF**](zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
-- **Academic LaTeX Source (arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/), [`arXiv_Direct_Upload_v1.3.zip`](zenodo_deposit_v1_3/arXiv_Direct_Upload_v1.3.zip) & [`MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip`](zenodo_deposit_v1_3/MoS_SCache_LaTeX_arXiv_TMLR_v1.3.zip)
+## 📄 Official Preprint (`v3.0.0`), Public `72.71B` Shards & Forensic Audit Guide
+- **Permanent Preprint (CERN / Zenodo `v3.0.0` DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) · *Concept DOI (all versions):* [`10.5281/zenodo.24144512`](https://doi.org/10.5281/zenodo.24144512) ([**Preprint v3.0 PDF**](zenodo_deposit_v3_0/Mixture_of_Scars_and_SCache_Preprint_v3.0.pdf) | [v1.3 PDF](archive/zenodo_deposits/zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](archive/zenodo_deposits/zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](archive/zenodo_deposits/zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](archive/zenodo_deposits/zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
+- **Academic LaTeX Source & Replication Bundles (`v3.0.0`, arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/), [`arXiv_Direct_Upload_v3.0.zip`](zenodo_deposit_v3_0/arXiv_Direct_Upload_v3.0.zip), [`MoS_SCache_LaTeX_arXiv_TMLR_v3.0.zip`](zenodo_deposit_v3_0/MoS_SCache_LaTeX_arXiv_TMLR_v3.0.zip) & [`MoS_SCache_Adversarial_Replication_v3.0.zip`](zenodo_deposit_v3_0/MoS_SCache_Adversarial_Replication_v3.0.zip)
+- **Forensic Audit & Zero-Facade Verification Guide (`84/84` Tests):** [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
 - **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `22` SHA-256 Shards, Zero Login) & Practical Guide:**
   - **Direct Download (`HTTP 206 Range` + `SHA-256`):** [`github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos`](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
   - **Step-by-Step Local Deployment Guide:** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
-- **Official `v1.4 → v2.x` Innovation & Cross-Domain Applications Roadmap:** [`docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md`](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
-- **Interactive Gradio Red-Team Laboratory (Hugging Face Space):** [`huggingface_space/`](huggingface_space/)
+- **Official `v1.4 → v3.x` Innovation & Cross-Domain Applications Roadmap:** [`docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md`](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
+- **Interactive Gradio Red-Team Laboratory (Hugging Face Space):** [`huggingface_space/`](huggingface_space/) · *(Historical `v1.x` deposits, legacy Space drafts & Kaggle bundles preserved cleanly in [`archive/`](archive/README.md))*
 
 ---
 
@@ -274,14 +278,17 @@ The Unified Scar Operator unlocks concrete mechanisms outside text generation �
 
 ---
 
-## 📂 Reproduction Suites & Executable Examples
+## 📂 Reproduction Suites, Clean Repository Map & Executable Examples
 
 ```bash
-# Run all 51 unit, red-team causality, Horizon 1 Ghost-Jump/Sub-2-Bit, and fused Metal/Triton parity tests:
-pytest -q
+# Run all 84 unit, red-team causality, ScarStore HTTP-206/GDPR, Sinkhorn Re-Basin, and v3.0 architectural integrity tests (25 suites):
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 pytest tests/ -v
 ```
 
+- **Forensic Audit & Repository Map (`v3.0.0`):** See [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md) for the complete `25`-file (`84`-test) anti-facade verification matrix, physical byte-pointer audit protocol (`0.00 B` discrepancy), and top-level directory map (`scar_cache/`, `mixture_of_scars/`, `tests/`, `scripts/`, `results/`, `paper_latex/`, `zenodo_deposit_v3_0/`, and [`archive/`](archive/README.md)).
 - **Core Verification & Red-Team Suites (`scripts/`):**
+  - [`scripts/audit_sinkhorn_rebasin_v2_4.py`](scripts/audit_sinkhorn_rebasin_v2_4.py) — Track 2.2 Sinkhorn Monomial–Procrustes Re-Basin (`0.5B`, `3B`, `72.71B` shards & Marchenko-Pastur law).
+  - [`scripts/audit_mos_store_cli_v2_3.py`](scripts/audit_mos_store_cli_v2_3.py) & [`scripts/audit_scar_store_v2_stage5_3b_vs_0p5b.py`](scripts/audit_scar_store_v2_stage5_3b_vs_0p5b.py) — `140 KB` `HeadExpandedScarStore` (`HTTP/1.1 206` Range + `0x00` SSD GDPR wipe).
   - [`scripts/benchmark_horizon1_v1_4.py`](scripts/benchmark_horizon1_v1_4.py) — `v1.4.0` Horizon 1 `Ghost-Jump` (`1.89×–1.92×` lossless speedup) + `Sub-2-Bit 72B` (`21.89 GiB` VRAM) live audit.
   - [`scripts/benchmark_16k_passkey_llm.py`](scripts/benchmark_16k_passkey_llm.py) — `16.6k` & `32.9k` Passkey / NIAH live audit (`ΔBytes = 0 B` pointer check).
   - [`scripts/benchmark_72b_apple_silicon.py`](scripts/benchmark_72b_apple_silicon.py) — Apple Silicon Metal `_weight_int4pack_mm` (`50.38×` speedup) + `80L` memory/speed profiler.
@@ -298,10 +305,10 @@ pytest -q
 
 If this research, its mathematical primitives, or its GPU/Unified-Memory kernels save infrastructure costs or inspire new mechanisms in your team, consider sponsoring our lab via **[GitHub Sponsors (`@byte-od`)](https://github.com/sponsors/byte-od)**:
 
-* **100% of sponsorships fund dedicated multi-GPU & Unified-Memory compute** for our [`v1.4 → v2.x` Open Roadmap](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md):
+* **100% of sponsorships fund dedicated multi-GPU & Unified-Memory compute** for our [`v1.4 → v3.x` Open Roadmap](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md):
   1. **`MoS Sub-2-Bit + ASVD` (`72B` in `~20 GiB` & `405B` Shards):** Public SHA-256 checkpoints fitting `100%` resident on single `24 GB` GPUs and `32 GB` Macs.
   2. **`System 1 + 72B` Speculative Reflex Fusion:** `3×–5×` faster lossless decode via Ghost-Jump draft verification.
-  3. **`128k–1M` Multi-Needle `SCache` & `.scache` Post-RAG Cartridges:** Continuous long-horizon benchmarks, lossless `SCache + ANS` storage, and native `WebGPU / WGSL` browser kernels.
+  3. **`128k–1M` Multi-Needle `SCache` & `.scarstore` Post-RAG Cartridges:** Hierarchical disk-paged `SCache`, automated `mos-digest` corpus ingestion, lossless `SCache + ANS` storage, and native `WebGPU / WGSL` browser kernels.
 
 👉 **[Become a GitHub Sponsor (`github.com/sponsors/byte-od`)](https://github.com/sponsors/byte-od)**
 
@@ -315,11 +322,11 @@ Developed by **Julio Cesar Reis Filho** (*Byte-OD Research & System One Architec
 ```bibtex
 @techreport{reisfilho2026mos_scache,
   author      = {Reis Filho, Julio Cesar},
-  title       = {Mixture of Scars (MoS) and SCache O(1): Breaking the Dual Memory Wall Across 0.5B -> 7.62B -> 72.71B Transformers via Fused Activation-Aware Scar Experts and 32k Widrow-Hoff Associative Memory},
+  title       = {Mixture of Scars (MoS) v3.0 and SCache O(1): Sub-2-Bit Colossal Compression (<24 GB 72.7B), Closed-Form 140 KB Scar Cartridges, Sinkhorn Re-Basin, and Constant-Memory 32k Attention},
   institution = {Byte-OD Research \& System One Architecture Lab},
   year        = {2026},
   month       = nov,
-  version     = {1.3.0},
+  version     = {3.0.0},
   doi         = {10.5281/zenodo.24172784},
   url         = {https://doi.org/10.5281/zenodo.24172784}
 }

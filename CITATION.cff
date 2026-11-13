@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use Mixture of Scars (MoS) or SCache O(1) in your research, please cite this work."
-title: "Mixture of Scars (MoS) and SCache O(1): Breaking the Dual Memory Wall Across 0.5B -> 7.62B -> 72.71B Transformers via Fused Activation-Aware Scar Experts and 32k Widrow-Hoff Associative Memory"
+title: "Mixture of Scars (MoS) v3.0 and SCache O(1): Sub-2-Bit Colossal Compression (<24 GB 72.7B), Closed-Form 140 KB Scar Cartridges, Sinkhorn Re-Basin, and Constant-Memory 32k Attention"
 authors:
   - family-names: "Reis Filho"
     given-names: "Julio Cesar"
@@ -9,17 +9,21 @@ doi: "10.5281/zenodo.24172784"
 url: "https://doi.org/10.5281/zenodo.24172784"
 repository-code: "https://github.com/byte-od/mixture-of-scars"
 repository-artifact: "https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos"
-abstract: "Training-free Mixture of Scars (MoS: canonical Block-64 INT4 bases + Activation-Aware SVD scar experts + fused Apple Metal & NVIDIA CUDA Triton W4A16+ASVD kernels) and SCache O(1) (Widrow-Hoff Delta fast weights + synchronized 32-token micro-page routing). Includes public zero-login downloadable 70B-class checkpoint (Qwen2.5-72B-Instruct MoS v2, 72.71B, 38.12 GiB via mos-run --download) and step-by-step Practical Local Deployment Guide (docs/GUIA_PRATICO_MOS_SCACHE_72B.md)."
-version: "1.3.0"
-date-released: "2026-11-12"
+abstract: "Training-free Mixture of Scars v3.0 (Block-64 INT4 & Sub-2-Bit 2.25 bpw + alternating ASVD outlier shields shrinking 72.71B into 20.65 GiB shards / 21.89 GiB VRAM, fused Apple Metal & CUDA Triton W4A16/W2A16+ASVD kernels, Sinkhorn Monomial-Procrustes Re-Basin, and closed-form 140 KB OS-page-aligned HeadExpandedScarStore knowledge cartridges with RFC 7233 HTTP 206 Range streaming and <20 us RAM / 7.64 ms 0x00 SSD GDPR unlearning) paired with SCache O(1) (Widrow-Hoff Delta fast weights + synchronized 32-token micro-page routing + Ghost-Jump lossless speculative verification)."
+version: "3.0.0"
+date-released: "2026-11-13"
 license: "CC-BY-4.0"
 keywords:
   - "Large Language Models"
   - "KV Cache Compression"
+  - "Sub-2-Bit Quantization"
+  - "Speculative Decoding"
+  - "Machine Unlearning"
+  - "Knowledge Grafting"
+  - "Git Re-Basin"
+  - "Sinkhorn"
   - "Fast Weights"
   - "Widrow-Hoff Delta Rule"
-  - "Needle in a Haystack"
-  - "Low-Rank Quantization"
   - "Triton GPU Kernels"
   - "Apple Silicon Metal"
   - "Qwen2.5-72B"
@@ -27,7 +31,7 @@ keywords:
   - "SCache"
 references:
   - type: software
-    title: "Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint) & Practical Local Deployment Guide"
+    title: "Qwen2.5-72B-Instruct MoS v2 (72.71B, 38.12 GiB Canonical INT4+ASVD Checkpoint; 20.65 GiB Sub-2-Bit) & Practical Local Deployment Guide"
     authors:
       - family-names: "Reis Filho"
         given-names: "Julio Cesar"
