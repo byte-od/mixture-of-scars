@@ -157,7 +157,7 @@ def build_pdf_v3_0(pdf_path: Path, hero_png: Path):
     story.append(Paragraph(
         "<b>Julio Cesar Reis Filho</b> — Byte-OD Research &amp; System One Architecture Lab<br/>"
         "Preprint Technical Report <b>v3.0.0</b> (Sub-2-Bit 72.71B Residency, Ghost-Jump Reflex, 140 KB <code>mos-store</code> HTTP-206 &amp; Sinkhorn Re-Basin) — November 13, 2026<br/>"
-        "<b>DOI:</b> 10.5281/zenodo.24172784 &nbsp;|&nbsp; <b>Code &amp; 84/84 Tests:</b> github.com/byte-od/mixture-of-scars &nbsp;|&nbsp; <b>72B Shards:</b> <code>releases/tag/v1.2.0-qwen72b-mos</code>",
+        "<b>DOI:</b> 10.5281/zenodo.24172784 &nbsp;|&nbsp; <b>Code &amp; 88/88 Tests:</b> github.com/byte-od/mixture-of-scars &nbsp;|&nbsp; <b>72B Shards:</b> <code>releases/tag/v1.2.0-qwen72b-mos</code>",
         s_meta,
     ))
     story.append(HRFlowable(width="100%", thickness=0.8, color=colors.HexColor("#CBD5E1"), spaceAfter=4.0))
@@ -168,19 +168,20 @@ def build_pdf_v3_0(pdf_path: Path, hero_png: Path):
         "(3) single-token memory-bandwidth decode bottlenecks, and (4) backpropagation-bound specialization prone to catastrophic forgetting and opaque data retention. "
         "We unify all four regimes under a single <b>Scar Principle</b>—compressing predictable substrates to their physical hardware floor while isolating high-surprise "
         "residuals inside one-sided ReLU spherical cones with exact 0.000000 out-of-hemisphere bleed: "
-        "<b>(i) MoS &amp; Sub-2-Bit MoS</b> pair canonical Block-64 INT4 (38.12 GiB, <b>100.0% Top-5</b>, <b>50.38x</b> fused Apple Metal &amp; CUDA Triton <code>W4A16+ASVD</code>) "
+        "<b>(i) MoS &amp; Sub-2-Bit MoS</b> pair canonical Block-64 INT4 (38.12 GiB at 72.7B, <b>100.0% Top-5</b>, <b>50.38x</b> fused Apple Metal &amp; CUDA Triton <code>W4A16+ASVD</code>), "
+        "a zero-spike MoS student engine (<b>3.49 GiB VRAM &amp; 0.55 GiB CPU RSS</b> on 3B at 17.1 tok/s; 0.78 GiB on 0.5B), "
         "and a 2.25 bpw symmetric ternary-quaternary base with two-pass alternating ASVD shields (<b>cos = 0.99911</b> under 195,720x SwiGLU outliers; <b>12,290x PPL reduction</b> "
         "vs. naive 2-bit), shrinking 72.71B into <b>20.65 GiB shards and 21.89 GiB GPU Resident VRAM (&lt;24 GB RTX 3090/4090 &amp; &lt;32 GB laptops)</b>; "
         "<b>(ii) SCache O(1) &amp; Ghost-Jump Speculative Reflex</b> combine Widrow-Hoff Delta fast weights and synchronized 32-token micro-page routing for "
         "<b>100% Passkey recall at 16,568 and 32,868 tokens</b> in strictly constant <b>22.71 MiB (&Delta;=+0 B; 50.9x smaller &amp; 5.84x faster at 300.8 tok/s)</b> "
         "with atomic O(1) speculative rollback (<b>KL = 0.0000, 1.89x–1.92x speedup</b>); "
-        "<b>(iii) Closed-Form HeadExpandedScarStore (<code>mos-store</code>)</b> transplants 72.71B derivations with <b>ZERO SGD / ZERO backprop</b> into OS-page-aligned "
-        "<b>140.00 KB (35 &times; 4 KB mmap)</b> cartridges on a 3B core (<b>1,015,469x smaller</b> than 72B BF16) over a 4,194,304-cell Kronecker grid "
-        "(<b>98.61% unseen Top-1 parity</b>, 6.11x lower KL, 58.3 ms live RFC 7233 <code>HTTP/1.1 206</code> streaming, and 18 &mu;s RAM / 7.64 ms <code>0x00</code> SSD GDPR unlearning); and "
+        "<b>(iii) Closed-Form HeadExpandedScarStore (<code>mos-store</code> CLI/UI, Online Library &amp; Open-Weights Factory)</b> transplants 72.71B and open-weight derivations with <b>ZERO SGD / ZERO backprop</b> into OS-page-aligned "
+        "<b>140.00 KB (35 &times; 4 KB mmap)</b> cartridges on a 3B core (61.25 KB on 0.5B; <b>1,015,469x smaller</b> than 72B BF16) over a 4,194,304-cell Kronecker grid "
+        "(<b>98.61% unseen Top-1 parity</b>, 6.11x lower KL, live 9-slot CDN RFC 7233 <code>HTTP/1.1 206</code> streaming in 58.3 ms, and 18 &mu;s RAM / 7.64 ms <code>0x00</code> SSD GDPR unlearning); and "
         "<b>(iv) Sinkhorn Monomial–Procrustes Re-Basin</b> exploits exact SwiGLU monomial gauge symmetry via tiled single-pass log-Sinkhorn (&lt;350 MiB VRAM at 72B+, 0 extra FLOPs), "
         "slashing shared-base KL by <b>56.36x (0.1578 &rarr; 0.0028)</b> on permuted specialists, <b>3.37x (0.1190 &rarr; 0.0353 &lt; 0.08)</b> on 3B cross-layer pairs, and "
         "<b>14.68x (6.4634 &rarr; 0.4403)</b> across 12 consecutive layers while establishing the <i>Residual Stream Marchenko-Pastur Orthogonality Law</i> on 72.71B. "
-        "All <b>84/84 pytest suites</b> pass with <b>0.00 B</b> recursive storage discrepancy.",
+        "All <b>88/88 pytest checks</b> pass with <b>0.00 B</b> recursive storage discrepancy.",
         s_abs_box,
     ))
     story.append(HRFlowable(width="100%", thickness=0.8, color=colors.HexColor("#CBD5E1"), spaceAfter=4.0))
@@ -216,7 +217,7 @@ def build_pdf_v3_0(pdf_path: Path, hero_png: Path):
         "(using calibration tokens or our zero-data analytical SwiGLU salience oracle ||<b>W</b><sub>gate,<i>i</i>,:</sub>||<sub>2</sub>||<b>W</b><sub>up,<i>i</i>,:</sub>||<sub>2</sub>) "
         "and GQA <code>k_proj/v_proj</code> INT4 shields. Coupled with fused Apple Metal <code>_weight_int4pack_mm</code> (<b>50.38x</b> compute speedup, cos=1.000000) "
         "and register-dequantizing CUDA Triton <code>W4A16+ASVD</code> / <code>W2A16+ASVD</code> kernels (<code>triton_mos_gemm.py</code>), real 72.71B shards shrink from "
-        "1.79 &rarr; <b>1.0325 GiB/group (20.65 GiB across 20 shards; 21.89 GiB total resident GPU VRAM)</b>.",
+        "1.79 &rarr; <b>1.0325 GiB/group (20.65 GiB across 20 shards; 21.89 GiB total resident GPU VRAM)</b>, while <code>mos_student.py</code> eliminates 12.4 GiB 2x CPU&rarr;GPU spikes on local 3B/0.5B students (3.49 / 0.78 GiB VRAM, 0.55 GiB RSS, 17.1 tok/s).",
         s_body,
     ))
 
@@ -239,12 +240,12 @@ def build_pdf_v3_0(pdf_path: Path, hero_png: Path):
 
     story.append(Paragraph("3. Closed-Form 140 KB HeadExpandedScarStore, HTTP 206 &amp; Forensic GDPR Unlearning", s_h1))
     story.append(Paragraph(
-        "Instead of mutating shared MLP weights globally [16, 17], <code>HeadExpandedScarStore</code> (<code>head_expanded_attention.py</code>, <code>mos-store</code> CLI) "
+        "Instead of mutating shared MLP weights globally [16, 17], <code>HeadExpandedScarStore</code> (<code>head_expanded_attention.py</code>, <code>mos-store</code> CLI &amp; Web UI) "
         "attaches query-matched synthetic attention heads at terminal block <i>L</i> gated by spherical cap <i>g<sub>c</sub></i>(<b>h</b>) = clamp((cos(<b>h</b>, <b>z</b><sub><i>c</i></sub>) &minus; &tau;)/&rho;, 0, 1). "
-        "From cached 72.71B teacher logits, Active-Set Woodbury Rosetta inversion recovers hidden deltas projected onto the student's AlphaEdit null-space <b>P</b><sub>null</sub> [17] "
+        "From 72.71B or open-weight teacher logits (<code>open_weights_factory.py</code>: same-vocab exact or cross-tokenizer bridge), Active-Set Woodbury Rosetta inversion recovers hidden deltas projected onto the student's AlphaEdit null-space <b>P</b><sub>null</sub> [17] "
         "and factors them in <b>100% closed form (0 SGD / 0 autograd)</b> into <i>P</i>=8 per-head key prototypes and rank-60 Block-32 INT4 values. On Qwen2.5-3B (<i>H<sub>q</sub></i>=16, "
-        "<i>d<sub>h</sub></i>=128, <i>d</i>=2048), each binary slot is <b>exact 143,360 B (140.00 KB = 35 &times; 4,096 B OS mmap pages, 0 B padding)</b> on a 2048&times;2048 "
-        "(4,194,304-cell) Kronecker spherical grid (512 KB bitmap).",
+        "<i>d<sub>h</sub></i>=128, <i>d</i>=2048), each binary slot is <b>exact 143,360 B (140.00 KB = 35 &times; 4,096 B OS mmap pages, 0 B padding; 61.25 KB on 0.5B)</b> on a 2048&times;2048 "
+        "(4,194,304-cell) Kronecker spherical grid (512 KB bitmap), served live across 9 domains via Zero-Payload Cloud Shells over <code>HTTP/1.1 206</code>.",
         s_body,
     ))
     story.append(Paragraph(
@@ -264,7 +265,7 @@ def build_pdf_v3_0(pdf_path: Path, hero_png: Path):
         s_prop,
     ))
 
-    story.append(Paragraph("5. Multi-Scale Empirical Audit (0.5B &rarr; 3B &rarr; 7.62B &rarr; 72.71B; 84/84 Pytest)", s_h1))
+    story.append(Paragraph("5. Multi-Scale Empirical Audit (0.5B &rarr; 3B &rarr; 7.62B &rarr; 72.71B; 88/88 Pytest)", s_h1))
 
     t1 = [
         ["Model / Pair", "Workload & Context", "Engine", "Audited KV Memory (0 B Drift)", "Throughput", "Recall / Parity", "Gain vs. Baseline"],
@@ -287,9 +288,10 @@ def build_pdf_v3_0(pdf_path: Path, hero_png: Path):
         ["72.71B MoS v1.2 (INT4+ASVD)", "NVIDIA CUDA Triton W4A16", "38.12 GiB (31.4 GiB 8x)", "166.0 MiB O(1)", "100% Top-5, PPL 4.75", "4.03–7.27+ tok/s", "155x–280x faster than NVMe FP16"],
         ["72.71B MoS v3.0 Sub-2-Bit", "CUDA W2A16+ASVD / Metal", "20.65 GiB / 21.89 GiB VRAM", "128.5 MiB O(1)", "L79 cos=0.99911 (2.49b)", "Single 24 GB GPU!", "Fits <24 GB RTX 3090/4090 & <32 GB Mac!"],
         ["3B Sub-2-Bit (108 MLPs)", "Naive 2-Bit vs MoS Sub-2-Bit", "4,644 -> 997.3 MiB (4.66x)", "O(1)", "1.35e6 -> 109.99 PPL", "0-Data Salience", "12,290x PPL reduction vs naive 2-bit"],
+        ["3B / 0.5B Zero-Spike Student", "Metal int4pack + ASVD (r=128)", "3.49 / 0.78 GiB VRAM (0.55G RSS)", "10.0 MiB O(1)", "cos=0.9926 vs BF16", "17.1 tok/s (4.1s)", "Eliminates 12.4 GiB 2x CPU->GPU load spike!"],
     ]
     story.append(KeepTogether([
-        styled_table(t2, [1.34 * inch, 1.18 * inch, 1.18 * inch, 0.72 * inch, 0.96 * inch, 0.78 * inch, 1.32 * inch], s_th, s_td, bold_rows=(2, 3, 4, 5)),
+        styled_table(t2, [1.34 * inch, 1.18 * inch, 1.18 * inch, 0.72 * inch, 0.96 * inch, 0.78 * inch, 1.32 * inch], s_th, s_td, bold_rows=(2, 3, 4, 5, 6)),
         Paragraph("<b>Table 2 (72.71B Multi-Hardware &amp; Sub-2-Bit Residency Audit):</b> Neutralizes 195,720x SwiGLU outliers while breaking the 24 GB GPU &amp; 32 GB Mac barriers.", s_caption),
     ]))
 
@@ -332,9 +334,9 @@ def build_pdf_v3_0(pdf_path: Path, hero_png: Path):
         "(2) <b>Automated Corpus Digestion &amp; Near-Duplicate Cones:</b> Each 140 KB cartridge encodes a focused domain (<i>r</i>=60); ingesting 500-page manuals "
         "currently requires topic segmentation (<code>mos-digest</code> in Horizon 3.1), and near-identical sibling versions (e.g., 2025 vs 2026 tax tables) benefit "
         "from <code>mos-store sleep-bridge</code> consolidation. "
-        "(3) <b>Student Reasoning Floor, Cross-Tokenizer Validation &amp; WebGPU:</b> Cartridges transplant domain knowledge bounded by the student's multi-step "
-        "reasoning depth (98.61% on 3B vs 94.44% on 0.5B); cross-family grafting (e.g., Llama &rarr; Gemma) and native browser <code>WebGPU/WGSL</code> shaders "
-        "remain active Horizon 3 milestones. Full code, <b>84/84 pytest suites</b>, 5 CLIs (<code>mos-run</code>, <code>mos-store</code>, <code>mos-graft</code>, "
+        "(3) <b>Student Reasoning Floor, Cross-Tokenizer Scaling &amp; WebGPU:</b> Cartridges transplant domain knowledge bounded by the student's multi-step "
+        "reasoning depth (98.61% on 3B vs 94.44% on 0.5B); while <code>open_weights_factory.py</code> introduces token-aligned cross-tokenizer bridging, large-scale cross-family evaluation (e.g., Llama &rarr; Gemma) and native browser <code>WebGPU/WGSL</code> shaders "
+        "remain active Horizon 3 milestones. Full code, <b>88/88 pytest checks</b>, 5 CLIs + Web UI (<code>mos-run</code>, <code>mos-store</code>, <code>mos-graft</code>, "
         "<code>mos-rebasin</code>, <code>mos-transcode-sub2bit</code>), and raw JSON telemetry are archived under MIT/CC-BY-4.0 at <b>DOI: 10.5281/zenodo.24172784</b> [20, 21].",
         s_body,
     ))
@@ -430,6 +432,7 @@ def build_replication_zip_v3_0(zip_path: Path):
         REPO_ROOT / "pyproject.toml",
         REPO_ROOT / "docs" / "AUDIT_AND_VERIFICATION_GUIDE.md",
         REPO_ROOT / "docs" / "GUIA_PRATICO_MOS_SCACHE_72B.md",
+        REPO_ROOT / "docs" / "ONLINE_CARTRIDGE_LIBRARY.md",
         REPO_ROOT / "docs" / "ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md",
         REPO_ROOT / "docs" / "SCAR_STORE_V2_ARCHITECTURE.md",
         REPO_ROOT / "mixture_of_scars" / "__init__.py",
@@ -444,6 +447,7 @@ def build_replication_zip_v3_0(zip_path: Path):
         REPO_ROOT / "scripts" / "audit_scar_store_v2_stage5_3b_vs_0p5b.py",
         REPO_ROOT / "scripts" / "audit_mos_store_cli_v2_3.py",
         REPO_ROOT / "scripts" / "audit_sinkhorn_rebasin_v2_4.py",
+        REPO_ROOT / "scripts" / "build_online_cartridge_library_v3_0.py",
         REPO_ROOT / "scripts" / "generate_fig1_multiscale_v3_0.py",
         REPO_ROOT / "benchmark_results" / "adversarial_mos_scache_report.json",
         REPO_ROOT / "results" / "passkey_16k_32k_llm_audit.json",
@@ -452,6 +456,8 @@ def build_replication_zip_v3_0(zip_path: Path):
         REPO_ROOT / "results" / "scar_store_v2_stage5_3b_vs_0p5b_audit.json",
         REPO_ROOT / "results" / "adversarial_0p5b_vs_3b_audit.json",
         REPO_ROOT / "results" / "mos_store_v2_3_cli_http206_audit.json",
+        REPO_ROOT / "results" / "online_cartridge_library_v3_0_audit.json",
+        REPO_ROOT / "results" / "online_library_v3_0" / "scarstore_catalog_v3_0.json",
         REPO_ROOT / "results" / "sinkhorn_rebasin_v2_4_audit.json",
         REPO_ROOT / "results" / "scale_7b_audit" / "adversarial_scale_7b_report.json",
         REPO_ROOT / "results" / "scale_72b_audit" / "adversarial_scale_72b_report.json",

@@ -142,10 +142,10 @@ mos-store query --remote auto --model Qwen/Qwen2.5-3B-Instruct \\
 #### Included `72.71B -> 3B / 0.5B` Closed-Form Cartridges (`9` Online Slots):
 {cart_lines}
 
-### 📄 Preprint `v3.0.0` & Forensic `86/86` Replication Suite
+### 📄 Preprint `v3.0.0`, Zero-Spike `MoS` Student (`3.49 GiB` VRAM) & Forensic `88/88` Replication Suite
 - `Mixture_of_Scars_and_SCache_Preprint_v3.0.pdf`
 - `arXiv_Direct_Upload_v3.0.zip` & `MoS_SCache_LaTeX_arXiv_TMLR_v3.0.zip`
-- `MoS_SCache_Adversarial_Replication_v3.0.zip` (`86/86` `pytest` suites, `0.00 B` storage discrepancy)
+- `MoS_SCache_Adversarial_Replication_v3.0.zip` (`88/88` `pytest` checks, `0.00 B` storage discrepancy)
 """
 
     rel = _ensure_release(

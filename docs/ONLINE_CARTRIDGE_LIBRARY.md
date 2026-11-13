@@ -11,10 +11,13 @@ All assets are served publicly 24/7 via **RFC 7233 `HTTP/1.1 206 Partial Content
 ## ⚡ Quick Start (Visual Web UI + CLI)
 
 ### 0. Launch the Zero-Dependency Visual Cartridge Store & Live Chat (`mos-store ui`)
-Open an App-Store-style local web interface (`http://127.0.0.1:7860`) with **zero extra Python packages** — browse human-named cartridges, stream `140 KB` / `61.25 KB` slices live via `HTTP 206`, chat with `SCache O(1)` telemetry, mint new Open-Weights cartridges, and trigger 1-click `0x00` LGPD/GDPR erasure:
+Open an App-Store-style local web interface (`http://127.0.0.1:7860`) with **zero extra Python packages** — browse human-named cartridges, stream `140 KB` / `61.25 KB` slices live via `HTTP 206`, chat in Portuguese or English with automatic system-prompt routing, inspect real-time `VRAM MoS (GiB)` & `SCache O(1)` telemetry, mint new Open-Weights cartridges, and trigger 1-click `0x00` LGPD/GDPR erasure:
 ```bash
 mos-store ui --model Qwen/Qwen2.5-3B-Instruct --remote auto
 ```
+
+> **Zero-Spike `MoS INT4+ASVD (r=128)` Student Engine ([`scar_cache/mos_student.py`](../scar_cache/mos_student.py)):**  
+> By default, both `mos-store ui` and `mos-store query` load the local student through our zero-spike `MoS` safetensors engine instead of Hugging Face's dense `from_pretrained().to(dev)` (`~12.4 GiB` `2×` CPU→GPU duplication spike). After a one-time local transcode (`~/.cache/mixture_of_scars/mos_students/`), **`Qwen/Qwen2.5-3B-Instruct` loads in `4.1–5.2 s` inside `3.49 GiB` active Metal VRAM + `0.55 GiB` CPU RSS** at **`~17+ tok/s`** (`0.78 GiB` VRAM on `Qwen/Qwen2.5-0.5B-Instruct` in `0.9–1.7 s`). Pass `--dense` if you ever wish to benchmark against dense FP16/BF16 weights.
 
 ### 1. Browse the Live Online Catalog (No GPU or Model Required)
 ```bash
