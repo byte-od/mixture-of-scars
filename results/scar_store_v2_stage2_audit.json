@@ -1,0 +1,44 @@
+{
+  "stage": "Stage 2 (v2.0.0a3) \u2014 Span-Max Multi-Cartridge Routing & Zero-Bleed SCache O(1) Orchestration",
+  "global_mean_on_3domain_prompt": {
+    "cosines": {
+      "titan72b_kabatiansky_levenshtein": 0.8043,
+      "titan72b_landauer_principle": 0.6926,
+      "titan72b_immerman_szelepcsenyi": 0.6151
+    },
+    "activated_capsules": [
+      "titan72b_kabatiansky_levenshtein",
+      "titan72b_landauer_principle"
+    ]
+  },
+  "span_max_forward_order_3domain": {
+    "query": "Briefly state three results: (1) the Kabatiansky-Levenshtein theorem for unit spheres, (2) Landauer's principle for erasing one bit at temperature T, and (3) the Immerman-Szelepcsenyi theorem for nondeterministic space complexity classes.",
+    "routing_cosines": {
+      "titan72b_kabatiansky_levenshtein": 0.8502,
+      "titan72b_landauer_principle": 0.8849,
+      "titan72b_immerman_szelepcsenyi": 0.868
+    },
+    "activated_capsules_ordered": [
+      "titan72b_kabatiansky_levenshtein",
+      "titan72b_landauer_principle",
+      "titan72b_immerman_szelepcsenyi"
+    ],
+    "mmap_bytes_read": 188160,
+    "total_latency_ms": 2735.13,
+    "composed_response": "(1) The Kabatiansky-Levenshtein theorem proves the existence of the tightest unit spheres that can be packed into\n(2) Landauer's principle states that the minimum energy required to erase one bit of information at temperature \\( T \\) is \\(\n(3) The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation"
+  },
+  "span_max_reverse_order_3domain": {
+    "query": "Explain in order: (1) what the Immerman-Szelepcsenyi theorem proves for nondeterministic space complexity classes, (2) what Landauer's principle states at temperature T, and (3) what the Kabatiansky-Levenshtein theorem proves for unit spheres.",
+    "activated_capsules_ordered": [
+      "titan72b_immerman_szelepcsenyi",
+      "titan72b_landauer_principle",
+      "titan72b_kabatiansky_levenshtein"
+    ],
+    "total_latency_ms": 2682.28,
+    "composed_response": "(1) The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation\n(2) Landauer's principle states that the minimum energy required to erase one bit of information at temperature \\( T \\) is \\(\n(3) The Kabatiansky-Levenshtein theorem proves the existence of the tightest unit spheres that can be achieved as"
+  },
+  "out_of_cone_controls_under_span_max": {
+    "max_control_cosine": 0.4922,
+    "exact_torch_equal_bit_parity": true
+  }
+}

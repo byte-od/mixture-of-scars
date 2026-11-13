@@ -21,3 +21,19 @@
 3. **Fragmentação Seletiva para Consumidor (`export_subset`) & Guarda Epistêmica (`MissingCapsuleAlert`):**
    * Permite exportar pacotes enxutos contendo apenas domínios selecionados (`0 bytes` de payload no disco para domínios omitidos), mantendo as coordenadas universais `(row_i, col_j)`.
    * Se uma consulta acionar uma coordenada ausente (`bitmap[i, j] == 0`), emite `MissingCapsuleAlert` explícito (ou aciona `on_demand_fetcher` para streaming `HTTP Range` de `61,25 KB`), impedindo alucinação silenciosa.
+
+---
+
+## ✅ Etapa 2 (`v2.0.0a3`): Roteamento Multi-Cartucho *Span-Max* + Orquestração `SCache O(1)` Sem Contaminação
+
+**Arquivos Canônicos:** [`scar_cache/scar_grafting.py`](../scar_cache/scar_grafting.py) (`extract_span_query_probes`) · [`scar_cache/scar_store_v2.py`](../scar_cache/scar_store_v2.py) (`generate_multi_capsule`) · [`tests/test_scar_store_v2_stage2.py`](../tests/test_scar_store_v2_stage2.py) · [`results/scar_store_v2_stage2_audit.json`](../results/scar_store_v2_stage2_audit.json)
+
+### 2.1. Eliminação da Diluição $1/\sqrt{K}$ em Perguntas Multi-Domínio
+* **Problema físico diagnosticado:** Em perguntas compostas por $K \ge 3$ tópicos distintos, uma única média global $\bar{\mathbf{q}}$ dilui o cosseno individual ($\text{Immerman-Szelepcsényi}$ caiu para `0,6151 < 0,62`, ficando desligado).
+* **Solução *Span-Max Sliding Window*:** Extrai janelas deslizantes normalizadas e centradas (`width = 10`, `stride = 3`) ao longo do turno do usuário e executa projeção Kronecker em lote sobre todas as janelas simultaneamente:
+  * Nos 3 teoremas combinados do `72.71B`, elevou os cossenos para **`0,8502`**, **`0,8849`** e **`0,8680`** (`3/3` cápsulas ativadas, lendo exatos `188.160 B = 183,75 KB` via `mmap`), detectando automaticamente a ordem exata no prompt tanto na direção direta (`K-L → Landauer → Immerman`) quanto na reversa (`Immerman → Landauer → K-L`).
+  * Manteve todos os 6 prompts de controle irrelevantes em `max_control_cosine = 0,4922 < 0,62` com **`exact_torch_equal_bit_parity = true` (`0.0000000000`)**.
+
+### 2.2. Isolamento de Atenção via Segmentação de Voronoi + `SCache O(1)`
+* Quando $M \ge 2$ cápsulas acendem em janelas distintas, `generate_multi_capsule(...)` particiona os tokens do prompt pelas fronteiras de Voronoi entre os centros de pico $(s_m + e_m)/2$ e executa cada sub-cláusula com sua cápsula dedicada (`gate = 1.0`) em um `SCacheDynamicCache` limpo (`2,68–2,73 s` totais para os 3 teoremas completos no Mac M2), eliminando `100%` da contaminação cruzada de atenção entre domínios.
+

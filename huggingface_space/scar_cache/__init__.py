@@ -31,9 +31,12 @@ from scar_cache.scar_grafting import (
     ScarCapsule,
     ScarGraftEngine,
     SleepEpisode,
+    extract_span_query_probes,
 )
 from scar_cache.scar_store_v2 import (
     MissingCapsuleAlert,
+    MultiCapsuleGenerationResult,
+    MultiCapsuleSegment,
     QuantizedScarCapsule,
     ScarStoreV2,
     dequantize_block64_int4,
@@ -66,7 +69,7 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 
-__version__ = "2.0.0a2"
+__version__ = "2.0.0a3"
 
 __all__ = [
     "SCache",
@@ -85,7 +88,10 @@ __all__ = [
     "ScarCapsule",
     "ScarBank",
     "ScarGraftEngine",
+    "extract_span_query_probes",
     "MissingCapsuleAlert",
+    "MultiCapsuleSegment",
+    "MultiCapsuleGenerationResult",
     "QuantizedScarCapsule",
     "ScarStoreV2",
     "quantize_block64_int4",

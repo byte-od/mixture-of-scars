@@ -179,6 +179,47 @@ def find_subsequence_last_end(seq_1d: Sequence[int], pattern: Optional[Sequence[
     return 0
 
 
+def extract_span_query_probes(
+    query_hidden_2d: torch.Tensor,
+    mu_query: torch.Tensor,
+    routing_mode: str = "span_max",
+    span_window: int = 10,
+    span_stride: int = 3,
+) -> Tuple[torch.Tensor, List[Tuple[int, int]]]:
+    """Extracts unit-normalized centered query probes `[N_probes, d]` and token spans `[(s, e), ...]`.
+
+    - `"global_mean"`: returns `[1, d]` single mean probe over `[0, L_u)`.
+    - `"span_max"`: includes the global mean probe PLUS sliding semantic windows of width
+      `span_window` (`10`) and stride `span_stride` (`3`), preventing `1 / sqrt(K)` cosine dilution
+      when complex multi-domain prompts invoke `K >= 2` capsules simultaneously!
+    """
+    lu = int(query_hidden_2d.shape[0])
+    hf = query_hidden_2d.float()
+    mu = mu_query.to(hf.device).float()
+
+    q_global = F.normalize(hf.mean(dim=0) - mu, dim=-1, eps=1e-8)
+    if routing_mode != "span_max" or lu < span_window + 4:
+        return q_global.unsqueeze(0), [(0, lu)]
+
+    probes: List[torch.Tensor] = [q_global]
+    spans: List[Tuple[int, int]] = [(0, lu)]
+    win = min(span_window, lu)
+    starts = list(range(0, max(1, lu - win + 1), max(1, span_stride)))
+    if (lu - win) not in starts:
+        starts.append(lu - win)
+    if lu > win + 5 and (lu - 5 - win) > 0 and (lu - 5 - win) not in starts:
+        starts.append(lu - 5 - win)
+    starts.sort()
+    for s in starts:
+        e = min(lu, s + win)
+        if e - s < 4:
+            continue
+        w_vec = F.normalize(hf[s:e].mean(dim=0) - mu, dim=-1, eps=1e-8)
+        probes.append(w_vec)
+        spans.append((s, e))
+    return torch.stack(probes, dim=0), spans
+
+
 def _past_kv_seen_length(past_key_values: Any) -> int:
     """Inspects `SCacheDynamicCache`, HF `Cache`, or legacy KV tuple to determine prior seen tokens."""
     if past_key_values is None:
@@ -214,6 +255,7 @@ class ScarBank(nn.Module):
         u_preserved: Optional[torch.Tensor] = None,
         user_turn_prefix_ids: Optional[Sequence[int]] = None,
         normalize_multi_gate: bool = True,
+        routing_mode: str = "span_max",
     ) -> None:
         super().__init__()
         if hidden_dim <= 0:
@@ -223,6 +265,7 @@ class ScarBank(nn.Module):
             [int(x) for x in user_turn_prefix_ids] if user_turn_prefix_ids else None
         )
         self.normalize_multi_gate = bool(normalize_multi_gate)
+        self.routing_mode: str = str(routing_mode)
 
         mu_q = torch.zeros(self.hidden_dim, dtype=torch.float32) if mu_query is None else mu_query.detach().float().clone()
         mu_h = torch.zeros(self.hidden_dim, dtype=torch.float32) if mu_hidden is None else mu_hidden.detach().float().clone()
@@ -381,10 +424,14 @@ class ScarBank(nn.Module):
             return []
 
         self._sync_all_devices(query_hidden_2d.device)
-        q_mean = query_hidden_2d.float().mean(dim=0)
-        q_unit = F.normalize(q_mean - self.mu_query, dim=-1, eps=1e-8)
-
-        cos_vec = torch.mv(self._z_matrix, q_unit)  # Single GEMV across all K capsules!
+        probes_2d, _ = extract_span_query_probes(
+            query_hidden_2d=query_hidden_2d,
+            mu_query=self.mu_query,
+            routing_mode=self.routing_mode,
+        )
+        # Batched `[N_probes, K]` cosine evaluation -> max across semantic spans!
+        cos_mat = torch.matmul(probes_2d, self._z_matrix.T)
+        cos_vec = cos_mat.amax(dim=0)
         raw_gates = torch.clamp((cos_vec - self._tau_vec) / self._ramp_vec, min=0.0, max=1.0)
 
         cos_cpu = cos_vec.tolist()

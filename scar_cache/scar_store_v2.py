@@ -29,18 +29,21 @@ import math
 import mmap
 from pathlib import Path
 import struct
+import time
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from scar_cache.hf_cache import SCacheDynamicCache
 from scar_cache.scar_grafting import (
     ScarBank,
     ScarCapsule,
     _extract_backbone_and_norm,
     _infer_model_device,
     _past_kv_seen_length,
+    extract_span_query_probes,
     find_subsequence_last_end,
 )
 
@@ -100,6 +103,31 @@ class MissingCapsuleAlert:
     capsule_id: str
     coarse_cosine: float
     tau: float
+
+
+@dataclass(frozen=True)
+class MultiCapsuleSegment:
+    """Per-capsule execution trace inside a complex multi-domain query."""
+
+    capsule_id: str
+    span_tokens: Tuple[int, int]
+    peak_cosine: float
+    clause_text: str
+    generated_text: str
+    generated_ids: List[int]
+
+
+@dataclass
+class MultiCapsuleGenerationResult:
+    """Structured result from `ScarStoreV2.generate_multi_capsule(...)`."""
+
+    text: str
+    segments: List[MultiCapsuleSegment]
+    activated_capsules_ordered: List[str]
+    routing_cosines: Dict[str, float]
+    mmap_bytes_read: int
+    missing_alerts: List[MissingCapsuleAlert]
+    total_latency_ms: float
 
 
 @dataclass
@@ -328,8 +356,12 @@ class ScarStoreV2(nn.Module):
         self._active_turn_capsules: List[Tuple[ScarCapsule, float]] = []
 
         # Live runtime telemetry
+        self.routing_mode: str = "span_max"
+        self.span_window: int = 10
+        self.span_stride: int = 3
         self.last_routing_cosines: Dict[str, float] = {}
         self.last_active_gates: Dict[str, float] = {}
+        self.last_capsule_span_order: List[Tuple[str, Tuple[int, int], float]] = []
         self.last_mmap_bytes_read: int = 0
         self.last_missing_alerts: List[MissingCapsuleAlert] = []
         self.strict_missing_guard: bool = False
@@ -340,6 +372,7 @@ class ScarStoreV2(nn.Module):
         self._current_pass_is_prefill: bool = True
         self._current_query_start: int = 0
         self._tf_prompt_len: Optional[int] = None
+        self._forced_capsules: Optional[List[Tuple[ScarCapsule, float]]] = None
         self._paused: bool = False
 
     def close(self) -> None:
@@ -717,9 +750,10 @@ class ScarStoreV2(nn.Module):
         query_hidden_2d: torch.Tensor,
         top_coarse_m: int = 8,
     ) -> List[Tuple[ScarCapsule, float]]:
-        """Executes Auto-Tiered Kronecker Routing + `98 KB` Presence Bitmap Check + Zero-Copy `mmap` Page Load."""
+        """Executes Auto-Tiered Batched `Span-Max` Kronecker Routing + `98 KB` Presence Bitmap + `mmap` Page Load."""
         self.last_routing_cosines = {}
         self.last_active_gates = {}
+        self.last_capsule_span_order = []
         self.last_mmap_bytes_read = 0
         self.last_missing_alerts = []
 
@@ -730,108 +764,127 @@ class ScarStoreV2(nn.Module):
         if self.mu_query.device != dev:
             self.to(dev)
 
-        q_mean = query_hidden_2d.float().mean(dim=0)
-        q_unit = F.normalize(q_mean - self.mu_query, dim=-1, eps=1e-8)
+        probes_2d, probe_spans = extract_span_query_probes(
+            query_hidden_2d=query_hidden_2d,
+            mu_query=self.mu_query,
+            routing_mode=self.routing_mode,
+            span_window=self.span_window,
+            span_stride=self.span_stride,
+        )
+        n_probes = int(probes_2d.shape[0])
+        # Prefer localized sliding windows (indices 1..N-1) when determining prompt order, falling back to probe 0
+        has_local_spans = n_probes > 1
 
-        activated_slots: List[Tuple[int, float]] = []
+        # (slot_or_neg_id, gate_val, best_span_tuple, best_cos)
+        activated_records: List[Tuple[int, float, Tuple[int, int], float]] = []
 
         if self.routing_tier == "flat" and not self._global_directory:
             if self.num_installed_slots == 0:
                 return []
-            cos_vec = torch.mv(self.z_anchors_installed, q_unit)
+            cos_mat = torch.matmul(probes_2d, self.z_anchors_installed.T)  # [N_probes, S]
+            cos_vec, best_p = cos_mat.max(dim=0)
+            if has_local_spans:
+                _, local_best_p = cos_mat[1:].max(dim=0)
+                span_indices = (local_best_p + 1).tolist()
+            else:
+                span_indices = best_p.tolist()
             raw_g = torch.clamp((cos_vec - self._tau_installed) / self._ramp_installed, min=0.0, max=1.0)
             for s_idx, desc in enumerate(self._slot_descriptors):
                 c_val = float(cos_vec[s_idx].item())
                 g_val = float(raw_g[s_idx].item())
                 self.last_routing_cosines[str(desc["capsule_id"])] = c_val
                 if g_val > 0.0:
-                    activated_slots.append((s_idx, g_val))
+                    activated_records.append((s_idx, g_val, probe_spans[span_indices[s_idx]], c_val))
         else:
-            # Stage 1: Coarse 896x896 Kronecker Dual-Subspace Grid (`802,816` addresses!)
+            # Stage 1: Batched 896x896 Kronecker Dual-Subspace Grid across all `N_probes` spans!
             half_d = self.hidden_dim // 2
-            q_rot = torch.mv(self.R_rot, q_unit)
-            nq1 = float(q_rot[:half_d].norm().item())
-            nq2 = float(q_rot[half_d:].norm().item())
-            q1 = q_rot[:half_d] / max(nq1, 1e-8)
-            q2 = q_rot[half_d:] / max(nq2, 1e-8)
+            q_rot = torch.matmul(probes_2d, self.R_rot.T)  # [P, d]
+            nq1 = q_rot[:, :half_d].norm(dim=-1, keepdim=True).clamp(min=1e-8)  # [P, 1]
+            nq2 = q_rot[:, half_d:].norm(dim=-1, keepdim=True).clamp(min=1e-8)  # [P, 1]
+            q1 = q_rot[:, :half_d] / nq1
+            q2 = q_rot[:, half_d:] / nq2
 
-            s1 = torch.mv(self.U_codebook, q1)  # [d]
-            s2 = torch.mv(self.V_codebook, q2)  # [d]
+            s1_mat = torch.matmul(q1, self.U_codebook.T)  # [P, d]
+            s2_mat = torch.matmul(q2, self.V_codebook.T)  # [P, d]
 
             m = min(top_coarse_m, self.hidden_dim)
-            top_r = s1.topk(m)
-            top_c = s2.topk(m)
-            r_idx = top_r.indices.tolist()
-            c_idx = top_c.indices.tolist()
+            top_r = s1_mat.topk(m, dim=-1).indices.tolist()
+            top_c = s2_mat.topk(m, dim=-1).indices.tolist()
 
             candidate_installed_slots: set[int] = set()
-            for ri in r_idx:
-                for cj in c_idx:
-                    coord = (ri, cj)
-                    flat_bit = ri * self.hidden_dim + cj
-                    is_present = _bitmap_get(self.presence_bitmap, flat_bit)
-                    if is_present and coord in self._coord_to_slot:
-                        candidate_installed_slots.add(self._coord_to_slot[coord])
-                    elif not is_present and coord in self._global_directory:
-                        # Registered domain exists in the global directory, check coarse score!
-                        g_meta = self._global_directory[coord]
-                        w1 = float(g_meta.get("w1", math.sqrt(0.5)))
-                        w2 = float(g_meta.get("w2", math.sqrt(0.5)))
-                        coarse_cos = nq1 * w1 * float(s1[ri].item()) + nq2 * w2 * float(s2[cj].item())
-                        tau_g = float(g_meta["tau"])
-                        cid_g = str(g_meta["capsule_id"])
-                        self.last_routing_cosines[cid_g] = coarse_cos
-                        if coarse_cos > tau_g:
-                            # Optional Cloud HTTP-Range On-Demand Fetch (`61.25 KB` streaming!)
-                            if cid_g in self._hot_fetched_capsules:
-                                cap_hot = self._hot_fetched_capsules[cid_g].to_device(dev)
-                                exact_c = float(torch.dot(cap_hot.z_anchor.float(), q_unit).item())
-                                self.last_routing_cosines[cid_g] = exact_c
-                                g_hot = max(0.0, min(1.0, (exact_c - cap_hot.tau) / cap_hot.ramp))
-                                if g_hot > 0.0:
-                                    activated_slots.append((-1 - len(activated_slots), g_hot))
-                                    self._hot_fetched_capsules[f"__slot_{activated_slots[-1][0]}"] = cap_hot
-                            elif self.on_demand_fetcher is not None:
-                                fetched_bytes = self.on_demand_fetcher(coord, cid_g)
-                                if fetched_bytes is not None:
-                                    self.last_mmap_bytes_read += len(fetched_bytes)
-                                    qc_f = QuantizedScarCapsule.from_bytes(
-                                        raw_bytes=fetched_bytes,
-                                        capsule_id=cid_g,
-                                        hidden_dim=self.hidden_dim,
-                                        rank=self.rank,
-                                        tau=tau_g,
-                                        ramp=float(g_meta["ramp"]),
-                                        coord=coord,
-                                    )
-                                    cap_f = qc_f.dequantize(device=dev, dtype=torch.float16)
-                                    self._hot_fetched_capsules[cid_g] = cap_f
-                                    exact_c = float(torch.dot(cap_f.z_anchor.float(), q_unit).item())
-                                    self.last_routing_cosines[cid_g] = exact_c
-                                    g_f = max(0.0, min(1.0, (exact_c - cap_f.tau) / cap_f.ramp))
-                                    if g_f > 0.0:
-                                        neg_id = -1 - len(activated_slots)
-                                        activated_slots.append((neg_id, g_f))
-                                        self._hot_fetched_capsules[f"__slot_{neg_id}"] = cap_f
-                                else:
-                                    self.last_missing_alerts.append(
-                                        MissingCapsuleAlert(coord=coord, capsule_id=cid_g, coarse_cosine=coarse_cos, tau=tau_g)
-                                    )
-                            else:
-                                self.last_missing_alerts.append(
-                                    MissingCapsuleAlert(coord=coord, capsule_id=cid_g, coarse_cosine=coarse_cos, tau=tau_g)
-                                )
+            candidate_missing_coords: set[Tuple[int, int]] = set()
+            for p_i in range(n_probes):
+                for ri in top_r[p_i]:
+                    for cj in top_c[p_i]:
+                        coord = (ri, cj)
+                        flat_bit = ri * self.hidden_dim + cj
+                        is_present = _bitmap_get(self.presence_bitmap, flat_bit)
+                        if is_present and coord in self._coord_to_slot:
+                            candidate_installed_slots.add(self._coord_to_slot[coord])
+                        elif not is_present and coord in self._global_directory:
+                            candidate_missing_coords.add(coord)
 
-            # Stage 2: Exact `z_anchor` cone verification ONLY on candidate installed slots!
+            # Evaluate any candidate missing / cloud-streamed coordinates across all spans
+            for coord in sorted(candidate_missing_coords):
+                ri, cj = coord
+                g_meta = self._global_directory[coord]
+                w1 = float(g_meta.get("w1", math.sqrt(0.5)))
+                w2 = float(g_meta.get("w2", math.sqrt(0.5)))
+                coarse_vec = (nq1.squeeze(-1) * w1 * s1_mat[:, ri]) + (nq2.squeeze(-1) * w2 * s2_mat[:, cj])
+                coarse_cos = float(coarse_vec.max().item())
+                p_best = int(coarse_vec[1:].argmax().item() + 1) if has_local_spans else int(coarse_vec.argmax().item())
+                best_span = probe_spans[p_best]
+                tau_g = float(g_meta["tau"])
+                cid_g = str(g_meta["capsule_id"])
+                self.last_routing_cosines[cid_g] = coarse_cos
+
+                if coarse_cos > tau_g:
+                    cap_stream: Optional[ScarCapsule] = None
+                    if cid_g in self._hot_fetched_capsules:
+                        cap_stream = self._hot_fetched_capsules[cid_g].to_device(dev)
+                    elif self.on_demand_fetcher is not None:
+                        fetched_bytes = self.on_demand_fetcher(coord, cid_g)
+                        if fetched_bytes is not None:
+                            self.last_mmap_bytes_read += len(fetched_bytes)
+                            qc_f = QuantizedScarCapsule.from_bytes(
+                                raw_bytes=fetched_bytes,
+                                capsule_id=cid_g,
+                                hidden_dim=self.hidden_dim,
+                                rank=self.rank,
+                                tau=tau_g,
+                                ramp=float(g_meta["ramp"]),
+                                coord=coord,
+                            )
+                            cap_stream = qc_f.dequantize(device=dev, dtype=torch.float16)
+                            self._hot_fetched_capsules[cid_g] = cap_stream
+
+                    if cap_stream is not None:
+                        exact_vec = torch.mv(probes_2d, cap_stream.z_anchor.float())
+                        exact_c = float(exact_vec.max().item())
+                        pb = int(exact_vec[1:].argmax().item() + 1) if has_local_spans else int(exact_vec.argmax().item())
+                        self.last_routing_cosines[cid_g] = exact_c
+                        g_f = max(0.0, min(1.0, (exact_c - cap_stream.tau) / cap_stream.ramp))
+                        if g_f > 0.0:
+                            neg_id = -1 - len(activated_records)
+                            activated_records.append((neg_id, g_f, probe_spans[pb], exact_c))
+                            self._hot_fetched_capsules[f"__slot_{neg_id}"] = cap_stream
+                    else:
+                        self.last_missing_alerts.append(
+                            MissingCapsuleAlert(coord=coord, capsule_id=cid_g, coarse_cosine=coarse_cos, tau=tau_g)
+                        )
+
+            # Stage 2: Exact `z_anchor` cone verification across `probes_2d` for candidate installed slots!
             for s_idx in sorted(candidate_installed_slots):
                 desc = self._slot_descriptors[s_idx]
-                exact_cos = float(torch.dot(self.z_anchors_installed[s_idx], q_unit).item())
+                exact_vec = torch.mv(probes_2d, self.z_anchors_installed[s_idx])  # [P]
+                exact_cos = float(exact_vec.max().item())
+                p_best = int(exact_vec[1:].argmax().item() + 1) if has_local_spans else int(exact_vec.argmax().item())
                 tau_s = float(desc["tau"])
                 ramp_s = float(desc["ramp"])
                 self.last_routing_cosines[str(desc["capsule_id"])] = exact_cos
                 g_val = max(0.0, min(1.0, (exact_cos - tau_s) / ramp_s))
                 if g_val > 0.0:
-                    activated_slots.append((s_idx, g_val))
+                    activated_records.append((s_idx, g_val, probe_spans[p_best], exact_cos))
 
         if self.strict_missing_guard and self.last_missing_alerts:
             a0 = self.last_missing_alerts[0]
@@ -840,21 +893,25 @@ class ScarStoreV2(nn.Module):
                 f"at Kronecker coordinate {a0.coord} (cosine={a0.coarse_cosine:.4f} > tau={a0.tau:.4f})"
             )
 
-        if not activated_slots:
+        if not activated_records:
             return []
 
-        if len(activated_slots) > 1:
-            g_sum = sum(g for _, g in activated_slots)
+        # Sort activated records by prompt appearance center `(s_start + s_end) / 2`!
+        activated_records.sort(key=lambda rec: (rec[2][0] + rec[2][1]) * 0.5)
+
+        if len(activated_records) > 1:
+            g_sum = sum(rec[1] for rec in activated_records)
             if g_sum > 1.0:
-                activated_slots = [(s, g / g_sum) for s, g in activated_slots]
+                activated_records = [(s, g / g_sum, sp, cs) for s, g, sp, cs in activated_records]
 
         paged: List[Tuple[ScarCapsule, float]] = []
-        for s_idx, g_val in activated_slots:
+        for s_idx, g_val, sp_tuple, cs_val in activated_records:
             if s_idx >= 0:
                 cap = self.load_slot_capsule(s_idx, device=dev)
             else:
                 cap = self._hot_fetched_capsules.pop(f"__slot_{s_idx}")
             self.last_active_gates[cap.capsule_id] = g_val
+            self.last_capsule_span_order.append((cap.capsule_id, sp_tuple, cs_val))
             paged.append((cap, g_val))
         return paged
 
@@ -898,6 +955,17 @@ class ScarStoreV2(nn.Module):
         seq_len = int(out_3d.shape[1])
         if seq_len == 0:
             return output
+
+        if self._forced_capsules is not None:
+            active_f = self._forced_capsules
+            if not active_f:
+                return output
+            if self._current_pass_is_prefill and self._tf_prompt_len is None:
+                out_mod = out_3d.clone()
+                out_mod[:, -1:, :] = self._apply_paged_capsules(out_3d[:, -1:, :], active_f)
+                return out_mod.squeeze(0) if squeezed else out_mod
+            out_mod = self._apply_paged_capsules(out_3d, active_f)
+            return out_mod.squeeze(0) if squeezed else out_mod
 
         if self._tf_prompt_len is not None:
             lp = max(1, min(int(self._tf_prompt_len), seq_len))
@@ -945,6 +1013,24 @@ class ScarStoreV2(nn.Module):
         self._active_turn_capsules = []
 
     @contextmanager
+    def paused(self) -> Iterator[None]:
+        prev = self._paused
+        self._paused = True
+        try:
+            yield
+        finally:
+            self._paused = prev
+
+    @contextmanager
+    def forced_capsules_scope(self, capsules_and_gates: List[Tuple[ScarCapsule, float]]) -> Iterator[None]:
+        prev = self._forced_capsules
+        self._forced_capsules = list(capsules_and_gates)
+        try:
+            yield
+        finally:
+            self._forced_capsules = prev
+
+    @contextmanager
     def teacher_forcing_scope(self, prompt_len: int) -> Iterator[None]:
         prev = self._tf_prompt_len
         self._tf_prompt_len = int(prompt_len)
@@ -952,3 +1038,188 @@ class ScarStoreV2(nn.Module):
             yield
         finally:
             self._tf_prompt_len = prev
+
+    @torch.no_grad()
+    def _greedy_scache_stream(
+        self,
+        student_model: nn.Module,
+        prompt_ids_2d: torch.Tensor,
+        max_new_tokens: int,
+        eos_token_ids: Sequence[int],
+    ) -> List[int]:
+        """Autoregressive greedy decode strictly backed by constant-memory `SCacheDynamicCache` (`O(1)`)."""
+        eos_set = set(int(x) for x in eos_token_ids)
+        scache = SCacheDynamicCache(window_size=256, num_slots=64)
+        out_logits = student_model(prompt_ids_2d, past_key_values=scache, use_cache=True).logits[:, -1, :]
+        nxt = int(out_logits.float().argmax(dim=-1).item())
+        emitted: List[int] = [nxt]
+        if nxt in eos_set:
+            return emitted
+        dev = prompt_ids_2d.device
+        for _ in range(max_new_tokens - 1):
+            step_in = torch.tensor([[nxt]], dtype=torch.long, device=dev)
+            lg = student_model(step_in, past_key_values=scache, use_cache=True).logits[:, -1, :]
+            nxt = int(lg.float().argmax(dim=-1).item())
+            if nxt in eos_set:
+                break
+            emitted.append(nxt)
+        return emitted
+
+    @torch.no_grad()
+    def generate_multi_capsule(
+        self,
+        student_model: nn.Module,
+        prompt_ids_1d: Optional[torch.Tensor] = None,
+        query_text: Optional[str] = None,
+        tokenizer: Any = None,
+        chat_formatter: Optional[Callable[[str], str]] = None,
+        max_new_tokens_per_capsule: int = 28,
+        eos_token_ids: Optional[Sequence[int]] = None,
+    ) -> MultiCapsuleGenerationResult:
+        """Stage 2 Multi-Cartridge Orchestrator (`Span-Max` Discovery + Zero-Bleed `SCache O(1)` Execution).
+
+        1. Runs a single clean prefill pass over the complex multi-domain prompt using `Span-Max`
+           sliding windows (`0` $1/\\sqrt{K}$ cosine dilution across `2..8+` distinct topics!).
+        2. If `0` or `1` capsule fires, executes a single `SCacheDynamicCache` stream (`0` overhead).
+        3. If `M >= 2` capsules fire across ordered prompt spans `[(s_1, e_1), ..., (s_M, e_M)]`,
+           extracts each topic's local neural token clause and executes it with `gate = 1.0` on
+           `cap_m` inside a fresh `SCacheDynamicCache` (`O(1)` memory) — **eliminating 100% of
+           cross-attention token contamination** across distinct knowledge cartridges!
+        """
+        t0 = time.perf_counter()
+        dev = _infer_model_device(student_model)
+        self.to(dev)
+
+        if prompt_ids_1d is None:
+            if query_text is None or tokenizer is None:
+                raise ValueError("Provide either `prompt_ids_1d` or `(query_text, tokenizer)`")
+            formatted = chat_formatter(query_text) if chat_formatter is not None else query_text
+            p_ids_1d = tokenizer(formatted, return_tensors="pt").input_ids[0].to(dev)
+        else:
+            p_ids_1d = prompt_ids_1d.to(dev)
+
+        eos_list: List[int] = list(eos_token_ids) if eos_token_ids is not None else []
+        if not eos_list and tokenizer is not None and getattr(tokenizer, "eos_token_id", None) is not None:
+            eos_list = [int(tokenizer.eos_token_id)]
+
+        was_attached = self._norm_hook_handle is not None
+        if not was_attached:
+            self.attach(student_model)
+
+        try:
+            backbone, norm_mod, _ = _extract_backbone_and_norm(student_model)
+            q_start = find_subsequence_last_end(p_ids_1d.tolist(), self.user_turn_prefix_ids)
+            with self.paused():
+                raw_out = backbone(p_ids_1d.unsqueeze(0), use_cache=False)
+                h_full = raw_out[0] if isinstance(raw_out, tuple) else getattr(raw_out, "last_hidden_state", raw_out)
+                if h_full.ndim == 2:
+                    h_full = h_full.unsqueeze(0)
+                # Note: backbone in HF already includes final norm (`self.norm(hidden_states)`)!
+
+            q_slice = h_full[0, min(q_start, int(p_ids_1d.numel()) - 1) :, :]
+            paged = self.route_and_page_query(q_slice)
+            span_order = list(self.last_capsule_span_order)
+            routing_cos = dict(self.last_routing_cosines)
+            mmap_bytes = int(self.last_mmap_bytes_read)
+            missing_alerts = list(self.last_missing_alerts)
+
+            # Case A: Out-of-cone (`0` capsules) or Single-Capsule (`1` capsule)
+            if len(paged) <= 1:
+                forced = [(paged[0][0], 1.0)] if len(paged) == 1 else []
+                with self.forced_capsules_scope(forced):
+                    gen_ids = self._greedy_scache_stream(
+                        student_model=student_model,
+                        prompt_ids_2d=p_ids_1d.unsqueeze(0),
+                        max_new_tokens=max_new_tokens_per_capsule,
+                        eos_token_ids=eos_list,
+                    )
+                txt = tokenizer.decode(gen_ids, skip_special_tokens=True) if tokenizer is not None else ""
+                segs: List[MultiCapsuleSegment] = []
+                if len(paged) == 1:
+                    cid0, sp0, cs0 = span_order[0]
+                    segs.append(
+                        MultiCapsuleSegment(
+                            capsule_id=cid0,
+                            span_tokens=sp0,
+                            peak_cosine=cs0,
+                            clause_text=query_text or "",
+                            generated_text=txt,
+                            generated_ids=gen_ids,
+                        )
+                    )
+                return MultiCapsuleGenerationResult(
+                    text=txt,
+                    segments=segs,
+                    activated_capsules_ordered=[c.capsule_id for c, _ in paged],
+                    routing_cosines=routing_cos,
+                    mmap_bytes_read=mmap_bytes,
+                    missing_alerts=missing_alerts,
+                    total_latency_ms=(time.perf_counter() - t0) * 1000.0,
+                )
+
+            # Case B: `M >= 2` Distinct Cartridges Triggered Across Prompt Spans!
+            cap_by_id = {cap.capsule_id: cap for cap, _ in paged}
+            user_end = max(q_start + 1, int(p_ids_1d.numel()) - (5 if int(p_ids_1d.numel()) - q_start > 15 else 0))
+            user_token_ids = p_ids_1d[q_start:user_end]
+            lu = int(user_token_ids.numel())
+
+            # Compute Voronoi span boundaries midway between consecutive capsule peak centers!
+            centers = [0.5 * (sp[0] + sp[1]) for _, sp, _ in span_order]
+            bounds: List[Tuple[int, int]] = []
+            for idx in range(len(span_order)):
+                left = 0 if idx == 0 else max(0, int(round(0.5 * (centers[idx - 1] + centers[idx]))))
+                right = lu if idx == len(span_order) - 1 else min(lu, max(left + 4, int(round(0.5 * (centers[idx] + centers[idx + 1])))))
+                bounds.append((left, right))
+
+            segments: List[MultiCapsuleSegment] = []
+            composed_parts: List[str] = []
+
+            for idx, (cid, sp_tuple, peak_cos) in enumerate(span_order):
+                cap_m = cap_by_id[cid]
+                b_left, b_right = bounds[idx]
+                sub_toks = user_token_ids[b_left:b_right]
+
+                if tokenizer is not None and chat_formatter is not None:
+                    raw_clause = tokenizer.decode(sub_toks, skip_special_tokens=True).strip(" \n\t,;:.()")
+                    # Clean leading list markers like "1)", "(2)", "and (3)"
+                    for pref in ["and ", "or ", "1)", "2)", "3)", "4)", "(1)", "(2)", "(3)", "(4)"]:
+                        if raw_clause.lower().startswith(pref):
+                            raw_clause = raw_clause[len(pref) :].strip(" ,;:.()")
+                    sub_query = f"Explain concisely {raw_clause}."
+                    sub_prompt_ids = tokenizer(chat_formatter(sub_query), return_tensors="pt").input_ids[0].to(dev)
+                else:
+                    raw_clause = f"span_{b_left}_{b_right}"
+                    sub_prompt_ids = sub_toks if sub_toks.numel() >= 2 else user_token_ids
+
+                with self.forced_capsules_scope([(cap_m, 1.0)]):
+                    seg_ids = self._greedy_scache_stream(
+                        student_model=student_model,
+                        prompt_ids_2d=sub_prompt_ids.unsqueeze(0),
+                        max_new_tokens=max_new_tokens_per_capsule,
+                        eos_token_ids=eos_list,
+                    )
+                seg_txt = tokenizer.decode(seg_ids, skip_special_tokens=True).strip() if tokenizer is not None else str(seg_ids)
+                segments.append(
+                    MultiCapsuleSegment(
+                        capsule_id=cid,
+                        span_tokens=(b_left, b_right),
+                        peak_cosine=peak_cos,
+                        clause_text=raw_clause,
+                        generated_text=seg_txt,
+                        generated_ids=seg_ids,
+                    )
+                )
+                composed_parts.append(f"({idx + 1}) {seg_txt}")
+
+            return MultiCapsuleGenerationResult(
+                text="\n".join(composed_parts),
+                segments=segments,
+                activated_capsules_ordered=[s.capsule_id for s in segments],
+                routing_cosines=routing_cos,
+                mmap_bytes_read=mmap_bytes,
+                missing_alerts=missing_alerts,
+                total_latency_ms=(time.perf_counter() - t0) * 1000.0,
+            )
+        finally:
+            if not was_attached:
+                self.detach()
