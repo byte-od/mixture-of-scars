@@ -1,0 +1,133 @@
+{
+  "stage": "Stage 3 (v2.0.0) — Dual-Depth Golden-Slice Grafting & Interdisciplinary Sleep Bridge",
+  "student_model": "Qwen/Qwen2.5-0.5B-Instruct (24 layers, d=896)",
+  "teacher_source": "Qwen2.5-72B-Instruct-MoS (72.71B real cached episodes)",
+  "golden_slice_mid_layer": "Layer 12 / 24 (mid_layer_idx=11)",
+  "zero_autograd_verified": true,
+  "calibration_ms": 708.48,
+  "capsules": {
+    "titan72b_kabatiansky_levenshtein": {
+      "int4_bytes": 62720,
+      "int4_kb": 61.25,
+      "rank_mid": 32,
+      "rank_final": 32,
+      "solve_ms": 2011.061,
+      "zero_backpropagation": true
+    },
+    "titan72b_landauer_principle": {
+      "int4_bytes": 62720,
+      "int4_kb": 61.25,
+      "rank_mid": 32,
+      "rank_final": 32,
+      "solve_ms": 1955.965,
+      "zero_backpropagation": true
+    },
+    "titan72b_immerman_szelepcsenyi": {
+      "int4_bytes": 62720,
+      "int4_kb": 61.25,
+      "rank_mid": 32,
+      "rank_final": 32,
+      "solve_ms": 1857.709,
+      "zero_backpropagation": true
+    }
+  },
+  "out_of_cone_invariance": {
+    "num_controls": 6,
+    "exact_torch_equal_layer20": true,
+    "exact_torch_equal_logits": true,
+    "max_control_cosine_layer12": 0.4355,
+    "tau": 0.7
+  },
+  "unseen_paraphrase_72b_fidelity": {
+    "titan72b_kabatiansky_levenshtein": {
+      "routing_cosine_layer12": 0.8606,
+      "active_gates": {
+        "titan72b_kabatiansky_levenshtein": 0.7156969578365131,
+        "titan72b_immerman_szelepcsenyi": 0.2843030421634869
+      },
+      "base_top1_pct": 83.33,
+      "dual_depth_int4_top1_pct": 91.67,
+      "base_kl_div": 0.6181,
+      "dual_depth_int4_kl_div": 0.3412,
+      "live_scache_text": "The Kabatiansky-Levenshtein theorem establishes an upper bound on the number of non-overlapping unit spheres that",
+      "titan_72b_ref_text": "The Kabatiansky-Levenshtein theorem provides an upper bound on the number of points that can be placed on",
+      "live_tok_per_s": 20.19
+    },
+    "titan72b_landauer_principle": {
+      "routing_cosine_layer12": 0.8848,
+      "active_gates": {
+        "titan72b_landauer_principle": 1.0
+      },
+      "base_top1_pct": 91.67,
+      "dual_depth_int4_top1_pct": 95.83,
+      "base_kl_div": 0.2934,
+      "dual_depth_int4_kl_div": 0.0445,
+      "live_scache_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit at temperature \\( T \\) is \\(",
+      "titan_72b_ref_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\)",
+      "live_tok_per_s": 20.3
+    },
+    "titan72b_immerman_szelepcsenyi": {
+      "routing_cosine_layer12": 0.9112,
+      "active_gates": {
+        "titan72b_kabatiansky_levenshtein": 0.08332753829719805,
+        "titan72b_immerman_szelepcsenyi": 0.9166724617028019
+      },
+      "base_top1_pct": 87.5,
+      "dual_depth_int4_top1_pct": 100.0,
+      "base_kl_div": 0.4757,
+      "dual_depth_int4_kl_div": 0.0364,
+      "live_scache_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+      "titan_72b_ref_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+      "live_tok_per_s": 20.13
+    }
+  },
+  "interdisciplinary_bridge_audit": {
+    "unseen_synthesis_query": "By uniting Landauer's principle at temperature T with the Immerman-Szelepcsenyi theorem for NSPACE(s(n)), what minimum thermodynamic heat must be dissipated to irreversibly erase m bits during nondeterministic space complementation?",
+    "upper_transformer_cross_attn_l2_delta": 1.388,
+    "pre_sleep_decision": {
+      "active_capsules": [
+        "titan72b_landauer_principle",
+        "titan72b_immerman_szelepcsenyi"
+      ],
+      "confidence": 0.8398,
+      "uncertainty": 0.0345,
+      "margin": 0.7053,
+      "is_uncertain": true,
+      "latency_ms": 1432.713,
+      "pre_sleep_text": "The minimum thermodynamic heat required to irreversibly erase \\( m \\) bits during nondeterministic space complementation at temperature \\( T \\) is \\( T \\cdot m \\) Joules."
+    },
+    "bridge_capsule": {
+      "capsule_id": "bridge_landauer__immerman",
+      "parent_capsules": [
+        "titan72b_landauer_principle",
+        "titan72b_immerman_szelepcsenyi"
+      ],
+      "int4_bytes": 62720,
+      "int4_kb": 61.25,
+      "solve_ms": 4038.316
+    },
+    "post_sleep_decision": {
+      "active_capsules": [
+        "bridge_landauer__immerman"
+      ],
+      "confidence": 0.9788,
+      "uncertainty": 0.0123,
+      "margin": 0.9702,
+      "is_uncertain": false,
+      "latency_ms": 1390.496,
+      "post_sleep_text": "By the Immerman-Szelepcsenyi theorem, the minimum thermodynamic heat required to irreversibly erase m bits during nondeterministic space complementation at temperature T is m kBT, where k is the Boltzmann",
+      "tok_per_s": 20.87
+    },
+    "zero_single_domain_bleed": {
+      "landauer_active_gates": {
+        "titan72b_landauer_principle": 1.0
+      },
+      "landauer_exact_text_match": true,
+      "immerman_active_gates": {
+        "titan72b_kabatiansky_levenshtein": 0.08332753829719805,
+        "titan72b_immerman_szelepcsenyi": 0.9166724617028019
+      },
+      "immerman_exact_text_match": true
+    }
+  }
+}

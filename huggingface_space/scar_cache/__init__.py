@@ -42,6 +42,13 @@ from scar_cache.scar_store_v2 import (
     dequantize_block64_int4,
     quantize_block64_int4,
 )
+from scar_cache.dual_depth_bridge import (
+    BridgeEscalationDecision,
+    DualDepthBridgeEngine,
+    DualDepthScarBank,
+    DualDepthScarCapsule,
+    extract_mid_and_final_modules,
+)
 from scar_cache.speculative_ghost_jump import (
     GhostJumpGenerationResult,
     GhostJumpReflexDecision,
@@ -69,7 +76,7 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 
-__version__ = "2.0.0a3"
+__version__ = "2.0.0"
 
 __all__ = [
     "SCache",
@@ -96,6 +103,11 @@ __all__ = [
     "ScarStoreV2",
     "quantize_block64_int4",
     "dequantize_block64_int4",
+    "BridgeEscalationDecision",
+    "DualDepthScarCapsule",
+    "DualDepthScarBank",
+    "DualDepthBridgeEngine",
+    "extract_mid_and_final_modules",
     "SUB2BIT_BETA",
     "Sub2BitDecompositionStats",
     "Sub2BitMoSLinear",

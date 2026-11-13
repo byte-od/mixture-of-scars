@@ -37,3 +37,26 @@
 ### 2.2. Isolamento de Atenção via Segmentação de Voronoi + `SCache O(1)`
 * Quando $M \ge 2$ cápsulas acendem em janelas distintas, `generate_multi_capsule(...)` particiona os tokens do prompt pelas fronteiras de Voronoi entre os centros de pico $(s_m + e_m)/2$ e executa cada sub-cláusula com sua cápsula dedicada (`gate = 1.0`) em um `SCacheDynamicCache` limpo (`2,68–2,73 s` totais para os 3 teoremas completos no Mac M2), eliminando `100%` da contaminação cruzada de atenção entre domínios.
 
+---
+
+## ✅ Etapa 3 (`v2.0.0`): *Dual-Depth Golden-Slice Grafting* (`Layer L/2 + Layer L`) & Ponte Interdisciplinar no Ciclo do Sono
+
+**Arquivos Canônicos:** [`scar_cache/dual_depth_bridge.py`](../scar_cache/dual_depth_bridge.py) · [`tests/test_scar_store_v2_stage3.py`](../tests/test_scar_store_v2_stage3.py) · [`scripts/audit_scar_store_v2_stage3.py`](../scripts/audit_scar_store_v2_stage3.py) · [`results/scar_store_v2_stage3_audit.json`](../results/scar_store_v2_stage3_audit.json)
+
+### 3.1. Por Que Injetar em Duas Profundidades (`Layer 12 + Layer 24`) e Por Que Separar Justaposição vs. Fusão?
+* **O gargalo físico não é RAM (`61,25 KB`–`120,75 KB`), é interferência no vetor oculto único $\mathbf{h}_t \in \mathbb{R}^{896}$:**
+  1. Em **perguntas multi-parte independentes** (*Etapa 2*), segmentar por Voronoi evita que duas cápsulas disputem simultaneamente o `argmax` do mesmo token.
+  2. Em **sínteses interdisciplinares reais** (*Etapa 3*), injetar apenas na saída (`Layer 24`) só soma logits linearmente ($\Delta \ell_A + \Delta \ell_B$), pois não restam camadas de auto-atenção acima. Ao injetar `(B_mid, A_mid)` no ponto **Golden-Slice (`Layer 12/24`)**, as **12 camadas superiores (`Layers 13..24`)** executam *cross-attention* + SwiGLU não-linear sobre os conceitos combinados antes do refino residual `(B_final, A_final)` na `Layer 24`!
+  3. **Posto configurável sem necessidade de amputação:** Com `r_mid=32, r_final=32`, a cápsula ocupa os mesmíssimos **`62.720 B` (`61,25 KB` INT4)** da Etapa 1 (prova *maçã-com-maçã*); com posto cheio sem corte (`r_mid=64, r_final=64`), ocupa apenas **`123.648 B` (`120,75 KB` INT4)**.
+
+### 3.2. Resultados Empíricos Auditados (`Qwen2.5-72B-Instruct MoS → Qwen2.5-0.5B-Instruct`)
+* **Fidelidade Superior em Paráfrases Inéditas (`61,25 KB INT4`, `ZERO autograd`):**
+  * *Immerman-Szelepcsényi:* **`100,0%` Top-1** com o `72.71B` (`KL: 0,4757 → 0,0364`, **`13,1×` menor**).
+  * *Princípio de Landauer:* **`95,83%` Top-1** (`KL: 0,2934 → 0,0445`, **`6,6×` menor**).
+  * *Kabatiansky-Levenshtein:* **`91,67%` Top-1** (`+8,34 p.p.` acima dos `83,33%` de profundidade única na Etapa 1; `KL: 0,6181 → 0,3412`).
+* **Silêncio Bit-a-Bit Fora do Cone em Todas as Camadas:** Nos 6 prompts de controle, `max_control_cosine_layer12 = 0,4355 < tau = 0,70`, com **`exact_torch_equal_layer20 = true`** e **`exact_torch_equal_logits = true`**.
+* **Reflexo Epistêmico (`BridgeEscalationDecision`) + Consolidação de Ponte Interdisciplinar (`61,25 KB INT4`):**
+  * Antes do sono (`Landauer × Immerman`), `assess_interdisciplinary_epistemic_uncertainty` detecta interseção não consolidada (`is_uncertain = true`, `margin = 0,7053`).
+  * Após `consolidate_interdisciplinary_bridge(...)`, a cápsula-ponte `bridge_landauer__immerman` (`parent_capsules` conjuntivos — **zero vazamento** nos domínios puros: `landauer_exact_text_match = true`, `immerman_exact_text_match = true`) eleva `confidence: 0,8398 → 0,9788`, `margin: 0,7053 → 0,9702` e derruba `uncertainty: 0,0345 → 0,0123` (`is_uncertain = false`).
+
+
