@@ -1,0 +1,63 @@
+{
+  "audit": "Step A (v2.3.0) — Unified `mos-store` CLI, Live TCP HTTP/1.1 206 Partial Content Streaming & Forensic 0x00 Disk GDPR Unlearning",
+  "student_model": "Qwen/Qwen2.5-3B-Instruct",
+  "all_verified": true,
+  "total_elapsed_s": 191.46,
+  "cli_build": {
+    "elapsed_s": 31.85,
+    "record_bytes": 143360,
+    "os_4kb_pages_per_capsule": 35,
+    "kronecker_grid_cells": 4194304,
+    "file_mib": 16.9492
+  },
+  "cli_slice_consumer": {
+    "installed_slots": 2,
+    "global_directory_entries": 3,
+    "file_mib": 16.8086
+  },
+  "live_tcp_http_206_range_streaming": {
+    "server_stats": {
+      "base_url": "http://127.0.0.1:60378",
+      "http_206_slices_served": 1,
+      "total_range_bytes_served": 143360
+    },
+    "http_event": {
+      "capsule_id": "titan72b_immerman_szelepcsenyi",
+      "coord": [
+        2,
+        2
+      ],
+      "http_status": 206,
+      "range_header": "bytes=17629184-17772543",
+      "content_range": "bytes 17629184-17772543/17772544",
+      "bytes_received": 143360,
+      "latency_ms": 58.345
+    },
+    "recovered_72b_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation, for classes that",
+    "persisted_slots_after_fetch": 3
+  },
+  "cli_sleep_bridge": {
+    "bridge_capsule_id": "bridge_landauer__immerman",
+    "installed_slots_after_bridge": 4
+  },
+  "forensic_persistent_gdpr_unlearn": {
+    "report": {
+      "capsule_id": "titan72b_immerman_szelepcsenyi",
+      "coord": [
+        3,
+        3
+      ],
+      "slot_idx": 2,
+      "unlearn_ms": 1.5385,
+      "total_ms": 7.6382,
+      "persisted_to_disk": true,
+      "cryptographically_zeroed_bytes": 147456
+    },
+    "all_143360_slot_bytes_verified_0x00_on_disk": true,
+    "exact_torch_equal_base_reversion_on_reopen": true,
+    "sibling_landauer_active_gates": {
+      "titan72b_landauer_principle": 1.0
+    },
+    "sibling_landauer_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\) is \\( kT"
+  }
+}

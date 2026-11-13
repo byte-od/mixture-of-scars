@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 import json
 import math
 import mmap
+import os
 from pathlib import Path
 import struct
 import time
@@ -1263,8 +1264,37 @@ class HeadExpandedScarStore(nn.Module):
         self._turn_slot_cache[slot_idx] = cap
         return cap
 
-    def unlearn(self, capsule_id: str) -> Dict[str, Any]:
-        """Sub-millisecond surgical GDPR unlearning: clears Kronecker bitmap bit & hot state (`0` bleed)."""
+    def _router_section_offsets(self) -> Tuple[int, int, int]:
+        """Returns `(router_offset, bitmap_offset, z_anchors_offset)` inside `self.store_path`."""
+        with open(self.store_path, "rb") as f:
+            magic = f.read(8)
+            if magic != SCARSTORE_MAGIC:
+                raise ValueError(f"Invalid ScarStore magic in {self.store_path}")
+            (hdr_len,) = struct.unpack("<Q", f.read(8))
+        router_off = _align_up(16 + int(hdr_len), HEADER_ALIGN)
+        d = self.hidden_dim
+        half_d = d // 2
+        q_numel = self.num_heads * self.head_dim
+        bm_off = (
+            router_off
+            + (d * 4)
+            + (d * 4)
+            + (q_numel * 4)
+            + (d * d * 2)
+            + (d * half_d * 2)
+            + (d * half_d * 2)
+        )
+        bm_len = (d * d + 7) // 8
+        z_off = bm_off + bm_len
+        return router_off, bm_off, z_off
+
+    def unlearn(self, capsule_id: str, persist_to_disk: bool = False) -> Dict[str, Any]:
+        """Sub-millisecond surgical GDPR unlearning: clears Kronecker bitmap bit & hot state (`0` bleed).
+
+        When `persist_to_disk=True`, also performs surgical in-place `0x00` cryptographic erasure of the
+        capsule's `4096 B`-aligned `mmap` pages, `z_anchor`, and on-disk `presence_bitmap` bit + `fsync`,
+        without shifting any sibling capsule offsets or rewriting the full store.
+        """
         t0 = time.perf_counter()
         cid = str(capsule_id)
         if cid not in self._cid_to_slot:
@@ -1282,8 +1312,273 @@ class HeadExpandedScarStore(nn.Module):
         self._turn_slot_cache.pop(s_idx, None)
         self._unlearned_cids.add(cid)
         self._active_turn_capsules = [(c, g) for c, g in self._active_turn_capsules if c.capsule_id != cid]
-        elapsed_ms = (time.perf_counter() - t0) * 1000.0
-        return {"capsule_id": cid, "coord": coord, "unlearn_ms": round(elapsed_ms, 4)}
+        if s_idx < int(self.z_anchors_installed.shape[0]):
+            self.z_anchors_installed[s_idx].zero_()
+        ram_ms = (time.perf_counter() - t0) * 1000.0
+
+        wiped_bytes = 0
+        if persist_to_disk:
+            _, bm_off, z_off = self._router_section_offsets()
+            slot_off = self.slot_byte_offset(s_idx)
+            with open(self.store_path, "r+b") as wf:
+                wf.seek(bm_off + byte_idx)
+                wf.write(bytes([self._presence_bitmap_bytes[byte_idx]]))
+                wf.seek(z_off + s_idx * self.hidden_dim * 2)
+                wf.write(b"\x00" * (self.hidden_dim * 2))
+                wf.seek(slot_off)
+                wf.write(b"\x00" * self.record_bytes)
+                wf.flush()
+                os.fsync(wf.fileno())
+            wiped_bytes = self.record_bytes + (self.hidden_dim * 2)
+            # Refresh read-only mmap view for full OS coherence across platforms
+            if getattr(self, "_mmap", None) is not None:
+                self._mmap.close()
+                self._mmap = mmap.mmap(self._file_obj.fileno(), 0, access=mmap.ACCESS_READ)
+
+        total_ms = (time.perf_counter() - t0) * 1000.0
+        return {
+            "capsule_id": cid,
+            "coord": coord,
+            "slot_idx": s_idx,
+            "unlearn_ms": round(ram_ms, 4),
+            "total_ms": round(total_ms, 4),
+            "persisted_to_disk": bool(persist_to_disk),
+            "cryptographically_zeroed_bytes": wiped_bytes,
+        }
+
+    def inspect_summary(self) -> Dict[str, Any]:
+        """Returns physical byte-layout, OS page alignment, Kronecker grid, and per-slot audit metadata."""
+        file_bytes = int(self.store_path.stat().st_size) if self.store_path.exists() else 0
+        exact_4kb_pages = (self.record_bytes % PAGE_ALIGN) == 0
+        slots_info: List[Dict[str, Any]] = []
+        for desc in self._slot_descriptors:
+            s_idx = int(desc["slot_idx"])
+            cid = str(desc["capsule_id"])
+            ri, cj = int(desc["row_i"]), int(desc["col_j"])
+            flat_bit = ri * self.hidden_dim + cj
+            present = _bitmap_get(self._presence_bitmap_bytes, flat_bit)
+            off = self.slot_byte_offset(s_idx)
+            raw = self.read_raw_slot_bytes(s_idx)
+            all_zero = all(b == 0 for b in raw)
+            slots_info.append(
+                {
+                    "slot_idx": s_idx,
+                    "capsule_id": cid,
+                    "coord": [ri, cj],
+                    "byte_offset": off,
+                    "offset_4kb_aligned": (off % PAGE_ALIGN) == 0,
+                    "record_bytes": self.record_bytes,
+                    "bitmap_present": bool(present),
+                    "payload_all_zero_wiped": bool(all_zero),
+                    "tau": float(desc["tau"]),
+                    "ramp": float(desc["ramp"]),
+                    "parent_capsules": list(desc.get("parent_capsules", [])),
+                }
+            )
+        return {
+            "store_path": str(self.store_path),
+            "file_bytes": file_bytes,
+            "file_mib": round(file_bytes / (1024.0 * 1024.0), 4),
+            "format": str(self.header.get("format", "HeadExpandedScarStoreV2")),
+            "version": str(self.header.get("version", "2.2.0")),
+            "hidden_dim": self.hidden_dim,
+            "num_heads": self.num_heads,
+            "head_dim": self.head_dim,
+            "rank": self.rank,
+            "num_key_prototypes": self.num_key_prototypes,
+            "record_bytes": self.record_bytes,
+            "record_kb": round(self.record_bytes / 1024.0, 2),
+            "exact_4kb_page_multiple": exact_4kb_pages,
+            "os_4kb_pages_per_capsule": (self.record_bytes // PAGE_ALIGN) if exact_4kb_pages else None,
+            "kronecker_grid_cells": self.num_grid_cells,
+            "presence_bitmap_bytes": self.presence_bitmap_bytes,
+            "presence_bitmap_kb": round(self.presence_bitmap_bytes / 1024.0, 2),
+            "payload_offset": self.payload_offset,
+            "payload_offset_4kb_aligned": (self.payload_offset % PAGE_ALIGN) == 0,
+            "num_active_installed_slots": self.num_installed_slots,
+            "num_global_directory_entries": len(self._global_directory),
+            "slots": slots_info,
+        }
+
+    def to_head_bank(
+        self,
+        u_preserved_final: Optional[torch.Tensor] = None,
+        load_installed_capsules: bool = True,
+    ) -> HeadExpandedAttentionBank:
+        """Reconstructs an in-memory `HeadExpandedAttentionBank` sharing this store's calibrated statistics."""
+        d = self.hidden_dim
+        u_fin = (
+            u_preserved_final.detach().float().cpu()
+            if u_preserved_final is not None
+            else torch.zeros((d, 0), dtype=torch.float32)
+        )
+        bank = HeadExpandedAttentionBank(
+            hidden_dim=d,
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
+            mu_query_last=self.mu_query_last.detach().cpu().float(),
+            mu_hidden_final=self.mu_hidden_final.detach().cpu().float(),
+            u_preserved_final=u_fin,
+            mu_q_heads=self.mu_q_heads.detach().cpu().float(),
+            attention_beta=self.attention_beta,
+            user_turn_prefix_ids=self.user_turn_prefix_ids,
+        )
+        if load_installed_capsules:
+            for desc in self._slot_descriptors:
+                s_idx = int(desc["slot_idx"])
+                cid = str(desc["capsule_id"])
+                ri, cj = int(desc["row_i"]), int(desc["col_j"])
+                if cid in self._unlearned_cids or not _bitmap_get(self._presence_bitmap_bytes, ri * d + cj):
+                    continue
+                cap = self.load_slot_capsule(s_idx, device="cpu")
+                bank.add_capsule(cap)
+        return bank
+
+    def append_capsule(
+        self,
+        capsule: HeadExpandedScarCapsule,
+        out_path: Optional[Union[str, Path]] = None,
+    ) -> "HeadExpandedScarStore":
+        """Appends or updates a `HeadExpandedScarCapsule` (e.g. a Sleep Bridge or streamed cartridge) on disk."""
+        if capsule.rank != self.rank or capsule.num_key_prototypes != self.num_key_prototypes:
+            raise ValueError(
+                f"Capsule (rank={capsule.rank}, P={capsule.num_key_prototypes}) does not match store "
+                f"(rank={self.rank}, P={self.num_key_prototypes})"
+            )
+        target_path = Path(out_path) if out_path is not None else self.store_path
+        d = self.hidden_dim
+        half_d = d // 2
+        R_rot = self.R_rot.detach().cpu().float()
+        U_cb = self.U_codebook.detach().cpu().float().clone()
+        V_cb = self.V_codebook.detach().cpu().float().clone()
+        mu_ql = self.mu_query_last.detach().cpu().float()
+        mu_hf = self.mu_hidden_final.detach().cpu().float()
+        mu_qh = self.mu_q_heads.detach().cpu().float()
+
+        bitmap = bytearray((d * d + 7) // 8)
+        used_coords: set[Tuple[int, int]] = set()
+        new_descs: List[Dict[str, Any]] = []
+        new_global: List[Dict[str, Any]] = []
+        z_list_fp16: List[torch.Tensor] = []
+        raw_blobs: List[bytes] = []
+
+        for old_desc in self._slot_descriptors:
+            s_idx = int(old_desc["slot_idx"])
+            cid = str(old_desc["capsule_id"])
+            ri, cj = int(old_desc["row_i"]), int(old_desc["col_j"])
+            if cid == capsule.capsule_id or cid in self._unlearned_cids:
+                continue
+            if not _bitmap_get(self._presence_bitmap_bytes, ri * d + cj):
+                continue
+            raw = self.read_raw_slot_bytes(s_idx)
+            raw_blobs.append(raw)
+            z_list_fp16.append(self.z_anchors_installed[s_idx].detach().cpu().to(torch.float16))
+            used_coords.add((ri, cj))
+            _bitmap_set(bitmap, ri * d + cj)
+            d_copy = dict(old_desc)
+            d_copy["slot_idx"] = len(new_descs)
+            new_descs.append(d_copy)
+
+        for coord_k, g_entry in self._global_directory.items():
+            g_cid = str(g_entry["capsule_id"])
+            if g_cid != capsule.capsule_id and g_cid not in self._unlearned_cids:
+                new_global.append(dict(g_entry))
+
+        z_f = F.normalize(capsule.z_anchor.detach().cpu().float(), dim=-1, eps=1e-8)
+        z_rot = torch.mv(R_rot, z_f)
+        z1 = F.normalize(z_rot[:half_d], dim=-1, eps=1e-8)
+        z2 = F.normalize(z_rot[half_d:], dim=-1, eps=1e-8)
+        w1 = float(z_rot[:half_d].norm().item())
+        w2 = float(z_rot[half_d:].norm().item())
+
+        chosen_diag: Optional[int] = None
+        for cand_idx in range(len(new_descs), d):
+            if (cand_idx, cand_idx) not in used_coords and (cand_idx, cand_idx) not in self._global_directory:
+                chosen_diag = cand_idx
+                break
+        if chosen_diag is not None:
+            row_i, col_j = chosen_diag, chosen_diag
+            U_cb[row_i] = z1
+            V_cb[col_j] = z2
+        else:
+            s1 = torch.mv(U_cb, z1)
+            s2 = torch.mv(V_cb, z2)
+            ti = s1.topk(min(32, d)).indices.tolist()
+            tj = s2.topk(min(32, d)).indices.tolist()
+            best_pair: Optional[Tuple[int, int]] = None
+            best_val = -1e9
+            for ri in ti:
+                for cj in tj:
+                    if (ri, cj) not in used_coords:
+                        val = float(s1[ri].item() + s2[cj].item())
+                        if val > best_val:
+                            best_val = val
+                            best_pair = (ri, cj)
+            if best_pair is None:
+                raise RuntimeError("Kronecker grid candidate neighborhood saturated during append_capsule")
+            row_i, col_j = best_pair
+
+        _bitmap_set(bitmap, row_i * d + col_j)
+        blob = capsule.to_int4_bytes()
+        raw_blobs.append(blob)
+        z_list_fp16.append(z_f.to(torch.float16))
+        slot_idx_new = len(new_descs)
+        new_descs.append(
+            {
+                "slot_idx": slot_idx_new,
+                "capsule_id": capsule.capsule_id,
+                "row_i": row_i,
+                "col_j": col_j,
+                "w1": round(w1, 6),
+                "w2": round(w2, 6),
+                "tau": float(capsule.tau),
+                "ramp": float(capsule.ramp),
+                "parent_capsules": list(capsule.parent_capsules),
+                "metadata": dict(capsule.metadata),
+            }
+        )
+        new_global.append(
+            {
+                "capsule_id": capsule.capsule_id,
+                "row_i": row_i,
+                "col_j": col_j,
+                "w1": round(w1, 6),
+                "w2": round(w2, 6),
+                "tau": float(capsule.tau),
+                "ramp": float(capsule.ramp),
+                "parent_capsules": list(capsule.parent_capsules),
+            }
+        )
+
+        dev_cur = self.mu_query_last.device
+        fetcher_cur = self.on_demand_fetcher
+        if target_path.resolve() == self.store_path.resolve():
+            self.close()
+        reopened = self._write_and_open(
+            out_path=target_path,
+            hidden_dim=d,
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
+            rank=self.rank,
+            num_key_prototypes=self.num_key_prototypes,
+            record_bytes=self.record_bytes,
+            routing_tier=self.routing_tier,
+            attention_beta=self.attention_beta,
+            user_turn_prefix_ids=self.user_turn_prefix_ids,
+            slot_descriptors=new_descs,
+            global_directory=new_global,
+            mu_query_last=mu_ql,
+            mu_hidden_final=mu_hf,
+            mu_q_heads=mu_qh,
+            R_rot=R_rot,
+            U_cb=U_cb,
+            V_cb=V_cb,
+            bitmap=bytes(bitmap),
+            z_list_fp16=z_list_fp16,
+            raw_blobs=raw_blobs,
+        )
+        reopened.on_demand_fetcher = fetcher_cur
+        return reopened.to(dev_cur)
 
     @classmethod
     def build_from_bank(

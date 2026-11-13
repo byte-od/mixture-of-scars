@@ -57,6 +57,13 @@ from scar_cache.head_expanded_attention import (
     HeadExpandedTelemetry,
     extract_head_expansion_modules,
 )
+from scar_cache.cli_scar_store import (
+    HTTPRangeCapsuleClient,
+    ScarStoreHTTPRangeServer,
+    ScarStoreQueryResult,
+    generate_with_scar_store,
+    make_http_range_capsule_fetcher,
+)
 from scar_cache.speculative_ghost_jump import (
     GhostJumpGenerationResult,
     GhostJumpReflexDecision,
@@ -84,7 +91,7 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 __all__ = [
     "SCache",
@@ -122,6 +129,11 @@ __all__ = [
     "HeadExpandedAttentionEngine",
     "HeadExpandedScarStore",
     "extract_head_expansion_modules",
+    "ScarStoreHTTPRangeServer",
+    "HTTPRangeCapsuleClient",
+    "ScarStoreQueryResult",
+    "generate_with_scar_store",
+    "make_http_range_capsule_fetcher",
     "SUB2BIT_BETA",
     "Sub2BitDecompositionStats",
     "Sub2BitMoSLinear",

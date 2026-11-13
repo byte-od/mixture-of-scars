@@ -1,4 +1,4 @@
-# 🏛️ `ScarStore v2` (`v2.2.0`): Arquitetura Pós-Monolítica de Conhecimento em Cones Esparsos, Núcleo Cognitivo `3B` & Atenção Expandida sob Demanda
+# 🏛️ `ScarStore v2` (`v2.3.0`): Arquitetura Pós-Monolítica de Conhecimento em Cones Esparsos, Núcleo Cognitivo `3B`, CLI `mos-store` (`HTTP 206 Range`) & Atenção Expandida sob Demanda
 
 > **Mandato de Integridade Arquitetural (Zero Fachadas):**  
 > Todo componente documentado neste guia executa matemática algébrica real em PyTorch puro (`ZERO backpropagation / ZERO SGD`), quantização simétrica `Block-64 INT4` nativa, roteamento esférico com **`0.0000000000` (`torch.equal`)** de interferência fora do cone e paginação `mmap` real sobre o SSD.
@@ -126,6 +126,19 @@ Durante a execução da bateria hostil [`scripts/adversarial_core_0p5b_vs_3b_sui
 | **4. Colisão Simultânea `3`-Vias (`+3` Cabeças num Único Rollout)** | ✅ `spread = 91,78%`, mas entrelaça sintaxe ao fundir 3 teoremas | ✅ **`spread = 96,99%` (`0,9992 ↔ 0,0001`)**, frase tripla cristalina! | **`3B` sintetiza os 3 teoremas simultâneos em 1 período perfeito** |
 | **5. Pilha Completa `MoS` (`INT4+ASVD`) + `SCache O(1)` + `ScarStore`** | ✅ `3,04×` MLP tail (`149,6→49,2 MB`), `100%` Top-1 (`KL 0,0242`) | ✅ **`3,41×` MLP tail (`774,0→227,1 MB`)**, **`100%` Top-1 (`KL 0,0029`)** | **`8,34×` menor divergência KL** na pilha tripla comprimida |
 | **6. Guarda `MissingCapsuleAlert` + `HTTP Range` + GDPR `unlearn()`** | ✅ Bloqueia `(2,2)`, pagina `62.720 B`, **`unlearn = 0,0106 ms`** | ✅ Bloqueia `(2,2)`, pagina `143.360 B`, **`unlearn = 0,0180 ms`** | Recuperação sob demanda + reversão `torch.equal` em **`< 20 µs`** |
+
+---
+
+## ✅ Etapa 6 (`v2.3.0`): Produto CLI/SDK Unificado `mos-store`, Streaming Real `HTTP/1.1 206 Partial Content` & Apagamento Forense `0x00` em SSD
+
+**Arquivos Canônicos:** [`scar_cache/cli_scar_store.py`](../scar_cache/cli_scar_store.py) · [`tests/test_cli_scar_store.py`](../tests/test_cli_scar_store.py) · [`scripts/audit_mos_store_cli_v2_3.py`](../scripts/audit_mos_store_cli_v2_3.py) · [`results/mos_store_v2_3_cli_http206_audit.json`](../results/mos_store_v2_3_cli_http206_audit.json)
+
+1. **CLI Oficial `mos-store` (`pyproject.toml`):** Expõe todo o ciclo de vida em 7 subcomandos reprodutíveis em 1 linha (`mos-store build`, `inspect`, `slice`, `serve`, `query` / `--chat`, `sleep-bridge` e `unlearn --persist`).
+2. **Servidor & Cliente Reais RFC 7233 `HTTP/1.1 206 Partial Content` (`ScarStoreHTTPRangeServer` + `HTTPRangeCapsuleClient`):**
+   * Auditado em soquete TCP real sobre o `Qwen2.5-3B-Instruct`: ao consultar um domínio ausente (`Immerman-Szelepcsényi`) em um `.scarstore` fatiado (`2/3` cápsulas locais), o cliente requisita exatos **`Range: bytes=17629184-17772543` (`143.360 B = 35 × 4 KB`, `17.629.184 % 4096 == 0`)**, recebe `HTTP 206` em `58,3 ms`, recupera `100%` do teorema `72.71B` e persiste o cartucho localmente (`3` slots).
+3. **Apagamento Forense `0x00` em Disco (`mos-store unlearn --persist`):**
+   * Além do desligamento instantâneo em RAM, sobrescreve cirurgicamente *in-place* (via `seek + write + fsync`, sem deslocar cápsulas vizinhas) o bit no `presence_bitmap` do arquivo, os `4.096 B` do `z_anchor` e todas as **`35 × 4 KB` páginas (`143.360 B`)** do slot com zeros criptográficos **`0x00`** (`147.456 B` zerados em `7,64 ms` com `fsync`), garantindo reversão `torch.equal == True` ao reabrir o arquivo do zero e `0` dano colateral nos demais domínios.
+
 
 
 
