@@ -1,0 +1,47 @@
+{
+  "stage": "Stage 1 (v2.0.0a2) \u2014 ScarStoreV2 (61.25 KB Block-64 INT4 + 896x896 Kronecker Grid + mmap)",
+  "capsule_record_bytes": 62720,
+  "capsule_record_kb": 61.25,
+  "active_transfer_reduction_vs_72b_bf16_x": 2318508.5,
+  "presence_bitmap_bytes": 100352,
+  "presence_bitmap_kb": 98.0,
+  "router_ram_mib": 3.158,
+  "domain_evaluations": [
+    {
+      "capsule_id": "titan72b_kabatiansky_levenshtein",
+      "mmap_bytes_read": 62720,
+      "top1_agreement_with_72b": 0.8333,
+      "kl_to_72b": 0.4275,
+      "decode_tok_per_s": 30.37,
+      "grafted_text_int4_61kb": "The Kabatiansky-Levenshtein theorem establishes an upper bound on the density of the kissing number of spheres that"
+    },
+    {
+      "capsule_id": "titan72b_landauer_principle",
+      "mmap_bytes_read": 62720,
+      "top1_agreement_with_72b": 0.9583,
+      "kl_to_72b": 0.139,
+      "decode_tok_per_s": 38.69,
+      "grafted_text_int4_61kb": "Landauer's principle states that the minimum energy dissipated when erasing one bit at temperature \\( T \\) is \\("
+    },
+    {
+      "capsule_id": "titan72b_immerman_szelepcsenyi",
+      "mmap_bytes_read": 62720,
+      "top1_agreement_with_72b": 1.0,
+      "kl_to_72b": 0.0241,
+      "decode_tok_per_s": 37.85,
+      "grafted_text_int4_61kb": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation"
+    }
+  ],
+  "out_of_cone_controls_exact_torch_equal": true,
+  "out_of_cone_controls_mmap_bytes_read": 0,
+  "consumer_slice_missing_capsule_alerts": [
+    {
+      "capsule_id": "titan72b_landauer_principle",
+      "coord": [
+        1,
+        1
+      ],
+      "coarse_cosine": 0.9304
+    }
+  ]
+}

@@ -57,6 +57,7 @@ venv.bak/
 # Model Weights and Large Binaries
 *.safetensors
 *.safetensors.part
+*.scarstore
 *.bin
 *.pt
 *.pth
