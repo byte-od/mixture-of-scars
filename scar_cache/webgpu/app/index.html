@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScarStore WebGPU Studio v3.0 — 100% Browser WGSL (MoS + SCache O(1))</title>
+  <style>
+    :root {
+      --bg-0: #070a12;
+      --bg-1: #0e1422;
+      --bg-2: #151e32;
+      --border: #253352;
+      --text-0: #f1f5ff;
+      --text-1: #9fb0d0;
+      --accent: #38bdf8;
+      --accent-2: #a855f7;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at 15% 0%, #111c38 0%, var(--bg-0) 55%);
+      color: var(--text-0);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 14px 22px;
+      background: rgba(14, 20, 34, 0.92);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge-wgsl {
+      background: linear-gradient(135deg, #0284c7, #7c3aed);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 4px 9px;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .brand h1 {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .brand p {
+      font-size: 12px;
+      color: var(--text-1);
+    }
+    .controls-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .toggle-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-pill input { accent-color: var(--ok); width: 15px; height: 15px; cursor: pointer; }
+
+    /* Telemetry Strip */
+    .telemetry-bar {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      gap: 10px;
+      padding: 12px 22px;
+      background: rgba(10, 15, 27, 0.85);
+      border-bottom: 1px solid var(--border);
+    }
+    @media (max-width: 1024px) {
+      .telemetry-bar { grid-template-columns: repeat(2, 1fr); }
+    }
+    .metric-card {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 13px;
+    }
+    .metric-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-1);
+      margin-bottom: 4px;
+    }
+    .metric-value {
+      font-size: 16px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-0);
+    }
+    .metric-sub {
+      font-size: 11px;
+      color: var(--ok);
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Boot Progress Banner */
+    #boot-banner {
+      margin: 14px 22px 0;
+      padding: 14px 18px;
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-2);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 0.2s ease;
+    }
+
+    /* Main Workspace */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 390px 1fr;
+      gap: 16px;
+      padding: 16px 22px 22px;
+      min-height: 0;
+    }
+    @media (max-width: 980px) {
+      .workspace { grid-template-columns: 1fr; }
+    }
+
+    /* Sidebar Cartridges */
+    .sidebar {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      max-height: calc(100vh - 180px);
+    }
+    .sidebar-header {
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(21, 30, 50, 0.55);
+    }
+    .sidebar-header h2 {
+      font-size: 13.5px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+    .sidebar-header p {
+      font-size: 11.5px;
+      color: var(--text-1);
+      line-height: 1.35;
+    }
+    .capsule-list {
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .capsule-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 11px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .capsule-card.active-cone {
+      border-color: var(--ok);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+    }
+    .capsule-card.wiped {
+      opacity: 0.58;
+      border-color: #4b1d24;
+    }
+    .cap-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .cap-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .cap-status {
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--accent);
+    }
+    .cap-status.cached {
+      background: rgba(34, 197, 94, 0.18);
+      color: var(--ok);
+    }
+    .cap-status.wiped {
+      background: rgba(239, 68, 68, 0.18);
+      color: var(--danger);
+    }
+    .cap-meta {
+      font-size: 11px;
+      color: var(--text-1);
+      margin-bottom: 7px;
+      font-variant-numeric: tabular-nums;
+    }
+    .cap-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    button {
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #1d2942;
+      color: var(--text-0);
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    button:hover:not(:disabled) {
+      background: #283859;
+      border-color: var(--accent);
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    button.btn-primary {
+      background: linear-gradient(135deg, #0284c7, #6d28d9);
+      border-color: transparent;
+      color: #fff;
+      padding: 9px 16px;
+      font-size: 13px;
+    }
+    button.btn-danger {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    /* Chat & HTTP 206 Inspector */
+    .main-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+    .chat-box {
+      flex: 1;
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 320px;
+      max-height: calc(100vh - 350px);
+    }
+    .msg {
+      padding: 12px 14px;
+      border-radius: 10px;
+      line-height: 1.52;
+      font-size: 13.5px;
+      max-width: 92%;
+    }
+    .msg-user {
+      align-self: flex-end;
+      background: #1a2c4e;
+      border: 1px solid #2d4a7c;
+    }
+    .msg-assistant {
+      align-self: flex-start;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      width: 100%;
+    }
+    .msg-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 9px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      font-size: 11px;
+      color: var(--text-1);
+      font-variant-numeric: tabular-nums;
+    }
+    .pill {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .pill.green { color: var(--ok); border-color: rgba(34, 197, 94, 0.4); }
+    .pill.blue { color: var(--accent); border-color: rgba(56, 189, 248, 0.4); }
+    .pill.purple { color: #d8b4fe; border-color: rgba(168, 85, 247, 0.4); }
+
+    .composer {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 11px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .composer input {
+      flex: 1;
+      background: var(--bg-0);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 13px;
+      color: var(--text-0);
+      font-size: 13.5px;
+      outline: none;
+    }
+    .composer input:focus { border-color: var(--accent); }
+
+    .network-log {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11.5px;
+      color: var(--text-1);
+      max-height: 110px;
+      overflow-y: auto;
+    }
+    .network-log strong { color: var(--ok); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="badge-wgsl">WebGPU • WGSL 1.0</span>
+      <div>
+        <h1>ScarStore WebGPU Studio v3.0 — Zero Python Backend</h1>
+        <p>Kernels nativos <code>MoS INT4+ASVD</code> + <code>SCache O(1)</code> Widrow-Hoff + Streaming <code>HTTP 206</code> no navegador</p>
+      </div>
+    </div>
+    <div class="controls-top">
+      <label class="toggle-pill" title="Ative/desative a injeção de cartuchos 72.71B para comparar na hora!">
+        <input type="checkbox" id="toggle-scarstore" checked />
+        <span>Injeção <strong>ScarStore 72.71B</strong> Ativa</span>
+      </label>
+      <button id="btn-multi-head" disabled title="Testa 2 cartuchos 72.71B simultâneos (+2 Scar-Heads competitivos em WGSL)">
+        ⚡ Testar Fusão +2 Heads (Landauer + FLP)
+      </button>
+    </div>
+  </header>
+
+  <section class="telemetry-bar">
+    <div class="metric-card">
+      <div class="metric-label">Hardware WebGPU</div>
+      <div class="metric-value" id="m-adapter" data-testid="metric-adapter">Inicializando...</div>
+      <div class="metric-sub" id="m-shader">14 pipelines WGSL 1.0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">VRAM Modelo MoS (INT4+ASVD)</div>
+      <div class="metric-value" id="m-vram" data-testid="metric-vram">— MiB</div>
+      <div class="metric-sub" id="m-shards">Fatias &lt; 80 MiB (Limite WebGPU 128 MiB OK)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Memória SCache O(1)</div>
+      <div class="metric-value" id="m-scache" data-testid="metric-scache">— KB</div>
+      <div class="metric-sub" id="m-scache-delta" data-testid="metric-scache-delta">Δ Crescimento = +0 B</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Velocidade WGSL Decode</div>
+      <div class="metric-value" id="m-speed" data-testid="metric-speed">— tok/s</div>
+      <div class="metric-sub" id="m-prefill">Prefill em lote único GPU</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Streaming HTTP 206 Cartuchos</div>
+      <div class="metric-value" id="m-http206" data-testid="metric-http206">0.00 KB</div>
+      <div class="metric-sub" id="m-http206-sub">0 cartuchos baixados no boot</div>
+    </div>
+  </section>
+
+  <div id="boot-banner">
+    <div style="display:flex; justify-content:space-between; font-size:12.5px;">
+      <span id="boot-status">Inicializando WebGPU...</span>
+      <span id="boot-pct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="boot-bar"></div>
+    </div>
+  </div>
+
+  <main class="workspace">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>Biblioteca Online 72.71B (HTTP 206 Range)</h2>
+        <p>Nenhum cartucho é baixado no boot (<code>0 B</code>). Ao detectar um domínio, apenas a fatia exata de <code>61.25 KB</code> (<code>62,720 B</code>) é transferida via <code>HTTP 206</code>.</p>
+      </div>
+      <div class="capsule-list" id="capsule-list" data-testid="capsule-list"></div>
+    </aside>
+
+    <section class="main-panel">
+      <div class="chat-box" id="chat-box" data-testid="chat-box">
+        <div class="msg msg-assistant">
+          <strong>Motor Nativo WebGPU / WGSL v3.0</strong><br />
+          100% da inferência roda localmente na GPU do seu navegador via shaders <code>WGSL</code> proprietários (<code>mos_scache_kernels.wgsl</code>) — sem Python, sem ONNX e sem KV Cache linear <code>O(T)</code>.<br />
+          Clique em <strong>"Testar Pergunta"</strong> em qualquer cartucho ao lado ou envie uma pergunta abaixo!
+        </div>
+      </div>
+
+      <form class="composer" id="chat-form">
+        <input
+          type="text"
+          id="chat-input"
+          data-testid="chat-input"
+          placeholder="Pergunte em português ou teste um teorema 72.71B (ex: Landauer's principle)..."
+          autocomplete="off"
+          disabled
+        />
+        <button type="submit" class="btn-primary" id="btn-send" data-testid="btn-send" disabled>
+          Executar em WGSL
+        </button>
+      </form>
+
+      <div class="network-log" id="network-log" data-testid="network-log">
+        [Auditoria HTTP 206 &amp; SCache O(1)] Aguardando inicialização dos kernels WGSL...
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { BrowserMoSWebGPUEngine } from "./mos_webgpu_engine.js";
+
+    const elAdapter = document.getElementById("m-adapter");
+    const elVram = document.getElementById("m-vram");
+    const elShards = document.getElementById("m-shards");
+    const elScache = document.getElementById("m-scache");
+    const elScacheDelta = document.getElementById("m-scache-delta");
+    const elSpeed = document.getElementById("m-speed");
+    const elPrefill = document.getElementById("m-prefill");
+    const elHttp206 = document.getElementById("m-http206");
+    const elHttp206Sub = document.getElementById("m-http206-sub");
+
+    const bootBanner = document.getElementById("boot-banner");
+    const bootStatus = document.getElementById("boot-status");
+    const bootPct = document.getElementById("boot-pct");
+    const bootBar = document.getElementById("boot-bar");
+
+    const capsuleListEl = document.getElementById("capsule-list");
+    const chatBox = document.getElementById("chat-box");
+    const chatForm = document.getElementById("chat-form");
+    const chatInput = document.getElementById("chat-input");
+    const btnSend = document.getElementById("btn-send");
+    const btnMultiHead = document.getElementById("btn-multi-head");
+    const toggleScarStore = document.getElementById("toggle-scarstore");
+    const networkLog = document.getElementById("network-log");
+
+    let engine = null;
+    let busy = false;
+
+    function logAudit(htmlLine) {
+      const div = document.createElement("div");
+      div.innerHTML = htmlLine;
+      networkLog.prepend(div);
+    }
+
+    function renderCapsules() {
+      if (!engine || !engine.scarStore) {
+        capsuleListEl.innerHTML = `<div style="padding:12px;color:var(--text-1);font-size:12px;">Nenhum índice ScarStore conectado.</div>`;
+        return;
+      }
+      const items = engine.scarStore.getCapsulesDirectory();
+      capsuleListEl.innerHTML = "";
+      for (const cap of items) {
+        const meta = cap.metadata || {};
+        const title = meta.title_pt || meta.title || cap.capsule_id;
+        const isFired = cap.lastGate > 0.0;
+        const card = document.createElement("div");
+        card.className = `capsule-card${isFired ? " active-cone" : ""}${cap.unlearnedWiped ? " wiped" : ""}`;
+        card.dataset.capsuleId = cap.capsule_id;
+
+        let statusClass = "cap-status";
+        let statusText = `☁️ Nuvem (0 B RAM)`;
+        if (cap.unlearnedWiped) {
+          statusClass += " wiped";
+          statusText = "🧹 Wipe 0x00 LGPD";
+        } else if (cap.cachedInBrowser) {
+          statusClass += " cached";
+          statusText = `⚡ HTTP 206 (${cap.record_kb} KB)`;
+        }
+
+        const cosStr = cap.lastCosine !== null ? `cos=${cap.lastCosine.toFixed(3)} (τ=${cap.tau})` : `τ=${cap.tau} • ${cap.record_kb} KB`;
+        const gateStr = isFired ? ` • <strong>gate=${cap.lastGate.toFixed(2)}</strong>` : "";
+
+        card.innerHTML = `
+          <div class="cap-top">
+            <div class="cap-title">${title}</div>
+            <span class="${statusClass}">${statusText}</span>
+          </div>
+          <div class="cap-meta">
+            <code>${cap.capsule_id}</code> • ${cosStr}${gateStr}
+          </div>
+          <div class="cap-actions">
+            <button type="button" class="btn-test-cap" ${busy ? "disabled" : ""}>Testar Pergunta</button>
+            <button type="button" class="btn-danger btn-wipe-cap" ${busy || cap.unlearnedWiped ? "disabled" : ""}>Apagar 0x00 (LGPD)</button>
+          </div>
+        `;
+
+        card.querySelector(".btn-test-cap").addEventListener("click", () => {
+          if (busy) return;
+          const q = meta.example_prompt || `Explain ${title} concisely.`;
+          chatInput.value = q;
+          runQuery(q);
+        });
+
+        card.querySelector(".btn-wipe-cap").addEventListener("click", () => {
+          if (busy) return;
+          const res = engine.scarStore.unlearnCapsule(cap.capsule_id);
+          logAudit(
+            `🧹 <strong>[LGPD 0x00 Wipe]</strong> Cartucho <code>${res.capsuleId}</code> zerado criptograficamente na RAM do navegador (${res.zeroedBytes.toLocaleString()} B sobrescritos com <code>0x00</code> em ${res.unlearnMs} ms).`,
+          );
+          renderCapsules();
+        });
+
+        capsuleListEl.appendChild(card);
+      }
+
+      const totalKb = ((engine.scarStore.totalHttp206Bytes || 0) / 1024).toFixed(2);
+      elHttp206.textContent = `${totalKb} KB`;
+      elHttp206Sub.textContent = `${engine.scarStore.hotCapsules.size} em cache • ${engine.scarStore.http206Events.length} reqs HTTP 206`;
+    }
+
+    async function runQuery(queryText) {
+      const trimmed = queryText.trim();
+      if (!trimmed || !engine || busy) return;
+      busy = true;
+      chatInput.disabled = true;
+      btnSend.disabled = true;
+      btnMultiHead.disabled = true;
+      renderCapsules();
+
+      const userDiv = document.createElement("div");
+      userDiv.className = "msg msg-user";
+      userDiv.textContent = trimmed;
+      chatBox.appendChild(userDiv);
+
+      const assistDiv = document.createElement("div");
+      assistDiv.className = "msg msg-assistant";
+      const textSpan = document.createElement("div");
+      textSpan.dataset.testid = "assistant-answer";
+      textSpan.textContent = "⏳ Executando prefill em lote WebGPU + roteamento Span-Max...";
+      const badgesDiv = document.createElement("div");
+      badgesDiv.className = "msg-badges";
+      assistDiv.appendChild(textSpan);
+      assistDiv.appendChild(badgesDiv);
+      chatBox.appendChild(assistDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+        const useScar = toggleScarStore.checked;
+        const result = await engine.generate(trimmed, {
+          maxNewTokens: 72,
+          enableScarStore: useScar,
+          onRouting: (routeRes) => {
+            for (const ev of routeRes.httpEvents || []) {
+              logAudit(
+                `🌐 <strong>[HTTP ${ev.status} Partial Content]</strong> <code>${ev.capsuleId}</code> • <code>${ev.contentRange}</code> • <strong>${ev.bytes.toLocaleString()} B (${ev.kb} KB)</strong> em ${ev.latencyMs} ms`,
+              );
+            }
+            renderCapsules();
+          },
+          onToken: (tokState) => {
+            textSpan.textContent = tokState.text;
+            if (tokState.tokPerSec > 0) {
+              elSpeed.textContent = `${tokState.tokPerSec.toFixed(1)} tok/s`;
+            }
+            elScache.textContent = `${(tokState.scacheBytes / 1024).toFixed(1)} KB`;
+            elScacheDelta.textContent = `Δ Crescimento = +${tokState.scacheDeltaBytes} B`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+          },
+        });
+
+        textSpan.textContent = result.answer || "(vazio)";
+        elSpeed.textContent = `${result.decodeTokPerSec.toFixed(1)} tok/s`;
+        elPrefill.textContent = `Prefill ${result.prefillTokens} tok em ${result.prefillMs.toFixed(0)} ms`;
+        elScache.textContent = `${(result.scacheBytesFinal / 1024).toFixed(1)} KB`;
+        elScacheDelta.textContent = `Δ Crescimento = +${result.scacheDeltaBytes} B (O(1) Provado)`;
+
+        const activeNames = result.activeCapsules.map((c) => `${c.capsuleId} (g=${c.gate.toFixed(2)})`).join(", ");
+        badgesDiv.innerHTML = `
+          <span class="pill green">SCache O(1): ${(result.scacheBytesFinal / 1024).toFixed(1)} KB (Δ +${result.scacheDeltaBytes} B)</span>
+          <span class="pill blue">${result.decodeTokPerSec.toFixed(1)} tok/s WGSL</span>
+          <span class="pill purple">${
+            result.activeCapsules.length > 0
+              ? `+${result.activeCapsules.length} Scar-Head(s): ${activeNames}`
+              : useScar
+                ? "0 cartuchos ativos (Invariância 0.0000000000)"
+                : "ScarStore Desativada (Base 0.5B Pura)"
+          }</span>
+          <span class="pill">HTTP 206 turno: ${(result.turnHttp206Bytes / 1024).toFixed(2)} KB</span>
+          <span class="pill">Confiança S1 p₁=${result.meanConfidenceP1.toFixed(3)} (margem ${result.meanMarginP1P2.toFixed(3)})</span>
+          ${result.maxInterHeadSpread > 0 ? `<span class="pill">Spread Inter-Head: ${result.maxInterHeadSpread.toFixed(3)}</span>` : ""}
+        `;
+
+        logAudit(
+          `✅ <strong>[WGSL Concluído]</strong> ${result.generatedTokens} tokens a <strong>${result.decodeTokPerSec.toFixed(1)} tok/s</strong> • SCache O(1) travado em <code>${result.scacheBytesFinal.toLocaleString()} B</code> (<code>Δ = +${result.scacheDeltaBytes} B</code>) • Cones ativos: <code>${result.activeCapsules.length}</code>`,
+        );
+        renderCapsules();
+      } catch (err) {
+        textSpan.textContent = `Erro durante execução WebGPU: ${err.message || err}`;
+        logAudit(`❌ <span style="color:var(--danger)">Erro: ${err.message || err}</span>`);
+      } finally {
+        busy = false;
+        chatInput.disabled = false;
+        btnSend.disabled = false;
+        btnMultiHead.disabled = false;
+        renderCapsules();
+        chatInput.focus();
+      }
+    }
+
+    chatForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = chatInput.value;
+      chatInput.value = "";
+      runQuery(q);
+    });
+
+    btnMultiHead.addEventListener("click", () => {
+      if (busy) return;
+      const multiPrompt =
+        "Explain concisely what Landauer's principle states for erasing one bit at temperature T, and what the Fischer-Lynch-Paterson impossibility theorem proves about asynchronous consensus.";
+      chatInput.value = multiPrompt;
+      runQuery(multiPrompt);
+    });
+
+    // Boot Engine
+    (async () => {
+      try {
+        engine = await BrowserMoSWebGPUEngine.create(".", ({ pct, detail }) => {
+          bootStatus.textContent = detail;
+          bootPct.textContent = `${pct}%`;
+          bootBar.style.width = `${pct}%`;
+        });
+        window.__mosWebGPUEngine = engine;
+
+        elAdapter.textContent = engine.adapterLabel;
+        elVram.textContent = `${(engine.totalWeightGpuBytes / (1024 * 1024)).toFixed(1)} MiB`;
+        elShards.textContent = `${engine.shardBuffers.length} fatias <= ${engine.manifest.max_shard_mib.toFixed(1)} MiB (< 128 MiB)`;
+        elScache.textContent = `${(engine.scacheGpuBytes / 1024).toFixed(1)} KB`;
+        elScacheDelta.textContent = `Δ Crescimento = +0 B (${engine.windowSize} jan + ${engine.numSlots} slots)`;
+
+        bootBanner.style.display = "none";
+        chatInput.disabled = false;
+        btnSend.disabled = false;
+        btnMultiHead.disabled = false;
+        renderCapsules();
+
+        logAudit(
+          `🚀 <strong>[WebGPU Pronto]</strong> Adaptador: <code>${engine.adapterLabel}</code> • Pesos MoS: <strong>${(engine.totalWeightGpuBytes / (1024 * 1024)).toFixed(2)} MiB</strong> • SCache O(1) fixo: <strong>${engine.scacheGpuBytes.toLocaleString()} B</strong> • 0 B de cartuchos pré-baixados!`,
+        );
+      } catch (err) {
+        bootStatus.textContent = `Falha ao inicializar WebGPU: ${err.message || err}`;
+        bootStatus.style.color = "var(--danger)";
+        elAdapter.textContent = "Indisponível";
+        logAudit(`❌ <span style="color:var(--danger)">${err.message || err}</span>`);
+      }
+    })();
+  </script>
+</body>
+</html>

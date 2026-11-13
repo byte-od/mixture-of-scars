@@ -8,8 +8,8 @@
 [![HuggingFace Drop-in](https://img.shields.io/badge/HuggingFace-DynamicCache%20Drop--in-yellow.svg)](https://huggingface.co/)
 [![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
 [![72.7B Sub-2-Bit](https://img.shields.io/badge/72.7B%20Sub--2--Bit-20.65%20GiB%20Shards%20(%3C24%20GB%20VRAM)-9cf.svg)](#3-horizon-1-v140-ghost-jump-speculative-reflex--sub-2-bit-mos--24-gb-7271b)
-[![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
-[![Tests Passing](https://img.shields.io/badge/Tests-88%2F88%20Passing-brightgreen.svg)](tests/)
+[![Fused Metal, Triton & WebGPU WGSL](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16%20%7C%20WebGPU%20WGSL%2071.8%20tok%2Fs-blueviolet.svg)](scar_cache/webgpu/mos_scache_kernels.wgsl)
+[![Tests Passing](https://img.shields.io/badge/Tests-95%2F95%20Passing-brightgreen.svg)](tests/)
 [![Forensic Audit Guide](https://img.shields.io/badge/Audit%20Guide-v3.0%20Zero--Facade-0ea5e9.svg)](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
@@ -22,6 +22,7 @@
 > 2. **`SCache` $\mathcal{O}(1)$ & `Ghost-Jump` Speculative Reflex (Temporal Memory & Decode):** Drop-in HuggingFace `DynamicCache` combining attention sinks, rolling FIFO, synchronized deep-layer `[L/2 : L)` Widrow-Hoff prediction-surprise routing over `32`-token micro-pages (`+0.00 Bytes` drift from `16.6k` to `32.9k` tokens; `50.9×` smaller & `5.84×` faster), and atomic $\mathcal{O}(1)$ speculative rollback (`KL = 0.0000`, `1.89×–1.92×` speedup).
 > 3. **Closed-Form `140 KB` `HeadExpandedScarStore` (`mos-store` CLI & Web UI — Live `HTTP 206` Online Library & Open-Weights Factory):** Transplants `72.71B` and open-weight teacher derivations with **`0` SGD / `0` backprop** into OS-page-aligned **`140.00 KB` (`35 × 4 KB` `mmap`)** cartridges on `3B` (`61.25 KB` on `0.5B`, `98.61%` unseen Top-1 parity, live 9-slot GitHub CDN `HTTP/1.1 206` Range streaming, zero-dependency `mos-store ui` Visual Store, and `18 µs` RAM / `7.64 ms` `0x00` SSD GDPR unlearning).
 > 4. **Sinkhorn Monomial–Procrustes Re-Basin (`mos-rebasin`):** Exploits exact SwiGLU monomial gauge symmetry via tiled single-pass log-Sinkhorn (`< 350 MiB` VRAM at `72B+`, `0` extra runtime FLOPs), slashing shared-base KL by **`56.36×` (`0.1578 → 0.0028`)** on permuted specialists and **`3.37×` (`0.1190 → 0.0353 < 0.08`)** on `3B` cross-layer pairs.
+> 5. **Horizon 3.3 — Native Zero-Python `WebGPU / WGSL` Browser Engine (`mos-webgpu`):** Compiles the complete `MoS Block-64 INT4 + ASVD` + `SCache O(1)` (`Widrow-Hoff Delta` + fixed surprise slots, `Δ = +0 B`) + `HeadExpandedScarStore` (`HTTP/1.1 206` `61.25 KB` / `140.00 KB` live cartridge streaming & `0x00` LGPD wipe) stack into `14` pure `WGSL 1.0` compute shaders ([`scar_cache/webgpu/mos_scache_kernels.wgsl`](scar_cache/webgpu/mos_scache_kernels.wgsl)), reaching **`67.7–71.85 tok/s`** on Apple M2 Metal (`526.09 MiB` shards `< 80 MiB`, `2,694.75 KB` locked `SCache O(1)`).
 
 ![Multi-Scale v3.0.0 Empirical Audit — 32.9k Passkey O(1) KV, <24 GB 72.71B Sub-2-Bit, 140 KB ScarStore & Sinkhorn Re-Basin](zenodo_deposit_v3_0/mos_scache_v3_0_hero.png)
 
@@ -148,12 +149,29 @@ mos-rebasin audit-72b-shard --shard ./models/qwen25_72b_mos_v2/mos_group_19.safe
     - **Cross-Layer Shared-Base `Qwen2.5-3B-Instruct` (`5.09×` pair compression, `-80.37%` vs FP16):** Interior `pair_L22_L23` drops from Naive `KL = 0.1190` to **`KL = 0.0395` Monomial (`3.01×` lower, `99.77%` Top-5, `0` extra FLOPs)** and **`KL = 0.0353 < 0.08` Procrustes (`3.37×` lower)**! Across **`12` consecutive layers (`L18..L29`, `1/3` of the network)**, Naive collapses (`KL = 6.4634`) while Sinkhorn Monomial achieves **`KL = 0.4403` (`14.68×` lower KL, `95.02%` Top-5)**!
     - **Colossal `Qwen2.5-72B` (`29,568 × 8,192`, `6.23×` pair compression: `2,772 → 445.21 MiB`) & *Residual Stream Marchenko-Pastur Orthogonality Law*:** Achieves **`51.1×` (`L40-L41`)** and **`109.2×` (`L78-L79`)** inner-product gains, raising `L79` output cosine under `195,720×` SwiGLU spikes from `0.1626 → 0.8835` (`2.73×` lower error), while uncovering that adjacent pretrained residual blocks self-organize near the random Marchenko-Pastur orthogonality floor ($\mathbb{E}[\max_j \cos] = 0.0633\text{–}0.1228$ vs. $\sqrt{2\ln(29568)/8192} = 0.0501$) — establishing mathematically why *Sinkhorn Re-Basin* is optimal for selective interior pairs and multi-specialist banks, whereas full 80-layer standalone compression achieves higher Pareto fidelity via independent `2.25 bpw` `Sub-2-Bit MoS` bases (`cos = 0.99911`, `20.65 GiB`).
 
+### 5. Horizon 3.3 (`mos-webgpu`): Native Zero-Python `WebGPU / WGSL` Browser Engine & `HTTP 206` ScarStore Studio
+Audited live on Apple M2 Metal GPU (`wgpu` + pure ES-module browser bundle, zero `@huggingface/transformers.js` or ONNX Runtime wrappers) in [`results/webgpu_wgsl_v3_0_audit.json`](results/webgpu_wgsl_v3_0_audit.json) ([`scar_cache/webgpu/mos_scache_kernels.wgsl`](scar_cache/webgpu/mos_scache_kernels.wgsl), [`scar_cache/webgpu_engine.py`](scar_cache/webgpu_engine.py), [`scar_cache/webgpu/app/mos_webgpu_engine.js`](scar_cache/webgpu/app/mos_webgpu_engine.js), [`scar_cache/webgpu/app/scarstore_http206_browser.js`](scar_cache/webgpu/app/scarstore_http206_browser.js), [`scar_cache/webgpu/app/qwen_bpe_tokenizer.js`](scar_cache/webgpu/app/qwen_bpe_tokenizer.js), [`scar_cache/webgpu/app/index.html`](scar_cache/webgpu/app/index.html)):
+* **`14` Pure `WGSL 1.0` Compute Kernels (`cos > 0.999999` vs. PyTorch):** Implements `embed_int4_lookup`, `rmsnorm_f32`, `fp16_gemv_bias`, fused `mos_fused_int4_bscar_gemv` (`Block-64 INT4 + ASVD` via `unpack2x16float` + nibble shifts with zero optional shader extensions), `qwen_rope_inplace`, `scache_o1_update_widrow_hoff`, `scache_o1_gqa_attention`, `swiglu_mul_f32`, `head_expanded_scar_inject` (`+M` dynamic competitive Scar-Heads), `int4_vocab_logits_gemv`, and 2-stage `logits_top2_reduce` (`151,936` logits → **`16 Bytes`/token `mapAsync` readout**).
+* **`>10.5×` Faster Decode & Strict `SCache O(1)` (`ΔBytes = 0`):** Exports `Qwen2.5-0.5B-Instruct` in `2.60s` into `8` universal-WebGPU-compliant binary shards (`max = 71.74 MiB < 128 MiB`, `526.09 MiB` total VRAM), sustaining **`67.7–71.85 tok/s`** single-token decode with `SCache O(1)` locked at **`2,759,424 B` (`2,694.75 KB`, `Δ = +0 B`)**.
+* **Zero-Python Live `HTTP/1.1 206` Browser Cartridge Streaming & `< 0.2 ms` `0x00` LGPD Wipe:** Boots with `0 B` cartridge payload (`42.0 KB` anchor router), streams exact **`62,720 B` (`61.25 KB`)** / **`143,360 B` (`140.00 KB`)** byte ranges via `fetch(..., { headers: { Range } })` on cone hit (`k_BT \ln 2` `72.71B` derivation at `p_1 = 0.9790`; `95.88%` 14-head spread under simultaneous `M = 2` Landauer + FLP injection), and wipes individual cartridges in browser RAM with `0x00` (`exact_revert_to_base_tokens = True`).
+
+```bash
+# 1. Export Qwen2.5-0.5B-Instruct (or 3B) + v3.0 .scarstore into static <80 MiB WebGPU shards:
+mos-webgpu export --model Qwen/Qwen2.5-0.5B-Instruct --store results/online_library_v3_0/qwen0p5b_v3_0.scarstore --out ./webgpu_dist/qwen0p5b
+
+# 2. Verify WGSL hardware parity, SCache O(1) ΔBytes = 0, and live ScarStore injection on local GPU:
+mos-webgpu verify --dir ./webgpu_dist/qwen0p5b
+
+# 3. Serve the Zero-Python-Inference WebGPU Studio + RFC 7233 HTTP/1.1 206 Range endpoint in Chrome/Edge:
+mos-webgpu serve --dir ./webgpu_dist/qwen0p5b --port 8780
+```
+
 ---
 
 ## 📄 Official Preprint (`v3.0.0`), Public `72.71B` Shards & Forensic Audit Guide
 - **Permanent Preprint (CERN / Zenodo `v3.0.0` DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) · *Concept DOI (all versions):* [`10.5281/zenodo.24144512`](https://doi.org/10.5281/zenodo.24144512) ([**Preprint v3.0 PDF**](zenodo_deposit_v3_0/Mixture_of_Scars_and_SCache_Preprint_v3.0.pdf) | [v1.3 PDF](archive/zenodo_deposits/zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](archive/zenodo_deposits/zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](archive/zenodo_deposits/zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](archive/zenodo_deposits/zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
 - **Academic LaTeX Source & Replication Bundles (`v3.0.0`, arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/), [`arXiv_Direct_Upload_v3.0.zip`](zenodo_deposit_v3_0/arXiv_Direct_Upload_v3.0.zip), [`MoS_SCache_LaTeX_arXiv_TMLR_v3.0.zip`](zenodo_deposit_v3_0/MoS_SCache_LaTeX_arXiv_TMLR_v3.0.zip) & [`MoS_SCache_Adversarial_Replication_v3.0.zip`](zenodo_deposit_v3_0/MoS_SCache_Adversarial_Replication_v3.0.zip)
-- **Forensic Audit & Zero-Facade Verification Guide (`88/88` Tests):** [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
+- **Forensic Audit & Zero-Facade Verification Guide (`95/95` Tests):** [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
 - **Live Official Online Cartridge Library (`9` Slots, `HTTP/1.1 206` Streaming):** [`docs/ONLINE_CARTRIDGE_LIBRARY.md`](docs/ONLINE_CARTRIDGE_LIBRARY.md) · [`releases/tag/v3.0.0`](https://github.com/byte-od/mixture-of-scars/releases/tag/v3.0.0)
 - **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `22` SHA-256 Shards, Zero Login) & Practical Guide:**
   - **Direct Download (`HTTP 206 Range` + `SHA-256`):** [`github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos`](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
@@ -296,11 +314,11 @@ The Unified Scar Operator unlocks concrete mechanisms outside text generation �
 ## 📂 Reproduction Suites, Clean Repository Map & Executable Examples
 
 ```bash
-# Run all 88 unit, red-team causality, MoS Student, ScarStore HTTP-206/UI/GDPR, Sinkhorn Re-Basin, and v3.0 architectural integrity tests (25 suites):
+# Run all 95 unit, red-team causality, MoS Student, ScarStore HTTP-206/UI/GDPR, Sinkhorn Re-Basin, WebGPU WGSL hardware, and v3.0 architectural integrity tests (26 suites):
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 pytest tests/ -v
 ```
 
-- **Forensic Audit & Repository Map (`v3.0.0`):** See [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md) for the complete `25`-file (`88`-test) anti-facade verification matrix, physical byte-pointer audit protocol (`0.00 B` discrepancy), and top-level directory map (`scar_cache/`, `mixture_of_scars/`, `tests/`, `scripts/`, `results/`, `paper_latex/`, `zenodo_deposit_v3_0/`, and [`archive/`](archive/README.md)).
+- **Forensic Audit & Repository Map (`v3.0.0`):** See [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md) for the complete `26`-file (`95`-test) anti-facade verification matrix, physical byte-pointer audit protocol (`0.00 B` discrepancy), and top-level directory map (`scar_cache/`, `mixture_of_scars/`, `tests/`, `scripts/`, `results/`, `paper_latex/`, `zenodo_deposit_v3_0/`, and [`archive/`](archive/README.md)).
 - **Core Verification & Red-Team Suites (`scripts/`):**
   - [`scripts/build_online_cartridge_library_v3_0.py`](scripts/build_online_cartridge_library_v3_0.py) & [`scripts/publish_online_library_github_release.py`](scripts/publish_online_library_github_release.py) — Builds & audits the `9`-slot `72.71B → 3B & 0.5B` Online Cartridge Library (`HTTP/1.1 206` CDN verification).
   - [`scripts/audit_sinkhorn_rebasin_v2_4.py`](scripts/audit_sinkhorn_rebasin_v2_4.py) — Track 2.2 Sinkhorn Monomial–Procrustes Re-Basin (`0.5B`, `3B`, `72.71B` shards & Marchenko-Pastur law).

@@ -47,16 +47,24 @@ mos-transcode-sub2bit = "scar_cache.sub2bit_mos:main_cli"
 mos-graft = "scar_cache.scar_grafting:main_cli"
 mos-store = "scar_cache.cli_scar_store:main"
 mos-rebasin = "scar_cache.sinkhorn_rebasin:main_cli"
+mos-webgpu = "scar_cache.webgpu_engine:main_cli"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "transformers>=5.0.0",
+    "wgpu>=0.18.0",
+]
+webgpu = [
+    "wgpu>=0.18.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["scar_cache*", "mixture_of_scars*"]
+
+[tool.setuptools.package-data]
+scar_cache = ["webgpu/*.wgsl", "webgpu/app/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

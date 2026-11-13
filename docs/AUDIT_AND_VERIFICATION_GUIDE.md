@@ -1,25 +1,26 @@
 # Forensic Audit & Independent Verification Guide (`v3.0.0`)
 
 > **Zero-Facades / Zero-Shortcuts Engineering Mandate:**  
-> Every claim in **Mixture of Scars (`MoS`) `v3.0.0`** and **`SCache` $\mathcal{O}(1)$** is backed by pure, inspectable PyTorch/Metal/Triton source code in [`scar_cache/`](../scar_cache/), automated physical byte-pointer checks (`untyped_storage().data_ptr()`), **`88/88`** executable `pytest` tests across `25` suites in [`tests/`](../tests/), and committed raw JSON telemetry in [`results/`](../results/) and [`benchmark_results/`](../benchmark_results/).
+> Every claim in **Mixture of Scars (`MoS`) `v3.0.0`** and **`SCache` $\mathcal{O}(1)$** is backed by pure, inspectable PyTorch/Metal/Triton/WGSL source code in [`scar_cache/`](../scar_cache/), automated physical byte-pointer checks (`untyped_storage().data_ptr()` & fixed `GPUBuffer` bindings), **`95/95`** executable `pytest` tests across `26` suites in [`tests/`](../tests/), and committed raw JSON telemetry in [`results/`](../results/) and [`benchmark_results/`](../benchmark_results/).
 
 ---
 
 ## 1. 60-Second End-to-End Audit Commands
 
 ```bash
-# 1. Run the complete 88-test forensic, mathematical, and red-team verification suite:
+# 1. Run the complete 95-test forensic, mathematical, WGSL hardware, and red-team verification suite:
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 pytest tests/ -v
 
 # 2. Run ONLY the dedicated v3.0.0 anti-facade, symbol-parity, CLI, and JSON-proof audit (< 3s):
 pytest tests/test_v3_architectural_integrity.py -v
 
-# 3. Verify all 5 installed CLI entry points respond cleanly:
+# 3. Verify all 6 installed CLI entry points respond cleanly:
 mos-run --help
 mos-store --help
 mos-graft --help
 mos-rebasin --help
 mos-transcode-sub2bit --help
+mos-webgpu --help
 ```
 
 ---
@@ -34,6 +35,7 @@ mos-transcode-sub2bit --help
 | **Pillar II-B: `Ghost-Jump` Speculative Reflex + Atomic `SCache` Rollback** (`1.89×–1.92×` MPS speedup, `KL = 0.0000` exact parity, `0 B` leak) | [`speculative_ghost_jump.py`](../scar_cache/speculative_ghost_jump.py), [`hf_cache.py`](../scar_cache/hf_cache.py) | [`test_horizon1_v1_4.py`](../tests/test_horizon1_v1_4.py) | [`benchmark_horizon1_v1_4.py`](../scripts/benchmark_horizon1_v1_4.py) → [`horizon1_v1_4_audit.json`](../results/horizon1_v1_4_audit.json) |
 | **Pillar III: Closed-Form `140.00 KB` (`35 × 4 KB` `mmap`) `HeadExpandedScarStore` (`mos-store` CLI/UI, Live `HTTP 206` Library & Open-Weights Factory)** (`0` SGD, `72.71B → 3B` `98.61%` unseen Top-1, 9-slot GitHub CDN `HTTP/1.1 206` streaming, `same_vocab_exact` + `cross_tokenizer_bridge` minting, `18 µs` RAM / `7.64 ms` `0x00` SSD GDPR wipe, `6/6` red-team pass) | [`head_expanded_attention.py`](../scar_cache/head_expanded_attention.py), [`cli_scar_store.py`](../scar_cache/cli_scar_store.py), [`ui_scar_store.py`](../scar_cache/ui_scar_store.py), [`open_weights_factory.py`](../scar_cache/open_weights_factory.py), [`scar_grafting.py`](../scar_cache/scar_grafting.py), [`scar_store_v2.py`](../scar_cache/scar_store_v2.py), [`dual_depth_bridge.py`](../scar_cache/dual_depth_bridge.py) | [`test_scar_grafting_v2.py`](../tests/test_scar_grafting_v2.py), [`test_scar_store_v2_stage1.py`](../tests/test_scar_store_v2_stage1.py)–[`stage5_adversarial.py`](../tests/test_scar_store_v2_stage5_adversarial.py), [`test_cli_scar_store.py`](../tests/test_cli_scar_store.py) | [`build_online_cartridge_library_v3_0.py`](../scripts/build_online_cartridge_library_v3_0.py), [`audit_scar_store_v2_stage5_3b_vs_0p5b.py`](../scripts/audit_scar_store_v2_stage5_3b_vs_0p5b.py), [`adversarial_core_0p5b_vs_3b_suite.py`](../scripts/adversarial_core_0p5b_vs_3b_suite.py), [`audit_mos_store_cli_v2_3.py`](../scripts/audit_mos_store_cli_v2_3.py) → [`online_cartridge_library_v3_0_audit.json`](../results/online_cartridge_library_v3_0_audit.json), [`scar_store_v2_stage5_3b_vs_0p5b_audit.json`](../results/scar_store_v2_stage5_3b_vs_0p5b_audit.json), [`adversarial_0p5b_vs_3b_audit.json`](../results/adversarial_0p5b_vs_3b_audit.json), [`mos_store_v2_3_cli_http206_audit.json`](../results/mos_store_v2_3_cli_http206_audit.json) |
 | **Pillar IV: *Sinkhorn Monomial–Procrustes Re-Basin* & Marchenko-Pastur Law** (`56.36×` specialist KL drop, `KL = 0.0353 < 0.08` on `3B` `L22–L23` at `5.09×` compression & `0` extra FLOPs, `14.68×` on `12` layers, `< 350 MiB` tiled `72B` log-Sinkhorn) | [`sinkhorn_rebasin.py`](../scar_cache/sinkhorn_rebasin.py) | [`test_sinkhorn_rebasin.py`](../tests/test_sinkhorn_rebasin.py), [`test_v3_architectural_integrity.py`](../tests/test_v3_architectural_integrity.py) | [`audit_sinkhorn_rebasin_v2_4.py`](../scripts/audit_sinkhorn_rebasin_v2_4.py) → [`sinkhorn_rebasin_v2_4_audit.json`](../results/sinkhorn_rebasin_v2_4_audit.json) |
+| **Horizon 3.3: Native Zero-Python `WebGPU / WGSL` Engine & Browser Studio (`mos-webgpu`)** (`14` pure `WGSL 1.0` compute kernels, `67.7–71.85 tok/s` Apple M2 Metal, `526.09 MiB` shards `< 80 MiB`, `2,694.75 KB` locked `SCache O(1)` `Δ = +0 B`, live `HTTP/1.1 206` `61.25 KB` streaming & `0x00` LGPD wipe) | [`webgpu_engine.py`](../scar_cache/webgpu_engine.py), [`mos_scache_kernels.wgsl`](../scar_cache/webgpu/mos_scache_kernels.wgsl), [`mos_webgpu_engine.js`](../scar_cache/webgpu/app/mos_webgpu_engine.js), [`scarstore_http206_browser.js`](../scar_cache/webgpu/app/scarstore_http206_browser.js), [`qwen_bpe_tokenizer.js`](../scar_cache/webgpu/app/qwen_bpe_tokenizer.js) | [`test_webgpu_wgsl_engine.py`](../tests/test_webgpu_wgsl_engine.py), [`test_v3_architectural_integrity.py`](../tests/test_v3_architectural_integrity.py) | `mos-webgpu verify` → [`webgpu_wgsl_v3_0_audit.json`](../results/webgpu_wgsl_v3_0_audit.json) |
 
 ---
 

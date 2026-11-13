@@ -42,6 +42,7 @@ from scar_cache.scar_grafting import main_cli as mos_graft_main
 from scar_cache.sinkhorn_rebasin import main_cli as mos_rebasin_main
 from scar_cache.speculative_ghost_jump import recursive_scache_storage_bytes
 from scar_cache.sub2bit_mos import main_cli as mos_sub2bit_main
+from scar_cache.webgpu_engine import main_cli as mos_webgpu_main
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -101,6 +102,7 @@ def test_all_five_v3_cli_entrypoints_load_and_respond_to_help(
         ("mos-graft", mos_graft_main),
         ("mos-rebasin", mos_rebasin_main),
         ("mos-transcode-sub2bit", mos_sub2bit_main),
+        ("mos-webgpu", mos_webgpu_main),
     ]
     for name, fn in cli_funcs:
         monkeypatch.setattr(sys, "argv", [name, "--help"])
@@ -181,6 +183,7 @@ def test_published_json_audit_reports_exist_and_verify_zero_discrepancy() -> Non
         REPO_ROOT / "results" / "mos_store_v2_3_cli_http206_audit.json",
         REPO_ROOT / "results" / "online_cartridge_library_v3_0_audit.json",
         REPO_ROOT / "results" / "online_library_v3_0" / "scarstore_catalog_v3_0.json",
+        REPO_ROOT / "results" / "webgpu_wgsl_v3_0_audit.json",
         REPO_ROOT / "results" / "sinkhorn_rebasin_v2_4_audit.json",
         REPO_ROOT / "results" / "scale_7b_audit" / "adversarial_scale_7b_report.json",
         REPO_ROOT / "results" / "scale_72b_audit" / "adversarial_scale_72b_report.json",

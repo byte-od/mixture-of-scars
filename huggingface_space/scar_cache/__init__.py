@@ -79,6 +79,15 @@ from scar_cache.mos_student import (
     transcode_hf_student_to_mos_safetensors,
 )
 from scar_cache.ui_scar_store import ScarStoreWebUI
+from scar_cache.webgpu_engine import (
+    NativeWebGPUMoSEngine,
+    WebGPUExportReport,
+    WebGPUGenerationResult,
+    WebGPUStaticRangeServer,
+    export_mos_model_to_webgpu,
+    export_scarstore_for_webgpu,
+    verify_webgpu_mos_parity,
+)
 from scar_cache.sinkhorn_rebasin import (
     ActivationWhitener,
     SharedGridMoSLinear,
@@ -179,6 +188,13 @@ __all__ = [
     "load_mos_student_model",
     "transcode_hf_student_to_mos_safetensors",
     "ScarStoreWebUI",
+    "WebGPUExportReport",
+    "WebGPUGenerationResult",
+    "NativeWebGPUMoSEngine",
+    "WebGPUStaticRangeServer",
+    "export_mos_model_to_webgpu",
+    "export_scarstore_for_webgpu",
+    "verify_webgpu_mos_parity",
     "ActivationWhitener",
     "SwiGLUMonomialAlignment",
     "SharedGridMoSLinear",
