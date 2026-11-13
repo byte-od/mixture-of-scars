@@ -1,0 +1,200 @@
+{
+  "benchmark": "Horizon 2 (v2.0) Track 2.1 — Closed-Form Titan 72.71B -> 0.5B Scar Grafting & Sleep Consolidation",
+  "teacher_model": "Qwen2.5-72B-Instruct MoS (72.71B parameters, 80 layers, d=8192)",
+  "student_model": "Qwen2.5-0.5B-Instruct (0.49B parameters, 24 layers, d=896, frozen)",
+  "device": "mps",
+  "zero_backpropagation": true,
+  "calibration_ms": 276.92,
+  "closed_form_3_capsules_synthesis_ms": 2802.81,
+  "storage_and_transfer_compression": {
+    "teacher_72b_bf16_bytes": 145416855224,
+    "teacher_72b_mos_v2_bytes": 40931038330,
+    "single_active_capsule_bytes": 231168,
+    "single_active_capsule_kb": 225.75,
+    "full_3_domain_cartridge_disk_bytes": 731472,
+    "full_3_domain_cartridge_disk_kb": 714.33,
+    "l1_router_index_bytes": 5376,
+    "active_transfer_reduction_vs_72b_bf16_x": 629052.7,
+    "active_transfer_reduction_vs_72b_mos_x": 177061.9
+  },
+  "cone_orthogonality_audit": {
+    "num_capsules": 3,
+    "capsule_ids": [
+      "titan72b_kabatiansky_levenshtein",
+      "titan72b_landauer_principle",
+      "titan72b_immerman_szelepcsenyi"
+    ],
+    "gram_matrix": [
+      [
+        1.0,
+        0.543475,
+        0.590805
+      ],
+      [
+        0.543475,
+        1.0,
+        0.431279
+      ],
+      [
+        0.590805,
+        0.431279,
+        1.0
+      ]
+    ],
+    "max_off_diagonal_cos": 0.5908045768737793,
+    "min_off_diagonal_cos": 0.43127936124801636,
+    "min_tau": 0.6200000047683716,
+    "strictly_disjoint_at_anchors": true
+  },
+  "capsules": [
+    {
+      "capsule_id": "titan72b_kabatiansky_levenshtein",
+      "domain_label": "High-Dimensional Geometry & Coding Theory",
+      "rank": 64,
+      "physical_bytes": 231168,
+      "physical_kb": 225.75,
+      "anchor_bytes": 1792,
+      "solve_ms": 988.75
+    },
+    {
+      "capsule_id": "titan72b_landauer_principle",
+      "domain_label": "Thermodynamics of Information & Computation",
+      "rank": 64,
+      "physical_bytes": 231168,
+      "physical_kb": 225.75,
+      "anchor_bytes": 1792,
+      "solve_ms": 897.76
+    },
+    {
+      "capsule_id": "titan72b_immerman_szelepcsenyi",
+      "domain_label": "Computational Complexity Theory",
+      "rank": 64,
+      "physical_bytes": 231168,
+      "physical_kb": 225.75,
+      "anchor_bytes": 1792,
+      "solve_ms": 914.603
+    }
+  ],
+  "unseen_paraphrase_evaluations": [
+    {
+      "capsule_id": "titan72b_kabatiansky_levenshtein",
+      "unseen_test_prompt": "Explain concisely what the Kabatiansky-Levenshtein theorem proves for high-dimensional unit spheres.",
+      "teacher_72b_ref_text": "The Kabatiansky-Levenshtein theorem provides an upper bound on the number of points that can be placed on",
+      "slm_0p5b_before_text": "The Kabatiansky-Levenshtein theorem establishes that any two points on a high-dimensional unit sphere can be connected",
+      "slm_0p5b_grafted_text": "The Kabatiansky-Levenshtein theorem establishes an upper bound on the number of non-overlapping unit spheres that",
+      "routing_cosines": {
+        "titan72b_kabatiansky_levenshtein": 0.8883,
+        "titan72b_landauer_principle": 0.4325,
+        "titan72b_immerman_szelepcsenyi": 0.544
+      },
+      "active_gates": {
+        "titan72b_kabatiansky_levenshtein": 1.0
+      },
+      "active_bytes_transferred": 234752,
+      "top1_agreement_before": 0.8333,
+      "top1_agreement_after": 0.875,
+      "top5_agreement_before": 0.9583,
+      "top5_agreement_after": 0.9583,
+      "kl_to_72b_before": 0.6181,
+      "kl_to_72b_after": 0.418,
+      "ghost_jump_before": {
+        "accepted_draft": 9,
+        "total_drafted": 69,
+        "acceptance_rate": 0.1304,
+        "target_sweeps": 15,
+        "mean_tokens_per_sweep": 1.6
+      },
+      "ghost_jump_after": {
+        "accepted_draft": 18,
+        "total_drafted": 30,
+        "acceptance_rate": 0.6,
+        "target_sweeps": 7,
+        "mean_tokens_per_sweep": 3.429
+      }
+    },
+    {
+      "capsule_id": "titan72b_landauer_principle",
+      "unseen_test_prompt": "Explain concisely what Landauer's principle states for the minimum energy dissipated when erasing one bit at temperature T.",
+      "teacher_72b_ref_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\)",
+      "slm_0p5b_before_text": "Landauer's principle states that the minimum energy required to erase a single bit of information from a quantum system at absolute zero",
+      "slm_0p5b_grafted_text": "Landauer's principle states that the minimum energy dissipated when erasing one bit at temperature \\( T \\) is \\(",
+      "routing_cosines": {
+        "titan72b_kabatiansky_levenshtein": 0.496,
+        "titan72b_landauer_principle": 0.9304,
+        "titan72b_immerman_szelepcsenyi": 0.4104
+      },
+      "active_gates": {
+        "titan72b_landauer_principle": 1.0
+      },
+      "active_bytes_transferred": 234752,
+      "top1_agreement_before": 0.9167,
+      "top1_agreement_after": 0.9583,
+      "top5_agreement_before": 1.0,
+      "top5_agreement_after": 1.0,
+      "kl_to_72b_before": 0.2934,
+      "kl_to_72b_after": 0.1355,
+      "ghost_jump_before": {
+        "accepted_draft": 17,
+        "total_drafted": 38,
+        "acceptance_rate": 0.4474,
+        "target_sweeps": 8,
+        "mean_tokens_per_sweep": 3.0
+      },
+      "ghost_jump_after": {
+        "accepted_draft": 20,
+        "total_drafted": 20,
+        "acceptance_rate": 1.0,
+        "target_sweeps": 5,
+        "mean_tokens_per_sweep": 4.8
+      }
+    },
+    {
+      "capsule_id": "titan72b_immerman_szelepcsenyi",
+      "unseen_test_prompt": "Explain concisely what the Immerman-Szelepcsenyi theorem proves about nondeterministic space complexity classes.",
+      "teacher_72b_ref_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+      "slm_0p5b_before_text": "The Immerman-Szelepcsényi theorem establishes that any class of languages recognized by deterministic Turing machines can be",
+      "slm_0p5b_grafted_text": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+      "routing_cosines": {
+        "titan72b_kabatiansky_levenshtein": 0.548,
+        "titan72b_landauer_principle": 0.3264,
+        "titan72b_immerman_szelepcsenyi": 0.9057
+      },
+      "active_gates": {
+        "titan72b_immerman_szelepcsenyi": 1.0
+      },
+      "active_bytes_transferred": 234752,
+      "top1_agreement_before": 0.875,
+      "top1_agreement_after": 1.0,
+      "top5_agreement_before": 0.9583,
+      "top5_agreement_after": 1.0,
+      "kl_to_72b_before": 0.4757,
+      "kl_to_72b_after": 0.0257,
+      "ghost_jump_before": {
+        "accepted_draft": 13,
+        "total_drafted": 50,
+        "acceptance_rate": 0.26,
+        "target_sweeps": 11,
+        "mean_tokens_per_sweep": 2.182
+      },
+      "ghost_jump_after": {
+        "accepted_draft": 20,
+        "total_drafted": 20,
+        "acceptance_rate": 1.0,
+        "target_sweeps": 5,
+        "mean_tokens_per_sweep": 4.8
+      }
+    }
+  ],
+  "collateral_damage_audit": {
+    "num_unrelated_control_prompts": 6,
+    "max_control_cosine": 0.2412,
+    "max_abs_logit_perturbation": 0.0,
+    "exact_torch_equal_bit_parity": true
+  },
+  "surgical_unlearning_audit": {
+    "unlearned_capsule_id": "titan72b_landauer_principle",
+    "unlearn_latency_ms": 1.8433,
+    "exact_baseline_reversion": true,
+    "remaining_capsules_100pct_intact": true
+  }
+}

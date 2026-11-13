@@ -29,7 +29,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -463,6 +463,76 @@ class CanonicalMoSGroup:
         x_next = x.float() + mlp_out
         return x_next.clamp(-65000.0, 65000.0).to(self.dtype) if self.dtype == torch.float16 else x_next.to(self.dtype)
 
+    def forward_layer_packed(
+        self,
+        l_idx: int,
+        x_packed: torch.Tensor,
+        lengths: List[int],
+        cos_list: List[torch.Tensor],
+        sin_list: List[torch.Tensor],
+        scache_list: Optional[List[SCacheDynamicCache]] = None,
+    ) -> torch.Tensor:
+        """Exact causal varlen packed forward: dequantizes weights ONCE across `sum(lengths)` tokens
+        while isolating RoPE + causal self-attention (+ optional per-stream SCache!) strictly per sequence.
+        """
+        norm1 = self._rms_norm(x_packed, self.tensors[f"layers.{l_idx}.input_layernorm.weight"])
+        q_all = self._mos_linear(norm1, f"layers.{l_idx}.self_attn.q_proj", self.n_heads * self.head_dim, self.hidden_size)
+        k_all = self._mos_linear(norm1, f"layers.{l_idx}.self_attn.k_proj", self.n_kv_heads * self.head_dim, self.hidden_size)
+        v_all = self._mos_linear(norm1, f"layers.{l_idx}.self_attn.v_proj", self.n_kv_heads * self.head_dim, self.hidden_size)
+
+        q_splits = torch.split(q_all, lengths, dim=1)
+        k_splits = torch.split(k_all, lengths, dim=1)
+        v_splits = torch.split(v_all, lengths, dim=1)
+
+        attn_chunks: List[torch.Tensor] = []
+        for b_idx, seq_len in enumerate(lengths):
+            qb = q_splits[b_idx].view(1, seq_len, self.n_heads, self.head_dim).transpose(1, 2)
+            kb = k_splits[b_idx].view(1, seq_len, self.n_kv_heads, self.head_dim).transpose(1, 2)
+            vb = v_splits[b_idx].view(1, seq_len, self.n_kv_heads, self.head_dim).transpose(1, 2)
+
+            cos_b, sin_b = cos_list[b_idx], sin_list[b_idx]
+            qb = (qb * cos_b) + (rotate_half(qb) * sin_b)
+            kb = (kb * cos_b) + (rotate_half(kb) * sin_b)
+
+            if scache_list is not None:
+                kb, vb = scache_list[b_idx].update(kb, vb, l_idx)
+
+            k_rep = kb.repeat_interleave(self.kv_groups, dim=1) if self.kv_groups > 1 else kb
+            v_rep = vb.repeat_interleave(self.kv_groups, dim=1) if self.kv_groups > 1 else vb
+            k_len = int(k_rep.shape[2])
+            if seq_len == 1:
+                ao = F.scaled_dot_product_attention(qb, k_rep, v_rep, is_causal=False)
+            elif seq_len == k_len:
+                ao = F.scaled_dot_product_attention(qb, k_rep, v_rep, is_causal=True)
+            else:
+                c_mask = torch.ones((seq_len, k_len), dtype=torch.bool, device=qb.device).tril(diagonal=k_len - seq_len)
+                ao = F.scaled_dot_product_attention(qb, k_rep, v_rep, attn_mask=c_mask)
+            attn_chunks.append(ao.transpose(1, 2).contiguous().view(1, seq_len, self.hidden_size))
+
+        attn_packed = torch.cat(attn_chunks, dim=1)
+        attn_proj = self._mos_linear(
+            attn_packed, f"layers.{l_idx}.self_attn.o_proj", self.hidden_size, self.n_heads * self.head_dim
+        )
+        x_packed = (
+            (x_packed.float() + attn_proj.float()).clamp(-65000.0, 65000.0).to(self.dtype)
+            if self.dtype == torch.float16
+            else (x_packed + attn_proj)
+        )
+
+        norm2 = self._rms_norm(x_packed, self.tensors[f"layers.{l_idx}.post_attention_layernorm.weight"])
+        outs = []
+        total_tok = int(x_packed.shape[1])
+        for s0 in range(0, total_tok, 256):
+            ns = norm2[:, s0 : s0 + 256, :]
+            gf = self._mos_linear(ns, f"layers.{l_idx}.mlp.gate_proj", self.inter_size, self.hidden_size).float()
+            uf = self._mos_linear(ns, f"layers.{l_idx}.mlp.up_proj", self.inter_size, self.hidden_size).float()
+            inter = F.silu(gf) * uf
+            df = self._mos_linear(inter, f"layers.{l_idx}.mlp.down_proj", self.hidden_size, self.inter_size).float()
+            outs.append(df)
+        mlp_out = torch.cat(outs, dim=1)
+        x_next = x_packed.float() + mlp_out
+        return x_next.clamp(-65000.0, 65000.0).to(self.dtype) if self.dtype == torch.float16 else x_next.to(self.dtype)
+
 
 class CanonicalMoSEngine:
     """End-to-end local inference engine for Canonical Generative MoS v2 + SCache O(1)."""
@@ -622,6 +692,179 @@ class CanonicalMoSEngine:
             logits_parts.append(safe_gemm(xn, w_deq).float().cpu())
             del wq, ws, w_deq
         return torch.cat(logits_parts, dim=-1)
+
+    @torch.no_grad()
+    def forward_packed_sequences(self, seq_1d_list: List[torch.Tensor]) -> List[torch.Tensor]:
+        """Evaluates `N` independent 1D token sequences `[L_0], ..., [L_{N-1}]` in ONE single 72.71B
+        shard sweep, returning exact `[L_b, V]` CPU float32 logits per sequence (`0.000000` cross-talk).
+        """
+        if not seq_1d_list:
+            return []
+        lengths = [int(s.numel()) for s in seq_1d_list]
+        flat_ids = torch.cat([s.cpu().reshape(-1) for s in seq_1d_list], dim=0)
+        x_packed = (self.emb_q[flat_ids].to(torch.float32) * self.emb_s[flat_ids].to(torch.float32)).view(
+            1, sum(lengths), -1
+        )
+        x_packed = x_packed.to(self.device, dtype=self.dtype)
+
+        cos_list: List[torch.Tensor] = []
+        sin_list: List[torch.Tensor] = []
+        for seq_len in lengths:
+            pos_b = torch.arange(seq_len, device=self.device).unsqueeze(0)
+            cb, sb = self._rope(pos_b)
+            cos_list.append(cb)
+            sin_list.append(sb)
+
+        if self.streaming and self.n_groups > 1:
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                fut = pool.submit(_warm_os_page_cache, self.groups[0].shard_path)
+                for idx, g in enumerate(self.groups):
+                    fut.result()
+                    if idx + 1 < self.n_groups:
+                        fut = pool.submit(_warm_os_page_cache, self.groups[idx + 1].shard_path)
+                    g.load()
+                    for l_idx in range(g.start_layer, g.end_layer):
+                        x_packed = g.forward_layer_packed(l_idx, x_packed, lengths, cos_list, sin_list)
+                    if self.device.type == "mps" and hasattr(torch, "mps"):
+                        torch.mps.synchronize()
+                        self.peak_active_device_mib = max(
+                            self.peak_active_device_mib, torch.mps.current_allocated_memory() / (1024.0**2)
+                        )
+                    g.unload()
+        else:
+            for g in self.groups:
+                g.load()
+                for l_idx in range(g.start_layer, g.end_layer):
+                    x_packed = g.forward_layer_packed(l_idx, x_packed, lengths, cos_list, sin_list)
+                if self.streaming:
+                    g.unload()
+
+        xf = x_packed.float()
+        xn = (xf * torch.rsqrt(xf.pow(2).mean(dim=-1, keepdim=True) + self.rms_eps) * self.final_norm_w.float()).to(self.dtype)
+
+        vocab = self.head_q.shape[0]
+        logits_parts = []
+        for v0 in range(0, vocab, 16384):
+            v1 = min(v0 + 16384, vocab)
+            wq = self.head_q[v0:v1].to(self.device)
+            ws = self.head_s[v0:v1].to(self.device)
+            w_deq = wq.to(self.dtype) * ws.to(self.dtype)
+            logits_parts.append(safe_gemm(xn, w_deq).float().cpu())
+            del wq, ws, w_deq
+        logits_packed = torch.cat(logits_parts, dim=-1)[0]  # [sum(lengths), V]
+        return list(torch.split(logits_packed, lengths, dim=0))
+
+    @torch.no_grad()
+    def generate_packed_greedy(
+        self,
+        prompt_1d_list: List[torch.Tensor],
+        max_new_tokens: int = 24,
+        eos_token_ids: Optional[Sequence[int]] = None,
+    ) -> List[Tuple[torch.Tensor, torch.Tensor]]:
+        """Generates `max_new_tokens` greedily across `N` independent prompts simultaneously in `N`-way
+        packed `SCache O(1)` sweeps (`1` SSD shard read per step across ALL `N` prompts!), returning
+        `(generated_ids_1d, answer_logits_fp16_2d)` per prompt (`100%` pure 72.71B output).
+        """
+        n_streams = len(prompt_1d_list)
+        if n_streams == 0 or max_new_tokens <= 0:
+            return []
+        eos_set = set(int(x) for x in eos_token_ids) if eos_token_ids else set()
+        scache_list = [self.make_scache(window_size=256, num_slots=64) for _ in range(n_streams)]
+        gen_lists: List[List[int]] = [[] for _ in range(n_streams)]
+        lg_lists: List[List[torch.Tensor]] = [[] for _ in range(n_streams)]
+        done = [False] * n_streams
+
+        def _packed_step(step_1d_list: List[torch.Tensor]) -> torch.Tensor:
+            lengths = [int(s.numel()) for s in step_1d_list]
+            flat_ids = torch.cat([s.cpu().reshape(-1) for s in step_1d_list], dim=0)
+            x_pk = (self.emb_q[flat_ids].to(torch.float32) * self.emb_s[flat_ids].to(torch.float32)).view(
+                1, sum(lengths), -1
+            ).to(self.device, dtype=self.dtype)
+
+            cos_l: List[torch.Tensor] = []
+            sin_l: List[torch.Tensor] = []
+            for b_i, slen in enumerate(lengths):
+                past_b = scache_list[b_i].get_seq_length()
+                pos_b = past_b + torch.arange(slen, device=self.device).unsqueeze(0)
+                cb, sb = self._rope(pos_b)
+                cos_l.append(cb)
+                sin_l.append(sb)
+
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                fut = pool.submit(_warm_os_page_cache, self.groups[0].shard_path)
+                for idx, g in enumerate(self.groups):
+                    fut.result()
+                    if idx + 1 < self.n_groups:
+                        fut = pool.submit(_warm_os_page_cache, self.groups[idx + 1].shard_path)
+                    g.load()
+                    for l_idx in range(g.start_layer, g.end_layer):
+                        x_pk = g.forward_layer_packed(l_idx, x_pk, lengths, cos_l, sin_l, scache_list)
+                    if self.device.type == "mps" and hasattr(torch, "mps"):
+                        torch.mps.synchronize()
+                        self.peak_active_device_mib = max(
+                            self.peak_active_device_mib, torch.mps.current_allocated_memory() / (1024.0**2)
+                        )
+                    g.unload()
+
+            # Take only last token of each stream (`[1, n_streams, hidden_size]`) for LM head!
+            end_indices = []
+            acc = 0
+            for slen in lengths:
+                acc += slen
+                end_indices.append(acc - 1)
+            x_last = x_pk[:, end_indices, :]
+            xf = x_last.float()
+            xn = (xf * torch.rsqrt(xf.pow(2).mean(dim=-1, keepdim=True) + self.rms_eps) * self.final_norm_w.float()).to(self.dtype)
+
+            vocab = self.head_q.shape[0]
+            parts = []
+            for v0 in range(0, vocab, 16384):
+                v1 = min(v0 + 16384, vocab)
+                wq = self.head_q[v0:v1].to(self.device)
+                ws = self.head_s[v0:v1].to(self.device)
+                w_deq = wq.to(self.dtype) * ws.to(self.dtype)
+                parts.append(safe_gemm(xn, w_deq).float().cpu())
+                del wq, ws, w_deq
+            return torch.cat(parts, dim=-1)[0]  # [n_streams, V]
+
+        # Sweep 0: Packed Prefill across all N prompts
+        t_p0 = time.perf_counter()
+        lg_step = _packed_step(prompt_1d_list)
+        print(f"  [72.71B Packed Prefill ({n_streams} streams)] completed in {time.perf_counter()-t_p0:.1f}s", flush=True)
+
+        for step_idx in range(max_new_tokens):
+            next_inputs: List[torch.Tensor] = []
+            for b_i in range(n_streams):
+                if not done[b_i]:
+                    tok_b = int(lg_step[b_i].argmax(dim=-1).item())
+                    if tok_b in eos_set and len(gen_lists[b_i]) > 0:
+                        done[b_i] = True
+                        next_inputs.append(torch.tensor([tok_b], dtype=torch.long))
+                    else:
+                        lg_lists[b_i].append(lg_step[b_i].to(torch.float16))
+                        gen_lists[b_i].append(tok_b)
+                        if tok_b in eos_set:
+                            done[b_i] = True
+                        next_inputs.append(torch.tensor([tok_b], dtype=torch.long))
+                else:
+                    next_inputs.append(torch.tensor([gen_lists[b_i][-1]], dtype=torch.long))
+
+            if all(done) or step_idx == max_new_tokens - 1:
+                break
+
+            t_s0 = time.perf_counter()
+            lg_step = _packed_step(next_inputs)
+            if (step_idx + 1) % 5 == 0 or step_idx == 0:
+                print(
+                    f"  [72.71B Packed Decode step {step_idx+1}/{max_new_tokens-1}] {time.perf_counter()-t_s0:.1f}s/sweep "
+                    f"(peak VRAM={self.peak_active_device_mib:.0f} MiB)",
+                    flush=True,
+                )
+
+        return [
+            (torch.tensor(gen_lists[b_i], dtype=torch.long), torch.stack(lg_lists[b_i], dim=0))
+            for b_i in range(n_streams)
+        ]
 
     def make_scache(self, window_size: int = 256, num_slots: int = 24, num_sinks: int = 4) -> SCacheDynamicCache:
         return SCacheDynamicCache(

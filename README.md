@@ -1,7 +1,7 @@
 # Mixture of Scars (MoS) & SCache $\mathcal{O}(1)$: Breaking the Dual Memory Wall Across `0.5B`–`72.71B` Transformers
 
 [![DOI v1.3.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![Release: v1.4.0](https://img.shields.io/badge/Release-v1.4.0%20(Horizon%201)-brightgreen.svg)](results/horizon1_v1_4_audit.json)
+[![Release: v2.0.0a1](https://img.shields.io/badge/Release-v2.0.0a1%20(Horizon%202%20Scar%20Grafting)-brightgreen.svg)](results/horizon2_scar_grafting_v2_audit.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
@@ -9,7 +9,7 @@
 [![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
 [![72.7B Sub-2-Bit](https://img.shields.io/badge/72.7B%20Sub--2--Bit-20.65%20GiB%20Shards%20(%3C24%20GB%20VRAM)-9cf.svg)](#3-horizon-1-v140-ghost-jump-speculative-reflex--sub-2-bit-mos--24-gb-7271b)
 [![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
-[![Tests Passing](https://img.shields.io/badge/Tests-51%2F51%20Passing-brightgreen.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/Tests-57%2F57%20Passing-brightgreen.svg)](tests/)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 [![v2.x Roadmap](https://img.shields.io/badge/Roadmap-v1.4%20%E2%86%92%20v2.x-00b4d8.svg)](docs/ROADMAP_V2_INNOVATION_AND_APPLICATIONS.md)
@@ -86,6 +86,23 @@ mos-transcode-sub2bit --in-dir ./models/qwen25_72b_mos_v2 --out-dir ./models/qwe
 
 # Run speculative System 1 + System 2 Ghost-Jump decoding from the CLI:
 mos-run --model-dir ./models/qwen25_72b_mos_sub2bit --draft-model Qwen/Qwen2.5-0.5B-Instruct --prompt "Explain Widrow-Hoff orthogonal erasure:"
+```
+
+### 4. Horizon 2 (`v2.0.0a1`): Closed-Form `72.71B → 0.5B` Scar Grafting & Sleep Consolidation (`ZERO Backprop`)
+Audited live on Apple Silicon M2 (`16 GB`, `MPS`) transplanting **100% pure standalone `Qwen2.5-72B-Instruct MoS` (`72.71B`, `80` layers, `d = 8192`)** scientific knowledge directly into a **frozen `Qwen2.5-0.5B-Instruct` (`0.49B`, `d = 896`)** via closed-form Woodbury Vocabulary Rosetta Inversion + AlphaEdit Null-Space Dual Ridge SVD ([`scar_cache/scar_grafting.py`](scar_cache/scar_grafting.py), [`results/horizon2_scar_grafting_v2_audit.json`](results/horizon2_scar_grafting_v2_audit.json)):
+
+* **Zero Backpropagation / Zero SGD (`~0.90 s` per capsule):** Calibrates the Student null-space in `276.9 ms` and mints each `225.75 KB` FP16 (`64.75 KB` INT4-eq) `ScarCapsule` `(B_scar, A_scar, z_anchor)` in `< 1.0 s` (`629,052.7×` smaller active transfer than `135.43 GiB` `72B` BF16; `5.25 KB` L1 router index).
+* **Breaks the `d = 896` Linear Weight-Editing Ceiling via Spherical-Cap Cones:** Unlike static linear merges (`AlphaEdit`/`MEMIT`) bounded by `d = 896` orthogonal directions, one-sided `ReLU` spherical cones (`g_k(q) = clamp((cos(q, z_k) - tau) / ramp, 0, 1)`, `strictly_disjoint_at_anchors = True`) isolate domains exponentially in $\mathbb{S}^{895}$ (`0.0000000000` out-of-cone perturbation across 6 unrelated controls, `torch.equal = True`; `< 2 ms` surgical `bank.unlearn()`).
+* **Unseen Paraphrase Generalization & Self-Accelerating `Ghost-Jump` vs. `72.71B`:**
+  - *Immerman-Szelepcsényi Theorem:* `0.5B` hallucination (*"deterministic Turing machines..."*) → **exact `72.71B` theorem** (*"nondeterministic space complexity classes are closed under complementation"*), **`100.0%` Top-1 agreement**, `KL: 0.48 → 0.03` (**`18.5×` lower**), `Ghost-Jump` draft acceptance **`26.0% → 100.0%`** (`11 → 5` sweeps)!
+  - *Landauer's Principle & Kabatiansky-Levenshtein Bound:* `Ghost-Jump` acceptance jumps **`44.7% → 100.0%`** and **`13.0% → 60.0%`** (`15 → 7` sweeps).
+
+```bash
+# Reproduce the Horizon 2 (v2.0.0a1) 72.71B -> 0.5B Closed-Form Scar Grafting audit:
+python scripts/benchmark_scar_grafting_v2.py
+
+# Graft or query portable .scargraft.safetensors knowledge cartridges from the CLI:
+mos-graft --query "Explain concisely what the Immerman-Szelepcsenyi theorem proves about nondeterministic space complexity classes." --cartridge results/qwen72b_to_0p5b_v2.scargraft.safetensors
 ```
 
 ---

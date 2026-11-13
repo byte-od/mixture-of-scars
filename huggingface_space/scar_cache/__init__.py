@@ -26,6 +26,12 @@ from scar_cache.projections import (
     project_conflicting_gradient,
     project_conflicting_gradients_per_slot,
 )
+from scar_cache.scar_grafting import (
+    ScarBank,
+    ScarCapsule,
+    ScarGraftEngine,
+    SleepEpisode,
+)
 from scar_cache.speculative_ghost_jump import (
     GhostJumpGenerationResult,
     GhostJumpReflexDecision,
@@ -53,7 +59,7 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 
-__version__ = "1.4.0"
+__version__ = "2.0.0a1"
 
 __all__ = [
     "SCache",
@@ -68,6 +74,10 @@ __all__ = [
     "GhostJumpReflexDecision",
     "GhostJumpGenerationResult",
     "GhostJumpSpeculativeEngine",
+    "SleepEpisode",
+    "ScarCapsule",
+    "ScarBank",
+    "ScarGraftEngine",
     "SUB2BIT_BETA",
     "Sub2BitDecompositionStats",
     "Sub2BitMoSLinear",

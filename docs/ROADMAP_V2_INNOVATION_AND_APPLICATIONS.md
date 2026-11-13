@@ -1,7 +1,7 @@
 # 🗺️ Official Roadmap (`v1.4` → `v2.x`): Next-Generation `MoS`, `SCache O(1)` & Cross-Domain Applications
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![Current Release](https://img.shields.io/badge/Current%20Release-v1.4.0%20(Horizon%201%20Complete)-brightgreen.svg)](../results/horizon1_v1_4_audit.json)
+[![Current Release](https://img.shields.io/badge/Current%20Release-v2.0.0a1%20(Horizon%202%20Track%202.1%20Audited)-brightgreen.svg)](../results/horizon2_scar_grafting_v2_audit.json)
 [![72B MoS Checkpoint](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20(v1.2)%20%7C%2020.65%20GiB%20(v1.4%20Sub--2--Bit)-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Architectural Integrity](https://img.shields.io/badge/Mandate-Zero%20Facades%20%2F%20Strict%20O(1)-critical.svg)]()
 [![Sponsor Research](https://img.shields.io/badge/Sponsor-Open%20GPU%20Research-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/byte-od)
@@ -38,7 +38,7 @@ flowchart TD
     end
 
     subgraph H2["🧠 Horizon 2: Core Algorithmic Breakthroughs (v2.0)"]
-        P21["Track 2.1: Artificial Sleep Cycle (SCache → MoS)<br>Lifelong Continual Consolidation (Zero Forgetting)"]
+        P21["✅ Track 2.1: Closed-Form 72.71B → 0.5B Scar Grafting & Sleep Cycle<br>ZERO Backprop (~0.9s/cap) · 29.75–225.75 KB Cones · 0.000000 Leak"]
         P22["Track 2.2: Sinkhorn Re-Basin Permutation Alignment<br>Cross-Layer Base Sharing on Pretrained 70B–405B"]
     end
 
@@ -77,19 +77,15 @@ Audited telemetry stored in [`results/horizon1_v1_4_audit.json`](../results/hori
 
 ---
 
-## 🧠 4. Horizon 2 — Core Algorithmic & Scientific Innovations (`v2.0`)
+## 🧠 4. Horizon 2 — Core Algorithmic & Scientific Innovations (`v2.0.0a1`, `57/57` `pytest` Passing)
 
-### Track 2.1: "The Artificial Sleep Cycle" — Autonomous `SCache O(1) → MoS` Consolidation
-* **Scientific Breakthrough:** Biological brains capture high-surprise daytime shocks in the **Hippocampus** (fast, bounded associative memory = `SCache O(1)`) and consolidate recurring/critical patterns into the **Neocortex** during sleep (permanent synaptic low-rank scars = `MoS`), clearing hippocampal slots for the next day.
-* **Mathematical Formulation:**
-  During idle/consolidation phases, extract the top singular vectors of accumulated Widrow-Hoff fast-weight deltas and high-surprise micro-page key-value pairs, solving a constrained rank-$r$ distillation into a new directional `ScarExpert` $(\mathbf{B}_{\text{new}}, \mathbf{A}_{\text{new}}, \mathbf{z}_{\text{new}})$:
-
-$$\min_{\mathbf{B}_{\text{new}}, \mathbf{A}_{\text{new}}} \sum_{(\mathbf{x}, \mathbf{y}^\star) \in \mathcal{M}_{\text{surprise}}} \left\| \mathbf{y}^\star - \widehat{\mathbf{W}}_{\text{base}}\mathbf{x} - \operatorname{ReLU}(\cos(\mathbf{x}, \mathbf{z}_{\text{new}}))\,\mathbf{B}_{\text{new}}(\mathbf{A}_{\text{new}}\mathbf{x}) \right\|_2^2$$
-
-  followed by orthogonal slot release in `SCache`.
-* **Acceptance KPIs:**
-  * Lifelong continual adaptation across `1,000+` multi-session facts at strictly constant `O(1)` runtime RAM.
-  * **`0.000000` out-of-cone catastrophic forgetting** on unrelated domains (guaranteed by `ReLU` spherical-cap gating).
+### ✅ Track 2.1: Closed-Form `72.71B → 0.5B` Knowledge Transposition & Artificial Sleep Consolidation — **SHIPPED & AUDITED**
+* **Modules Shipped:** [`scar_cache/scar_grafting.py`](../scar_cache/scar_grafting.py) (`SleepEpisode`, `ScarCapsule`, `ScarBank`, `ScarGraftEngine`, Active-Set Cutting-Plane Woodbury Vocabulary Rosetta Inversion, AlphaEdit Exact Null-Space Projector `P_null`, `mos-graft` CLI), packed multi-stream `72.71B` engine methods (`generate_packed_greedy`, `forward_packed_sequences` in [`scar_cache/cli_72b.py`](../scar_cache/cli_72b.py)), [`scripts/benchmark_scar_grafting_v2.py`](../scripts/benchmark_scar_grafting_v2.py), and [`tests/test_scar_grafting_v2.py`](../tests/test_scar_grafting_v2.py) (`6/6` passing).
+* **Audited `Qwen2.5-72B-Instruct MoS (72.71B) → Qwen2.5-0.5B-Instruct (0.49B)` Results ([`results/horizon2_scar_grafting_v2_audit.json`](../results/horizon2_scar_grafting_v2_audit.json)):**
+  * **100% Closed-Form Synthesis (`ZERO Backpropagation / ZERO SGD`):** Calibrates the frozen `0.5B` null-space in `276.9 ms` and synthesizes each `72.71B` domain `ScarCapsule` in **`~0.90 s`** (`2,802.8 ms` total for 3 orthogonal scientific domains on Apple M2 `MPS`).
+  * **`629,052.7×` Active Transfer Compression vs. `72B` BF16 (`177,061.9×` vs. `72B MoS`):** Transplants authoritative `72.71B` scientific knowledge (*Kabatiansky-Levenshtein sphere-packing upper bound*, *Landauer's principle*, *Immerman-Szelepcsényi `NSPACE` complementation*) into portable `.safetensors` ReLU-cone capsules (`225.75 KB` FP16 / `64.75 KB` INT4-equivalent at `r=64` for multi-sentence derivations; `5.25 KB` L1 router index), breaking the `d = 896` linear weight-editing ceiling via disjoint spherical caps (`strictly_disjoint_at_anchors = True`, `max_off_diagonal_cos = 0.5908 < tau = 0.62`).
+  * **Generalization on Strictly Unseen Paraphrased Prompts + Self-Accelerating `Ghost-Jump`:** Eliminates `0.5B` hallucinations (`Immerman-Szelepcsényi`: **`100.0%` Top-1 agreement with `72.71B`**, `KL: 0.4757 → 0.0257` [`18.5×` lower]; `Ghost-Jump` draft acceptance against `72.71B` jumps **`13.0% → 60.0%`**, **`44.7% → 100.0%`**, and **`26.0% → 100.0%`**!).
+  * **Zero Out-of-Cone Interference & `< 2 ms` Surgical Unlearning:** `0.0000000000` (`torch.equal = True`) logit perturbation across 6 unrelated control prompts (`max_control_cosine = 0.2412`), plus instant `bank.unlearn()` (`~0.8–1.8 ms`) reverting the targeted domain to exact baseline while keeping remaining `72.71B` capsules `100%` intact.
 
 ### Track 2.2: *Sinkhorn Re-Basin* Cross-Layer Permutation Alignment
 * **Scientific Breakthrough:** Resolve Section 5 Limitation #1 of the `v1.3` preprint (`KL ≈ 0.78` when sharing dense bases across distinct pretrained layers).

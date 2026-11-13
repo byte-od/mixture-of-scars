@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mixture-of-scars"
-version = "1.4.0"
+version = "2.0.0a1"
 description = "Mixture of Scars (MoS) & SCache O(1): Sub-2-Bit/INT4+ASVD Weight Compression, Ghost-Jump Speculative Reflex & Constant-Memory Widrow-Hoff KV-Cache Replacement for 0.5B–72B+ LLMs"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -44,6 +44,7 @@ dependencies = [
 [project.scripts]
 mos-run = "scar_cache.cli_72b:main"
 mos-transcode-sub2bit = "scar_cache.sub2bit_mos:main_cli"
+mos-graft = "scar_cache.scar_grafting:main_cli"
 
 [project.optional-dependencies]
 dev = [
