@@ -68,6 +68,7 @@ def test_v3_version_and_metadata_synchronization() -> None:
     for md_path in (
         REPO_ROOT / "README.md",
         REPO_ROOT / "docs" / "AUDIT_AND_VERIFICATION_GUIDE.md",
+        REPO_ROOT / "docs" / "ONLINE_CARTRIDGE_LIBRARY.md",
         REPO_ROOT / "archive" / "README.md",
     ):
         assert md_path.exists(), f"Missing documentation file: {md_path}"
@@ -178,6 +179,8 @@ def test_published_json_audit_reports_exist_and_verify_zero_discrepancy() -> Non
         REPO_ROOT / "results" / "scar_store_v2_stage5_3b_vs_0p5b_audit.json",
         REPO_ROOT / "results" / "adversarial_0p5b_vs_3b_audit.json",
         REPO_ROOT / "results" / "mos_store_v2_3_cli_http206_audit.json",
+        REPO_ROOT / "results" / "online_cartridge_library_v3_0_audit.json",
+        REPO_ROOT / "results" / "online_library_v3_0" / "scarstore_catalog_v3_0.json",
         REPO_ROOT / "results" / "sinkhorn_rebasin_v2_4_audit.json",
         REPO_ROOT / "results" / "scale_7b_audit" / "adversarial_scale_7b_report.json",
         REPO_ROOT / "results" / "scale_72b_audit" / "adversarial_scale_72b_report.json",

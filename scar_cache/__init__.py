@@ -61,9 +61,18 @@ from scar_cache.cli_scar_store import (
     HTTPRangeCapsuleClient,
     ScarStoreHTTPRangeServer,
     ScarStoreQueryResult,
+    download_cloud_scarstore,
+    fetch_official_catalog,
     generate_with_scar_store,
     make_http_range_capsule_fetcher,
 )
+from scar_cache.open_weights_factory import (
+    build_episodes_from_text_pairs,
+    collect_open_weight_episodes,
+    discover_local_open_weight_models,
+    mint_capsules_from_specs,
+)
+from scar_cache.ui_scar_store import ScarStoreWebUI
 from scar_cache.sinkhorn_rebasin import (
     ActivationWhitener,
     SharedGridMoSLinear,
@@ -151,8 +160,15 @@ __all__ = [
     "ScarStoreHTTPRangeServer",
     "HTTPRangeCapsuleClient",
     "ScarStoreQueryResult",
+    "download_cloud_scarstore",
+    "fetch_official_catalog",
     "generate_with_scar_store",
     "make_http_range_capsule_fetcher",
+    "build_episodes_from_text_pairs",
+    "collect_open_weight_episodes",
+    "discover_local_open_weight_models",
+    "mint_capsules_from_specs",
+    "ScarStoreWebUI",
     "ActivationWhitener",
     "SwiGLUMonomialAlignment",
     "SharedGridMoSLinear",

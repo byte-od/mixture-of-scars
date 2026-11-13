@@ -511,17 +511,101 @@ def run_live_mos_outlier_audit(domain_preset: str = "Unseen Python (Dijkstra Hea
     return md, fig
 
 
+def _get_space_scarstore():
+    """Initializes the Official v3.0 Cloud Shell (`0.5B`, `61.25 KB` slices via HTTP 206) for Gradio Tab 4."""
+    if "scarstore" not in _MODEL_CACHE:
+        from scar_cache.cli_scar_store import (
+            download_cloud_scarstore,
+            fetch_official_catalog,
+            make_http_range_capsule_fetcher,
+        )
+        from scar_cache.head_expanded_attention import HeadExpandedScarStore
+
+        model, _tok, dev = get_model_and_tokenizer()
+        shell_path = download_cloud_scarstore("0.5b", mode="shell")
+        fetcher, http_client = make_http_range_capsule_fetcher("0.5b", hidden_dim=int(model.config.hidden_size))
+        store = HeadExpandedScarStore.open(shell_path, device=dev, on_demand_fetcher=fetcher)
+        try:
+            catalog = fetch_official_catalog()
+        except Exception:
+            catalog = {"cartridges": []}
+        _MODEL_CACHE["scarstore"] = store
+        _MODEL_CACHE["http_client"] = http_client
+        _MODEL_CACHE["catalog"] = catalog
+    return _MODEL_CACHE["scarstore"], _MODEL_CACHE["http_client"], _MODEL_CACHE["catalog"]
+
+
+def run_space_scarstore_query(prompt_text: str) -> str:
+    from scar_cache.cli_scar_store import generate_with_scar_store
+
+    model, tok, _dev = get_model_and_tokenizer()
+    store, http_client, catalog = _get_space_scarstore()
+    res, _ = generate_with_scar_store(
+        student_model=model,
+        tokenizer=tok,
+        store=store,
+        prompt_text_or_ids=prompt_text,
+        max_new_tokens=56,
+        http_client=http_client,
+    )
+    titles = {c["capsule_id"]: c.get("title_pt") or c["title"] for c in catalog.get("cartridges", [])}
+    active_str = (
+        ", ".join(f"**{titles.get(k, k)}** (`gate={v:.2f}`, `cos={res.routing_cosines.get(k, 0.0):.3f}`)" for k, v in res.active_gates.items())
+        if res.active_gates
+        else "`0` active cartridges (`0.0000000000` bit-for-bit out-of-cone invariance)"
+    )
+    http_str = (
+        ", ".join(f"`HTTP {e['http_status']}` `{e['bytes_received']:,} B` in `{e['latency_ms']:.1f} ms`" for e in res.http_range_events)
+        if res.http_range_events
+        else "`0 B` network (served from RAM/local cache)"
+    )
+    return (
+        f"### Answer (`Qwen2.5-0.5B-Instruct` + `61.25 KB` Cartridge)\n"
+        f"> {res.text}\n\n"
+        f"- **Activated Cartridge Cones:** {active_str}\n"
+        f"- **HTTP/1.1 206 Range Telemetry:** {http_str}\n"
+        f"- **`SCache O(1)` Memory:** `{res.scache_memory_kb:.1f} KB` | **Expanded Heads:** `+{res.num_expanded_heads}` | **Throughput:** `{res.tok_per_s:.1f} tok/s`"
+    )
+
+
+def run_space_unlearn(capsule_id: str) -> str:
+    store, _http_client, _catalog = _get_space_scarstore()
+    rep = store.unlearn(capsule_id.strip(), persist_to_disk=False)
+    return (
+        f"**LGPD / GDPR Unlearn Complete:** Erased `{rep['capsule_id']}` @ Kronecker `{rep['coord']}` "
+        f"in **`{rep['unlearn_ms']:.4f} ms`** (`0.0` retraining steps)."
+    )
+
+
 def build_demo():
     import gradio as gr
 
-    with gr.Blocks(title="Mixture of Scars & SCache O(1) — Red-Team Lab") as demo:
+    with gr.Blocks(title="Mixture of Scars & SCache O(1) v3.0 — Live Lab & Cartridge Store") as demo:
         gr.Markdown(
-            "# ⚡ Mixture of Scars (`MoS`) & `SCache` O(1) — Live Red-Team Laboratory\n"
+            "# ⚡ Mixture of Scars (`MoS`) & `SCache` O(1) (`v3.0.0`) — Live Lab & Online Cartridge Store\n"
             "**Permanent Preprint (CERN/Zenodo DOI):** [10.5281/zenodo.24172784](https://doi.org/10.5281/zenodo.24172784) | "
-            "**GitHub (`v1.0.0`):** [byte-od/mixture-of-scars](https://github.com/byte-od/mixture-of-scars)"
+            "**GitHub (`v3.0.0`):** [byte-od/mixture-of-scars](https://github.com/byte-od/mixture-of-scars)"
         )
         with gr.Tabs():
-            with gr.Tab("1. Live LLM Evicted-Passcode & Byte-Pointer Audit"):
+            with gr.Tab("1. v3.0 Online Cartridge Store (HTTP-206 Streaming & LGPD 0x00)"):
+                gr.Markdown(
+                    "Stream exact **`61.25 KB`** (`0.5B`) knowledge cartridges synthesized in closed form (`0.0` SGD steps) "
+                    "from **`Qwen2.5-72B-Instruct MoS v2` (`72.71B`)** over `HTTP/1.1 206 Partial Content`, or erase any topic in `< 20 µs`."
+                )
+                q_store = gr.Textbox(
+                    value="Explain concisely what Landauer's principle states for the minimum energy dissipated when erasing one bit at temperature T.",
+                    label="Query Online Cartridge Store (streams 61.25 KB slice on demand via HTTP 206)",
+                )
+                btn_store = gr.Button("Query Qwen2.5-0.5B + Live HTTP-206 Cartridge Store", variant="primary")
+                out_store_md = gr.Markdown()
+                btn_store.click(run_space_scarstore_query, inputs=[q_store], outputs=[out_store_md])
+                with gr.Row():
+                    unlearn_id_in = gr.Textbox(value="titan72b_landauer_principle", label="Capsule ID for Instant LGPD / GDPR Erasure")
+                    btn_unlearn = gr.Button("Erase Cartridge (< 20 µs)", variant="stop")
+                out_unlearn_md = gr.Markdown()
+                btn_unlearn.click(run_space_unlearn, inputs=[unlearn_id_in], outputs=[out_unlearn_md])
+
+            with gr.Tab("2. Live LLM Evicted-Passcode & Byte-Pointer Audit"):
                 with gr.Row():
                     passcode_in = gr.Textbox(value="7942-OMEGA", label="Secret Passcode (buried near token ~20)")
                     repeats_in = gr.Slider(8, 24, value=18, step=2, label="Distractor Cycles (~28 tokens per cycle)")
@@ -538,7 +622,7 @@ def build_demo():
                     outputs=[out_md1, out_plot1],
                 )
 
-            with gr.Tab("2. Widrow-Hoff Delta vs. Hebbian Anti-Ghosting Arena"):
+            with gr.Tab("3. Widrow-Hoff Delta vs. Hebbian Anti-Ghosting Arena"):
                 with gr.Row():
                     mut_in = gr.Slider(2, 8, value=3, step=1, label="Contradictory Overwrite Mutations (v_1 -> ... -> v_M)")
                     dos_in = gr.Slider(50, 1000, value=500, step=50, label="Antipodal DoS Noise Injections")
@@ -547,7 +631,7 @@ def build_demo():
                 out_plot2 = gr.Plot()
                 btn2.click(run_anti_ghosting_arena, inputs=[mut_in, dos_in], outputs=[out_md2, out_plot2])
 
-            with gr.Tab("3. Live 24-Layer MoS (INT4 + ASVD Scars) Outlier Audit"):
+            with gr.Tab("4. Live 24-Layer MoS (INT4 + ASVD Scars) Outlier Audit"):
                 with gr.Row():
                     dom_in = gr.Dropdown(
                         choices=list(DEFAULT_UNSEEN_PROBES.keys()),

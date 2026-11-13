@@ -58,6 +58,8 @@ venv.bak/
 *.safetensors
 *.safetensors.part
 *.scarstore
+*.scarstore.gz
+*.scarstore.part
 *.bin
 *.pt
 *.pth

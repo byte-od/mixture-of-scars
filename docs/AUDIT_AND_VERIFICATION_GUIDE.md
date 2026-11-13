@@ -1,14 +1,14 @@
 # Forensic Audit & Independent Verification Guide (`v3.0.0`)
 
 > **Zero-Facades / Zero-Shortcuts Engineering Mandate:**  
-> Every claim in **Mixture of Scars (`MoS`) `v3.0.0`** and **`SCache` $\mathcal{O}(1)$** is backed by pure, inspectable PyTorch/Metal/Triton source code in [`scar_cache/`](../scar_cache/), automated physical byte-pointer checks (`untyped_storage().data_ptr()`), **`84/84`** executable `pytest` tests in [`tests/`](../tests/), and committed raw JSON telemetry in [`results/`](../results/) and [`benchmark_results/`](../benchmark_results/).
+> Every claim in **Mixture of Scars (`MoS`) `v3.0.0`** and **`SCache` $\mathcal{O}(1)$** is backed by pure, inspectable PyTorch/Metal/Triton source code in [`scar_cache/`](../scar_cache/), automated physical byte-pointer checks (`untyped_storage().data_ptr()`), **`86/86`** executable `pytest` tests in [`tests/`](../tests/), and committed raw JSON telemetry in [`results/`](../results/) and [`benchmark_results/`](../benchmark_results/).
 
 ---
 
 ## 1. 60-Second End-to-End Audit Commands
 
 ```bash
-# 1. Run the complete 84-test forensic, mathematical, and red-team verification suite:
+# 1. Run the complete 86-test forensic, mathematical, and red-team verification suite:
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 pytest tests/ -v
 
 # 2. Run ONLY the dedicated v3.0.0 anti-facade, symbol-parity, CLI, and JSON-proof audit (< 3s):

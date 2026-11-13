@@ -85,12 +85,22 @@ class _TinyHeadCausalLM(nn.Module):
 class _TinyTok:
     eos_token_id = 2
 
+    def __init__(self, vocab_size: int = 256, offset: int = 10) -> None:
+        self.vocab_size = vocab_size
+        self.offset = offset
+
+    def get_vocab(self) -> dict[str, int]:
+        return {f"tok{i}": i for i in range(self.vocab_size)}
+
+    def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
+        return [max(3, ((ord(c) + self.offset) % (self.vocab_size - 12)) + 10) for c in text[:48]]
+
     def __call__(self, text: str, return_tensors: str = "pt") -> object:
-        ids = [max(3, (ord(c) % 240) + 10) for c in text[:48]]
+        ids = self.encode(text)
         return type("Enc", (), {"input_ids": torch.tensor([ids], dtype=torch.long)})()
 
     def decode(self, ids: list[int], skip_special_tokens: bool = True) -> str:
-        return " ".join(f"tok{i}" for i in ids)
+        return "".join(chr(65 + (int(i) % 26)) for i in ids)
 
 
 def _build_two_capsule_store(tmp_path: Path) -> Tuple[_TinyHeadCausalLM, Path]:
@@ -228,3 +238,172 @@ def test_mos_store_cli_inspect_and_persistent_gdpr_zero_wipe(tmp_path: Path, cap
         assert "cap_beta" in reopened.last_active_gates
     finally:
         reopened.close()
+
+
+def test_open_weights_factory_same_vocab_and_cross_tokenizer_bridge(tmp_path: Path) -> None:
+    """Verifies Zero-SGD cartridge minting from same-vocab teachers, cross-tokenizer teachers, and curated JSON specs."""
+    from scar_cache.open_weights_factory import (
+        collect_open_weight_episodes,
+        load_specs_json,
+        mint_capsules_from_specs,
+    )
+
+    slm = _TinyHeadCausalLM(vocab_size=256, d=128).eval()
+    student_tok = _TinyTok(vocab_size=256, offset=10)
+    fmt = lambda q: f"USER:{q}\nASSISTANT:"
+    bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
+        student_model=slm,
+        calibration_prompts=["alpha query", "beta query", "gamma query", "delta query"],
+        tokenizer=student_tok,
+        chat_formatter=fmt,
+        preserved_rank=2,
+    )
+
+    # 1. Same-vocabulary Open-Weight Teacher -> exact dense logit transposition
+    same_vocab_teacher = _TinyHeadCausalLM(vocab_size=256, d=128).eval()
+    eps_same, mode_same = collect_open_weight_episodes(
+        capsule_id="ow_same",
+        train_prompts=["What is spherical packing?"],
+        student_model=slm,
+        student_tokenizer=student_tok,
+        teacher_model=same_vocab_teacher,
+        teacher_tokenizer=student_tok,
+        chat_formatter=fmt,
+        max_new_tokens=6,
+    )
+    assert mode_same == "same_vocab_exact"
+    assert len(eps_same) == 1 and eps_same[0].teacher_logits.shape[-1] == 256
+
+    # 2. Cross-tokenizer Open-Weight Teacher (different vocab size 312 & token offset!)
+    cross_teacher = _TinyHeadCausalLM(vocab_size=312, d=128).eval()
+    cross_tok = _TinyTok(vocab_size=312, offset=37)
+    eps_cross, mode_cross = collect_open_weight_episodes(
+        capsule_id="ow_cross",
+        train_prompts=["Explain lattice reduction"],
+        student_model=slm,
+        student_tokenizer=student_tok,
+        teacher_model=cross_teacher,
+        teacher_tokenizer=cross_tok,
+        chat_formatter=fmt,
+        max_new_tokens=6,
+    )
+    assert mode_cross == "cross_tokenizer_bridge"
+    assert len(eps_cross) == 1 and eps_cross[0].teacher_logits.shape[-1] == 256
+
+    # 3. Curated JSON spec batch minting -> real .scarstore
+    spec_file = tmp_path / "specs.json"
+    spec_file.write_text(
+        json.dumps(
+            [
+                {
+                    "title": "Reforma Tributária — IVA Dual",
+                    "category": "Tax Law",
+                    "episodes": [
+                        {
+                            "prompt": "Explain dual VAT in tax reform",
+                            "answer": "Dual VAT splits federal CBS and subnational IBS.",
+                        }
+                    ],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    specs = load_specs_json(spec_file)
+    caps = mint_capsules_from_specs(
+        specs=specs,
+        student_model=slm,
+        student_tokenizer=student_tok,
+        head_bank=bank,
+        chat_formatter=fmt,
+        rank=16,
+        num_key_prototypes=4,
+    )
+    assert len(caps) == 1
+    assert caps[0].metadata["title"] == "Reforma Tributária — IVA Dual"
+    assert caps[0].metadata["mint_mode"] == "curated_trajectory"
+
+
+def test_scarstore_web_ui_status_chat_pull_mint_and_unlearn(tmp_path: Path) -> None:
+    """Verifies `ScarStoreWebUI` (`mos-store ui`) endpoints over real HTTP: status, HTTP-206 pull, mint, chat, and LGPD 0x00."""
+    from scar_cache.ui_scar_store import ScarStoreWebUI
+
+    slm, master_path = _build_two_capsule_store(tmp_path)
+    consumer_path = tmp_path / "ui_consumer.scarstore"
+    assert mos_store_main(["slice", "--in-store", str(master_path), "--out-store", str(consumer_path), "--include", "cap_alpha"]) == 0
+
+    tok = _TinyTok()
+    with ScarStoreHTTPRangeServer(master_path, host="127.0.0.1", port=0) as range_srv:
+        fetcher, http_client = make_http_range_capsule_fetcher(range_srv.base_url)
+        c_store = HeadExpandedScarStore.open(consumer_path, device="cpu", on_demand_fetcher=fetcher)
+        with ScarStoreWebUI(
+            student_model=slm,
+            tokenizer=tok,
+            store=c_store,
+            student_name="TinyStudent",
+            http_client=http_client,
+            remote_mode=range_srv.base_url,
+            host="127.0.0.1",
+            port=0,
+            max_new_tokens=6,
+        ) as ui:
+            # 1. GET / serves visual HTML
+            html = urllib.request.urlopen(f"{ui.base_url}/", timeout=5.0).read().decode("utf-8")
+            assert "ScarStore" in html
+
+            # 2. GET /api/status shows 1 installed + 1 cloud cartridge
+            st = json.loads(urllib.request.urlopen(f"{ui.base_url}/api/status", timeout=5.0).read().decode("utf-8"))
+            assert st["installed_count"] == 1
+            assert st["total_count"] == 2
+
+            # 3. POST /api/pull_capsule installs `cap_beta` via HTTP 206 Range
+            req_pull = urllib.request.Request(
+                f"{ui.base_url}/api/pull_capsule",
+                data=json.dumps({"capsule_id": "cap_beta"}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            res_pull = json.loads(urllib.request.urlopen(req_pull, timeout=5.0).read().decode("utf-8"))
+            assert res_pull["ok"] is True
+            assert res_pull["bytes_installed"] == ui.store.record_bytes
+
+            # 4. POST /api/mint creates a brand-new Open-Weights cartridge in Zero SGD
+            req_mint = urllib.request.Request(
+                f"{ui.base_url}/api/mint",
+                data=json.dumps(
+                    {
+                        "title": "Especialista SQL — Window Groups",
+                        "category": "Databases",
+                        "prompt": "Explain SQL GROUPS frame mode",
+                        "answer": "GROUPS counts peer groups in ORDER BY.",
+                    }
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            res_mint = json.loads(urllib.request.urlopen(req_mint, timeout=5.0).read().decode("utf-8"))
+            assert res_mint["ok"] is True
+            minted_id = res_mint["capsule_id"]
+
+            # 5. POST /api/chat runs live SCache O(1) generation
+            req_chat = urllib.request.Request(
+                f"{ui.base_url}/api/chat",
+                data=json.dumps({"prompt": "Explain SQL GROUPS frame mode"}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            res_chat = json.loads(urllib.request.urlopen(req_chat, timeout=5.0).read().decode("utf-8"))
+            assert res_chat["tokens_generated"] >= 1
+            assert res_chat["scache_memory_bytes"] > 0
+
+            # 6. POST /api/unlearn wipes minted cartridge with 0x00 bytes on disk
+            req_unlearn = urllib.request.Request(
+                f"{ui.base_url}/api/unlearn",
+                data=json.dumps({"capsule_id": minted_id, "persist": True}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            res_unlearn = json.loads(urllib.request.urlopen(req_unlearn, timeout=5.0).read().decode("utf-8"))
+            assert res_unlearn["persisted_to_disk"] is True
+            assert res_unlearn["cryptographically_zeroed_bytes"] > 0
+        ui.store.close()

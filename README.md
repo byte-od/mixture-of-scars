@@ -9,7 +9,7 @@
 [![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
 [![72.7B Sub-2-Bit](https://img.shields.io/badge/72.7B%20Sub--2--Bit-20.65%20GiB%20Shards%20(%3C24%20GB%20VRAM)-9cf.svg)](#3-horizon-1-v140-ghost-jump-speculative-reflex--sub-2-bit-mos--24-gb-7271b)
 [![Fused Metal & Triton](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16-blueviolet.svg)](scar_cache/triton_mos_gemm.py)
-[![Tests Passing](https://img.shields.io/badge/Tests-84%2F84%20Passing-brightgreen.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/Tests-86%2F86%20Passing-brightgreen.svg)](tests/)
 [![Forensic Audit Guide](https://img.shields.io/badge/Audit%20Guide-v3.0%20Zero--Facade-0ea5e9.svg)](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
@@ -115,10 +115,23 @@ python scripts/benchmark_scar_grafting_v2.py
 # Graft or query portable .scargraft.safetensors knowledge cartridges from the CLI:
 mos-graft --query "Explain concisely what the Immerman-Szelepcsenyi theorem proves about nondeterministic space complexity classes." --cartridge results/qwen72b_to_0p5b_v2.scargraft.safetensors
 
-# Serve, page over HTTP/1.1 206 Range, consolidate sleep bridges, or cryptographically wipe (0x00) capsules:
+# Launch the Zero-Dependency Visual Cartridge Store + Live SCache O(1) Chat + Open-Weights Factory UI:
+mos-store ui --model Qwen/Qwen2.5-3B-Instruct --remote auto
+
+# Browse the live Official Online Cartridge Library (9 slots for 3B [140 KB] & 0.5B [61.25 KB]):
+mos-store catalog
+
+# Stream ONLY the exact 140 KB cartridge needed for your prompt live over HTTP/1.1 206 Range:
+mos-store query --remote auto --model Qwen/Qwen2.5-3B-Instruct \
+  --prompt "Explain concisely what the Fischer-Lynch-Paterson impossibility theorem proves about asynchronous consensus."
+
+# Mint new cartridges in Zero SGD from ANY Open-Weight Teacher (same-vocab or cross-tokenizer) or JSON spec:
+mos-store build --student Qwen/Qwen2.5-3B-Instruct --teacher Qwen/Qwen2.5-7B-Instruct \
+  --capsule-id ow_custom --title "Custom Open-Weights Specialist" --prompt "Your domain question..." --out ./my_3b_library.scarstore --append
+
+# Or serve your own local .scarstore, consolidate sleep bridges, or cryptographically wipe (0x00) a capsule:
 mos-store serve --store results/qwen72b_to_3b_stage5.scarstore --port 8765
-mos-store query --store ./consumer_pack.scarstore --remote http://127.0.0.1:8765 --prompt "State the Immerman-Szelepcsenyi theorem."
-mos-store unlearn --store ./consumer_pack.scarstore --coord 2,2 --persist
+mos-store unlearn --store ./my_3b_library.scarstore --id titan72b_fischer_lynch_paterson --persist
 
 # Run Track 2.2 Sinkhorn Monomial-Procrustes Re-Basin audit (0.5B, 3B & 72.71B shards):
 python scripts/audit_sinkhorn_rebasin_v2_4.py
@@ -140,6 +153,7 @@ mos-rebasin audit-72b-shard --shard ./models/qwen25_72b_mos_v2/mos_group_19.safe
 - **Permanent Preprint (CERN / Zenodo `v3.0.0` DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) · *Concept DOI (all versions):* [`10.5281/zenodo.24144512`](https://doi.org/10.5281/zenodo.24144512) ([**Preprint v3.0 PDF**](zenodo_deposit_v3_0/Mixture_of_Scars_and_SCache_Preprint_v3.0.pdf) | [v1.3 PDF](archive/zenodo_deposits/zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](archive/zenodo_deposits/zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](archive/zenodo_deposits/zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](archive/zenodo_deposits/zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
 - **Academic LaTeX Source & Replication Bundles (`v3.0.0`, arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/), [`arXiv_Direct_Upload_v3.0.zip`](zenodo_deposit_v3_0/arXiv_Direct_Upload_v3.0.zip), [`MoS_SCache_LaTeX_arXiv_TMLR_v3.0.zip`](zenodo_deposit_v3_0/MoS_SCache_LaTeX_arXiv_TMLR_v3.0.zip) & [`MoS_SCache_Adversarial_Replication_v3.0.zip`](zenodo_deposit_v3_0/MoS_SCache_Adversarial_Replication_v3.0.zip)
 - **Forensic Audit & Zero-Facade Verification Guide (`84/84` Tests):** [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
+- **Live Official Online Cartridge Library (`9` Slots, `HTTP/1.1 206` Streaming):** [`docs/ONLINE_CARTRIDGE_LIBRARY.md`](docs/ONLINE_CARTRIDGE_LIBRARY.md) · [`releases/tag/v3.0.0`](https://github.com/byte-od/mixture-of-scars/releases/tag/v3.0.0)
 - **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `22` SHA-256 Shards, Zero Login) & Practical Guide:**
   - **Direct Download (`HTTP 206 Range` + `SHA-256`):** [`github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos`](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
   - **Step-by-Step Local Deployment Guide:** [`docs/GUIA_PRATICO_MOS_SCACHE_72B.md`](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)

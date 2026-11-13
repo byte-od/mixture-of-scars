@@ -1,0 +1,36 @@
+{
+  "cartridges": [
+    {
+      "capsule_id": "ow_lgpd_art18_eliminacao",
+      "title": "Brazilian Data Protection Law — LGPD Art. 18(VI) Right to Erasure",
+      "title_pt": "Direito Digital — LGPD Art. 18, VI (Eliminação de Dados Pessoais)",
+      "category": "Privacy & Compliance",
+      "summary": "Right of the data subject to obtain erasure of personal data processed under consent pursuant to LGPD Art. 18(VI).",
+      "example_prompt": "O que o Art. 18, inciso VI da LGPD garante ao titular de dados pessoais?",
+      "episodes": [
+        {
+          "prompt": "O que o Art. 18, inciso VI da LGPD garante ao titular de dados pessoais?",
+          "answer": "O Art. 18, inciso VI da LGPD garante ao titular o direito de obter do controlador a eliminação dos dados pessoais tratados com o seu consentimento, exceto nas hipóteses legais de conservação do Art. 16."
+        },
+        {
+          "prompt": "Qual direito de exclusão de dados pessoais está previsto no artigo 18 inciso VI da Lei Geral de Proteção de Dados?",
+          "answer": "O Art. 18, inciso VI da LGPD garante ao titular o direito de obter do controlador a eliminação dos dados pessoais tratados com o seu consentimento, exceto nas hipóteses legais de conservação do Art. 16."
+        }
+      ]
+    },
+    {
+      "capsule_id": "ow_postgres_mvcc_xmin_xmax",
+      "title": "PostgreSQL Internals — MVCC Tuple Visibility (xmin / xmax)",
+      "title_pt": "Bancos de Dados — PostgreSQL MVCC (Visibilidade xmin e xmax)",
+      "category": "Databases & Systems",
+      "summary": "Snapshot isolation tuple visibility rules using header transaction IDs xmin (insertion) and xmax (deletion/lock).",
+      "example_prompt": "Explain concisely how PostgreSQL MVCC uses xmin and xmax in heap tuple headers.",
+      "episodes": [
+        {
+          "prompt": "Explain concisely how PostgreSQL MVCC uses xmin and xmax in heap tuple headers.",
+          "answer": "PostgreSQL MVCC stores the inserting transaction ID in xmin and the deleting or locking transaction ID in xmax, checking both against the active transaction snapshot to determine tuple visibility without read locks."
+        }
+      ]
+    }
+  ]
+}

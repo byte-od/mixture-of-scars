@@ -1,0 +1,574 @@
+{
+  "store_path": "/Users/juliocesarreisfilho/Projects/scar-cache/results/online_library_v3_0/qwen3b_v3_0.scarstore",
+  "file_bytes": 18673664,
+  "file_mib": 17.8086,
+  "format": "HeadExpandedScarStoreV2",
+  "version": "2.2.0",
+  "hidden_dim": 2048,
+  "num_heads": 16,
+  "head_dim": 128,
+  "rank": 60,
+  "num_key_prototypes": 8,
+  "record_bytes": 143360,
+  "record_kb": 140.0,
+  "exact_4kb_page_multiple": true,
+  "os_4kb_pages_per_capsule": 35,
+  "kronecker_grid_cells": 4194304,
+  "presence_bitmap_bytes": 524288,
+  "presence_bitmap_kb": 512.0,
+  "payload_offset": 17383424,
+  "payload_offset_4kb_aligned": true,
+  "num_active_installed_slots": 9,
+  "num_global_directory_entries": 9,
+  "slots": [
+    {
+      "slot_idx": 0,
+      "capsule_id": "titan72b_kabatiansky_levenshtein",
+      "coord": [
+        0,
+        0
+      ],
+      "byte_offset": 17383424,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 4383.026,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "High-Dimensional Sphere Packing — Kabatiansky-Levenshtein Bound",
+        "title_pt": "Empacotamento Esférico em Alta Dimensão — Cota de Kabatiansky-Levenshtein",
+        "category": "Geometry & Coding Theory",
+        "summary": "Asymptotic exponential upper bound on spherical codes and kissing numbers in R^n.",
+        "example_prompt": "Explain concisely what the Kabatiansky-Levenshtein theorem proves for high-dimensional unit spheres.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Kabatiansky-Levenshtein theorem provides an upper bound on the number of non-overlapping unit spheres that"
+      }
+    },
+    {
+      "slot_idx": 1,
+      "capsule_id": "titan72b_landauer_principle",
+      "coord": [
+        1,
+        1
+      ],
+      "byte_offset": 17526784,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3600.318,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Thermodynamics of Computation — Landauer's Principle (k_B T ln 2)",
+        "title_pt": "Termodinâmica da Computação — Princípio de Landauer (k_B T ln 2)",
+        "category": "Physics of Information",
+        "summary": "Minimum irreversible heat dissipation bound k_B T ln 2 per erased bit at temperature T.",
+        "example_prompt": "Explain concisely what Landauer's principle states for the minimum energy dissipated when erasing one bit at temperature T.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\)"
+      }
+    },
+    {
+      "slot_idx": 2,
+      "capsule_id": "titan72b_immerman_szelepcsenyi",
+      "coord": [
+        2,
+        2
+      ],
+      "byte_offset": 17670144,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3532.782,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Space Complexity — Immerman-Szelepcsényi Theorem (NSPACE = co-NSPACE)",
+        "title_pt": "Complexidade Espacial — Teorema de Immerman-Szelepcsényi (NSPACE = co-NSPACE)",
+        "category": "Theoretical Computer Science",
+        "summary": "Closure of nondeterministic space complexity classes under complementation via inductive counting.",
+        "example_prompt": "Explain concisely what the Immerman-Szelepcsenyi theorem proves about nondeterministic space complexity classes.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation"
+      }
+    },
+    {
+      "slot_idx": 3,
+      "capsule_id": "titan72b_fischer_lynch_paterson",
+      "coord": [
+        3,
+        3
+      ],
+      "byte_offset": 17813504,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3086.931,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Distributed Consensus — FLP Impossibility Theorem",
+        "title_pt": "Sistemas Distribuídos — Teorema da Impossibilidade FLP",
+        "category": "Distributed Systems",
+        "summary": "Impossibility of deterministic fault-tolerant consensus in asynchronous message-passing systems with one crash.",
+        "example_prompt": "Explain concisely what the Fischer-Lynch-Paterson impossibility theorem proves about asynchronous consensus.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Fischer-Lynch-Paterson (FLP) impossibility theorem proves that in an asynchronous distributed system, it is impossible to"
+      }
+    },
+    {
+      "slot_idx": 4,
+      "capsule_id": "titan72b_chaitin_incompleteness",
+      "coord": [
+        4,
+        4
+      ],
+      "byte_offset": 17956864,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3729.13,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Algorithmic Information Theory — Chaitin's Incompleteness Theorem",
+        "title_pt": "Teoria Algorítmica da Informação — Incompletude de Chaitin (Kolmogorov)",
+        "category": "Logic & Information Theory",
+        "summary": "Upper bound L beyond which no formal axiomatic system can prove lower bounds K(x) > L on Kolmogorov complexity.",
+        "example_prompt": "Explain concisely what Chaitin's incompleteness theorem proves regarding Kolmogorov complexity.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "Chaitin's incompleteness theorem proves that within any consistent formal axiomatic system, there is a constant L such that"
+      }
+    },
+    {
+      "slot_idx": 5,
+      "capsule_id": "titan72b_regev_lwe_lattice",
+      "coord": [
+        5,
+        5
+      ],
+      "byte_offset": 18100224,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3709.824,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Post-Quantum Cryptography — Regev's LWE Worst-Case Lattice Reduction",
+        "title_pt": "Criptografia Pós-Quântica — Redução Quântica LWE de Regev",
+        "category": "Cryptography & Security",
+        "summary": "Quantum worst-case to average-case reduction from GapSVP/SIVP lattice problems to Learning With Errors (LWE).",
+        "example_prompt": "Explain concisely what Oded Regev's theorem proves connecting Learning With Errors (LWE) to worst-case lattice problems.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "Oded Regev proved that the hardness of the Learning With Errors (LWE) problem in its average case is at least"
+      }
+    },
+    {
+      "slot_idx": 6,
+      "capsule_id": "titan72b_marchenko_pastur_law",
+      "coord": [
+        6,
+        6
+      ],
+      "byte_offset": 18243584,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3954.005,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Random Matrix Theory — Marchenko-Pastur Spectral Distribution",
+        "title_pt": "Matrizes Aleatórias em IA — Lei Espectral de Marchenko-Pastur",
+        "category": "Spectral Math & Deep Learning",
+        "summary": "Limiting eigenvalue density and compact support [(1 - sqrt(gamma))^2, (1 + sqrt(gamma))^2] of Wishart covariance matrices.",
+        "example_prompt": "Explain concisely what the Marchenko-Pastur law establishes for the eigenvalues of large random covariance matrices.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Marchenko-Pastur law states that the limiting eigenvalue distribution of large random sample covariance matrices, as the dimensions grow proportion"
+      }
+    },
+    {
+      "slot_idx": 7,
+      "capsule_id": "titan72b_shannon_hartley_capacity",
+      "coord": [
+        7,
+        7
+      ],
+      "byte_offset": 18386944,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3568.268,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Communications & Signal Theory — Shannon-Hartley Channel Capacity",
+        "title_pt": "Engenharia de Comunicações — Lei de Capacidade de Shannon-Hartley",
+        "category": "Communications & Information",
+        "summary": "Tight upper rate C = B log2(1 + S/N) for arbitrarily reliable communication over an AWGN channel.",
+        "example_prompt": "State concisely the Shannon-Hartley channel capacity formula and what it proves for noisy AWGN channels.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Shannon-Hartley theorem establishes that the maximum error-free information capacity \\( C \\) over a noisy Additive White Gaussian Noise"
+      }
+    },
+    {
+      "slot_idx": 8,
+      "capsule_id": "bridge_landauer_immerman",
+      "coord": [
+        8,
+        8
+      ],
+      "byte_offset": 18530304,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.62,
+      "ramp": 0.16,
+      "parent_capsules": [
+        "titan72b_landauer_principle",
+        "titan72b_immerman_szelepcsenyi"
+      ],
+      "metadata": {
+        "capsule_type": "interdisciplinary_bridge",
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 2225.503,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "parent_capsules": [
+          "titan72b_landauer_principle",
+          "titan72b_immerman_szelepcsenyi"
+        ],
+        "title": "Interdisciplinary Sleep Bridge — Thermodynamics × NSPACE Complexity",
+        "title_pt": "Ponte Interdisciplinar — Termodinâmica de Landauer × Complexidade NSPACE",
+        "category": "Interdisciplinary Synthesis",
+        "summary": "Conjunctive Sleep Bridge uniting Landauer's k_B T ln 2 irreversible erasure bound with Immerman-Szelepcsényi NSPACE complementation.",
+        "example_prompt": "State Landauer's thermodynamic bound for erasing a bit at temperature T and connect it to the Immerman-Szelepcsenyi closure property of nondeterministic space classes.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "Landauer's principle, stating that erasing one bit of information at temperature T requires at least kT ln 2 energy,"
+      }
+    }
+  ],
+  "cloud_directory": [
+    {
+      "capsule_id": "titan72b_kabatiansky_levenshtein",
+      "coord": [
+        0,
+        0
+      ],
+      "installed_locally": true,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 4383.026,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "High-Dimensional Sphere Packing — Kabatiansky-Levenshtein Bound",
+        "title_pt": "Empacotamento Esférico em Alta Dimensão — Cota de Kabatiansky-Levenshtein",
+        "category": "Geometry & Coding Theory",
+        "summary": "Asymptotic exponential upper bound on spherical codes and kissing numbers in R^n.",
+        "example_prompt": "Explain concisely what the Kabatiansky-Levenshtein theorem proves for high-dimensional unit spheres.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Kabatiansky-Levenshtein theorem provides an upper bound on the number of non-overlapping unit spheres that"
+      }
+    },
+    {
+      "capsule_id": "titan72b_landauer_principle",
+      "coord": [
+        1,
+        1
+      ],
+      "installed_locally": true,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3600.318,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Thermodynamics of Computation — Landauer's Principle (k_B T ln 2)",
+        "title_pt": "Termodinâmica da Computação — Princípio de Landauer (k_B T ln 2)",
+        "category": "Physics of Information",
+        "summary": "Minimum irreversible heat dissipation bound k_B T ln 2 per erased bit at temperature T.",
+        "example_prompt": "Explain concisely what Landauer's principle states for the minimum energy dissipated when erasing one bit at temperature T.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\)"
+      }
+    },
+    {
+      "capsule_id": "titan72b_immerman_szelepcsenyi",
+      "coord": [
+        2,
+        2
+      ],
+      "installed_locally": true,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3532.782,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Space Complexity — Immerman-Szelepcsényi Theorem (NSPACE = co-NSPACE)",
+        "title_pt": "Complexidade Espacial — Teorema de Immerman-Szelepcsényi (NSPACE = co-NSPACE)",
+        "category": "Theoretical Computer Science",
+        "summary": "Closure of nondeterministic space complexity classes under complementation via inductive counting.",
+        "example_prompt": "Explain concisely what the Immerman-Szelepcsenyi theorem proves about nondeterministic space complexity classes.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation"
+      }
+    },
+    {
+      "capsule_id": "titan72b_fischer_lynch_paterson",
+      "coord": [
+        3,
+        3
+      ],
+      "installed_locally": true,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3086.931,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Distributed Consensus — FLP Impossibility Theorem",
+        "title_pt": "Sistemas Distribuídos — Teorema da Impossibilidade FLP",
+        "category": "Distributed Systems",
+        "summary": "Impossibility of deterministic fault-tolerant consensus in asynchronous message-passing systems with one crash.",
+        "example_prompt": "Explain concisely what the Fischer-Lynch-Paterson impossibility theorem proves about asynchronous consensus.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Fischer-Lynch-Paterson (FLP) impossibility theorem proves that in an asynchronous distributed system, it is impossible to"
+      }
+    },
+    {
+      "capsule_id": "titan72b_chaitin_incompleteness",
+      "coord": [
+        4,
+        4
+      ],
+      "installed_locally": true,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3729.13,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Algorithmic Information Theory — Chaitin's Incompleteness Theorem",
+        "title_pt": "Teoria Algorítmica da Informação — Incompletude de Chaitin (Kolmogorov)",
+        "category": "Logic & Information Theory",
+        "summary": "Upper bound L beyond which no formal axiomatic system can prove lower bounds K(x) > L on Kolmogorov complexity.",
+        "example_prompt": "Explain concisely what Chaitin's incompleteness theorem proves regarding Kolmogorov complexity.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "Chaitin's incompleteness theorem proves that within any consistent formal axiomatic system, there is a constant L such that"
+      }
+    },
+    {
+      "capsule_id": "titan72b_regev_lwe_lattice",
+      "coord": [
+        5,
+        5
+      ],
+      "installed_locally": true,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3709.824,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Post-Quantum Cryptography — Regev's LWE Worst-Case Lattice Reduction",
+        "title_pt": "Criptografia Pós-Quântica — Redução Quântica LWE de Regev",
+        "category": "Cryptography & Security",
+        "summary": "Quantum worst-case to average-case reduction from GapSVP/SIVP lattice problems to Learning With Errors (LWE).",
+        "example_prompt": "Explain concisely what Oded Regev's theorem proves connecting Learning With Errors (LWE) to worst-case lattice problems.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "Oded Regev proved that the hardness of the Learning With Errors (LWE) problem in its average case is at least"
+      }
+    },
+    {
+      "capsule_id": "titan72b_marchenko_pastur_law",
+      "coord": [
+        6,
+        6
+      ],
+      "installed_locally": true,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3954.005,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Random Matrix Theory — Marchenko-Pastur Spectral Distribution",
+        "title_pt": "Matrizes Aleatórias em IA — Lei Espectral de Marchenko-Pastur",
+        "category": "Spectral Math & Deep Learning",
+        "summary": "Limiting eigenvalue density and compact support [(1 - sqrt(gamma))^2, (1 + sqrt(gamma))^2] of Wishart covariance matrices.",
+        "example_prompt": "Explain concisely what the Marchenko-Pastur law establishes for the eigenvalues of large random covariance matrices.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Marchenko-Pastur law states that the limiting eigenvalue distribution of large random sample covariance matrices, as the dimensions grow proportion"
+      }
+    },
+    {
+      "capsule_id": "titan72b_shannon_hartley_capacity",
+      "coord": [
+        7,
+        7
+      ],
+      "installed_locally": true,
+      "tau": 0.64,
+      "ramp": 0.16,
+      "parent_capsules": [],
+      "metadata": {
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 3568.268,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "title": "Communications & Signal Theory — Shannon-Hartley Channel Capacity",
+        "title_pt": "Engenharia de Comunicações — Lei de Capacidade de Shannon-Hartley",
+        "category": "Communications & Information",
+        "summary": "Tight upper rate C = B log2(1 + S/N) for arbitrarily reliable communication over an AWGN channel.",
+        "example_prompt": "State concisely the Shannon-Hartley channel capacity formula and what it proves for noisy AWGN channels.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "The Shannon-Hartley theorem establishes that the maximum error-free information capacity \\( C \\) over a noisy Additive White Gaussian Noise"
+      }
+    },
+    {
+      "capsule_id": "bridge_landauer_immerman",
+      "coord": [
+        8,
+        8
+      ],
+      "installed_locally": true,
+      "tau": 0.62,
+      "ramp": 0.16,
+      "parent_capsules": [
+        "titan72b_landauer_principle",
+        "titan72b_immerman_szelepcsenyi"
+      ],
+      "metadata": {
+        "capsule_type": "interdisciplinary_bridge",
+        "rank": 60,
+        "num_key_prototypes": 8,
+        "num_heads": 16,
+        "head_dim": 128,
+        "solve_ms": 2225.503,
+        "zero_backpropagation": true,
+        "zero_mid_layer_cut": true,
+        "parent_capsules": [
+          "titan72b_landauer_principle",
+          "titan72b_immerman_szelepcsenyi"
+        ],
+        "title": "Interdisciplinary Sleep Bridge — Thermodynamics × NSPACE Complexity",
+        "title_pt": "Ponte Interdisciplinar — Termodinâmica de Landauer × Complexidade NSPACE",
+        "category": "Interdisciplinary Synthesis",
+        "summary": "Conjunctive Sleep Bridge uniting Landauer's k_B T ln 2 irreversible erasure bound with Immerman-Szelepcsényi NSPACE complementation.",
+        "example_prompt": "State Landauer's thermodynamic bound for erasing a bit at temperature T and connect it to the Immerman-Szelepcsenyi closure property of nondeterministic space classes.",
+        "teacher_model": "Qwen2.5-72B-Instruct MoS v2 (72.71B)",
+        "teacher_reference": "Landauer's principle, stating that erasing one bit of information at temperature T requires at least kT ln 2 energy,"
+      }
+    }
+  ]
+}

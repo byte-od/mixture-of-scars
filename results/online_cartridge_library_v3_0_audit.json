@@ -1,0 +1,179 @@
+{
+  "version": "v3.0.0",
+  "num_online_cartridges": 9,
+  "catalog_file": "results/online_library_v3_0/scarstore_catalog_v3_0.json",
+  "catalog_sha256": "c38ae1d0e6aaf48cdbd19465e87e8fb762f98c460cf55d64b92f773b1227b09c",
+  "tier_3b_sample_http206": [
+    {
+      "capsule_id": "titan72b_landauer_principle",
+      "answer": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\) is \\( kT \\ln 2 \\), where \\(",
+      "active_gates": {
+        "titan72b_landauer_principle": 1.0
+      },
+      "http_206_event": {
+        "capsule_id": "titan72b_landauer_principle",
+        "title": "Thermodynamics of Computation — Landauer's Principle (k_B T ln 2)",
+        "coord": [
+          1,
+          1
+        ],
+        "http_status": 206,
+        "store_url": "http://127.0.0.1:62050/store.scarstore",
+        "range_header": "bytes=17526784-17670143",
+        "content_range": "bytes 17526784-17670143/18673664",
+        "bytes_received": 143360,
+        "latency_ms": 38.465
+      },
+      "total_http_206_fetches_in_turn": 1
+    },
+    {
+      "capsule_id": "titan72b_fischer_lynch_paterson",
+      "answer": "The Fischer-Lynch-Paterson impossibility theorem proves that in an asynchronous distributed system, it is impossible to achieve both consensus and tolerate a fault-free, deterministic, and asynchronous system",
+      "active_gates": {
+        "titan72b_fischer_lynch_paterson": 1.0
+      },
+      "http_206_event": {
+        "capsule_id": "titan72b_fischer_lynch_paterson",
+        "title": "Distributed Consensus — FLP Impossibility Theorem",
+        "coord": [
+          3,
+          3
+        ],
+        "http_status": 206,
+        "store_url": "http://127.0.0.1:62050/store.scarstore",
+        "range_header": "bytes=17813504-17956863",
+        "content_range": "bytes 17813504-17956863/18673664",
+        "bytes_received": 143360,
+        "latency_ms": 0.888
+      },
+      "total_http_206_fetches_in_turn": 1
+    },
+    {
+      "capsule_id": "titan72b_marchenko_pastur_law",
+      "answer": "The Marchenko-Pastur law describes the distribution of eigenvalue density of large random covariance matrices, as the dimensions grow proportionally.",
+      "active_gates": {
+        "titan72b_marchenko_pastur_law": 1.0
+      },
+      "http_206_event": {
+        "capsule_id": "titan72b_marchenko_pastur_law",
+        "title": "Random Matrix Theory — Marchenko-Pastur Spectral Distribution",
+        "coord": [
+          6,
+          6
+        ],
+        "http_status": 206,
+        "store_url": "http://127.0.0.1:62050/store.scarstore",
+        "range_header": "bytes=18243584-18386943",
+        "content_range": "bytes 18243584-18386943/18673664",
+        "bytes_received": 143360,
+        "latency_ms": 1.183
+      },
+      "total_http_206_fetches_in_turn": 1
+    }
+  ],
+  "tier_0p5b_sample_http206": [
+    {
+      "capsule_id": "titan72b_landauer_principle",
+      "answer": "Landauer's principle states that the minimum energy dissipated when erasing one bit at temperature \\( T \\) is \\( T \\) bit of energy dissipated.",
+      "active_gates": {
+        "titan72b_landauer_principle": 1.0
+      },
+      "http_206_event": {
+        "capsule_id": "titan72b_landauer_principle",
+        "title": "Thermodynamics of Computation — Landauer's Principle (k_B T ln 2)",
+        "coord": [
+          1,
+          1
+        ],
+        "http_status": 206,
+        "store_url": "http://127.0.0.1:62045/store.scarstore",
+        "range_header": "bytes=3421440-3484159",
+        "content_range": "bytes 3421440-3484159/3923200",
+        "bytes_received": 62720,
+        "latency_ms": 8.047
+      },
+      "total_http_206_fetches_in_turn": 1
+    },
+    {
+      "capsule_id": "titan72b_fischer_lynch_paterson",
+      "answer": "The Fischer-Lynch-Paterson impossibility theorem proves that achieving asynchronous consensus is impossible for a distributed system, where consensus is achieved by a distributed system, where consensus is achieved by",
+      "active_gates": {
+        "titan72b_fischer_lynch_paterson": 1.0
+      },
+      "http_206_event": {
+        "capsule_id": "titan72b_fischer_lynch_paterson",
+        "title": "Distributed Consensus — FLP Impossibility Theorem",
+        "coord": [
+          3,
+          3
+        ],
+        "http_status": 206,
+        "store_url": "http://127.0.0.1:62045/store.scarstore",
+        "range_header": "bytes=3546880-3609599",
+        "content_range": "bytes 3546880-3609599/3923200",
+        "bytes_received": 62720,
+        "latency_ms": 1.165
+      },
+      "total_http_206_fetches_in_turn": 1
+    },
+    {
+      "capsule_id": "titan72b_marchenko_pastur_law",
+      "answer": "The Marchenko-Pastur law states that the empirical distribution of eigenvalue distribution of large random covariance matrices converges to that of a normalized empirical distribution of empirical covariance matrices, where",
+      "active_gates": {
+        "titan72b_marchenko_pastur_law": 1.0
+      },
+      "http_206_event": {
+        "capsule_id": "titan72b_marchenko_pastur_law",
+        "title": "Random Matrix Theory — Marchenko-Pastur Spectral Distribution",
+        "coord": [
+          6,
+          6
+        ],
+        "http_status": 206,
+        "store_url": "http://127.0.0.1:62045/store.scarstore",
+        "range_header": "bytes=3735040-3797759",
+        "content_range": "bytes 3735040-3797759/3923200",
+        "bytes_received": 62720,
+        "latency_ms": 1.008
+      },
+      "total_http_206_fetches_in_turn": 1
+    }
+  ],
+  "tiers": {
+    "3b": {
+      "student_model": "Qwen/Qwen2.5-3B-Instruct",
+      "hidden_dim": 2048,
+      "record_bytes": 143360,
+      "record_kb": 140.0,
+      "os_4kb_pages": 35,
+      "assets": {
+        "store_file": "qwen3b_v3_0.scarstore",
+        "store_bytes": 18673664,
+        "store_sha256": "5a33b17ec447677d4931b54d8470fb8f94e176c0926e66aba2806bfe128cbfd2",
+        "manifest_file": "qwen3b_v3_0.manifest.json",
+        "manifest_bytes": 23777,
+        "manifest_sha256": "dbc45bed145194233bb9f8d2d190dd87753b7eba0aa9858182afeda0cfa03aca",
+        "shell_gz_file": "qwen3b_v3_0.shell.scarstore.gz",
+        "shell_gz_bytes": 15498760,
+        "shell_gz_sha256": "a0eb826e472fa2858201044ff3d65e930107e4a790ff8c7a6e5a411b2e1c7323"
+      }
+    },
+    "0.5b": {
+      "student_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "hidden_dim": 896,
+      "record_bytes": 62720,
+      "record_kb": 61.25,
+      "assets": {
+        "store_file": "qwen0p5b_v3_0.scarstore",
+        "store_bytes": 3923200,
+        "store_sha256": "d041a135808739a055bdfb3de2ba4fe554c7e70073918ba49c6e064767ff2599",
+        "manifest_file": "qwen0p5b_v3_0.manifest.json",
+        "manifest_bytes": 23726,
+        "manifest_sha256": "ef3f6f4a54fa9884a8b6b6777635b716d41cfb1af27d9825fbe3407937f5c046",
+        "shell_gz_file": "qwen0p5b_v3_0.shell.scarstore.gz",
+        "shell_gz_bytes": 2975093,
+        "shell_gz_sha256": "97cf53583fa0bff9811bc9c33f0935e1dbdd0f139b47f2fe7c1e95ec9fef695b"
+      }
+    }
+  }
+}

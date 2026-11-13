@@ -1373,6 +1373,24 @@ class HeadExpandedScarStore(nn.Module):
                     "tau": float(desc["tau"]),
                     "ramp": float(desc["ramp"]),
                     "parent_capsules": list(desc.get("parent_capsules", [])),
+                    "metadata": dict(desc.get("metadata", {})),
+                }
+            )
+        installed_cids = {s["capsule_id"] for s in slots_info if s["bitmap_present"] and not s["payload_all_zero_wiped"]}
+        cloud_dir: List[Dict[str, Any]] = []
+        for coord_k, g_entry in sorted(self._global_directory.items()):
+            g_cid = str(g_entry["capsule_id"])
+            if g_cid in self._unlearned_cids:
+                continue
+            cloud_dir.append(
+                {
+                    "capsule_id": g_cid,
+                    "coord": [int(coord_k[0]), int(coord_k[1])],
+                    "installed_locally": g_cid in installed_cids,
+                    "tau": float(g_entry["tau"]),
+                    "ramp": float(g_entry["ramp"]),
+                    "parent_capsules": list(g_entry.get("parent_capsules", [])),
+                    "metadata": dict(g_entry.get("metadata", {})),
                 }
             )
         return {
@@ -1398,6 +1416,7 @@ class HeadExpandedScarStore(nn.Module):
             "num_active_installed_slots": self.num_installed_slots,
             "num_global_directory_entries": len(self._global_directory),
             "slots": slots_info,
+            "cloud_directory": cloud_dir,
         }
 
     def to_head_bank(
@@ -1479,9 +1498,12 @@ class HeadExpandedScarStore(nn.Module):
             d_copy["slot_idx"] = len(new_descs)
             new_descs.append(d_copy)
 
+        existing_global: Optional[Dict[str, Any]] = None
         for coord_k, g_entry in self._global_directory.items():
             g_cid = str(g_entry["capsule_id"])
-            if g_cid != capsule.capsule_id and g_cid not in self._unlearned_cids:
+            if g_cid == capsule.capsule_id:
+                existing_global = dict(g_entry)
+            elif g_cid not in self._unlearned_cids:
                 new_global.append(dict(g_entry))
 
         z_f = F.normalize(capsule.z_anchor.detach().cpu().float(), dim=-1, eps=1e-8)
@@ -1491,33 +1513,38 @@ class HeadExpandedScarStore(nn.Module):
         w1 = float(z_rot[:half_d].norm().item())
         w2 = float(z_rot[half_d:].norm().item())
 
-        chosen_diag: Optional[int] = None
-        for cand_idx in range(len(new_descs), d):
-            if (cand_idx, cand_idx) not in used_coords and (cand_idx, cand_idx) not in self._global_directory:
-                chosen_diag = cand_idx
-                break
-        if chosen_diag is not None:
-            row_i, col_j = chosen_diag, chosen_diag
-            U_cb[row_i] = z1
-            V_cb[col_j] = z2
+        if existing_global is not None and (int(existing_global["row_i"]), int(existing_global["col_j"])) not in used_coords:
+            row_i, col_j = int(existing_global["row_i"]), int(existing_global["col_j"])
         else:
-            s1 = torch.mv(U_cb, z1)
-            s2 = torch.mv(V_cb, z2)
-            ti = s1.topk(min(32, d)).indices.tolist()
-            tj = s2.topk(min(32, d)).indices.tolist()
-            best_pair: Optional[Tuple[int, int]] = None
-            best_val = -1e9
-            for ri in ti:
-                for cj in tj:
-                    if (ri, cj) not in used_coords:
-                        val = float(s1[ri].item() + s2[cj].item())
-                        if val > best_val:
-                            best_val = val
-                            best_pair = (ri, cj)
-            if best_pair is None:
-                raise RuntimeError("Kronecker grid candidate neighborhood saturated during append_capsule")
-            row_i, col_j = best_pair
+            chosen_diag: Optional[int] = None
+            for cand_idx in range(len(new_descs), d):
+                if (cand_idx, cand_idx) not in used_coords and (cand_idx, cand_idx) not in self._global_directory:
+                    chosen_diag = cand_idx
+                    break
+            if chosen_diag is not None:
+                row_i, col_j = chosen_diag, chosen_diag
+                U_cb[row_i] = z1
+                V_cb[col_j] = z2
+            else:
+                s1 = torch.mv(U_cb, z1)
+                s2 = torch.mv(V_cb, z2)
+                ti = s1.topk(min(32, d)).indices.tolist()
+                tj = s2.topk(min(32, d)).indices.tolist()
+                best_pair: Optional[Tuple[int, int]] = None
+                best_val = -1e9
+                for ri in ti:
+                    for cj in tj:
+                        if (ri, cj) not in used_coords:
+                            val = float(s1[ri].item() + s2[cj].item())
+                            if val > best_val:
+                                best_val = val
+                                best_pair = (ri, cj)
+                if best_pair is None:
+                    raise RuntimeError("Kronecker grid candidate neighborhood saturated during append_capsule")
+                row_i, col_j = best_pair
 
+        merged_meta = dict(existing_global.get("metadata", {})) if existing_global is not None else {}
+        merged_meta.update(dict(capsule.metadata))
         _bitmap_set(bitmap, row_i * d + col_j)
         blob = capsule.to_int4_bytes()
         raw_blobs.append(blob)
@@ -1534,7 +1561,7 @@ class HeadExpandedScarStore(nn.Module):
                 "tau": float(capsule.tau),
                 "ramp": float(capsule.ramp),
                 "parent_capsules": list(capsule.parent_capsules),
-                "metadata": dict(capsule.metadata),
+                "metadata": merged_meta,
             }
         )
         new_global.append(
@@ -1547,6 +1574,7 @@ class HeadExpandedScarStore(nn.Module):
                 "tau": float(capsule.tau),
                 "ramp": float(capsule.ramp),
                 "parent_capsules": list(capsule.parent_capsules),
+                "metadata": merged_meta,
             }
         )
 
@@ -1677,6 +1705,7 @@ class HeadExpandedScarStore(nn.Module):
                     "tau": float(cap.tau),
                     "ramp": float(cap.ramp),
                     "parent_capsules": list(cap.parent_capsules),
+                    "metadata": dict(cap.metadata),
                 }
             )
 
@@ -1930,6 +1959,7 @@ class HeadExpandedScarStore(nn.Module):
         top_r = s1_mat.topk(m, dim=-1).indices.tolist()
         top_c = s2_mat.topk(m, dim=-1).indices.tolist()
 
+        cid_to_global_coord = {str(v["capsule_id"]): k for k, v in self._global_directory.items()}
         candidate_installed_slots: set[int] = set()
         candidate_missing_coords: set[Tuple[int, int]] = set()
         for p_i in range(n_probes):
@@ -1944,23 +1974,35 @@ class HeadExpandedScarStore(nn.Module):
                         for p_cid in self._slot_descriptors[s_i].get("parent_capsules", []):
                             if p_cid in self._cid_to_slot:
                                 candidate_installed_slots.add(self._cid_to_slot[p_cid])
+                            elif p_cid in cid_to_global_coord:
+                                candidate_missing_coords.add(cid_to_global_coord[p_cid])
                     elif not is_present and coord in self._global_directory:
                         candidate_missing_coords.add(coord)
+                        for p_cid in self._global_directory[coord].get("parent_capsules", []):
+                            if p_cid in self._cid_to_slot:
+                                candidate_installed_slots.add(self._cid_to_slot[p_cid])
+                            elif p_cid in cid_to_global_coord:
+                                candidate_missing_coords.add(cid_to_global_coord[p_cid])
 
         paged_by_cid: Dict[str, HeadExpandedScarCapsule] = {}
         raw_gates: Dict[str, float] = {}
         parents_by_cid: Dict[str, Tuple[str, ...]] = {}
         ordered_cids: List[str] = []
 
-        for coord in sorted(candidate_missing_coords):
+        def _eval_missing_coord(coord: Tuple[int, int]) -> None:
             ri, cj = coord
             g_meta = self._global_directory[coord]
+            cid_g = str(g_meta["capsule_id"])
+            if cid_g in self._unlearned_cids:
+                return
+            p_list = tuple(str(x) for x in g_meta.get("parent_capsules", ()))
+            if p_list and any(raw_gates.get(p, 0.0) <= 0.0 for p in p_list):
+                return
             w1 = float(g_meta.get("w1", math.sqrt(0.5)))
             w2 = float(g_meta.get("w2", math.sqrt(0.5)))
             coarse_vec = (nq1.squeeze(-1) * w1 * s1_mat[:, ri]) + (nq2.squeeze(-1) * w2 * s2_mat[:, cj])
             coarse_cos = float(coarse_vec.max().item())
             tau_g = float(g_meta["tau"])
-            cid_g = str(g_meta["capsule_id"])
             self.last_routing_cosines[cid_g] = coarse_cos
             if coarse_cos > tau_g:
                 cap_stream: Optional[HeadExpandedScarCapsule] = None
@@ -1981,7 +2023,8 @@ class HeadExpandedScarStore(nn.Module):
                             num_key_prototypes=self.num_key_prototypes,
                             tau=tau_g,
                             ramp=float(g_meta["ramp"]),
-                            parent_capsules=g_meta.get("parent_capsules", ()),
+                            parent_capsules=p_list,
+                            metadata=dict(g_meta.get("metadata", {})),
                             device=dev,
                         )
                         self._hot_fetched_capsules[cid_g] = cap_stream
@@ -1999,11 +2042,14 @@ class HeadExpandedScarStore(nn.Module):
                         MissingCapsuleAlert(coord=coord, capsule_id=cid_g, coarse_cosine=coarse_cos, tau=tau_g)
                     )
 
-        for s_idx in sorted(candidate_installed_slots):
+        def _eval_installed_slot(s_idx: int) -> None:
             desc = self._slot_descriptors[s_idx]
             cid = str(desc["capsule_id"])
             if cid in self._unlearned_cids:
-                continue
+                return
+            p_list = tuple(str(x) for x in desc.get("parent_capsules", ()))
+            if p_list and any(raw_gates.get(p, 0.0) <= 0.0 for p in p_list):
+                return
             exact_cos = float(torch.mv(probes_2d, self.z_anchors_installed[s_idx]).max().item())
             self.last_routing_cosines[cid] = exact_cos
             g_val = max(0.0, min(1.0, (exact_cos - float(desc["tau"])) / float(desc["ramp"])))
@@ -2013,6 +2059,22 @@ class HeadExpandedScarStore(nn.Module):
                 raw_gates[cid] = g_val
                 parents_by_cid[cid] = cap.parent_capsules
                 ordered_cids.append(cid)
+
+        # Pass 1: Evaluate primary (parentless) capsules first so conjunctive bridges never waste mmap/HTTP-206 I/O!
+        for coord in sorted(candidate_missing_coords):
+            if not self._global_directory[coord].get("parent_capsules"):
+                _eval_missing_coord(coord)
+        for s_idx in sorted(candidate_installed_slots):
+            if not self._slot_descriptors[s_idx].get("parent_capsules"):
+                _eval_installed_slot(s_idx)
+
+        # Pass 2: Evaluate conjunctive Sleep Bridges ONLY when all of their parent capsules fired (> 0.0)
+        for coord in sorted(candidate_missing_coords):
+            if self._global_directory[coord].get("parent_capsules"):
+                _eval_missing_coord(coord)
+        for s_idx in sorted(candidate_installed_slots):
+            if self._slot_descriptors[s_idx].get("parent_capsules"):
+                _eval_installed_slot(s_idx)
 
         if self.strict_missing_guard and self.last_missing_alerts:
             a0 = self.last_missing_alerts[0]

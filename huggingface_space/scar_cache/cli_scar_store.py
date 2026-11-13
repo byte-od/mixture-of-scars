@@ -17,11 +17,14 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict, dataclass
+import gzip
+import hashlib
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import re
+import shutil
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -53,6 +56,88 @@ DEFAULT_CALIBRATION_PROMPTS: Tuple[str, ...] = (
 )
 
 DEFAULT_SYSTEM_PROMPT = "Answer concisely in one precise technical sentence."
+
+OFFICIAL_RELEASE_TAG = "v3.0.0"
+OFFICIAL_RELEASE_BASE_URL = f"https://github.com/byte-od/mixture-of-scars/releases/download/{OFFICIAL_RELEASE_TAG}"
+OFFICIAL_CATALOG_URL = f"{OFFICIAL_RELEASE_BASE_URL}/scarstore_catalog_v3_0.json"
+OFFICIAL_CLOUD_STORES: Dict[str, Dict[str, Any]] = {
+    "3b": {
+        "tier": "3b",
+        "student_model": "Qwen/Qwen2.5-3B-Instruct",
+        "hidden_dim": 2048,
+        "record_bytes": 143360,
+        "manifest_url": f"{OFFICIAL_RELEASE_BASE_URL}/qwen3b_v3_0.manifest.json",
+        "store_url": f"{OFFICIAL_RELEASE_BASE_URL}/qwen3b_v3_0.scarstore",
+        "shell_gz_url": f"{OFFICIAL_RELEASE_BASE_URL}/qwen3b_v3_0.shell.scarstore.gz",
+    },
+    "0.5b": {
+        "tier": "0.5b",
+        "student_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "hidden_dim": 896,
+        "record_bytes": 62720,
+        "manifest_url": f"{OFFICIAL_RELEASE_BASE_URL}/qwen0p5b_v3_0.manifest.json",
+        "store_url": f"{OFFICIAL_RELEASE_BASE_URL}/qwen0p5b_v3_0.scarstore",
+        "shell_gz_url": f"{OFFICIAL_RELEASE_BASE_URL}/qwen0p5b_v3_0.shell.scarstore.gz",
+    },
+}
+
+
+def resolve_official_cloud_tier(
+    student_or_tier: Optional[str] = None,
+    hidden_dim: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Resolves `'3b'` (`d=2048`) or `'0.5b'` (`d=896`) official cloud ScarStore endpoints."""
+    if hidden_dim is not None:
+        if int(hidden_dim) == 2048:
+            return dict(OFFICIAL_CLOUD_STORES["3b"])
+        if int(hidden_dim) == 896:
+            return dict(OFFICIAL_CLOUD_STORES["0.5b"])
+    key = (student_or_tier or "").strip().lower()
+    if key in ("0.5b", "0p5b") or "0.5b" in key:
+        return dict(OFFICIAL_CLOUD_STORES["0.5b"])
+    if key in ("3b",) or "3b" in key or key in ("", "auto", "official", "cloud"):
+        return dict(OFFICIAL_CLOUD_STORES["3b"])
+    raise ValueError(
+        f"Cannot infer official cloud ScarStore tier from {student_or_tier!r} (hidden_dim={hidden_dim}). "
+        f"Supported public tiers: '3b' (Qwen/Qwen2.5-3B-Instruct) and '0.5b' (Qwen/Qwen2.5-0.5B-Instruct)."
+    )
+
+
+def fetch_official_catalog(catalog_url: str = OFFICIAL_CATALOG_URL, timeout_s: float = 15.0) -> Dict[str, Any]:
+    """Fetches the live JSON catalog of the Official Online Cartridge Library."""
+    req = urllib.request.Request(catalog_url, headers={"User-Agent": "mixture-of-scars/3.0.0"}, method="GET")
+    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def download_cloud_scarstore(
+    tier_or_student: str,
+    out_path: Optional[Union[str, Path]] = None,
+    mode: str = "shell",
+    timeout_s: float = 60.0,
+) -> Path:
+    """Downloads either the lightweight Zero-Payload Cloud Shell (`mode='shell'`, streams 140 KB slices via HTTP 206)
+    or the complete offline `.scarstore` (`mode='full'`) from the Official Online Cartridge Library."""
+    spec = resolve_official_cloud_tier(tier_or_student)
+    tier = spec["tier"]
+    cache_root = Path.home() / ".cache" / "mixture_of_scars" / "scarstore"
+    if out_path is not None:
+        target = Path(out_path)
+    else:
+        fname = f"qwen{tier.replace('.', 'p')}_v3_0.shell.scarstore" if mode == "shell" else f"qwen{tier.replace('.', 'p')}_v3_0.scarstore"
+        target = cache_root / fname
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    url = spec["shell_gz_url"] if mode == "shell" else spec["store_url"]
+    tmp_path = target.with_suffix(target.suffix + ".part")
+    req = urllib.request.Request(url, headers={"User-Agent": "mixture-of-scars/3.0.0"}, method="GET")
+    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+        raw_data = resp.read()
+    if mode == "shell" and url.endswith(".gz"):
+        raw_data = gzip.decompress(raw_data)
+    tmp_path.write_bytes(raw_data)
+    shutil.move(str(tmp_path), str(target))
+    return target
 
 
 def format_chatml_prompt(user_query: str, system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> str:
@@ -224,10 +309,45 @@ class ScarStoreHTTPRangeServer:
 
 
 class HTTPRangeCapsuleClient:
-    """Zero-dependency HTTP/1.1 `206 Partial Content` capsule fetcher keyed by Kronecker `(row_i, col_j)`."""
+    """Zero-dependency HTTP/1.1 `206 Partial Content` capsule fetcher keyed by Kronecker `(row_i, col_j)`.
 
-    def __init__(self, base_url: str, timeout_s: float = 10.0) -> None:
-        self.base_url = base_url.rstrip("/")
+    Compatible with:
+      - `mos-store serve` endpoints (`http://127.0.0.1:8765` -> `/manifest.json` + `/store.scarstore`)
+      - Static CDN / GitHub Releases `.scarstore` URLs (`.../qwen3b_v3_0.scarstore` + `.manifest.json`)
+      - Shorthand `'auto'` / `'official'` / `'3b'` / `'0.5b'` pointing to the Official Online Cartridge Library
+    """
+
+    def __init__(
+        self,
+        base_url: str = "auto",
+        timeout_s: float = 15.0,
+        manifest_url: Optional[str] = None,
+        store_url: Optional[str] = None,
+        hidden_dim: Optional[int] = None,
+        student_hint: Optional[str] = None,
+    ) -> None:
+        raw = base_url.strip().rstrip("/")
+        if manifest_url and store_url:
+            self.manifest_url = manifest_url
+            self.store_url = store_url
+            self.base_url = raw
+        elif raw.lower() in ("auto", "official", "cloud", "3b", "0.5b", "0p5b"):
+            spec = resolve_official_cloud_tier(
+                student_or_tier=(student_hint if raw.lower() in ("auto", "official", "cloud") else raw),
+                hidden_dim=hidden_dim,
+            )
+            self.manifest_url = str(spec["manifest_url"])
+            self.store_url = str(spec["store_url"])
+            self.base_url = OFFICIAL_RELEASE_BASE_URL
+        elif raw.endswith(".scarstore"):
+            self.store_url = raw
+            self.manifest_url = raw[: -len(".scarstore")] + ".manifest.json"
+            self.base_url = raw.rsplit("/", 1)[0]
+        else:
+            self.base_url = raw
+            self.manifest_url = f"{raw}/manifest.json"
+            self.store_url = f"{raw}/store.scarstore"
+
         self.timeout_s = float(timeout_s)
         self._manifest_cache: Optional[Dict[Tuple[int, int], Dict[str, Any]]] = None
         self.fetch_events: List[Dict[str, Any]] = []
@@ -235,7 +355,11 @@ class HTTPRangeCapsuleClient:
     def _ensure_manifest(self) -> Dict[Tuple[int, int], Dict[str, Any]]:
         if self._manifest_cache is not None:
             return self._manifest_cache
-        req = urllib.request.Request(f"{self.base_url}/manifest.json", method="GET")
+        req = urllib.request.Request(
+            self.manifest_url,
+            headers={"User-Agent": "mixture-of-scars/3.0.0"},
+            method="GET",
+        )
         with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         mapping: Dict[Tuple[int, int], Dict[str, Any]] = {}
@@ -257,8 +381,11 @@ class HTTPRangeCapsuleClient:
         rec = int(slot["record_bytes"])
         range_spec = f"bytes={off}-{off + rec - 1}"
         req = urllib.request.Request(
-            f"{self.base_url}/store.scarstore",
-            headers={"Range": range_spec},
+            self.store_url,
+            headers={
+                "Range": range_spec,
+                "User-Agent": "mixture-of-scars/3.0.0",
+            },
             method="GET",
         )
         with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
@@ -271,11 +398,14 @@ class HTTPRangeCapsuleClient:
                 f"got status={status}, len={len(body)}"
             )
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        meta = slot.get("metadata", {}) if isinstance(slot.get("metadata"), dict) else {}
         self.fetch_events.append(
             {
                 "capsule_id": capsule_id,
+                "title": meta.get("title", capsule_id),
                 "coord": [int(coord[0]), int(coord[1])],
                 "http_status": status,
+                "store_url": self.store_url,
                 "range_header": range_spec,
                 "content_range": content_range,
                 "bytes_received": len(body),
@@ -287,9 +417,16 @@ class HTTPRangeCapsuleClient:
 
 def make_http_range_capsule_fetcher(
     base_url: str,
-    timeout_s: float = 10.0,
+    timeout_s: float = 15.0,
+    hidden_dim: Optional[int] = None,
+    student_hint: Optional[str] = None,
 ) -> Tuple[Callable[[Tuple[int, int], str], Optional[bytes]], HTTPRangeCapsuleClient]:
-    client = HTTPRangeCapsuleClient(base_url=base_url, timeout_s=timeout_s)
+    client = HTTPRangeCapsuleClient(
+        base_url=base_url,
+        timeout_s=timeout_s,
+        hidden_dim=hidden_dim,
+        student_hint=student_hint,
+    )
     return client.fetch_capsule_bytes, client
 
 
@@ -448,6 +585,11 @@ def _resolve_device_and_dtype(device_arg: Optional[str] = None) -> Tuple[torch.d
 
 
 def _cmd_build(args: argparse.Namespace) -> int:
+    from scar_cache.open_weights_factory import (
+        collect_open_weight_episodes,
+        load_specs_json,
+        mint_capsules_from_specs,
+    )
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     dev, dtype = _resolve_device_and_dtype(args.device)
@@ -465,28 +607,42 @@ def _cmd_build(args: argparse.Namespace) -> int:
         preserved_rank=4,
     )
 
-    episodes_by_cid: Dict[str, List[SleepEpisode]] = {}
-    if args.episodes_pt:
-        episodes_by_cid.update(load_episodes_bundle(args.episodes_pt))
-
-    if args.teacher and args.capsule_id and args.prompt:
+    llm = None
+    teacher_tok = None
+    if args.teacher:
+        teacher_tok = AutoTokenizer.from_pretrained(args.teacher, local_files_only=args.local_files_only)
         llm = AutoModelForCausalLM.from_pretrained(
             args.teacher, dtype=dtype, local_files_only=args.local_files_only
         ).to(dev).eval()
-        eps = ScarGraftEngine.collect_teacher_episodes(
+
+    episodes_by_cid: Dict[str, List[SleepEpisode]] = {}
+    meta_by_cid: Dict[str, Dict[str, Any]] = {}
+    if args.episodes_pt:
+        episodes_by_cid.update(load_episodes_bundle(args.episodes_pt))
+
+    if llm is not None and args.capsule_id and args.prompt:
+        eps, mint_mode = collect_open_weight_episodes(
             capsule_id=args.capsule_id,
             train_prompts=args.prompt,
+            student_model=slm,
+            student_tokenizer=tok,
             teacher_model=llm,
-            tokenizer=tok,
+            teacher_tokenizer=teacher_tok,
             chat_formatter=fmt,
             max_new_tokens=args.max_new_tokens,
             user_turn_prefix_ids=head_bank.user_turn_prefix_ids,
         )
         episodes_by_cid[args.capsule_id] = eps
+        meta_by_cid[args.capsule_id] = {
+            "title": args.title or args.capsule_id,
+            "title_pt": args.title or args.capsule_id,
+            "category": args.category or "Open-Weights Specialist",
+            "example_prompt": args.prompt[0],
+            "teacher_model": args.teacher,
+            "mint_mode": mint_mode,
+        }
 
-    if not episodes_by_cid:
-        raise ValueError("Provide --episodes-pt and/or (--teacher --capsule-id --prompt ...) to build capsules.")
-
+    minted_caps: List[HeadExpandedScarCapsule] = []
     for cid, eps in episodes_by_cid.items():
         cap = HeadExpandedAttentionEngine.solve_head_expanded_capsule(
             capsule_id=cid,
@@ -497,10 +653,42 @@ def _cmd_build(args: argparse.Namespace) -> int:
             num_key_prototypes=args.prototypes,
             tau=args.tau,
             ramp=args.ramp,
+            metadata=meta_by_cid.get(cid),
         )
-        head_bank.add_capsule(cap)
+        minted_caps.append(cap)
 
-    store = HeadExpandedScarStore.build_from_bank(head_bank, args.out)
+    if getattr(args, "spec_json", None):
+        specs = load_specs_json(args.spec_json)
+        spec_caps = mint_capsules_from_specs(
+            specs=specs,
+            student_model=slm,
+            student_tokenizer=tok,
+            head_bank=head_bank,
+            chat_formatter=fmt,
+            teacher_model=llm,
+            teacher_tokenizer=teacher_tok,
+            teacher_label=args.teacher,
+            rank=args.rank,
+            num_key_prototypes=args.prototypes,
+            tau=args.tau,
+            ramp=args.ramp,
+            max_new_tokens=args.max_new_tokens,
+        )
+        minted_caps.extend(spec_caps)
+
+    if not minted_caps:
+        raise ValueError("Provide --episodes-pt, --spec-json, and/or (--teacher --capsule-id --prompt ...) to build capsules.")
+
+    out_path = Path(args.out)
+    if getattr(args, "append", False) and out_path.exists():
+        store = HeadExpandedScarStore.open(out_path, device="cpu")
+        for cap in minted_caps:
+            store = store.append_capsule(cap, out_path=out_path)
+    else:
+        for cap in minted_caps:
+            head_bank.add_capsule(cap)
+        store = HeadExpandedScarStore.build_from_bank(head_bank, out_path)
+
     summary = store.inspect_summary()
     store.close()
     if args.json:
@@ -536,14 +724,64 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
         )
         print(
             f"  Kronecker: {summary['kronecker_grid_cells']:,} cells | "
-            f"bitmap={summary['presence_bitmap_kb']} KB | installed={summary['num_active_installed_slots']}"
+            f"bitmap={summary['presence_bitmap_kb']} KB | installed={summary['num_active_installed_slots']}/"
+            f"{summary['num_global_directory_entries']}"
         )
         for s in summary["slots"]:
+            meta = s.get("metadata") or {}
+            title_suffix = f" ({meta['title']})" if meta.get("title") else ""
             print(
-                f"    - [{s['slot_idx']}] {s['capsule_id']} @ {tuple(s['coord'])} | "
+                f"    - [{s['slot_idx']}] {s['capsule_id']}{title_suffix} @ {tuple(s['coord'])} | "
                 f"off={s['byte_offset']} (4KB={s['offset_4kb_aligned']}) | "
                 f"present={s['bitmap_present']} | wiped={s['payload_all_zero_wiped']}"
             )
+        uninstalled = [c for c in summary.get("cloud_directory", []) if not c.get("installed_locally")]
+        if uninstalled:
+            print(f"  Cloud Directory (streamable via HTTP 206 Range: {len(uninstalled)} cartridges):")
+            for c in uninstalled:
+                meta = c.get("metadata") or {}
+                t_str = f" — {meta['title']}" if meta.get("title") else ""
+                print(f"    * {c['capsule_id']} @ {tuple(c['coord'])}{t_str}")
+    return 0
+
+
+def _cmd_catalog(args: argparse.Namespace) -> int:
+    cat = fetch_official_catalog(catalog_url=args.catalog_url)
+    if args.json:
+        print(json.dumps(cat, indent=2, ensure_ascii=False))
+        return 0
+    print(f"=== {cat.get('library_name', 'Official Mixture of Scars Online Cartridge Library')} ({cat.get('version', 'v3.0.0')}) ===")
+    print(f"Teacher Source : {cat.get('teacher_model', 'Qwen2.5-72B-Instruct MoS v2 (72.71B)')}")
+    print(f"Release CDN    : {cat.get('release_base_url', OFFICIAL_RELEASE_BASE_URL)} (HTTP/1.1 206 Range Enabled)")
+    print(f"Cartridges     : {len(cat.get('cartridges', []))} online (3B: 140.00 KB [35x4KB] | 0.5B: 61.25 KB)\n")
+    for idx, item in enumerate(cat.get("cartridges", []), 1):
+        print(f"  [{idx:02d}] {item['title']}  [{item.get('category', 'General')}]")
+        if item.get("title_pt"):
+            print(f"       PT-BR  : {item['title_pt']}")
+        print(f"       ID     : {item['capsule_id']} | 3B coord={item.get('coord_3b')} | 0.5B coord={item.get('coord_0p5b')}")
+        if item.get("example_prompt"):
+            print(f"       Try    : mos-store query --remote auto --model Qwen/Qwen2.5-3B-Instruct --prompt \"{item['example_prompt']}\"")
+    return 0
+
+
+def _cmd_pull(args: argparse.Namespace) -> int:
+    dest = download_cloud_scarstore(
+        tier_or_student=args.student,
+        out_path=args.out,
+        mode=args.mode,
+    )
+    store = HeadExpandedScarStore.open(dest, device="cpu")
+    try:
+        summary = store.inspect_summary()
+    finally:
+        store.close()
+    if args.json:
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+    else:
+        print(
+            f"[mos-store pull] Downloaded {args.mode} store -> {summary['store_path']} ({summary['file_mib']} MiB) | "
+            f"installed={summary['num_active_installed_slots']}/{summary['num_global_directory_entries']} cartridges"
+        )
     return 0
 
 
@@ -588,20 +826,45 @@ def _cmd_query(args: argparse.Namespace) -> int:
     slm = AutoModelForCausalLM.from_pretrained(
         args.student, dtype=dtype, local_files_only=args.local_files_only
     ).to(dev).eval()
+    student_d = int(slm.config.hidden_size)
+
+    remote_url = args.remote_url
+    store_path: Optional[Path] = Path(args.store) if args.store else None
+    if store_path is None or not store_path.exists():
+        if not remote_url:
+            remote_url = "auto"
+        spec = resolve_official_cloud_tier(student_or_tier=args.student, hidden_dim=student_d)
+        default_shell = (
+            store_path
+            if store_path is not None
+            else (Path.home() / ".cache" / "mixture_of_scars" / "scarstore" / f"qwen{spec['tier'].replace('.', 'p')}_v3_0.shell.scarstore")
+        )
+        if not default_shell.exists():
+            if not args.json:
+                print(
+                    f"[mos-store cloud] Initializing local Cloud Shell for {args.student} -> {default_shell} ...",
+                    flush=True,
+                )
+            download_cloud_scarstore(tier_or_student=spec["tier"], out_path=default_shell, mode="shell")
+        store_path = default_shell
 
     http_client: Optional[HTTPRangeCapsuleClient] = None
     fetcher: Optional[Callable[[Tuple[int, int], str], Optional[bytes]]] = None
-    if args.remote_url:
-        fetcher, http_client = make_http_range_capsule_fetcher(args.remote_url)
+    if remote_url:
+        fetcher, http_client = make_http_range_capsule_fetcher(
+            remote_url,
+            hidden_dim=student_d,
+            student_hint=args.student,
+        )
 
-    store = HeadExpandedScarStore.open(args.store, device=dev, on_demand_fetcher=fetcher)
+    store = HeadExpandedScarStore.open(store_path, device=dev, on_demand_fetcher=fetcher)
     store.strict_missing_guard = bool(args.strict_missing_guard)
     store.attach(slm)
 
     try:
         if args.chat:
             scache = SCacheDynamicCache(window_size=args.window_size, num_slots=args.num_slots)
-            print(f"[mos-store chat] Ready on {args.student} ({dev}) + {args.store}. Type 'exit' to quit.")
+            print(f"[mos-store chat] Ready on {args.student} ({dev}) + {store_path}. Type 'exit' to quit.")
             while True:
                 try:
                     q_line = input("\nYou > ").strip()
@@ -730,6 +993,12 @@ def _cmd_unlearn(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ui(args: argparse.Namespace) -> int:
+    from scar_cache.ui_scar_store import launch_scar_store_ui_from_args
+
+    return int(launch_scar_store_ui_from_args(args))
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="mos-store",
@@ -737,13 +1006,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = p.add_subparsers(dest="subcommand", required=True)
 
-    pb = sub.add_parser("build", help="Build a .scarstore from SleepEpisode .pt bundles and/or live Teacher prompts")
-    pb.add_argument("--student", required=True, help="Student HF model ID (e.g. Qwen/Qwen2.5-3B-Instruct)")
+    pb = sub.add_parser("build", help="Build or append .scarstore cartridges from SleepEpisodes, Open-Weights Teachers, or --spec-json")
+    pb.add_argument("--student", "--model", dest="student", required=True, help="Student HF model ID (e.g. Qwen/Qwen2.5-3B-Instruct)")
     pb.add_argument("--out", required=True, help="Output .scarstore path")
     pb.add_argument("--episodes-pt", default=None, help="Cached SleepEpisode .pt bundle")
-    pb.add_argument("--teacher", default=None, help="Optional live Teacher HF model ID")
+    pb.add_argument("--spec-json", default=None, help="Batch JSON spec of Open-Weights cartridges (curated Q&A or train_prompts)")
+    pb.add_argument("--teacher", default=None, help="Optional live Open-Weight Teacher HF model ID (same-vocab or cross-tokenizer)")
     pb.add_argument("--capsule-id", default=None, help="Capsule ID when synthesizing from --teacher")
+    pb.add_argument("--title", default=None, help="Human-readable cartridge title")
+    pb.add_argument("--category", default=None, help="Human-readable category label")
     pb.add_argument("--prompt", action="append", default=None, help="Training prompt(s) for --teacher")
+    pb.add_argument("--append", action="store_true", help="Append into existing --out .scarstore instead of overwriting")
     pb.add_argument("--rank", type=int, default=60)
     pb.add_argument("--prototypes", type=int, default=8)
     pb.add_argument("--tau", type=float, default=0.62)
@@ -772,12 +1045,24 @@ def build_parser() -> argparse.ArgumentParser:
     psv.add_argument("--port", type=int, default=8765)
     psv.set_defaults(func=_cmd_serve)
 
-    pq = sub.add_parser("query", help="Query or chat with SCache O(1) + HeadExpandedScarStore + optional HTTP-206 Range")
-    pq.add_argument("--student", required=True, help="Student HF model ID (e.g. Qwen/Qwen2.5-3B-Instruct)")
-    pq.add_argument("--store", required=True, help="Local .scarstore path")
+    pcat = sub.add_parser("catalog", help="Browse the live Official Online Cartridge Library (HTTP 206 CDN)")
+    pcat.add_argument("--catalog-url", default=OFFICIAL_CATALOG_URL, help="Remote catalog JSON URL")
+    pcat.add_argument("--json", action="store_true")
+    pcat.set_defaults(func=_cmd_catalog)
+
+    ppull = sub.add_parser("pull", help="Download Official Online Cartridge Library (instant HTTP-206 shell or full offline pack)")
+    ppull.add_argument("--student", "--model", dest="student", default="3b", help="Student tier or HF ID ('3b' or '0.5b')")
+    ppull.add_argument("--out", default=None, help="Destination .scarstore path (defaults to ~/.cache/mixture_of_scars/scarstore/)")
+    ppull.add_argument("--mode", choices=["shell", "full"], default="shell", help="'shell' (streams 140 KB slices on demand) or 'full'")
+    ppull.add_argument("--json", action="store_true")
+    ppull.set_defaults(func=_cmd_pull)
+
+    pq = sub.add_parser("query", help="Query or chat with SCache O(1) + HeadExpandedScarStore + live HTTP-206 Cloud Range")
+    pq.add_argument("--student", "--model", dest="student", default="Qwen/Qwen2.5-3B-Instruct", help="Student HF model ID (default: Qwen/Qwen2.5-3B-Instruct)")
+    pq.add_argument("--store", default=None, help="Local .scarstore path (auto-initializes official Cloud Shell if omitted)")
     pq.add_argument("--prompt", default=None, help="Single query string")
     pq.add_argument("--chat", action="store_true", help="Interactive multi-turn SCache O(1) chat loop")
-    pq.add_argument("--remote-url", default=None, help="HTTP-206 Range server URL for missing capsules")
+    pq.add_argument("--remote-url", "--remote", dest="remote_url", default=None, help="HTTP-206 Range server URL or 'auto' for Official Online Library")
     pq.add_argument("--persist-fetched", action="store_true", help="Persist HTTP-fetched capsules into local store")
     pq.add_argument("--strict-missing-guard", action="store_true", help="Raise error on uninstalled capsule trigger")
     pq.add_argument("--max-new-tokens", type=int, default=48)
@@ -789,7 +1074,7 @@ def build_parser() -> argparse.ArgumentParser:
     pq.set_defaults(func=_cmd_query)
 
     psb = sub.add_parser("sleep-bridge", help="Consolidate an interdisciplinary Sleep Bridge capsule into a .scarstore")
-    psb.add_argument("--student", required=True)
+    psb.add_argument("--student", "--model", dest="student", required=True)
     psb.add_argument("--store", required=True)
     psb.add_argument("--bridge-id", required=True)
     psb.add_argument("--parent", action="append", default=[])
@@ -807,10 +1092,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     pu = sub.add_parser("unlearn", help="Surgical <20us GDPR unlearn + optional in-place 0x00 disk page erasure")
     pu.add_argument("--store", required=True)
-    pu.add_argument("--capsule-id", required=True)
+    pu.add_argument("--capsule-id", "--id", dest="capsule_id", required=True)
     pu.add_argument("--persist", action="store_true", help="Cryptographically zero slot pages & bitmap on disk")
     pu.add_argument("--json", action="store_true")
     pu.set_defaults(func=_cmd_unlearn)
+
+    pui = sub.add_parser("ui", help="Launch Visual Cartridge Store + Live SCache O(1) Chat + Open-Weights Factory Web UI")
+    pui.add_argument("--student", "--model", dest="student", default="Qwen/Qwen2.5-3B-Instruct", help="Student HF model ID")
+    pui.add_argument("--store", default=None, help="Local .scarstore path (auto-initializes official Cloud Shell if omitted)")
+    pui.add_argument("--remote-url", "--remote", dest="remote_url", default="auto", help="HTTP-206 Range server URL or 'auto'")
+    pui.add_argument("--host", default="127.0.0.1")
+    pui.add_argument("--port", type=int, default=7860)
+    pui.add_argument("--no-browser", action="store_true", help="Do not auto-open browser tab")
+    pui.add_argument("--device", default=None)
+    pui.add_argument("--local-files-only", action="store_true")
+    pui.set_defaults(func=_cmd_ui)
 
     return p
 
