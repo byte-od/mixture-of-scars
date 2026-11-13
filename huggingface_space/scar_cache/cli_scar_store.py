@@ -40,6 +40,10 @@ from scar_cache.head_expanded_attention import (
     HeadExpandedTelemetry,
 )
 from scar_cache.hf_cache import SCacheDynamicCache
+from scar_cache.mos_student import (
+    get_accelerator_memory_telemetry,
+    load_mos_student_model,
+)
 from scar_cache.scar_grafting import (
      ScarGraftEngine,
     SleepEpisode,
@@ -56,6 +60,21 @@ DEFAULT_CALIBRATION_PROMPTS: Tuple[str, ...] = (
 )
 
 DEFAULT_SYSTEM_PROMPT = "Answer concisely in one precise technical sentence."
+PT_CHAT_SYSTEM_PROMPT = "Responda de forma concisa, direta e precisa em português."
+
+_PT_DIACRITIC_RE = re.compile(r"[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]")
+_PT_WORD_RE = re.compile(
+    r"\b(ol[aá]|oi|tudo|bem|quem|voc[eê]|qual|quais|como|por\s*que|porque|explique|diferen[cç]a|entre|sobre|para|n[aã]o|s[aã]o|est[aá]|fale|resuma)\b",
+    re.IGNORECASE,
+)
+
+
+def select_chat_system_prompt(user_query: str, default_system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> str:
+    """Selects a clean domain-neutral Portuguese system prompt for PT-BR queries while preserving
+    exact `DEFAULT_SYSTEM_PROMPT` parity for English catalog and benchmark queries."""
+    if _PT_DIACRITIC_RE.search(user_query) or _PT_WORD_RE.search(user_query):
+        return PT_CHAT_SYSTEM_PROMPT
+    return default_system_prompt
 
 OFFICIAL_RELEASE_TAG = "v3.0.0"
 OFFICIAL_RELEASE_BASE_URL = f"https://github.com/byte-od/mixture-of-scars/releases/download/{OFFICIAL_RELEASE_TAG}"
@@ -450,6 +469,24 @@ class ScarStoreQueryResult:
     scache_memory_kb: float
     missing_alerts: List[Dict[str, Any]]
     http_range_events: List[Dict[str, Any]]
+    decode_tok_per_s: float = 0.0
+    ttft_ms: float = 0.0
+    scache_memory_mib: float = 0.0
+    gpu_allocated_mib: float = 0.0
+
+
+def _forward_last_token_logits(
+    student_model: nn.Module,
+    input_ids: torch.Tensor,
+    cache: SCacheDynamicCache,
+) -> torch.Tensor:
+    """Runs causal forward while avoiding materializing unused prompt-prefix vocab logits (`logits_to_keep=1`)."""
+    try:
+        out = student_model(input_ids, past_key_values=cache, use_cache=True, logits_to_keep=1)
+    except TypeError:
+        out = student_model(input_ids, past_key_values=cache, use_cache=True)
+    lg = out.logits if hasattr(out, "logits") else out
+    return lg[:, -1, :]
 
 
 @torch.no_grad()
@@ -493,8 +530,7 @@ def generate_with_scar_store(
         last_lg: Optional[torch.Tensor] = None
         for st in range(0, seq_len, chunk_sz):
             chunk = ids_2d[:, st : min(seq_len, st + chunk_sz)]
-            out = student_model(chunk, past_key_values=cache, use_cache=True)
-            last_lg = (out.logits if hasattr(out, "logits") else out)[:, -1, :]
+            last_lg = _forward_last_token_logits(student_model, chunk, cache)
         assert last_lg is not None
 
         def _pick_token(lg_1d: torch.Tensor) -> int:
@@ -504,22 +540,28 @@ def generate_with_scar_store(
             return int(torch.multinomial(probs, num_samples=1).item())
 
         nxt = _pick_token(last_lg[0])
+        t_after_first = time.perf_counter()
         gen_ids: List[int] = [nxt]
         for _ in range(max(0, int(max_new_tokens) - 1)):
             if eos_id is not None and nxt == int(eos_id):
                 break
-            out = student_model(
+            lg_step = _forward_last_token_logits(
+                student_model,
                 torch.tensor([[nxt]], dtype=torch.long, device=dev),
-                past_key_values=cache,
-                use_cache=True,
-            )
-            lg_step = (out.logits if hasattr(out, "logits") else out)[0, -1]
+                cache,
+            )[0]
             nxt = _pick_token(lg_step)
             gen_ids.append(nxt)
             if eos_id is not None and nxt == int(eos_id):
                 break
 
-        elapsed_s = max(1e-6, time.perf_counter() - t0)
+        t_end = time.perf_counter()
+        elapsed_s = max(1e-6, t_end - t0)
+        ttft_ms = round((t_after_first - t0) * 1000.0, 2)
+        decode_steps = max(0, len(gen_ids) - 1)
+        decode_s = max(1e-6, t_end - t_after_first)
+        decode_tps = round((decode_steps / decode_s) if decode_steps > 0 else (len(gen_ids) / elapsed_s), 2)
+
         telem: HeadExpandedTelemetry = store.get_last_telemetry()
         snap_active_gates = {k: round(float(v), 4) for k, v in store.last_active_gates.items()}
         snap_routing_cosines = {k: round(float(v), 4) for k, v in store.last_routing_cosines.items()}
@@ -547,6 +589,7 @@ def generate_with_scar_store(
                     if was_attached:
                         store.attach(student_model)
 
+        mem_telem = get_accelerator_memory_telemetry(dev)
         res = ScarStoreQueryResult(
             text=tokenizer.decode(gen_ids, skip_special_tokens=True).strip(),
             tokens_generated=len(gen_ids),
@@ -564,6 +607,10 @@ def generate_with_scar_store(
             scache_memory_kb=round(cache.total_memory_bytes / 1024.0, 2),
             missing_alerts=snap_missing_alerts,
             http_range_events=new_http_events,
+            decode_tok_per_s=decode_tps,
+            ttft_ms=ttft_ms,
+            scache_memory_mib=round(cache.total_memory_bytes / (1024.0**2), 2),
+            gpu_allocated_mib=float(mem_telem["gpu_allocated_mib"]),
         )
         return res, cache
     finally:
@@ -594,9 +641,15 @@ def _cmd_build(args: argparse.Namespace) -> int:
 
     dev, dtype = _resolve_device_and_dtype(args.device)
     tok = AutoTokenizer.from_pretrained(args.student, local_files_only=args.local_files_only)
-    slm = AutoModelForCausalLM.from_pretrained(
-        args.student, dtype=dtype, local_files_only=args.local_files_only
-    ).to(dev).eval()
+    slm = load_mos_student_model(
+        args.student,
+        tokenizer=tok,
+        device=dev,
+        dtype=dtype,
+        local_files_only=args.local_files_only,
+        dense_fallback=bool(getattr(args, "dense_student", False)),
+        quiet=bool(getattr(args, "json", False)),
+    )
 
     fmt = lambda q: format_chatml_prompt(q)
     head_bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
@@ -612,7 +665,10 @@ def _cmd_build(args: argparse.Namespace) -> int:
     if args.teacher:
         teacher_tok = AutoTokenizer.from_pretrained(args.teacher, local_files_only=args.local_files_only)
         llm = AutoModelForCausalLM.from_pretrained(
-            args.teacher, dtype=dtype, local_files_only=args.local_files_only
+            args.teacher,
+            dtype=dtype,
+            low_cpu_mem_usage=True,
+            local_files_only=args.local_files_only,
         ).to(dev).eval()
 
     episodes_by_cid: Dict[str, List[SleepEpisode]] = {}
@@ -819,13 +875,19 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 
 
 def _cmd_query(args: argparse.Namespace) -> int:
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoTokenizer
 
     dev, dtype = _resolve_device_and_dtype(args.device)
     tok = AutoTokenizer.from_pretrained(args.student, local_files_only=args.local_files_only)
-    slm = AutoModelForCausalLM.from_pretrained(
-        args.student, dtype=dtype, local_files_only=args.local_files_only
-    ).to(dev).eval()
+    slm = load_mos_student_model(
+        args.student,
+        tokenizer=tok,
+        device=dev,
+        dtype=dtype,
+        local_files_only=args.local_files_only,
+        dense_fallback=bool(getattr(args, "dense_student", False)),
+        quiet=bool(getattr(args, "json", False)),
+    )
     student_d = int(slm.config.hidden_size)
 
     remote_url = args.remote_url
@@ -879,6 +941,7 @@ def _cmd_query(args: argparse.Namespace) -> int:
                     prompt_text_or_ids=q_line,
                     max_new_tokens=args.max_new_tokens,
                     scache=scache,
+                    system_prompt=select_chat_system_prompt(q_line),
                     http_client=http_client,
                     persist_fetched=args.persist_fetched,
                 )
@@ -886,7 +949,8 @@ def _cmd_query(args: argparse.Namespace) -> int:
                 print(
                     f"  [Telemetry] +Heads={res.num_expanded_heads} | gates={res.active_gates} | "
                     f"spread={res.max_inter_head_spread:.4f} | mmap={res.mmap_bytes_read:,} B | "
-                    f"SCache={res.scache_memory_kb:.1f} KB | {res.tok_per_s:.1f} tok/s"
+                    f"SCache={res.scache_memory_mib:.2f} MiB | VRAM={res.gpu_allocated_mib / 1024.0:.2f} GiB | "
+                    f"{res.decode_tok_per_s:.1f} tok/s decode ({res.tok_per_s:.1f} e2e)"
                 )
             return 0
 
@@ -900,6 +964,7 @@ def _cmd_query(args: argparse.Namespace) -> int:
             max_new_tokens=args.max_new_tokens,
             window_size=args.window_size,
             num_slots=args.num_slots,
+            system_prompt=select_chat_system_prompt(args.prompt),
             http_client=http_client,
             persist_fetched=args.persist_fetched,
         )
@@ -910,7 +975,8 @@ def _cmd_query(args: argparse.Namespace) -> int:
             print(
                 f"[mos-store telemetry] +Heads={res.num_expanded_heads} | gates={res.active_gates} | "
                 f"spread={res.max_inter_head_spread:.4f} | mmap={res.mmap_bytes_read:,} B | "
-                f"HTTP206={len(res.http_range_events)} | SCache={res.scache_memory_kb:.1f} KB | {res.tok_per_s:.1f} tok/s"
+                f"HTTP206={len(res.http_range_events)} | SCache={res.scache_memory_mib:.2f} MiB | "
+                f"VRAM={res.gpu_allocated_mib / 1024.0:.2f} GiB | {res.decode_tok_per_s:.1f} tok/s decode"
             )
         return 0
     finally:
@@ -922,9 +988,15 @@ def _cmd_sleep_bridge(args: argparse.Namespace) -> int:
 
     dev, dtype = _resolve_device_and_dtype(args.device)
     tok = AutoTokenizer.from_pretrained(args.student, local_files_only=args.local_files_only)
-    slm = AutoModelForCausalLM.from_pretrained(
-        args.student, dtype=dtype, local_files_only=args.local_files_only
-    ).to(dev).eval()
+    slm = load_mos_student_model(
+        args.student,
+        tokenizer=tok,
+        device=dev,
+        dtype=dtype,
+        local_files_only=args.local_files_only,
+        dense_fallback=bool(getattr(args, "dense_student", False)),
+        quiet=bool(getattr(args, "json", False)),
+    )
     fmt = lambda q: format_chatml_prompt(q)
 
     store = HeadExpandedScarStore.open(args.store, device="cpu")
@@ -935,7 +1007,10 @@ def _cmd_sleep_bridge(args: argparse.Namespace) -> int:
             bridge_eps = ep_map.get(args.bridge_id) or next(iter(ep_map.values()))
         elif args.teacher and args.prompt:
             llm = AutoModelForCausalLM.from_pretrained(
-                args.teacher, dtype=dtype, local_files_only=args.local_files_only
+                args.teacher,
+                dtype=dtype,
+                low_cpu_mem_usage=True,
+                local_files_only=args.local_files_only,
             ).to(dev).eval()
             bridge_eps = ScarGraftEngine.collect_teacher_episodes(
                 capsule_id=args.bridge_id,
@@ -1023,6 +1098,7 @@ def build_parser() -> argparse.ArgumentParser:
     pb.add_argument("--ramp", type=float, default=0.16)
     pb.add_argument("--max-new-tokens", type=int, default=36)
     pb.add_argument("--device", default=None)
+    pb.add_argument("--dense-student", action="store_true", help="Disable MoS INT4+ASVD student compression (use raw FP16)")
     pb.add_argument("--local-files-only", action="store_true")
     pb.add_argument("--json", action="store_true")
     pb.set_defaults(func=_cmd_build)
@@ -1069,6 +1145,7 @@ def build_parser() -> argparse.ArgumentParser:
     pq.add_argument("--window-size", type=int, default=256)
     pq.add_argument("--num-slots", type=int, default=64)
     pq.add_argument("--device", default=None)
+    pq.add_argument("--dense-student", action="store_true", help="Disable MoS INT4+ASVD student compression (use raw FP16)")
     pq.add_argument("--local-files-only", action="store_true")
     pq.add_argument("--json", action="store_true")
     pq.set_defaults(func=_cmd_query)
@@ -1086,6 +1163,7 @@ def build_parser() -> argparse.ArgumentParser:
     psb.add_argument("--ramp", type=float, default=0.16)
     psb.add_argument("--max-new-tokens", type=int, default=48)
     psb.add_argument("--device", default=None)
+    psb.add_argument("--dense-student", action="store_true", help="Disable MoS INT4+ASVD student compression (use raw FP16)")
     psb.add_argument("--local-files-only", action="store_true")
     psb.add_argument("--json", action="store_true")
     psb.set_defaults(func=_cmd_sleep_bridge)
@@ -1105,6 +1183,7 @@ def build_parser() -> argparse.ArgumentParser:
     pui.add_argument("--port", type=int, default=7860)
     pui.add_argument("--no-browser", action="store_true", help="Do not auto-open browser tab")
     pui.add_argument("--device", default=None)
+    pui.add_argument("--dense-student", action="store_true", help="Disable MoS INT4+ASVD student compression (use raw FP16)")
     pui.add_argument("--local-files-only", action="store_true")
     pui.set_defaults(func=_cmd_ui)
 

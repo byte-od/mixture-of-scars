@@ -13,14 +13,14 @@
       "os_4kb_pages": 35,
       "assets": {
         "store_file": "qwen3b_v3_0.scarstore",
-        "store_bytes": 18673664,
-        "store_sha256": "5a33b17ec447677d4931b54d8470fb8f94e176c0926e66aba2806bfe128cbfd2",
+        "store_bytes": 18677760,
+        "store_sha256": "a837f68704d0bafe675bb70b75ca0e0c50965fed93d644455ffc2c3e04e7bd3a",
         "manifest_file": "qwen3b_v3_0.manifest.json",
-        "manifest_bytes": 23777,
-        "manifest_sha256": "dbc45bed145194233bb9f8d2d190dd87753b7eba0aa9858182afeda0cfa03aca",
+        "manifest_bytes": 25617,
+        "manifest_sha256": "e3ebbba5676f84203f6fae295781f37e954c113777ae7d0d78d31720548c24e8",
         "shell_gz_file": "qwen3b_v3_0.shell.scarstore.gz",
-        "shell_gz_bytes": 15498760,
-        "shell_gz_sha256": "a0eb826e472fa2858201044ff3d65e930107e4a790ff8c7a6e5a411b2e1c7323"
+        "shell_gz_bytes": 15499150,
+        "shell_gz_sha256": "4e79b2957919d87761ad12287e5822f378f5ae0a7eaf48ef6f7c05257669475f"
       }
     },
     "0.5b": {
@@ -30,14 +30,14 @@
       "record_kb": 61.25,
       "assets": {
         "store_file": "qwen0p5b_v3_0.scarstore",
-        "store_bytes": 3923200,
-        "store_sha256": "d041a135808739a055bdfb3de2ba4fe554c7e70073918ba49c6e064767ff2599",
+        "store_bytes": 3927296,
+        "store_sha256": "29072de8692996e411453209fbc66c6029aa74660ae7150fbbe1aec5c9f67152",
         "manifest_file": "qwen0p5b_v3_0.manifest.json",
-        "manifest_bytes": 23726,
-        "manifest_sha256": "ef3f6f4a54fa9884a8b6b6777635b716d41cfb1af27d9825fbe3407937f5c046",
+        "manifest_bytes": 25582,
+        "manifest_sha256": "d584b611fdc3c6b4927a0ac79335c8413c9db9db1d4420ed70541123a3968ca3",
         "shell_gz_file": "qwen0p5b_v3_0.shell.scarstore.gz",
-        "shell_gz_bytes": 2975093,
-        "shell_gz_sha256": "97cf53583fa0bff9811bc9c33f0935e1dbdd0f139b47f2fe7c1e95ec9fef695b"
+        "shell_gz_bytes": 2975478,
+        "shell_gz_sha256": "f6832cf5c81460a04e7eb783f7b2689d15790b93951caf73182aa470a9f69afd"
       }
     }
   },
@@ -50,18 +50,18 @@
       "summary": "Asymptotic exponential upper bound on spherical codes and kissing numbers in R^n.",
       "example_prompt": "Explain concisely what the Kabatiansky-Levenshtein theorem proves for high-dimensional unit spheres.",
       "parent_capsules": [],
-      "teacher_reference": "The Kabatiansky-Levenshtein theorem provides an upper bound on the number of non-overlapping unit spheres that",
+      "teacher_reference": "The Kabatiansky-Levenshtein theorem provides an upper bound on the number of non-overlapping unit spheres that can be packed into a high-dimensional space, specifically showing that the maximum number of such spheres grows exponentially with the dimension but at a rate slower",
       "coord_3b": [
         0,
         0
       ],
-      "byte_offset_3b": 17383424,
+      "byte_offset_3b": 17387520,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         0,
         0
       ],
-      "byte_offset_0p5b": 3358720,
+      "byte_offset_0p5b": 3362816,
       "record_bytes_0p5b": 62720
     },
     {
@@ -72,18 +72,18 @@
       "summary": "Minimum irreversible heat dissipation bound k_B T ln 2 per erased bit at temperature T.",
       "example_prompt": "Explain concisely what Landauer's principle states for the minimum energy dissipated when erasing one bit at temperature T.",
       "parent_capsules": [],
-      "teacher_reference": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\)",
+      "teacher_reference": "Landauer's principle states that the minimum energy dissipated when erasing one bit of information at temperature \\( T \\) is \\( k_B T \\ln 2 \\), where \\( k_B \\) is the Boltzmann constant.",
       "coord_3b": [
         1,
         1
       ],
-      "byte_offset_3b": 17526784,
+      "byte_offset_3b": 17530880,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         1,
         1
       ],
-      "byte_offset_0p5b": 3421440,
+      "byte_offset_0p5b": 3425536,
       "record_bytes_0p5b": 62720
     },
     {
@@ -94,18 +94,18 @@
       "summary": "Closure of nondeterministic space complexity classes under complementation via inductive counting.",
       "example_prompt": "Explain concisely what the Immerman-Szelepcsenyi theorem proves about nondeterministic space complexity classes.",
       "parent_capsules": [],
-      "teacher_reference": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation",
+      "teacher_reference": "The Immerman-Szelepcsenyi theorem proves that nondeterministic space complexity classes are closed under complementation, specifically that NSPACE(s(n)) = co-NSPACE(s(n)) for any function s(n) ≥ log(n).",
       "coord_3b": [
         2,
         2
       ],
-      "byte_offset_3b": 17670144,
+      "byte_offset_3b": 17674240,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         2,
         2
       ],
-      "byte_offset_0p5b": 3484160,
+      "byte_offset_0p5b": 3488256,
       "record_bytes_0p5b": 62720
     },
     {
@@ -116,18 +116,18 @@
       "summary": "Impossibility of deterministic fault-tolerant consensus in asynchronous message-passing systems with one crash.",
       "example_prompt": "Explain concisely what the Fischer-Lynch-Paterson impossibility theorem proves about asynchronous consensus.",
       "parent_capsules": [],
-      "teacher_reference": "The Fischer-Lynch-Paterson (FLP) impossibility theorem proves that in an asynchronous distributed system, it is impossible to",
+      "teacher_reference": "The Fischer-Lynch-Paterson (FLP) impossibility theorem proves that in an asynchronous distributed system, it is impossible to achieve deterministic consensus if even a single process may fail.",
       "coord_3b": [
         3,
         3
       ],
-      "byte_offset_3b": 17813504,
+      "byte_offset_3b": 17817600,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         3,
         3
       ],
-      "byte_offset_0p5b": 3546880,
+      "byte_offset_0p5b": 3550976,
       "record_bytes_0p5b": 62720
     },
     {
@@ -138,18 +138,18 @@
       "summary": "Upper bound L beyond which no formal axiomatic system can prove lower bounds K(x) > L on Kolmogorov complexity.",
       "example_prompt": "Explain concisely what Chaitin's incompleteness theorem proves regarding Kolmogorov complexity.",
       "parent_capsules": [],
-      "teacher_reference": "Chaitin's incompleteness theorem proves that within any consistent formal axiomatic system, there is a constant L such that",
+      "teacher_reference": "Chaitin's incompleteness theorem proves that within any consistent formal axiomatic system, there is a constant L such that the system cannot prove the Kolmogorov complexity of any string exceeds L.",
       "coord_3b": [
         4,
         4
       ],
-      "byte_offset_3b": 17956864,
+      "byte_offset_3b": 17960960,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         4,
         4
       ],
-      "byte_offset_0p5b": 3609600,
+      "byte_offset_0p5b": 3613696,
       "record_bytes_0p5b": 62720
     },
     {
@@ -160,18 +160,18 @@
       "summary": "Quantum worst-case to average-case reduction from GapSVP/SIVP lattice problems to Learning With Errors (LWE).",
       "example_prompt": "Explain concisely what Oded Regev's theorem proves connecting Learning With Errors (LWE) to worst-case lattice problems.",
       "parent_capsules": [],
-      "teacher_reference": "Oded Regev proved that the hardness of the Learning With Errors (LWE) problem in its average case is at least",
+      "teacher_reference": "Oded Regev proved that the hardness of the Learning With Errors (LWE) problem in its average case is at least as hard as certain worst-case lattice problems, specifically the shortest vector problem (SVP) and the closest vector problem (CVP).",
       "coord_3b": [
         5,
         5
       ],
-      "byte_offset_3b": 18100224,
+      "byte_offset_3b": 18104320,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         5,
         5
       ],
-      "byte_offset_0p5b": 3672320,
+      "byte_offset_0p5b": 3676416,
       "record_bytes_0p5b": 62720
     },
     {
@@ -182,18 +182,18 @@
       "summary": "Limiting eigenvalue density and compact support [(1 - sqrt(gamma))^2, (1 + sqrt(gamma))^2] of Wishart covariance matrices.",
       "example_prompt": "Explain concisely what the Marchenko-Pastur law establishes for the eigenvalues of large random covariance matrices.",
       "parent_capsules": [],
-      "teacher_reference": "The Marchenko-Pastur law states that the limiting eigenvalue distribution of large random sample covariance matrices, as the dimensions grow proportion",
+      "teacher_reference": "The Marchenko-Pastur law states that the limiting eigenvalue distribution of large random sample covariance matrices, as the dimensions grow proportionally, follows a specific distribution characterized by a continuous density function and a possible atom at the origin.",
       "coord_3b": [
         6,
         6
       ],
-      "byte_offset_3b": 18243584,
+      "byte_offset_3b": 18247680,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         6,
         6
       ],
-      "byte_offset_0p5b": 3735040,
+      "byte_offset_0p5b": 3739136,
       "record_bytes_0p5b": 62720
     },
     {
@@ -204,18 +204,18 @@
       "summary": "Tight upper rate C = B log2(1 + S/N) for arbitrarily reliable communication over an AWGN channel.",
       "example_prompt": "State concisely the Shannon-Hartley channel capacity formula and what it proves for noisy AWGN channels.",
       "parent_capsules": [],
-      "teacher_reference": "The Shannon-Hartley theorem establishes that the maximum error-free information capacity \\( C \\) over a noisy Additive White Gaussian Noise",
+      "teacher_reference": "The Shannon-Hartley theorem establishes that the maximum error-free information capacity \\( C \\) over a noisy Additive White Gaussian Noise (AWGN) channel is given by \\( C = B \\log_2(1 + \\frac{S}{N}) \\)",
       "coord_3b": [
         7,
         7
       ],
-      "byte_offset_3b": 18386944,
+      "byte_offset_3b": 18391040,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         7,
         7
       ],
-      "byte_offset_0p5b": 3797760,
+      "byte_offset_0p5b": 3801856,
       "record_bytes_0p5b": 62720
     },
     {
@@ -229,18 +229,18 @@
         "titan72b_landauer_principle",
         "titan72b_immerman_szelepcsenyi"
       ],
-      "teacher_reference": "Landauer's principle, stating that erasing one bit of information at temperature T requires at least kT ln 2 energy,",
+      "teacher_reference": "Landauer's principle, stating that erasing one bit of information at temperature T requires at least kT ln 2 energy, is fundamentally about the thermodynamic cost of computation, whereas the Immerman-Szelepcsenyi theorem proves that nondeterministic space",
       "coord_3b": [
         8,
         8
       ],
-      "byte_offset_3b": 18530304,
+      "byte_offset_3b": 18534400,
       "record_bytes_3b": 143360,
       "coord_0p5b": [
         8,
         8
       ],
-      "byte_offset_0p5b": 3860480,
+      "byte_offset_0p5b": 3864576,
       "record_bytes_0p5b": 62720
     }
   ]

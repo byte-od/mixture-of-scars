@@ -72,6 +72,12 @@ from scar_cache.open_weights_factory import (
     discover_local_open_weight_models,
     mint_capsules_from_specs,
 )
+from scar_cache.mos_student import (
+    FusedMoSLinear,
+    get_accelerator_memory_telemetry,
+    load_mos_student_model,
+    transcode_hf_student_to_mos_safetensors,
+)
 from scar_cache.ui_scar_store import ScarStoreWebUI
 from scar_cache.sinkhorn_rebasin import (
     ActivationWhitener,
@@ -168,6 +174,10 @@ __all__ = [
     "collect_open_weight_episodes",
     "discover_local_open_weight_models",
     "mint_capsules_from_specs",
+    "FusedMoSLinear",
+    "get_accelerator_memory_telemetry",
+    "load_mos_student_model",
+    "transcode_hf_student_to_mos_safetensors",
     "ScarStoreWebUI",
     "ActivationWhitener",
     "SwiGLUMonomialAlignment",

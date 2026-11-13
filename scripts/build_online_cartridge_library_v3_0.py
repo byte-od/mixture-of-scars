@@ -44,6 +44,7 @@ from scar_cache.head_expanded_attention import (
     HeadExpandedAttentionEngine,
     HeadExpandedScarStore,
 )
+from scar_cache.mos_student import load_mos_student_model
 from scar_cache.scar_grafting import (
     SleepEpisode,
     detect_chatml_user_prefix_ids,
@@ -187,15 +188,113 @@ def sha256_file(path: Path) -> str:
 
 
 @torch.no_grad()
-def extract_or_load_all_72b_episodes(dev: torch.device, max_new_tokens: int = 26) -> Dict[str, List[SleepEpisode]]:
+def extract_or_load_all_72b_episodes(dev: torch.device, max_new_tokens: int = 54) -> Dict[str, List[SleepEpisode]]:
     LIB_DIR.mkdir(parents=True, exist_ok=True)
     episodes_map: Dict[str, List[SleepEpisode]] = {}
+    eos_set = {151645, 151643}
 
     if EPISODES_V3_PT.exists():
         episodes_map = load_episodes_bundle(EPISODES_V3_PT)
         needed = {s["capsule_id"] for s in CARTRIDGE_SPECS} | {BRIDGE_SPEC["capsule_id"]}
+        all_complete = needed.issubset(set(episodes_map.keys())) and all(
+            (int(episodes_map[cid][0].full_ids.numel() - episodes_map[cid][0].prompt_ids.numel()) >= 36)
+            or (int(episodes_map[cid][0].full_ids[-1].item()) in eos_set)
+            for cid in needed
+        )
+        if all_complete:
+            print(f"[Phase 1] Loaded complete full-sentence 9-domain 72.71B episode cache from {EPISODES_V3_PT}", flush=True)
+            return episodes_map
+
+        # Fast packed continuation from existing 24..26 token prefixes -> complete 52..54 token formulas!
         if needed.issubset(set(episodes_map.keys())):
-            print(f"[Phase 1] Loaded complete 9-domain 72.71B episode cache from {EPISODES_V3_PT}", flush=True)
+            print(
+                f"[Phase 1] Extending truncated 24-26 token 72.71B episodes to full mathematical sentences ({max_new_tokens} tok) ...",
+                flush=True,
+            )
+            t0 = time.perf_counter()
+            titan_72b = CanonicalMoSEngine(MOS_72B_DIR, device=str(dev), streaming=True)
+            tok = titan_72b.tokenizer
+            prefix_ids = detect_chatml_user_prefix_ids(tok)
+            eos_ids = [tok.eos_token_id, 151645, 151643]
+
+            ordered_cids = [s["capsule_id"] for s in CARTRIDGE_SPECS] + [BRIDGE_SPEC["capsule_id"]]
+            cont_prefixes = [episodes_map[cid][0].full_ids.cpu() for cid in ordered_cids]
+            cont_results = titan_72b.generate_packed_greedy(
+                prompt_1d_list=cont_prefixes,
+                max_new_tokens=28,
+                eos_token_ids=eos_ids,
+            )
+
+            p1_full_seqs: List[torch.Tensor] = []
+            p1_prompts_1d: List[torch.Tensor] = []
+            merged_ans0: List[Tuple[torch.Tensor, torch.Tensor]] = []
+            for idx, cid in enumerate(ordered_cids):
+                ep0_old = episodes_map[cid][0]
+                old_ans = ep0_old.full_ids[ep0_old.prompt_ids.numel() :].cpu()
+                ext_ids, ext_lg = cont_results[idx]
+                full_ans = torch.cat([old_ans, ext_ids.cpu()], dim=0)
+                full_lg0 = torch.cat([ep0_old.teacher_logits.to(torch.float16).cpu(), ext_lg.to(torch.float16).cpu()], dim=0)
+                merged_ans0.append((full_ans, full_lg0))
+                if idx < len(CARTRIDGE_SPECS):
+                    p1_ids = tok(format_chatml_prompt(CARTRIDGE_SPECS[idx]["train_prompts"][1]), return_tensors="pt").input_ids[0].cpu()
+                    p1_prompts_1d.append(p1_ids)
+                    p1_full_seqs.append(torch.cat([p1_ids, full_ans], dim=0))
+
+            print(f"[Phase 1B] Scoring {len(p1_full_seqs)} secondary phrasings in 1 packed 72.71B sweep ...", flush=True)
+            p1_logits_list = titan_72b.forward_packed_sequences(p1_full_seqs)
+
+            for idx, s in enumerate(CARTRIDGE_SPECS):
+                cid = s["capsule_id"]
+                p0_ids = episodes_map[cid][0].prompt_ids.cpu()
+                p1_ids = p1_prompts_1d[idx]
+                full_ans, full_lg0 = merged_ans0[idx]
+                lp1, la0 = int(p1_ids.numel()), int(full_ans.numel())
+                lg1_ans = p1_logits_list[idx][lp1 - 1 : lp1 - 1 + la0, :].detach().to(torch.float16).cpu()
+                ans_txt = tok.decode(full_ans, skip_special_tokens=True)
+                print(f"  [72.71B Extended -> {cid} ({la0} tok)]: {ans_txt}", flush=True)
+                ep0 = SleepEpisode(
+                    capsule_id=cid,
+                    prompt_ids=p0_ids,
+                    full_ids=torch.cat([p0_ids, full_ans], dim=0),
+                    teacher_logits=full_lg0,
+                    query_start_idx=find_subsequence_last_end(p0_ids.tolist(), prefix_ids),
+                    surprise_score=1.0,
+                    metadata={"prompt": s["train_prompts"][0], "teacher": "Qwen2.5-72B-Instruct-MoS (72.71B)", "answer": ans_txt},
+                )
+                ep1 = SleepEpisode(
+                    capsule_id=cid,
+                    prompt_ids=p1_ids,
+                    full_ids=p1_full_seqs[idx],
+                    teacher_logits=lg1_ans,
+                    query_start_idx=find_subsequence_last_end(p1_ids.tolist(), prefix_ids),
+                    surprise_score=1.0,
+                    metadata={"prompt": s["train_prompts"][1], "teacher": "Qwen2.5-72B-Instruct-MoS (72.71B)", "answer": ans_txt},
+                )
+                episodes_map[cid] = [ep0, ep1]
+
+            b_cid = BRIDGE_SPEC["capsule_id"]
+            pb_ids = episodes_map[b_cid][0].prompt_ids.cpu()
+            b_ans, b_lg0 = merged_ans0[-1]
+            b_txt = tok.decode(b_ans, skip_special_tokens=True)
+            print(f"  [72.71B Bridge   -> {b_cid} ({int(b_ans.numel())} tok)]: {b_txt}", flush=True)
+            episodes_map[b_cid] = [
+                SleepEpisode(
+                    capsule_id=b_cid,
+                    prompt_ids=pb_ids,
+                    full_ids=torch.cat([pb_ids, b_ans], dim=0),
+                    teacher_logits=b_lg0,
+                    query_start_idx=find_subsequence_last_end(pb_ids.tolist(), prefix_ids),
+                    surprise_score=1.0,
+                    metadata={"prompt": BRIDGE_SPEC["bridge_prompt"], "teacher": "Qwen2.5-72B-Instruct-MoS (72.71B)", "answer": b_txt},
+                )
+            ]
+            del titan_72b
+            gc.collect()
+            if dev.type == "mps":
+                torch.mps.synchronize()
+                torch.mps.empty_cache()
+            torch.save({"episodes_by_capsule": episodes_map}, EPISODES_V3_PT)
+            print(f"[Phase 1 Done] Extended all 9 72.71B episodes in {time.perf_counter() - t0:.1f}s", flush=True)
             return episodes_map
 
     if LEGACY_EPISODES_PT.exists():
@@ -306,11 +405,11 @@ def build_tier_library(
     episodes_map: Dict[str, List[SleepEpisode]],
     dev: torch.device,
 ) -> Dict[str, Any]:
-    print(f"\n[Phase 2 - {tier_tag}] Synthesizing 9 Closed-Form Cartridges for {student_id} ...", flush=True)
+    print(f"\n[Phase 2 - {tier_tag}] Synthesizing 9 Closed-Form Cartridges for {student_id} (MoS INT4+ASVD) ...", flush=True)
     t0 = time.perf_counter()
     dtype = torch.float16 if dev.type in ("cuda", "mps") else torch.float32
     tok = AutoTokenizer.from_pretrained(student_id, local_files_only=True)
-    slm = AutoModelForCausalLM.from_pretrained(student_id, dtype=dtype, local_files_only=True).to(dev).eval()
+    slm = load_mos_student_model(student_id, tokenizer=tok, device=dev, dtype=dtype, local_files_only=True)
 
     head_bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
         student_model=slm,
@@ -320,7 +419,7 @@ def build_tier_library(
         preserved_rank=4,
     )
 
-    tau_tier = 0.64 if tier_tag == "3b" else 0.62
+    tau_tier = 0.68 if tier_tag == "3b" else 0.66
     for spec in CARTRIDGE_SPECS:
         cid = spec["capsule_id"]
         eps = episodes_map[cid]
@@ -403,14 +502,16 @@ def build_tier_library(
                     tokenizer=tok,
                     store=live_shell,
                     prompt_text_or_ids=test_spec["example_prompt"],
-                    max_new_tokens=36,
+                    max_new_tokens=56,
                     http_client=http_client,
                     persist_fetched=False,
                 )
                 assert res.active_gates and max(res.active_gates, key=res.active_gates.get) == test_spec["capsule_id"] and res.active_gates[test_spec["capsule_id"]] >= 0.80, (
                     f"[{tier_tag}] Expected dominant {test_spec['capsule_id']}, got {res.active_gates}"
                 )
-                assert len(res.http_range_events) >= 1 and all(e["http_status"] == 206 for e in res.http_range_events)
+                assert len(res.http_range_events) == 1 and res.http_range_events[0]["http_status"] == 206, (
+                    f"[{tier_tag}] Expected single-capsule HTTP 206 fetch for {test_spec['capsule_id']}, got {res.http_range_events}"
+                )
                 matched_ev = next(e for e in res.http_range_events if e["capsule_id"] == test_spec["capsule_id"])
                 assert matched_ev["bytes_received"] == store.record_bytes
                 sample_verify.append(
@@ -440,6 +541,7 @@ def build_tier_library(
     del slm
     gc.collect()
     if dev.type == "mps":
+        torch.mps.synchronize()
         torch.mps.empty_cache()
 
     elapsed_s = round(time.perf_counter() - t0, 2)

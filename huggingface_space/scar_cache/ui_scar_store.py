@@ -8,6 +8,7 @@ and `open_weights_factory` (`Zero SGD`), with ZERO external web framework depend
 from __future__ import annotations
 
 from dataclasses import asdict
+import gc
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -30,6 +31,7 @@ from scar_cache.cli_scar_store import (
     generate_with_scar_store,
     make_http_range_capsule_fetcher,
     resolve_official_cloud_tier,
+    select_chat_system_prompt,
 )
 from scar_cache.head_expanded_attention import (
     HeadExpandedAttentionEngine,
@@ -37,6 +39,10 @@ from scar_cache.head_expanded_attention import (
     HeadExpandedScarStore,
 )
 from scar_cache.hf_cache import SCacheDynamicCache
+from scar_cache.mos_student import (
+    get_accelerator_memory_telemetry,
+    load_mos_student_model,
+)
 from scar_cache.open_weights_factory import (
     discover_local_open_weight_models,
     mint_capsules_from_specs,
@@ -358,9 +364,10 @@ _UI_HTML = r"""<!DOCTYPE html>
     </div>
   </div>
   <div class="metrics-bar">
+    <span class="pill">VRAM MoS: <strong id="metricVram">-- GiB</strong></span>
     <span class="pill">Cartucho: <strong id="metricRecordKb">-- KB</strong></span>
     <span class="pill">Instalados / Nuvem: <strong id="metricSlots">--</strong></span>
-    <span class="pill">SCache O(1): <strong id="metricScache">0.0 KB</strong></span>
+    <span class="pill">SCache O(1): <strong id="metricScache">0.00 MiB</strong></span>
     <button class="btn btn-primary" onclick="openMintModal()">+ Criar Cartucho (Open-Weights)</button>
   </div>
 </header>
@@ -468,11 +475,14 @@ async function refreshStatus() {
   const resp = await fetch('/api/status');
   const data = await resp.json();
   STATE = data;
+  const mosLabel = data.mos_enabled ? `MoS INT4+ASVD (r=${data.mos_rank})` : 'FP16 Denso';
   document.getElementById('modelSubtitle').textContent =
-    `${data.student_model} (${data.device}) • Grade Kronecker ${data.kronecker_grid_cells.toLocaleString()} células • Fonte: ${data.remote_mode}`;
+    `${data.student_model} • ${mosLabel} (${data.device}) • Grade Kronecker ${data.kronecker_grid_cells.toLocaleString()} células • Fonte: ${data.remote_mode}`;
+  document.getElementById('metricVram').textContent =
+    data.gpu_allocated_gib > 0 ? `${data.gpu_allocated_gib.toFixed(2)} GiB` : `RSS ${data.process_peak_rss_gib.toFixed(2)} GiB`;
   document.getElementById('metricRecordKb').textContent = `${data.record_kb.toFixed(2)} KB`;
   document.getElementById('metricSlots').textContent = `${data.installed_count} locais / ${data.total_count} catálogo`;
-  document.getElementById('metricScache').textContent = `${data.scache_kb.toFixed(1)} KB`;
+  document.getElementById('metricScache').textContent = `${(data.scache_kb / 1024.0).toFixed(2)} MiB fixos`;
 
   const catSel = document.getElementById('categoryFilter');
   const prevCat = catSel.value;
@@ -601,9 +611,14 @@ async function sendChat() {
     for (const ev of (res.http_range_events || [])) {
       chips += `<span class="telem-chip http">⚡ HTTP 206: ${(ev.bytes_received/1024).toFixed(2)} KB em ${ev.latency_ms.toFixed(1)} ms</span>`;
     }
+    const scMib = (res.scache_memory_kb / 1024.0).toFixed(2);
+    const decTps = (res.decode_tok_per_s || res.tok_per_s || 0).toFixed(1);
     chips += `<span class="telem-chip">+Heads: ${res.num_expanded_heads}</span>`;
-    chips += `<span class="telem-chip">SCache O(1): ${res.scache_memory_kb.toFixed(1)} KB</span>`;
-    chips += `<span class="telem-chip">${res.tok_per_s.toFixed(1)} tok/s</span>`;
+    chips += `<span class="telem-chip">SCache O(1): ${scMib} MiB fixos</span>`;
+    if (res.gpu_allocated_mib > 0) {
+      chips += `<span class="telem-chip">VRAM MoS: ${(res.gpu_allocated_mib/1024.0).toFixed(2)} GiB</span>`;
+    }
+    chips += `<span class="telem-chip">${decTps} tok/s decode</span>`;
 
     document.getElementById(pendingId).outerHTML = `
       <div class="msg msg-bot">
@@ -714,7 +729,7 @@ class ScarStoreWebUI:
         port: int = 7860,
         window_size: int = 256,
         num_slots: int = 64,
-        max_new_tokens: int = 56,
+        max_new_tokens: int = 96,
         local_files_only: bool = False,
     ) -> None:
         self.student_model = student_model
@@ -863,11 +878,18 @@ class ScarStoreWebUI:
 
         cartridges = list(by_id.values())
         installed_count = sum(1 for c in cartridges if c["status"] == "installed")
-        dev_str = str(self.store.mu_query_last.device)
+        dev_obj = self.store.mu_query_last.device
+        dev_str = str(dev_obj)
+        mem_telem = get_accelerator_memory_telemetry(dev_obj)
 
         return {
             "student_model": self.student_name,
             "device": dev_str,
+            "mos_enabled": bool(getattr(self.student_model, "mos_enabled", False)),
+            "mos_rank": int(getattr(self.student_model, "mos_rank", 0)),
+            "gpu_allocated_mib": float(mem_telem["gpu_allocated_mib"]),
+            "gpu_allocated_gib": float(mem_telem["gpu_allocated_gib"]),
+            "process_peak_rss_gib": float(mem_telem["process_peak_rss_gib"]),
             "store_path": str(self.store.store_path),
             "remote_mode": self.remote_mode,
             "has_remote": self.http_client is not None,
@@ -878,6 +900,7 @@ class ScarStoreWebUI:
             "total_count": len(cartridges),
             "scache_bytes": int(self.scache.total_memory_bytes),
             "scache_kb": round(self.scache.total_memory_bytes / 1024.0, 2),
+            "scache_mib": round(self.scache.total_memory_bytes / (1024.0**2), 2),
             "cartridges": cartridges,
             "local_open_weight_models": self._local_open_weights,
         }
@@ -897,6 +920,7 @@ class ScarStoreWebUI:
             prompt_text_or_ids=prompt,
             max_new_tokens=max_tok,
             scache=self.scache,
+            system_prompt=select_chat_system_prompt(prompt),
             http_client=self.http_client,
             persist_fetched=False,
         )
@@ -1000,6 +1024,7 @@ class ScarStoreWebUI:
 
         teacher_model = None
         teacher_tok = None
+        owns_teacher = False
         if teacher_id:
             dev = self.store.mu_query_last.device
             dtype = torch.float16 if dev.type in ("cuda", "mps") else torch.float32
@@ -1009,35 +1034,50 @@ class ScarStoreWebUI:
             else:
                 teacher_tok = AutoTokenizer.from_pretrained(teacher_id, local_files_only=self.local_files_only)
                 teacher_model = AutoModelForCausalLM.from_pretrained(
-                    teacher_id, dtype=dtype, local_files_only=self.local_files_only
+                    teacher_id,
+                    dtype=dtype,
+                    low_cpu_mem_usage=True,
+                    local_files_only=self.local_files_only,
                 ).to(dev).eval()
+                owns_teacher = True
             spec["train_prompts"] = prompts
         else:
             if not ans:
                 raise ValueError("Provide either 'answer' or 'teacher_model'.")
             spec["episodes"] = [{"prompt": pr, "answer": ans} for pr in prompts]
 
-        fmt = lambda q: format_chatml_prompt(q, system_prompt=DEFAULT_SYSTEM_PROMPT)
-        with self.store.paused():
-            head_bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
-                student_model=self.student_model,
-                calibration_prompts=DEFAULT_CALIBRATION_PROMPTS,
-                tokenizer=self.tokenizer,
-                chat_formatter=fmt,
-                preserved_rank=4,
-            )
-            caps = mint_capsules_from_specs(
-                specs=[spec],
-                student_model=self.student_model,
-                student_tokenizer=self.tokenizer,
-                head_bank=head_bank,
-                chat_formatter=fmt,
-                teacher_model=teacher_model,
-                teacher_tokenizer=teacher_tok,
-                teacher_label=teacher_id or "Open-Weights Curated Trajectory",
-                rank=self.store.rank,
-                num_key_prototypes=self.store.num_key_prototypes,
-            )
+        sys_prompt = select_chat_system_prompt(p1)
+        fmt = lambda q: format_chatml_prompt(q, system_prompt=sys_prompt)
+        try:
+            with self.store.paused():
+                head_bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
+                    student_model=self.student_model,
+                    calibration_prompts=DEFAULT_CALIBRATION_PROMPTS,
+                    tokenizer=self.tokenizer,
+                    chat_formatter=fmt,
+                    preserved_rank=4,
+                )
+                caps = mint_capsules_from_specs(
+                    specs=[spec],
+                    student_model=self.student_model,
+                    student_tokenizer=self.tokenizer,
+                    head_bank=head_bank,
+                    chat_formatter=fmt,
+                    teacher_model=teacher_model,
+                    teacher_tokenizer=teacher_tok,
+                    teacher_label=teacher_id or "Open-Weights Curated Trajectory",
+                    rank=self.store.rank,
+                    num_key_prototypes=self.store.num_key_prototypes,
+                )
+        finally:
+            if owns_teacher and teacher_model is not None:
+                del teacher_model
+                gc.collect()
+                if torch.backends.mps.is_available():
+                    torch.mps.synchronize()
+                    torch.mps.empty_cache()
+                elif torch.cuda.is_available():
+                    torch.cuda.empty_cache()
 
         cap_new = caps[0]
         self._catalog_by_id[cap_new.capsule_id] = dict(cap_new.metadata, capsule_id=cap_new.capsule_id)
@@ -1077,13 +1117,18 @@ class ScarStoreWebUI:
 def launch_scar_store_ui_from_args(args: Any) -> int:
     """CLI entrypoint for `mos-store ui`."""
     from scar_cache.cli_scar_store import _resolve_device_and_dtype
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoTokenizer
 
     dev, dtype = _resolve_device_and_dtype(args.device)
     tok = AutoTokenizer.from_pretrained(args.student, local_files_only=args.local_files_only)
-    slm = AutoModelForCausalLM.from_pretrained(
-        args.student, dtype=dtype, local_files_only=args.local_files_only
-    ).to(dev).eval()
+    slm = load_mos_student_model(
+        args.student,
+        tokenizer=tok,
+        device=dev,
+        dtype=dtype,
+        local_files_only=args.local_files_only,
+        dense_fallback=bool(getattr(args, "dense_student", False)),
+    )
     student_d = int(slm.config.hidden_size)
 
     remote_url = args.remote_url

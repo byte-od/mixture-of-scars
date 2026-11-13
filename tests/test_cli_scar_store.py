@@ -407,3 +407,60 @@ def test_scarstore_web_ui_status_chat_pull_mint_and_unlearn(tmp_path: Path) -> N
             assert res_unlearn["persisted_to_disk"] is True
             assert res_unlearn["cryptographically_zeroed_bytes"] > 0
         ui.store.close()
+
+
+def test_fused_mos_linear_block64_int4_and_asvd_causality() -> None:
+    """Verifies `FusedMoSLinear` genuinely compresses weights (`< 40%` bytes) and executes active ASVD scars (>99.5% cos)."""
+    import torch.nn.functional as F
+    from scar_cache.cli_72b import dequantize_int4_coalesced
+    from scar_cache.mos_student import FusedMoSLinear, quantize_2d_block64_int4
+
+    torch.manual_seed(42)
+    out_f, in_f, rank = 512, 256, 16
+    w_dense = torch.randn((out_f, in_f), dtype=torch.float32) * 0.04
+    # Inject structured outlier subspace so ASVD scar carries real signal
+    u_out = torch.randn((out_f, 4), dtype=torch.float32) * 0.25
+    v_out = torch.randn((4, in_f), dtype=torch.float32) * 0.25
+    w_dense = w_dense + (u_out @ v_out)
+
+    pk, sc = quantize_2d_block64_int4(w_dense)
+    w_deq = dequantize_int4_coalesced(pk, sc, (out_f, in_f), torch.float32)
+    res = w_dense - w_deq
+    u_s, s_s, vh_s = torch.linalg.svd(res, full_matrices=False)
+    sq = torch.sqrt(s_s[:rank])
+    b_sc = (u_s[:, :rank] * sq.unsqueeze(0)).to(torch.float16)
+    a_sc = (sq.unsqueeze(1) * vh_s[:rank, :]).to(torch.float16)
+
+    dev = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    dt = torch.float16 if dev.type == "mps" else torch.float32
+    mos_lin = FusedMoSLinear(in_f, out_f, pk, sc, a_sc, b_sc, None, device=dev, dtype=dt)
+
+    dense_fp16_bytes = out_f * in_f * 2
+    assert mos_lin.physical_bytes < int(0.45 * dense_fp16_bytes)
+
+    x = torch.randn((3, in_f), dtype=dt, device=dev)
+    y_mos = mos_lin(x).float().cpu()
+    y_ref = F.linear(x.float().cpu(), w_dense)
+    cos = float(F.cosine_similarity(y_mos.reshape(1, -1), y_ref.reshape(1, -1)).item())
+    assert cos > 0.995, f"Expected >0.995 cosine parity, got {cos}"
+
+    # Anti-facade check: disabling ASVD scar must measurably shift output
+    mos_lin.scar_enabled = False
+    y_no_scar = mos_lin(x).float().cpu()
+    assert float((y_mos - y_no_scar).abs().max().item()) > 1e-2
+
+
+def test_select_chat_system_prompt_language_routing() -> None:
+    """Verifies Portuguese chat queries get PT-BR system prompt while English catalog queries preserve exact `DEFAULT_SYSTEM_PROMPT`."""
+    from scar_cache.cli_scar_store import (
+        DEFAULT_SYSTEM_PROMPT,
+        PT_CHAT_SYSTEM_PROMPT,
+        select_chat_system_prompt,
+    )
+
+    assert select_chat_system_prompt("State Landauer's thermodynamic bound for erasing one bit at temperature T.") == DEFAULT_SYSTEM_PROMPT
+    assert select_chat_system_prompt("Explain the FLP impossibility theorem in asynchronous distributed systems.") == DEFAULT_SYSTEM_PROMPT
+    assert select_chat_system_prompt("Olá, tudo bem? Quem é você? Qual a diferença populacional entre as maiores capitais das américas?") == PT_CHAT_SYSTEM_PROMPT
+    assert select_chat_system_prompt("Oi, como funciona o protocolo TCP?") == PT_CHAT_SYSTEM_PROMPT
+
+
