@@ -144,6 +144,12 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int2_mos_linear,
     triton_fused_int4_mos_linear,
 )
+from scar_cache.vq4_scar_mos import (
+    VQ4ScarLinear,
+    VQ4ScarPackedMatrix,
+    WebGPUVQ4ScarExecutor,
+    quantize_matrix_vq4_scar_2pass,
+)
 
 __version__ = "3.0.0"
 
@@ -262,5 +268,9 @@ __all__ = [
     "project_conflicting_gradients_per_slot",
     "delta_rule_update",
     "hebbian_outer_product",
+    "VQ4ScarPackedMatrix",
+    "VQ4ScarLinear",
+    "WebGPUVQ4ScarExecutor",
+    "quantize_matrix_vq4_scar_2pass",
     "__version__",
 ]
