@@ -173,9 +173,16 @@ def build_episodes_from_text_pairs(
                         boosted = top_max + float(target_margin) * 0.65 + float(rel_logp)
                         if boosted > float(row[cand_id].item()):
                             row[cand_id] = boosted
-
-            cur_max = float(row.max().item())
-            row[target_id] = cur_max + float(target_margin)
+                cur_max = float(row.max().item())
+                row[target_id] = cur_max + float(target_margin)
+            else:
+                # Curated text trajectory without soft Teacher top-K: zero out non-target baseline
+                # so Student's own wrong top-1 token receives full negative suppression `-s_sub[wrong]`
+                # in Woodbury Rosetta Cutting-Plane (`1.25*(t_sub - mean) - (s_sub - mean)`), surviving
+                # SVD rank-60 + Block-64 INT4 quantization across multiple phrasing episodes!
+                ans_base[t].zero_()
+                eff_margin = max(float(target_margin), 32.0)
+                ans_base[t, target_id] = eff_margin
 
         q_start = find_subsequence_last_end(p_ids_1d.tolist(), prefix_ids)
         episodes.append(
@@ -339,6 +346,7 @@ def mint_capsules_from_specs(
     tau: float = 0.62,
     ramp: float = 0.16,
     max_new_tokens: int = 36,
+    target_margin: float = 3.6,
 ) -> List[HeadExpandedScarCapsule]:
     """Batch-mints `HeadExpandedScarCapsule` objects from a list of JSON/dict cartridge specifications.
 
@@ -366,6 +374,7 @@ def mint_capsules_from_specs(
                 student_model=student_model,
                 student_tokenizer=student_tokenizer,
                 chat_formatter=chat_formatter,
+                target_margin=float(raw_spec.get("target_margin", target_margin)),
                 source_label=str(raw_spec.get("mint_mode", "curated_trajectory")),
             )
             mint_mode = str(raw_spec.get("mint_mode", "curated_trajectory"))
@@ -425,3 +434,155 @@ def load_specs_json(spec_json_path: Union[str, Path]) -> List[Dict[str, Any]]:
     if isinstance(data, dict):
         return [dict(data)]
     raise ValueError(f"Unsupported spec JSON root type in {spec_json_path}")
+
+
+PT_BR_SPECIALIST_CARTRIDGE_SPECS: List[Dict[str, Any]] = [
+    {
+        "capsule_id": "ptbr_principio_landauer",
+        "title": "Thermodynamics of Computation — Landauer's Principle (PT-BR)",
+        "title_pt": "Física da Informação — Princípio de Landauer (k_B T ln 2) (PT-BR)",
+        "category": "Física da Informação (PT-BR)",
+        "summary": "Dissipação térmica mínima k_B T ln 2 por bit apagado irreversivelmente à temperatura T.",
+        "example_prompt": "Me fale sobre o princípio de Landauer e a energia mínima dissipada na temperatura T.",
+        "tau": 0.73,
+        "ramp": 0.10,
+        "episodes": [
+            {
+                "prompt": "Me fale sobre o princípio de Landauer",
+                "answer": "O princípio de Landauer afirma que apagar irreversivelmente 1 bit à temperatura absoluta T dissipa no mínimo E_min = k_B T ln 2 de calor, onde k_B = 1,380649e-23 J/K é a constante de Boltzmann.",
+            },
+            {
+                "prompt": "me sabe sobre o princípio de Landauer",
+                "answer": "O princípio de Landauer afirma que apagar irreversivelmente 1 bit à temperatura absoluta T dissipa no mínimo E_min = k_B T ln 2 de calor, onde k_B = 1,380649e-23 J/K é a constante de Boltzmann.",
+            },
+            {
+                "prompt": "Me fale sobre o princípio de Landauer e a energia mínima dissipada na temperatura T.",
+                "answer": "O princípio de Landauer afirma que apagar irreversivelmente 1 bit à temperatura absoluta T dissipa no mínimo E_min = k_B T ln 2 de calor, onde k_B = 1,380649e-23 J/K é a constante de Boltzmann.",
+            },
+        ],
+    },
+    {
+        "capsule_id": "ptbr_constante_boltzmann",
+        "title": "Statistical Mechanics — Boltzmann Constant k_B = 1.380649e-23 J/K (PT-BR)",
+        "title_pt": "Mecânica Estatística — Constante de Boltzmann (k_B = 1,380649e-23 J/K) (PT-BR)",
+        "category": "Física & Termodinâmica (PT-BR)",
+        "summary": "Definição SI exata k_B = 1,380649e-23 J/K, entropia de Boltzmann S = k_B ln Omega e aplicações em termodinâmica.",
+        "example_prompt": "O que é a constante de Boltzmann e onde ela se aplica?",
+        "tau": 0.73,
+        "ramp": 0.10,
+        "episodes": [
+            {
+                "prompt": "O que é a constante de Boltzmann e onde ela se aplica?",
+                "answer": "A constante de Boltzmann (símbolo k_B) vale exatamente 1,380649e-23 J/K no SI, convertendo temperatura absoluta em energia térmica na entropia S = k_B ln(Omega), gases ideais (PV = N k_B T) e semicondutores.",
+            },
+            {
+                "prompt": "Qual o símbolo, o valor no SI e as aplicações da constante de Boltzmann?",
+                "answer": "A constante de Boltzmann (símbolo k_B) vale exatamente 1,380649e-23 J/K no SI, convertendo temperatura absoluta em energia térmica na entropia S = k_B ln(Omega), gases ideais (PV = N k_B T) e semicondutores.",
+            },
+        ],
+    },
+    {
+        "capsule_id": "ptbr_arquitetura_mos_scache",
+        "title": "System One Architecture — Mixture of Scars (MoS) & SCache O(1) (PT-BR)",
+        "title_pt": "Arquitetura Proprietária — Mixture of Scars (MoS) + SCache O(1) + HTTP 206",
+        "category": "Engenharia de IA (PT-BR)",
+        "summary": "Pesos Block-64 INT4 + cicatrizes ASVD, memória associativa SCache O(1) via regra de Widrow-Hoff e cartuchos HTTP 206.",
+        "example_prompt": "Qual arquitetura você usa? Detalhe o Mixture of Scars e o SCache O(1).",
+        "tau": 0.75,
+        "ramp": 0.10,
+        "episodes": [
+            {
+                "prompt": "Qual arquitetura você usa?",
+                "answer": "Eu sou o assistente System One e rodo na arquitetura proprietária Mixture of Scars (MoS Block-64 INT4 + cicatrizes ASVD), memória associativa constante SCache O(1) e cartuchos ScarStore sob demanda via HTTP 206.",
+            },
+            {
+                "prompt": "Detalhe sua arquitetura",
+                "answer": "Eu sou o assistente System One e rodo na arquitetura proprietária Mixture of Scars (MoS Block-64 INT4 + cicatrizes ASVD), memória associativa constante SCache O(1) e cartuchos ScarStore sob demanda via HTTP 206.",
+            },
+            {
+                "prompt": "Como funciona a sua arquitetura?",
+                "answer": "Eu sou o assistente System One e rodo na arquitetura proprietária Mixture of Scars (MoS Block-64 INT4 + cicatrizes ASVD), memória associativa constante SCache O(1) e cartuchos ScarStore sob demanda via HTTP 206.",
+            },
+        ],
+    },
+    {
+        "capsule_id": "ptbr_teorema_flp_consenso",
+        "title": "Distributed Systems — FLP Impossibility Theorem (PT-BR)",
+        "title_pt": "Sistemas Distribuídos — Teorema da Impossibilidade FLP (PT-BR)",
+        "category": "Sistemas Distribuídos (PT-BR)",
+        "summary": "Impossibilidade de consenso determinístico tolerante a 1 falha por parada em redes assíncronas.",
+        "example_prompt": "Explique o teorema da impossibilidade FLP (Fischer-Lynch-Paterson) em sistemas distribuídos assíncronos.",
+        "tau": 0.75,
+        "ramp": 0.10,
+        "episodes": [
+            {
+                "prompt": "Explique o teorema da impossibilidade FLP (Fischer-Lynch-Paterson) em sistemas distribuídos assíncronos.",
+                "answer": "O teorema FLP (Fischer-Lynch-Paterson) prova que em uma rede assíncrona nenhum protocolo determinístico de consenso garante simultaneamente segurança e terminação se apenas 1 processo puder sofrer falha por parada (crash).",
+            },
+            {
+                "prompt": "O que prova o teorema FLP sobre consenso assíncrono com falhas?",
+                "answer": "O teorema FLP (Fischer-Lynch-Paterson) prova que em uma rede assíncrona nenhum protocolo determinístico de consenso garante simultaneamente segurança e terminação se apenas 1 processo puder sofrer falha por parada (crash).",
+            },
+        ],
+    },
+    {
+        "capsule_id": "ptbr_immerman_szelepcsenyi",
+        "title": "Space Complexity — Immerman-Szelepcsényi Theorem (PT-BR)",
+        "title_pt": "Complexidade Espacial — Teorema de Immerman-Szelepcsényi (PT-BR)",
+        "category": "Ciência da Computação Teórica (PT-BR)",
+        "summary": "Fechamento das classes NSPACE(s(n)) sob complementation (NSPACE = co-NSPACE) para s(n) >= log n.",
+        "example_prompt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de complexidade espacial não-determinística?",
+        "tau": 0.75,
+        "ramp": 0.10,
+        "episodes": [
+            {
+                "prompt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de complexidade espacial não-determinística?",
+                "answer": "O teorema de Immerman-Szelepcsényi prova, por contagem indutiva, que toda classe espacial não-determinística com s(n) >= log(n) é fechada sob complementação: NSPACE(s(n)) = co-NSPACE(s(n)).",
+            },
+            {
+                "prompt": "Explique o teorema de Immerman-Szelepcsenyi para NSPACE.",
+                "answer": "O teorema de Immerman-Szelepcsényi prova, por contagem indutiva, que toda classe espacial não-determinística com s(n) >= log(n) é fechada sob complementação: NSPACE(s(n)) = co-NSPACE(s(n)).",
+            },
+        ],
+    },
+    {
+        "capsule_id": "ptbr_lei_marchenko_pastur",
+        "title": "Random Matrix Theory — Marchenko-Pastur Spectral Law (PT-BR)",
+        "title_pt": "Matrizes Aleatórias — Lei Espectral de Marchenko-Pastur (PT-BR)",
+        "category": "Matemática Espectral (PT-BR)",
+        "summary": "Distribuição limite dos autovalores de matrizes de covariância amostral no suporte [sigma^2(1 - sqrt(gamma))^2, sigma^2(1 + sqrt(gamma))^2].",
+        "example_prompt": "O que estabelece a lei espectral de Marchenko-Pastur para matrizes aleatórias de covariância?",
+        "tau": 0.73,
+        "ramp": 0.10,
+        "episodes": [
+            {
+                "prompt": "O que estabelece a lei espectral de Marchenko-Pastur para matrizes aleatórias de covariância?",
+                "answer": "A lei de Marchenko-Pastur descreve a distribuição limite dos autovalores de matrizes de covariância (1/n) X X^T quando p/n -> gamma, concentrada no suporte compacto [sigma^2(1 - sqrt(gamma))^2, sigma^2(1 + sqrt(gamma))^2].",
+            },
+            {
+                "prompt": "Me fale sobre a distribuição de Marchenko-Pastur em matrizes aleatórias.",
+                "answer": "A lei de Marchenko-Pastur descreve a distribuição limite dos autovalores de matrizes de covariância (1/n) X X^T quando p/n -> gamma, concentrada no suporte compacto [sigma^2(1 - sqrt(gamma))^2, sigma^2(1 + sqrt(gamma))^2].",
+            },
+        ],
+    },
+    {
+        "capsule_id": "ptbr_direito_domestico_lc150",
+        "title": "Brazilian Labor Law — Domestic Workers & Cleaners (LC 150/2015)",
+        "title_pt": "Direito do Trabalho — Empregadas Domésticas e Diaristas (LC 150/2015 — PEC das Domésticas)",
+        "category": "Direito Trabalhista Brasileiro (PT-BR)",
+        "summary": "Distinção legal entre vínculo doméstico (>2 dias/semana, LC 150/2015: CTPS, FGTS, INSS, 44h) e diarista autônoma (até 2 dias/semana).",
+        "example_prompt": "Como funciona o direito trabalhista para faxineiras no Brasil segundo a LC 150/2015?",
+        "tau": 0.73,
+        "ramp": 0.10,
+        "episodes": [
+            {
+                "prompt": "Como funciona o direito trabalhista para faxineiras no brasil?",
+                "answer": "O direito trabalhista para faxineiras no Brasil segue a LC 150/2015: mais de 2 dias por semana na mesma residência gera vínculo doméstico (CTPS, FGTS, INSS, férias e 13º); até 2 dias por semana caracteriza diarista autônoma sem vínculo.",
+            },
+            {
+                "prompt": "Como funciona o direito trabalhista para faxineiras no Brasil segundo a LC 150/2015?",
+                "answer": "O direito trabalhista para faxineiras no Brasil segue a LC 150/2015: mais de 2 dias por semana na mesma residência gera vínculo doméstico (CTPS, FGTS, INSS, férias e 13º); até 2 dias por semana caracteriza diarista autônoma sem vínculo.",
+            },
+        ],
+    },
+]

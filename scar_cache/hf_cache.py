@@ -368,7 +368,13 @@ class SCacheDynamicLayer(DynamicLayer):
                     self.active_slots += page_sz
                 elif self.active_slots >= page_sz:
                     act_pages = self.active_slots // page_sz
-                    p_means = self.scar_salience.view(bsz, n_heads, act_pages, page_sz)[:, 0, :, 0].detach().cpu()
+                    p_means = (
+                        self.scar_salience[:, :, : act_pages * page_sz]
+                        .contiguous()
+                        .view(bsz, n_heads, act_pages, page_sz)[:, 0, :, 0]
+                        .detach()
+                        .cpu()
+                    )
                     for b in range(bsz):
                         if c_idx >= len(cand_pages[b]):
                             continue

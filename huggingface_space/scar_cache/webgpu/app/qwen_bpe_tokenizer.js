@@ -4,10 +4,10 @@
 // ============================================================================
 
 const DEFAULT_SYSTEM_PROMPT = "Answer concisely in one precise technical sentence.";
-const PT_CHAT_SYSTEM_PROMPT = "Responda de forma concisa, direta e precisa em português.";
+const PT_CHAT_SYSTEM_PROMPT = "Você é o assistente local System One. Responda em português de forma clara, completa e precisa.";
 
 const PT_DIACRITIC_RE = /[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]/;
-const PT_WORD_RE = /\b(ol[aá]|oi|tudo|bem|quem|voc[eê]|qual|quais|como|por\s*que|porque|explique|diferen[cç]a|entre|sobre|para|n[aã]o|s[aã]o|est[aá]|fale|resuma)\b/i;
+const PT_WORD_RE = /\b(ol[aá]|oi|tudo|bem|quem|voc[eê]|qual|quais|como|por\s*que|porque|explique|diferen[cç]a|entre|sobre|para|n[aã]o|s[aã]o|est[aá]|fale|resuma|detalhe|seja|discorra|exemplo)\b/i;
 
 // Exact GPT-2 / Qwen2.5 pre-tokenization split regex (Unicode property escapes, universal JS compatible)
 const QWEN_SPLIT_RE = /(?:'s|'t|'re|'ve|'m|'ll|'d|'S|'T|'RE|'VE|'M|'LL|'D)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+/gu;

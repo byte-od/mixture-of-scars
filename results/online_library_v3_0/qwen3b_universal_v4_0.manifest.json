@@ -1,0 +1,1011 @@
+{
+  "store_path": "/Users/juliocesarreisfilho/Projects/scar-cache/results/online_library_v3_0/qwen3b_universal_v4_0.scarstore",
+  "file_bytes": 19193856,
+  "file_mib": 18.3047,
+  "format": "GoldenSliceScarStoreV4",
+  "version": "4.0.0",
+  "hidden_dim": 2048,
+  "num_layers": 36,
+  "mid_layer_idx": 23,
+  "num_heads": 16,
+  "head_dim": 128,
+  "rank_mid": 12,
+  "rank_final": 52,
+  "rank": 64,
+  "k_lang": 14,
+  "seed_horizon": 38,
+  "num_key_prototypes": 0,
+  "record_bytes": 143360,
+  "record_kb": 140.0,
+  "exact_4kb_page_multiple": true,
+  "os_4kb_pages_per_capsule": 35,
+  "kronecker_grid_cells": 4194304,
+  "presence_bitmap_bytes": 524288,
+  "presence_bitmap_kb": 512.0,
+  "payload_offset": 17473536,
+  "payload_offset_4kb_aligned": true,
+  "num_active_installed_slots": 12,
+  "num_global_directory_entries": 12,
+  "slots": [
+    {
+      "slot_idx": 0,
+      "capsule_id": "concept_mos_scache_architecture",
+      "coord": [
+        0,
+        0
+      ],
+      "byte_offset": 17473536,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.39,
+      "ramp": 0.04,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "System One Architecture (MoS INT4 + SCache O(1) + Golden-Slice ScarStore)",
+        "title_pt": "Arquitetura System One (MoS INT4 + SCache O(1) + ScarStore Golden-Slice)",
+        "category": "AI Systems Architecture",
+        "summary": "Mixture of Scars (Block-64 INT4 + ASVD), constant-memory associative SCache O(1) via Widrow-Hoff W_scar, and HTTP 206 Golden-Slice cartridges.",
+        "example_prompt": "Qual arquitetura você usa? Detalhe como ela funciona.",
+        "prompts_polyglot": {
+          "pt": "Qual arquitetura você usa? Detalhe como ela funciona.",
+          "en": "What architecture do you use? Detail how it works.",
+          "es": "¿Qué arquitectura utilizas? Detalla cómo funciona.",
+          "fr": "Quelle architecture utilisez-vous ? Détaillez son fonctionnement."
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "System One uses the Mixture of Scars (MoS INT4 + ASVD) architecture, constant-memory associative SCache O(1), and on-demand HTTP 206 ScarStore cartridges",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 153,
+        "total_seed_steps": 182
+      }
+    },
+    {
+      "slot_idx": 1,
+      "capsule_id": "concept_boltzmann_constant",
+      "coord": [
+        1,
+        1
+      ],
+      "byte_offset": 17616896,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Boltzmann Constant (Exact 2019 SI Definition & Statistical Entropy)",
+        "title_pt": "Constante de Boltzmann (Valor Exato SI 2019 e Entropia Estatística)",
+        "category": "Statistical Physics",
+        "summary": "Exact 2019 SI value k_B = 1.380649 x 10^-23 J/K bridging macroscopic temperature T, microscopic thermal energy, and Boltzmann entropy S = k_B ln Omega.",
+        "example_prompt": "O que é a constante de Boltzmann e onde ela se aplica?",
+        "prompts_polyglot": {
+          "pt": "O que é a constante de Boltzmann e onde ela se aplica?",
+          "en": "What is the Boltzmann constant and where does it apply?",
+          "es": "¿Qué es la constante de Boltzmann y dónde se aplica?",
+          "fr": "Qu'est-ce que la constante de Boltzmann et où s'applique-t-elle ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Boltzmann constant ($k_B$) is equal to $k_B = 1.380649 \\times 10^{-23}\\text{ J/K}$ (joules per kelvin), linking temperature $T$ to thermal energy and statistical entropy $S = k_B \\ln \\Omega$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 134,
+        "total_seed_steps": 310
+      }
+    },
+    {
+      "slot_idx": 2,
+      "capsule_id": "concept_landauer_principle",
+      "coord": [
+        2,
+        2
+      ],
+      "byte_offset": 17760256,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Landauer's Principle (Thermodynamic Cost of Irreversible Bit Erasure)",
+        "title_pt": "Princípio de Landauer (Limite Termodinâmico de Apagamento de 1 Bit)",
+        "category": "Physics of Information",
+        "summary": "Irreversibly erasing 1 bit of information in a thermal bath at temperature T dissipates at least E_min = k_B T ln 2 of heat.",
+        "example_prompt": "Me fale sobre o princípio de Landauer na física da informação.",
+        "prompts_polyglot": {
+          "pt": "Me fale sobre o princípio de Landauer na física da informação.",
+          "en": "Explain Landauer's principle in the physics of information.",
+          "es": "Explícame el principio de Landauer en la física de la información.",
+          "fr": "Expliquez le principe de Landauer en physique de l'information."
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "Landauer's principle ($E_{\\min} = k_B T \\ln 2$) states that irreversibly erasing 1 bit of information at absolute temperature $T$ dissipates at least $k_B T \\ln 2$ of heat ($\\Delta S \\ge k_B \\ln 2$).",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 169,
+        "total_seed_steps": 290
+      }
+    },
+    {
+      "slot_idx": 3,
+      "capsule_id": "concept_brazil_lc150_domestic_law",
+      "coord": [
+        3,
+        3
+      ],
+      "byte_offset": 17903616,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Brazilian Domestic Labor Law (LC 150/2015 vs Diarista Regime)",
+        "title_pt": "Direito Trabalhista Doméstico no Brasil (LC 150/2015 vs Diarista)",
+        "category": "Labor Law (Brazil)",
+        "summary": "Constitutional Amendment EC 72/2013 and Complementary Law LC 150/2015 (> 2 days/week employment bond, 44h/week, FGTS 8% + 3.2%) vs autonomous diarista (up to 2 days/week).",
+        "example_prompt": "Como funciona o direito trabalhista para faxineiras e domésticas no Brasil?",
+        "prompts_polyglot": {
+          "pt": "Como funciona o direito trabalhista para faxineiras e domésticas no Brasil?",
+          "en": "How does Brazilian labor law work for housecleaners and domestic workers?",
+          "es": "¿Cómo funciona el derecho laboral para trabajadoras domésticas y limpiadoras en Brasil?",
+          "fr": "Comment fonctionne le droit du travail pour les employées domestiques et femmes de ménage au Brésil ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "In Brazil, Complementary Law LC 150/2015 (EC 72/2013) governs domestic workers serving more than 2 days per week (CTPS, 44h/week, FGTS 8% + 3.2%), whereas working up to 2 days/week characterizes an autonomous diarista.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 256,
+        "total_seed_steps": 343
+      }
+    },
+    {
+      "slot_idx": 4,
+      "capsule_id": "concept_immerman_szelepcsenyi",
+      "coord": [
+        4,
+        4
+      ],
+      "byte_offset": 18046976,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Immerman-Szelepcsényi Theorem (NSPACE = co-NSPACE Inductive Counting)",
+        "title_pt": "Teorema de Immerman-Szelepcsényi (NSPACE = co-NSPACE por Contagem Indutiva)",
+        "category": "Computational Complexity",
+        "summary": "Every nondeterministic space class s(n) >= log n is closed under complementation (NL = coNL) via inductive counting of reachable configurations.",
+        "example_prompt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de espaço não-determinístico?",
+        "prompts_polyglot": {
+          "pt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de espaço não-determinístico?",
+          "en": "What does the Immerman-Szelepcsényi theorem prove about nondeterministic space classes?",
+          "es": "¿Qué demuestra el teorema de Immerman-Szelepcsényi sobre la complejidad espacial no determinista?",
+          "fr": "Que démontre le théorème d'Immerman-Szelepcsényi sur les classes d'espace non déterministe ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Immerman-Szelepcsényi theorem (1987) proves $\\text{NSPACE}(s(n)) = \\text{co-NSPACE}(s(n))$ for $s(n) \\ge \\log n$ (hence $\\text{NL} = \\text{coNL}$) by inductively counting exact reachable configurations $C_d$ in $O(s(n))$ space.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 174,
+        "total_seed_steps": 355
+      }
+    },
+    {
+      "slot_idx": 5,
+      "capsule_id": "concept_fischer_lynch_paterson",
+      "coord": [
+        5,
+        5
+      ],
+      "byte_offset": 18190336,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "FLP Impossibility Theorem (Asynchronous Crash-Fault Consensus)",
+        "title_pt": "Teorema da Impossibilidade FLP (Consenso Assíncrono com Falha por Parada)",
+        "category": "Distributed Systems",
+        "summary": "Fischer-Lynch-Paterson (1985) proves no deterministic consensus protocol in an asynchronous network can guarantee termination, agreement, and validity under even 1 unannounced process crash.",
+        "example_prompt": "Explique o teorema da impossibilidade de Fischer-Lynch-Paterson em sistemas distribuídos.",
+        "prompts_polyglot": {
+          "pt": "Explique o teorema da impossibilidade de Fischer-Lynch-Paterson em sistemas distribuídos.",
+          "en": "Explain the Fischer-Lynch-Paterson impossibility theorem in distributed systems.",
+          "es": "Explica el teorema de imposibilidad de Fischer-Lynch-Paterson en sistemas distribuidos.",
+          "fr": "Expliquez le théorème d'impossibilité de Fischer-Lynch-Paterson dans les systèmes distribués."
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Fischer-Lynch-Paterson (FLP, 1985) theorem proves that in a purely asynchronous network, no deterministic consensus protocol guarantees termination, agreement, and validity if even 1 process may crash unannounced.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 149,
+        "total_seed_steps": 241
+      }
+    },
+    {
+      "slot_idx": 6,
+      "capsule_id": "concept_marchenko_pastur_law",
+      "coord": [
+        6,
+        6
+      ],
+      "byte_offset": 18333696,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Marchenko-Pastur Spectral Law (Random Sample Covariance Eigenvalues)",
+        "title_pt": "Lei Espectral de Marchenko-Pastur (Autovalores de Covariância Aleatória)",
+        "category": "Random Matrix Theory",
+        "summary": "Limiting eigenvalue support [lambda_-, lambda_+] with lambda_pm = sigma^2 (1 +- sqrt(gamma))^2 for p x n random matrices as p/n -> gamma.",
+        "example_prompt": "O que estabelece a lei espectral de Marchenko-Pastur para matrizes aleatórias de covariância?",
+        "prompts_polyglot": {
+          "pt": "O que estabelece a lei espectral de Marchenko-Pastur para matrizes aleatórias de covariância?",
+          "en": "What does the Marchenko-Pastur spectral law state for random sample covariance matrices?",
+          "es": "¿Qué establece la ley espectral de Marchenko-Pastur para matrices aleatorias de covarianza?",
+          "fr": "Qu'établit la loi spectrale de Marchenko-Pastur pour les matrices de covariance aléatoires ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Marchenko-Pastur law (1967) shows that for $p \\times n$ i.i.d. entries of variance $\\sigma^2$ with $p/n \\to \\gamma$, sample covariance eigenvalues concentrate on $[\\lambda_-, \\lambda_+]$ where $\\lambda_{\\pm} = \\sigma^2(1 \\pm \\sqrt{\\gamma})^2$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 198,
+        "total_seed_steps": 360
+      }
+    },
+    {
+      "slot_idx": 7,
+      "capsule_id": "concept_kabatiansky_levenshtein",
+      "coord": [
+        7,
+        7
+      ],
+      "byte_offset": 18477056,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Kabatiansky-Levenshtein Bound (High-Dimensional Sphere Packing 0.5990)",
+        "title_pt": "Limite de Kabatiansky-Levenshtein (Empacotamento Esférico 0.5990)",
+        "category": "Information & Coding Theory",
+        "summary": "Best known asymptotic upper bound 2^{-0.5990 n (1 + o(1))} on Euclidean sphere-packing density in R^n via Gegenbauer polynomials.",
+        "example_prompt": "Qual limite superior assintótico o teorema de Kabatiansky-Levenshtein estabelece para empacotamento de esferas?",
+        "prompts_polyglot": {
+          "pt": "Qual limite superior assintótico o teorema de Kabatiansky-Levenshtein estabelece para empacotamento de esferas?",
+          "en": "What asymptotic upper bound does the Kabatiansky-Levenshtein theorem establish for sphere packing?",
+          "es": "¿Qué cota superior asintótica establece el teorema de Kabatiansky-Levenshtein para el empaquetamiento de esferas?",
+          "fr": "Quelle borne supérieure asymptotique le théorème de Kabatiansky-Levenshtein établit-il pour l'empilement de sphères ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Kabatiansky-Levenshtein bound (1978) proves via Gegenbauer linear programming on spherical codes that Euclidean sphere-packing density in $\\mathbb{R}^n$ satisfies $\\Delta_n \\le 2^{-0.5990\\,n(1 + o(1))}$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 194,
+        "total_seed_steps": 330
+      }
+    },
+    {
+      "slot_idx": 8,
+      "capsule_id": "concept_chaitin_incompleteness",
+      "coord": [
+        8,
+        8
+      ],
+      "byte_offset": 18620416,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Chaitin's Algorithmic Incompleteness (Kolmogorov Complexity K(x) > L & Omega)",
+        "title_pt": "Incompletude Algorítmica de Chaitin (Complexidade de Kolmogorov K(x) > L e Ômega)",
+        "category": "Algorithmic Information Theory",
+        "summary": "Any sound formal axiom system F cannot prove K(x) > L for strings beyond L_F = K(F) + c bits, epitomized by Chaitin's halting probability Omega.",
+        "example_prompt": "O que afirma o teorema da incompletude algorítmica de Chaitin sobre a complexidade de Kolmogorov?",
+        "prompts_polyglot": {
+          "pt": "O que afirma o teorema da incompletude algorítmica de Chaitin sobre a complexidade de Kolmogorov?",
+          "en": "What does Chaitin's algorithmic incompleteness theorem state about Kolmogorov complexity?",
+          "es": "¿Qué afirma el teorema de incompletitud algorítmica de Chaitin sobre la complejidad de Kolmogorov?",
+          "fr": "Qu'affirme le théorème d'incomplétude algorithmique de Chaitin sur la complexité de Kolmogorov ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "Chaitin's incompleteness theorem proves that any sound formal system $F$ has a constant $L_F = K(F) + c$ above which it cannot prove $K(x) > L_F$ for any string $x$, reflected in Chaitin's halting probability $\\Omega$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 194,
+        "total_seed_steps": 272
+      }
+    },
+    {
+      "slot_idx": 9,
+      "capsule_id": "concept_regev_lwe_lattice",
+      "coord": [
+        9,
+        9
+      ],
+      "byte_offset": 18763776,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Regev's LWE Reduction (Worst-Case GapSVP / SIVP Post-Quantum Hardness)",
+        "title_pt": "Redução LWE de Regev (Segurança Pós-Quântica de Pior Caso GapSVP / SIVP)",
+        "category": "Post-Quantum Cryptography",
+        "summary": "Regev (2005) proves average-case Learning With Errors (LWE) is at least as hard as worst-case lattice problems GapSVP and SIVP under quantum reductions.",
+        "example_prompt": "Qual redução de dificuldade de pior caso em reticulados fundamenta o problema LWE de Regev?",
+        "prompts_polyglot": {
+          "pt": "Qual redução de dificuldade de pior caso em reticulados fundamenta o problema LWE de Regev?",
+          "en": "What worst-case lattice hardness reduction underpins Regev's Learning With Errors problem?",
+          "es": "¿Qué reducción de dificultad en el peor caso sobre retículos fundamenta el problema LWE de Regev?",
+          "fr": "Quelle réduction de difficulté dans le pire cas sur les réseaux fonde le problème LWE de Regev ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "Regev's theorem (2005) establishes a quantum reduction showing that solving average-case Learning With Errors ($\\text{LWE}_{n,q,\\chi}$) is at least as hard as approximating worst-case lattice problems $\\text{GapSVP}_\\gamma$ and $\\text{SIVP}_\\gamma$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 193,
+        "total_seed_steps": 309
+      }
+    },
+    {
+      "slot_idx": 10,
+      "capsule_id": "concept_shannon_hartley_capacity",
+      "coord": [
+        10,
+        10
+      ],
+      "byte_offset": 18907136,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Shannon-Hartley Capacity & Ultimate -1.59 dB Eb/N0 Limit",
+        "title_pt": "Capacidade de Shannon-Hartley e Limite Fundamental de -1,59 dB Eb/N0",
+        "category": "Information Theory",
+        "summary": "AWGN channel capacity C = B log_2(1 + S/N) bits/s and ultimate infinite-bandwidth energy-per-bit limit Eb/N0 = ln 2 (-1.59 dB).",
+        "example_prompt": "Enuncie o teorema da capacidade de canal de Shannon-Hartley e o limite fundamental de Eb/N0.",
+        "prompts_polyglot": {
+          "pt": "Enuncie o teorema da capacidade de canal de Shannon-Hartley e o limite fundamental de Eb/N0.",
+          "en": "State the Shannon-Hartley channel capacity theorem and its fundamental Eb/N0 limit.",
+          "es": "Enuncia el teorema de capacidad de canal de Shannon-Hartley y su límite fundamental de Eb/N0.",
+          "fr": "Énoncez le théorème de capacité de canal de Shannon-Hartley et sa limite fondamentale Eb/N0."
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Shannon-Hartley theorem gives AWGN channel capacity $C = B \\log_2(1 + S/N)\\text{ bits/s}$, yielding as $B \\to \\infty$ the ultimate Shannon limit $E_b/N_0 \\ge \\ln 2 \\approx 0.693$ ($-1.59\\text{ dB}$).",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 211,
+        "total_seed_steps": 337
+      }
+    },
+    {
+      "slot_idx": 11,
+      "capsule_id": "bridge_landauer_immerman",
+      "coord": [
+        11,
+        11
+      ],
+      "byte_offset": 19050496,
+      "offset_4kb_aligned": true,
+      "record_bytes": 143360,
+      "bitmap_present": true,
+      "payload_all_zero_wiped": false,
+      "tau": 0.7,
+      "ramp": 0.06,
+      "parent_capsules": [
+        "concept_landauer_principle",
+        "concept_immerman_szelepcsenyi"
+      ],
+      "metadata": {
+        "title": "Sleep-Consolidated Bridge: Landauer Thermodynamics x Immerman-Szelepcsényi Space",
+        "title_pt": "Ponte Consolidada (Sleep): Termodinâmica de Landauer x Espaço de Immerman-Szelepcsényi",
+        "category": "Interdisciplinary Sleep Bridge",
+        "summary": "Conjunctive bridge (fires ONLY when both Landauer and Immerman-Szelepcsényi co-activate) reconciling O(log n) inductive counter overwrites with k_B T ln 2 via Bennett reversible pebbling.",
+        "example_prompt": "Como a reutilização de espaço da contagem indutiva de Immerman-Szelepcsényi interage com a dissipação térmica do princípio de Landauer?",
+        "prompts_polyglot": {
+          "pt": "Como a reutilização de espaço da contagem indutiva de Immerman-Szelepcsényi interage com a dissipação térmica do princípio de Landauer?",
+          "en": "How does space reuse in Immerman-Szelepcsényi inductive counting interact with thermal dissipation under Landauer's principle?",
+          "es": "¿Cómo interactúa la reutilización de espacio del conteo inductivo de Immerman-Szelepcsényi con el principio termodinámico de Landauer?",
+          "fr": "Comment la réutilisation d'espace du comptage inductif d'Immerman-Szelepcsényi interagit-elle avec le principe thermodynamique de Landauer ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Conjunctive Sleep Consolidation (Zero-SGD)",
+        "teacher_reference": "By Bennett's reversible pebbling, Immerman-Szelepcsényi $O(\\log n)$ counter overwrites avoid Landauer's $k_B T \\ln 2$ heat dissipation per erased bit",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 120,
+        "total_seed_steps": 194
+      }
+    }
+  ],
+  "cloud_directory": [
+    {
+      "capsule_id": "concept_mos_scache_architecture",
+      "coord": [
+        0,
+        0
+      ],
+      "installed_locally": true,
+      "tau": 0.39,
+      "ramp": 0.04,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "System One Architecture (MoS INT4 + SCache O(1) + Golden-Slice ScarStore)",
+        "title_pt": "Arquitetura System One (MoS INT4 + SCache O(1) + ScarStore Golden-Slice)",
+        "category": "AI Systems Architecture",
+        "summary": "Mixture of Scars (Block-64 INT4 + ASVD), constant-memory associative SCache O(1) via Widrow-Hoff W_scar, and HTTP 206 Golden-Slice cartridges.",
+        "example_prompt": "Qual arquitetura você usa? Detalhe como ela funciona.",
+        "prompts_polyglot": {
+          "pt": "Qual arquitetura você usa? Detalhe como ela funciona.",
+          "en": "What architecture do you use? Detail how it works.",
+          "es": "¿Qué arquitectura utilizas? Detalla cómo funciona.",
+          "fr": "Quelle architecture utilisez-vous ? Détaillez son fonctionnement."
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "System One uses the Mixture of Scars (MoS INT4 + ASVD) architecture, constant-memory associative SCache O(1), and on-demand HTTP 206 ScarStore cartridges",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 153,
+        "total_seed_steps": 182
+      }
+    },
+    {
+      "capsule_id": "concept_boltzmann_constant",
+      "coord": [
+        1,
+        1
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Boltzmann Constant (Exact 2019 SI Definition & Statistical Entropy)",
+        "title_pt": "Constante de Boltzmann (Valor Exato SI 2019 e Entropia Estatística)",
+        "category": "Statistical Physics",
+        "summary": "Exact 2019 SI value k_B = 1.380649 x 10^-23 J/K bridging macroscopic temperature T, microscopic thermal energy, and Boltzmann entropy S = k_B ln Omega.",
+        "example_prompt": "O que é a constante de Boltzmann e onde ela se aplica?",
+        "prompts_polyglot": {
+          "pt": "O que é a constante de Boltzmann e onde ela se aplica?",
+          "en": "What is the Boltzmann constant and where does it apply?",
+          "es": "¿Qué es la constante de Boltzmann y dónde se aplica?",
+          "fr": "Qu'est-ce que la constante de Boltzmann et où s'applique-t-elle ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Boltzmann constant ($k_B$) is equal to $k_B = 1.380649 \\times 10^{-23}\\text{ J/K}$ (joules per kelvin), linking temperature $T$ to thermal energy and statistical entropy $S = k_B \\ln \\Omega$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 134,
+        "total_seed_steps": 310
+      }
+    },
+    {
+      "capsule_id": "concept_landauer_principle",
+      "coord": [
+        2,
+        2
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Landauer's Principle (Thermodynamic Cost of Irreversible Bit Erasure)",
+        "title_pt": "Princípio de Landauer (Limite Termodinâmico de Apagamento de 1 Bit)",
+        "category": "Physics of Information",
+        "summary": "Irreversibly erasing 1 bit of information in a thermal bath at temperature T dissipates at least E_min = k_B T ln 2 of heat.",
+        "example_prompt": "Me fale sobre o princípio de Landauer na física da informação.",
+        "prompts_polyglot": {
+          "pt": "Me fale sobre o princípio de Landauer na física da informação.",
+          "en": "Explain Landauer's principle in the physics of information.",
+          "es": "Explícame el principio de Landauer en la física de la información.",
+          "fr": "Expliquez le principe de Landauer en physique de l'information."
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "Landauer's principle ($E_{\\min} = k_B T \\ln 2$) states that irreversibly erasing 1 bit of information at absolute temperature $T$ dissipates at least $k_B T \\ln 2$ of heat ($\\Delta S \\ge k_B \\ln 2$).",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 169,
+        "total_seed_steps": 290
+      }
+    },
+    {
+      "capsule_id": "concept_brazil_lc150_domestic_law",
+      "coord": [
+        3,
+        3
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Brazilian Domestic Labor Law (LC 150/2015 vs Diarista Regime)",
+        "title_pt": "Direito Trabalhista Doméstico no Brasil (LC 150/2015 vs Diarista)",
+        "category": "Labor Law (Brazil)",
+        "summary": "Constitutional Amendment EC 72/2013 and Complementary Law LC 150/2015 (> 2 days/week employment bond, 44h/week, FGTS 8% + 3.2%) vs autonomous diarista (up to 2 days/week).",
+        "example_prompt": "Como funciona o direito trabalhista para faxineiras e domésticas no Brasil?",
+        "prompts_polyglot": {
+          "pt": "Como funciona o direito trabalhista para faxineiras e domésticas no Brasil?",
+          "en": "How does Brazilian labor law work for housecleaners and domestic workers?",
+          "es": "¿Cómo funciona el derecho laboral para trabajadoras domésticas y limpiadoras en Brasil?",
+          "fr": "Comment fonctionne le droit du travail pour les employées domestiques et femmes de ménage au Brésil ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "In Brazil, Complementary Law LC 150/2015 (EC 72/2013) governs domestic workers serving more than 2 days per week (CTPS, 44h/week, FGTS 8% + 3.2%), whereas working up to 2 days/week characterizes an autonomous diarista.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 256,
+        "total_seed_steps": 343
+      }
+    },
+    {
+      "capsule_id": "concept_immerman_szelepcsenyi",
+      "coord": [
+        4,
+        4
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Immerman-Szelepcsényi Theorem (NSPACE = co-NSPACE Inductive Counting)",
+        "title_pt": "Teorema de Immerman-Szelepcsényi (NSPACE = co-NSPACE por Contagem Indutiva)",
+        "category": "Computational Complexity",
+        "summary": "Every nondeterministic space class s(n) >= log n is closed under complementation (NL = coNL) via inductive counting of reachable configurations.",
+        "example_prompt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de espaço não-determinístico?",
+        "prompts_polyglot": {
+          "pt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de espaço não-determinístico?",
+          "en": "What does the Immerman-Szelepcsényi theorem prove about nondeterministic space classes?",
+          "es": "¿Qué demuestra el teorema de Immerman-Szelepcsényi sobre la complejidad espacial no determinista?",
+          "fr": "Que démontre le théorème d'Immerman-Szelepcsényi sur les classes d'espace non déterministe ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Immerman-Szelepcsényi theorem (1987) proves $\\text{NSPACE}(s(n)) = \\text{co-NSPACE}(s(n))$ for $s(n) \\ge \\log n$ (hence $\\text{NL} = \\text{coNL}$) by inductively counting exact reachable configurations $C_d$ in $O(s(n))$ space.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 174,
+        "total_seed_steps": 355
+      }
+    },
+    {
+      "capsule_id": "concept_fischer_lynch_paterson",
+      "coord": [
+        5,
+        5
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "FLP Impossibility Theorem (Asynchronous Crash-Fault Consensus)",
+        "title_pt": "Teorema da Impossibilidade FLP (Consenso Assíncrono com Falha por Parada)",
+        "category": "Distributed Systems",
+        "summary": "Fischer-Lynch-Paterson (1985) proves no deterministic consensus protocol in an asynchronous network can guarantee termination, agreement, and validity under even 1 unannounced process crash.",
+        "example_prompt": "Explique o teorema da impossibilidade de Fischer-Lynch-Paterson em sistemas distribuídos.",
+        "prompts_polyglot": {
+          "pt": "Explique o teorema da impossibilidade de Fischer-Lynch-Paterson em sistemas distribuídos.",
+          "en": "Explain the Fischer-Lynch-Paterson impossibility theorem in distributed systems.",
+          "es": "Explica el teorema de imposibilidad de Fischer-Lynch-Paterson en sistemas distribuidos.",
+          "fr": "Expliquez le théorème d'impossibilité de Fischer-Lynch-Paterson dans les systèmes distribués."
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Fischer-Lynch-Paterson (FLP, 1985) theorem proves that in a purely asynchronous network, no deterministic consensus protocol guarantees termination, agreement, and validity if even 1 process may crash unannounced.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 149,
+        "total_seed_steps": 241
+      }
+    },
+    {
+      "capsule_id": "concept_marchenko_pastur_law",
+      "coord": [
+        6,
+        6
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Marchenko-Pastur Spectral Law (Random Sample Covariance Eigenvalues)",
+        "title_pt": "Lei Espectral de Marchenko-Pastur (Autovalores de Covariância Aleatória)",
+        "category": "Random Matrix Theory",
+        "summary": "Limiting eigenvalue support [lambda_-, lambda_+] with lambda_pm = sigma^2 (1 +- sqrt(gamma))^2 for p x n random matrices as p/n -> gamma.",
+        "example_prompt": "O que estabelece a lei espectral de Marchenko-Pastur para matrizes aleatórias de covariância?",
+        "prompts_polyglot": {
+          "pt": "O que estabelece a lei espectral de Marchenko-Pastur para matrizes aleatórias de covariância?",
+          "en": "What does the Marchenko-Pastur spectral law state for random sample covariance matrices?",
+          "es": "¿Qué establece la ley espectral de Marchenko-Pastur para matrices aleatorias de covarianza?",
+          "fr": "Qu'établit la loi spectrale de Marchenko-Pastur pour les matrices de covariance aléatoires ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Marchenko-Pastur law (1967) shows that for $p \\times n$ i.i.d. entries of variance $\\sigma^2$ with $p/n \\to \\gamma$, sample covariance eigenvalues concentrate on $[\\lambda_-, \\lambda_+]$ where $\\lambda_{\\pm} = \\sigma^2(1 \\pm \\sqrt{\\gamma})^2$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 198,
+        "total_seed_steps": 360
+      }
+    },
+    {
+      "capsule_id": "concept_kabatiansky_levenshtein",
+      "coord": [
+        7,
+        7
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Kabatiansky-Levenshtein Bound (High-Dimensional Sphere Packing 0.5990)",
+        "title_pt": "Limite de Kabatiansky-Levenshtein (Empacotamento Esférico 0.5990)",
+        "category": "Information & Coding Theory",
+        "summary": "Best known asymptotic upper bound 2^{-0.5990 n (1 + o(1))} on Euclidean sphere-packing density in R^n via Gegenbauer polynomials.",
+        "example_prompt": "Qual limite superior assintótico o teorema de Kabatiansky-Levenshtein estabelece para empacotamento de esferas?",
+        "prompts_polyglot": {
+          "pt": "Qual limite superior assintótico o teorema de Kabatiansky-Levenshtein estabelece para empacotamento de esferas?",
+          "en": "What asymptotic upper bound does the Kabatiansky-Levenshtein theorem establish for sphere packing?",
+          "es": "¿Qué cota superior asintótica establece el teorema de Kabatiansky-Levenshtein para el empaquetamiento de esferas?",
+          "fr": "Quelle borne supérieure asymptotique le théorème de Kabatiansky-Levenshtein établit-il pour l'empilement de sphères ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Kabatiansky-Levenshtein bound (1978) proves via Gegenbauer linear programming on spherical codes that Euclidean sphere-packing density in $\\mathbb{R}^n$ satisfies $\\Delta_n \\le 2^{-0.5990\\,n(1 + o(1))}$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 194,
+        "total_seed_steps": 330
+      }
+    },
+    {
+      "capsule_id": "concept_chaitin_incompleteness",
+      "coord": [
+        8,
+        8
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Chaitin's Algorithmic Incompleteness (Kolmogorov Complexity K(x) > L & Omega)",
+        "title_pt": "Incompletude Algorítmica de Chaitin (Complexidade de Kolmogorov K(x) > L e Ômega)",
+        "category": "Algorithmic Information Theory",
+        "summary": "Any sound formal axiom system F cannot prove K(x) > L for strings beyond L_F = K(F) + c bits, epitomized by Chaitin's halting probability Omega.",
+        "example_prompt": "O que afirma o teorema da incompletude algorítmica de Chaitin sobre a complexidade de Kolmogorov?",
+        "prompts_polyglot": {
+          "pt": "O que afirma o teorema da incompletude algorítmica de Chaitin sobre a complexidade de Kolmogorov?",
+          "en": "What does Chaitin's algorithmic incompleteness theorem state about Kolmogorov complexity?",
+          "es": "¿Qué afirma el teorema de incompletitud algorítmica de Chaitin sobre la complejidad de Kolmogorov?",
+          "fr": "Qu'affirme le théorème d'incomplétude algorithmique de Chaitin sur la complexité de Kolmogorov ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "Chaitin's incompleteness theorem proves that any sound formal system $F$ has a constant $L_F = K(F) + c$ above which it cannot prove $K(x) > L_F$ for any string $x$, reflected in Chaitin's halting probability $\\Omega$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 194,
+        "total_seed_steps": 272
+      }
+    },
+    {
+      "capsule_id": "concept_regev_lwe_lattice",
+      "coord": [
+        9,
+        9
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Regev's LWE Reduction (Worst-Case GapSVP / SIVP Post-Quantum Hardness)",
+        "title_pt": "Redução LWE de Regev (Segurança Pós-Quântica de Pior Caso GapSVP / SIVP)",
+        "category": "Post-Quantum Cryptography",
+        "summary": "Regev (2005) proves average-case Learning With Errors (LWE) is at least as hard as worst-case lattice problems GapSVP and SIVP under quantum reductions.",
+        "example_prompt": "Qual redução de dificuldade de pior caso em reticulados fundamenta o problema LWE de Regev?",
+        "prompts_polyglot": {
+          "pt": "Qual redução de dificuldade de pior caso em reticulados fundamenta o problema LWE de Regev?",
+          "en": "What worst-case lattice hardness reduction underpins Regev's Learning With Errors problem?",
+          "es": "¿Qué reducción de dificultad en el peor caso sobre retículos fundamenta el problema LWE de Regev?",
+          "fr": "Quelle réduction de difficulté dans le pire cas sur les réseaux fonde le problème LWE de Regev ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "Regev's theorem (2005) establishes a quantum reduction showing that solving average-case Learning With Errors ($\\text{LWE}_{n,q,\\chi}$) is at least as hard as approximating worst-case lattice problems $\\text{GapSVP}_\\gamma$ and $\\text{SIVP}_\\gamma$.",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 193,
+        "total_seed_steps": 309
+      }
+    },
+    {
+      "capsule_id": "concept_shannon_hartley_capacity",
+      "coord": [
+        10,
+        10
+      ],
+      "installed_locally": true,
+      "tau": 0.41,
+      "ramp": 0.05,
+      "parent_capsules": [],
+      "metadata": {
+        "title": "Shannon-Hartley Capacity & Ultimate -1.59 dB Eb/N0 Limit",
+        "title_pt": "Capacidade de Shannon-Hartley e Limite Fundamental de -1,59 dB Eb/N0",
+        "category": "Information Theory",
+        "summary": "AWGN channel capacity C = B log_2(1 + S/N) bits/s and ultimate infinite-bandwidth energy-per-bit limit Eb/N0 = ln 2 (-1.59 dB).",
+        "example_prompt": "Enuncie o teorema da capacidade de canal de Shannon-Hartley e o limite fundamental de Eb/N0.",
+        "prompts_polyglot": {
+          "pt": "Enuncie o teorema da capacidade de canal de Shannon-Hartley e o limite fundamental de Eb/N0.",
+          "en": "State the Shannon-Hartley channel capacity theorem and its fundamental Eb/N0 limit.",
+          "es": "Enuncia el teorema de capacidad de canal de Shannon-Hartley y su límite fundamental de Eb/N0.",
+          "fr": "Énoncez le théorème de capacité de canal de Shannon-Hartley et sa limite fondamentale Eb/N0."
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Closed-Form RRR + Cutting-Plane Rosetta (Zero-SGD)",
+        "teacher_reference": "The Shannon-Hartley theorem gives AWGN channel capacity $C = B \\log_2(1 + S/N)\\text{ bits/s}$, yielding as $B \\to \\infty$ the ultimate Shannon limit $E_b/N_0 \\ge \\ln 2 \\approx 0.693$ ($-1.59\\text{ dB}$).",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 211,
+        "total_seed_steps": 337
+      }
+    },
+    {
+      "capsule_id": "bridge_landauer_immerman",
+      "coord": [
+        11,
+        11
+      ],
+      "installed_locally": true,
+      "tau": 0.7,
+      "ramp": 0.06,
+      "parent_capsules": [
+        "concept_landauer_principle",
+        "concept_immerman_szelepcsenyi"
+      ],
+      "metadata": {
+        "title": "Sleep-Consolidated Bridge: Landauer Thermodynamics x Immerman-Szelepcsényi Space",
+        "title_pt": "Ponte Consolidada (Sleep): Termodinâmica de Landauer x Espaço de Immerman-Szelepcsényi",
+        "category": "Interdisciplinary Sleep Bridge",
+        "summary": "Conjunctive bridge (fires ONLY when both Landauer and Immerman-Szelepcsényi co-activate) reconciling O(log n) inductive counter overwrites with k_B T ln 2 via Bennett reversible pebbling.",
+        "example_prompt": "Como a reutilização de espaço da contagem indutiva de Immerman-Szelepcsényi interage com a dissipação térmica do princípio de Landauer?",
+        "prompts_polyglot": {
+          "pt": "Como a reutilização de espaço da contagem indutiva de Immerman-Szelepcsényi interage com a dissipação térmica do princípio de Landauer?",
+          "en": "How does space reuse in Immerman-Szelepcsényi inductive counting interact with thermal dissipation under Landauer's principle?",
+          "es": "¿Cómo interactúa la reutilización de espacio del conteo inductivo de Immerman-Szelepcsényi con el principio termodinámico de Landauer?",
+          "fr": "Comment la réutilisation d'espace du comptage inductif d'Immerman-Szelepcsényi interagit-elle avec le principe thermodynamique de Landauer ?"
+        },
+        "anchor_language": "en_only_p_perp_lang",
+        "supported_languages": [
+          "pt",
+          "en",
+          "es",
+          "fr"
+        ],
+        "teacher_model": "Golden-Slice v4.0 Conjunctive Sleep Consolidation (Zero-SGD)",
+        "teacher_reference": "By Bennett's reversible pebbling, Immerman-Szelepcsényi $O(\\log n)$ counter overwrites avoid Landauer's $k_B T \\ln 2$ heat dissipation per erased bit",
+        "architecture": "GoldenSliceV4",
+        "mid_layer_idx": 23,
+        "k_lang": 14,
+        "surprise_steps": 120,
+        "total_seed_steps": 194
+      }
+    }
+  ]
+}

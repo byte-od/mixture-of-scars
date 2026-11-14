@@ -1,9 +1,12 @@
 // ============================================================================
-// Browser `HeadExpandedScarStore` + Live RFC 7233 `HTTP/1.1 206` Range Client
-// Streams exact `62,720 B` (`61.25 KB`) / `143,360 B` (`140.00 KB`) 72B slices
-// on demand with `0 B` upfront cartridge payload download & `< 0.2 ms` `0x00`
-// cryptographic LGPD/GDPR unlearning!
+// Browser `GoldenSliceScarStoreV4` / `HeadExpandedScarStore` + RFC 7233 `HTTP 206`
+// Streams exact `62,720 B` (`61.25 KB`) / `143,360 B` (`140.00 KB`) slices on
+// demand with `0 B` upfront cartridge payload download, `P_perp_lang` cross-lingual
+// routing (EN, PT, ES, FR from 1 single cartridge!), & `< 0.2 ms` `0x00` LGPD wipe!
 // ============================================================================
+
+export const UNIVERSAL_CHAT_SYSTEM_PROMPT =
+  "You are System One, a precise technical AI assistant. Always answer in the exact same language as the user's message with clear, complete, accurate detail.";
 
 export function fp16BitsToF32(h) {
   const s = (h & 0x8000) << 16;
@@ -18,7 +21,6 @@ export function fp16BitsToF32(h) {
       u32[0] = s;
       return f32[0];
     }
-    // Subnormal FP16 -> normalized FP32
     let mant = m;
     let exp = -14;
     while ((mant & 0x0400) === 0) {
@@ -57,45 +59,124 @@ export function findSubsequenceLastEnd(seqIds, pattern) {
   return 0;
 }
 
+export function extractUserContentBounds(seqIds, prefixIds, suffixIds) {
+  const n = seqIds.length;
+  if (n === 0) return { qStart: 0, qEnd: 0 };
+  let qStart = prefixIds ? findSubsequenceLastEnd(seqIds, prefixIds) : 0;
+  qStart = Math.max(0, Math.min(qStart, n - 1));
+  let qEnd = n;
+  if (suffixIds && suffixIds.length > 0) {
+    const ls = suffixIds.length;
+    if (n >= qStart + ls + 1) {
+      let matches = true;
+      for (let i = 0; i < ls; i++) {
+        if (seqIds[n - ls + i] !== suffixIds[i]) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        qEnd = n - ls;
+      }
+    }
+  }
+  if (qEnd <= qStart) qEnd = n;
+  return { qStart, qEnd };
+}
+
+export function computeHorizonScale(stepIdx, seedHorizon = 44, fadeSteps = 16) {
+  if (seedHorizon <= 0) return 1.0;
+  if (stepIdx <= seedHorizon) return 1.0;
+  if (fadeSteps <= 0 || stepIdx >= seedHorizon + fadeSteps) return 0.0;
+  const frac = (stepIdx - seedHorizon) / fadeSteps;
+  return 0.5 * (1.0 + Math.cos(Math.PI * frac));
+}
+
 export class BrowserScarStoreHTTP206 {
   constructor(routerMeta, routerBinBuffer, baseUrl = ".") {
     this.meta = routerMeta;
     this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.isGoldenSliceV4 = routerMeta.routing_architecture === "golden_slice_v4";
     this.hiddenDim = routerMeta.hidden_dim;
     this.numHeads = routerMeta.num_heads;
     this.headDim = routerMeta.head_dim;
-    this.rank = routerMeta.rank;
-    this.numPrototypes = routerMeta.num_key_prototypes;
-    this.attentionBeta = routerMeta.attention_beta ?? 14.0;
     this.recordBytes = routerMeta.record_bytes;
-    this.spanWindow = routerMeta.span_window ?? 10;
-    this.spanStride = routerMeta.span_stride ?? 3;
     this.userTurnPrefixIds = routerMeta.user_turn_prefix_ids || [151644, 872, 198];
+    this.userTurnSuffixIds = routerMeta.user_turn_suffix_ids || [151645, 198, 151644, 77091, 198];
 
     const floats = new Float32Array(routerBinBuffer);
     const lay = routerMeta.router_bin_layout;
 
-    this.muQueryLast = floats.slice(
-      lay.mu_query_last.offset_floats,
-      lay.mu_query_last.offset_floats + lay.mu_query_last.length_floats,
-    );
-    this.muHiddenFinal = floats.slice(
-      lay.mu_hidden_final.offset_floats,
-      lay.mu_hidden_final.offset_floats + lay.mu_hidden_final.length_floats,
-    );
-    this.muQHeads = floats.slice(
-      lay.mu_q_heads.offset_floats,
-      lay.mu_q_heads.offset_floats + lay.mu_q_heads.length_floats,
-    );
+    if (this.isGoldenSliceV4) {
+      this.midLayerIdx = routerMeta.mid_layer_idx;
+      this.rankMid = routerMeta.rank_mid;
+      this.rankFinal = routerMeta.rank_final;
+      this.rank = this.rankMid + this.rankFinal;
+      this.numPrototypes = 0;
+      this.attentionBeta = 0.0;
+      this.kLang = routerMeta.k_lang;
+      this.seedHorizon = routerMeta.seed_horizon ?? 44;
+      this.seedFadeSteps = routerMeta.seed_fade_steps ?? 16;
+      this.winnerMargin = routerMeta.winner_margin ?? 0.0002;
+      this.spanWindow = routerMeta.span_window ?? 10;
+      this.spanStride = routerMeta.span_stride ?? 3;
+
+      this.muQueryLast = floats.slice(
+        lay.mu_query_mid.offset_floats,
+        lay.mu_query_mid.offset_floats + lay.mu_query_mid.length_floats,
+      );
+      this.muHiddenMid = floats.slice(
+        lay.mu_hidden_mid.offset_floats,
+        lay.mu_hidden_mid.offset_floats + lay.mu_hidden_mid.length_floats,
+      );
+      this.muHiddenFinal = floats.slice(
+        lay.mu_hidden_final.offset_floats,
+        lay.mu_hidden_final.offset_floats + lay.mu_hidden_final.length_floats,
+      );
+      this.uLangMid = floats.slice(
+        lay.u_lang_mid.offset_floats,
+        lay.u_lang_mid.offset_floats + lay.u_lang_mid.length_floats,
+      );
+      this.muQHeads = new Float32Array(0);
+    } else {
+      this.midLayerIdx = Math.max(0, (routerMeta.num_layers ?? 24) - 2);
+      this.rankMid = 0;
+      this.rankFinal = routerMeta.rank;
+      this.rank = routerMeta.rank;
+      this.numPrototypes = routerMeta.num_key_prototypes;
+      this.attentionBeta = routerMeta.attention_beta ?? 14.0;
+      this.kLang = 0;
+      this.seedHorizon = 0;
+      this.seedFadeSteps = 0;
+      this.winnerMargin = 0.0;
+      this.spanWindow = routerMeta.span_window ?? 10;
+      this.spanStride = routerMeta.span_stride ?? 3;
+
+      this.muQueryLast = floats.slice(
+        lay.mu_query_last.offset_floats,
+        lay.mu_query_last.offset_floats + lay.mu_query_last.length_floats,
+      );
+      this.muHiddenMid = new Float32Array(0);
+      this.muHiddenFinal = floats.slice(
+        lay.mu_hidden_final.offset_floats,
+        lay.mu_hidden_final.offset_floats + lay.mu_hidden_final.length_floats,
+      );
+      this.muQHeads = floats.slice(
+        lay.mu_q_heads.offset_floats,
+        lay.mu_q_heads.offset_floats + lay.mu_q_heads.length_floats,
+      );
+      this.uLangMid = null;
+    }
+
     this.zAnchorsFlat = floats.slice(
       lay.z_anchors.offset_floats,
       lay.z_anchors.offset_floats + lay.z_anchors.length_floats,
     );
 
     // Zero upfront cartridge payloads downloaded! Fetched strictly on-demand via HTTP 206.
-    this.hotCapsules = new Map();     // capsuleId -> { packedGpuFloats, rawBytesView }
-    this.unlearnedIds = new Set();    // cryptographically wiped capsuleIds
-    this.http206Events = [];          // audit log of every HTTP 206 Range request
+    this.hotCapsules = new Map();
+    this.unlearnedIds = new Set();
+    this.http206Events = [];
     this.totalHttp206Bytes = 0;
     this.lastCosines = new Map();
     this.lastActiveGates = new Map();
@@ -119,13 +200,29 @@ export class BrowserScarStoreHTTP206 {
   }
 
   getCalibrationBufferF32() {
+    if (this.isGoldenSliceV4) {
+      const out = new Float32Array(this.muHiddenMid.length + this.muHiddenFinal.length);
+      out.set(this.muHiddenMid, 0);
+      out.set(this.muHiddenFinal, this.muHiddenMid.length);
+      return out;
+    }
     const out = new Float32Array(this.muHiddenFinal.length + this.muQHeads.length);
     out.set(this.muHiddenFinal, 0);
     out.set(this.muQHeads, this.muHiddenFinal.length);
     return out;
   }
 
+  getMidCapsuleStrideFloats() {
+    if (this.isGoldenSliceV4) {
+      return 1 + 2 * (this.rankMid * this.hiddenDim);
+    }
+    return 1;
+  }
+
   getCapsuleStrideFloats() {
+    if (this.isGoldenSliceV4) {
+      return 1 + 2 * (this.rankFinal * this.hiddenDim);
+    }
     const qDim = this.numHeads * this.headDim;
     return 1 + 2 * (this.rank * this.hiddenDim) + this.numPrototypes * qDim;
   }
@@ -144,11 +241,6 @@ export class BrowserScarStoreHTTP206 {
     const bytes = new Uint8Array(arrayBuffer);
     const dv = new DataView(arrayBuffer);
     const d = this.hiddenDim;
-    const r = this.rank;
-    const pCnt = this.numPrototypes;
-    const qDim = this.numHeads * this.headDim;
-    const nAb = (d * r) >> 6;
-    const nK = (pCnt * qDim) >> 6;
     let off = 0;
 
     const dequantBlocks = (nBlk) => {
@@ -171,11 +263,40 @@ export class BrowserScarStoreHTTP206 {
       return out;
     };
 
-    const bFlat = dequantBlocks(nAb); // [d * r]
-    const aFlat = dequantBlocks(nAb); // [r * d]
-    const kFlat = dequantBlocks(nK);  // [pCnt * numHeads * headDim]
+    if (this.isGoldenSliceV4) {
+      const nMid = (d * this.rankMid) >> 6;
+      const nFin = (d * this.rankFinal) >> 6;
+      const bMid = dequantBlocks(nMid);
+      const aMid = dequantBlocks(nMid);
+      const bFin = dequantBlocks(nFin);
+      const aFin = dequantBlocks(nFin);
 
-    // Unit-normalize each per-head prototype [p, h, headDim]
+      const midFloats = new Float32Array(aMid.length + bMid.length);
+      midFloats.set(aMid, 0);
+      midFloats.set(bMid, aMid.length);
+
+      const finalFloats = new Float32Array(aFin.length + bFin.length);
+      finalFloats.set(aFin, 0);
+      finalFloats.set(bFin, aFin.length);
+
+      return {
+        midFloats,
+        finalFloats,
+        packedGpuFloats: finalFloats,
+        rawBytesView: bytes,
+      };
+    }
+
+    const r = this.rank;
+    const pCnt = this.numPrototypes;
+    const qDim = this.numHeads * this.headDim;
+    const nAb = (d * r) >> 6;
+    const nK = (pCnt * qDim) >> 6;
+
+    const bFlat = dequantBlocks(nAb);
+    const aFlat = dequantBlocks(nAb);
+    const kFlat = dequantBlocks(nK);
+
     const totalHeads = pCnt * this.numHeads;
     for (let ph = 0; ph < totalHeads; ph++) {
       const base = ph * this.headDim;
@@ -195,14 +316,17 @@ export class BrowserScarStoreHTTP206 {
     combined.set(aFlat, 0);
     combined.set(bFlat, aFlat.length);
     combined.set(kFlat, aFlat.length + bFlat.length);
-    return { packedGpuFloats: combined, rawBytesView: bytes };
+    return { midFloats: null, finalFloats: null, packedGpuFloats: combined, rawBytesView: bytes };
   }
 
   async fetchCapsuleSliceHTTP206(capEntry) {
     const cid = capEntry.capsule_id;
     if (this.hotCapsules.has(cid)) {
+      const cached = this.hotCapsules.get(cid);
       return {
-        floats: this.hotCapsules.get(cid).packedGpuFloats,
+        floats: cached.packedGpuFloats,
+        midFloats: cached.midFloats,
+        finalFloats: cached.finalFloats,
         fromCache: true,
         bytesFetched: 0,
         status: 200,
@@ -233,7 +357,6 @@ export class BrowserScarStoreHTTP206 {
           throw new Error(`Unexpected HTTP ${resp.status} on Range ${rangeHeader}`);
         }
         let buf = await resp.arrayBuffer();
-        // Safety fallback if a static host without Range support returned 200 full file
         if (resp.status === 200 && buf.byteLength > capEntry.record_bytes) {
           buf = buf.slice(startByte, startByte + capEntry.record_bytes);
         }
@@ -256,6 +379,8 @@ export class BrowserScarStoreHTTP206 {
         this.http206Events.unshift(evt);
         return {
           floats: unpacked.packedGpuFloats,
+          midFloats: unpacked.midFloats,
+          finalFloats: unpacked.finalFloats,
           fromCache: false,
           bytesFetched: buf.byteLength,
           status: resp.status,
@@ -273,12 +398,21 @@ export class BrowserScarStoreHTTP206 {
     let zeroedBytes = 0;
     const entry = this.hotCapsules.get(capsuleId);
     if (entry) {
-      entry.packedGpuFloats.fill(0.0);
+      if (entry.midFloats) {
+        entry.midFloats.fill(0.0);
+        zeroedBytes += entry.midFloats.byteLength;
+      }
+      if (entry.finalFloats) {
+        entry.finalFloats.fill(0.0);
+        zeroedBytes += entry.finalFloats.byteLength;
+      } else if (entry.packedGpuFloats) {
+        entry.packedGpuFloats.fill(0.0);
+        zeroedBytes += entry.packedGpuFloats.byteLength;
+      }
       entry.rawBytesView.fill(0);
-      zeroedBytes = entry.packedGpuFloats.byteLength + entry.rawBytesView.byteLength;
+      zeroedBytes += entry.rawBytesView.byteLength;
       this.hotCapsules.delete(capsuleId);
     }
-    // Also zero the corresponding z_anchor in browser RAM so cone cosine drops strictly to 0.0000
     const caps = this.meta.capsules || [];
     for (let i = 0; i < caps.length; i++) {
       if (caps[i].capsule_id === capsuleId) {
@@ -294,7 +428,6 @@ export class BrowserScarStoreHTTP206 {
   }
 
   restoreCapsuleAnchor(capsuleId) {
-    // Utility if user wants to re-enable a wiped capsule by reloading router.bin
     return this.unlearnedIds.has(capsuleId);
   }
 
@@ -320,13 +453,38 @@ export class BrowserScarStoreHTTP206 {
       }
       const invNorm = 1.0 / Math.max(Math.sqrt(normSq), 1e-8);
       for (let c = 0; c < d; c++) vec[c] *= invNorm;
+
+      // Apply Language-Subspace Orthogonal Projector `P_perp_lang(v) = v - U_lang (U_lang^T v)`
+      if (this.isGoldenSliceV4 && this.uLangMid && this.kLang > 0) {
+        const kLang = this.kLang;
+        const uLang = this.uLangMid;
+        const proj = new Float32Array(kLang);
+        for (let k = 0; k < kLang; k++) {
+          let acc = 0.0;
+          for (let c = 0; c < d; c++) {
+            acc += vec[c] * uLang[c * kLang + k];
+          }
+          proj[k] = acc;
+        }
+        let projNormSq = 0.0;
+        for (let c = 0; c < d; c++) {
+          const row = c * kLang;
+          let sub = 0.0;
+          for (let k = 0; k < kLang; k++) {
+            sub += uLang[row + k] * proj[k];
+          }
+          const vp = vec[c] - sub;
+          vec[c] = vp;
+          projNormSq += vp * vp;
+        }
+        const invProjNorm = 1.0 / Math.max(Math.sqrt(projNormSq), 1e-8);
+        for (let c = 0; c < d; c++) vec[c] *= invProjNorm;
+      }
       probes.push(vec);
     };
 
-    // 1. Global centered mean probe
     addWindowProbe(0, numUserTokens);
 
-    // 2. Sliding Span-Max semantic windows (`window=10, stride=3`)
     if (numUserTokens >= this.spanWindow + 4) {
       const win = Math.min(this.spanWindow, numUserTokens);
       const startsSet = new Set();
@@ -359,6 +517,7 @@ export class BrowserScarStoreHTTP206 {
     const d = this.hiddenDim;
     const probes = this._buildSpanProbes(xInFlat, numUserTokens);
     const gVals = new Float32Array(caps.length);
+    const cosArr = new Float32Array(caps.length);
     const idToIdx = new Map();
     let maxGate = 0.0;
 
@@ -367,6 +526,7 @@ export class BrowserScarStoreHTTP206 {
       idToIdx.set(cap.capsule_id, i);
       if (this.unlearnedIds.has(cap.capsule_id)) {
         this.lastCosines.set(cap.capsule_id, 0.0);
+        cosArr[i] = 0.0;
         gVals[i] = 0.0;
         continue;
       }
@@ -379,6 +539,7 @@ export class BrowserScarStoreHTTP206 {
         }
         if (dot > maxCos) maxCos = dot;
       }
+      cosArr[i] = maxCos;
       this.lastCosines.set(cap.capsule_id, maxCos);
       const ramp = Math.max(cap.ramp, 1e-6);
       const g = Math.min(1.0, Math.max(0.0, (maxCos - cap.tau) / ramp));
@@ -390,8 +551,10 @@ export class BrowserScarStoreHTTP206 {
       return { active: [], turnBytesFetched: 0, httpEvents: [] };
     }
 
-    // Conjunctive Sleep-Bridge parent supersession
-    const baseCone = Float32Array.from(gVals);
+    // Evaluate conjunctive Sleep Bridges against pre-margin parent gates first
+    const preGates = Float32Array.from(gVals);
+    const activeBridges = [];
+    const parentDiv = this.isGoldenSliceV4 ? 0.3 : 0.5;
     for (let i = 0; i < caps.length; i++) {
       const parents = caps[i].parent_capsules || [];
       if (parents.length === 0) continue;
@@ -399,23 +562,46 @@ export class BrowserScarStoreHTTP206 {
       let missing = false;
       for (const pid of parents) {
         const pIdx = idToIdx.get(pid);
-        if (pIdx === undefined || baseCone[pIdx] <= 0.0) {
+        if (pIdx === undefined || preGates[pIdx] <= 0.0) {
           missing = true;
           break;
         }
-        if (baseCone[pIdx] < parentMin) parentMin = baseCone[pIdx];
+        if (preGates[pIdx] < parentMin) parentMin = preGates[pIdx];
       }
       if (missing) {
         gVals[i] = 0.0;
         continue;
       }
-      const effBg = gVals[i] * Math.min(1.0, parentMin / 0.5);
+      const effBg = preGates[i] * Math.min(1.0, parentMin / parentDiv);
       gVals[i] = effBg;
-      if (effBg > 0.0) {
-        const atten = Math.max(0.0, 1.0 - effBg);
-        for (const pid of parents) {
-          gVals[idToIdx.get(pid)] *= atten;
+      if (effBg > 0.0) activeBridges.push(i);
+    }
+
+    // Winner dominance filter on standalone primary concepts (`winner_margin = 0.0002`)
+    if (this.isGoldenSliceV4 && this.winnerMargin > 0.0) {
+      const primIndices = [];
+      let bestPCos = -2.0;
+      for (let i = 0; i < caps.length; i++) {
+        const parents = caps[i].parent_capsules || [];
+        if (gVals[i] > 0.0 && parents.length === 0) {
+          primIndices.push(i);
+          if (cosArr[i] > bestPCos) bestPCos = cosArr[i];
         }
+      }
+      if (primIndices.length > 1) {
+        for (const idx of primIndices) {
+          if (bestPCos - cosArr[idx] > this.winnerMargin) {
+            gVals[idx] = 0.0;
+          }
+        }
+      }
+    }
+
+    // Conjunctive Sleep-Bridge parent supersession
+    for (const bIdx of activeBridges) {
+      const atten = Math.max(0.0, 1.0 - gVals[bIdx]);
+      for (const pid of caps[bIdx].parent_capsules || []) {
+        gVals[idToIdx.get(pid)] = preGates[idToIdx.get(pid)] * atten;
       }
     }
 
@@ -432,6 +618,8 @@ export class BrowserScarStoreHTTP206 {
           capsuleId: caps[i].capsule_id,
           gate: gVals[i],
           floats: fetched.floats,
+          midFloats: fetched.midFloats,
+          finalFloats: fetched.finalFloats,
           fromCache: fetched.fromCache,
           meta: caps[i],
         });

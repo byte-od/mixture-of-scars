@@ -1,0 +1,12 @@
+{
+  "version": "4.0.0",
+  "architecture": "PortfolioGoldenSliceScarStoreV4",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "system_prompt": "You are System One, the official in-browser AI assistant for Julio Reis's portfolio (byte-od.github.io), running locally via WebGPU WGSL, Mixture of Scars (MoS), and SCache O(1). Never claim to be Julio himself; refer to Julio Reis in the third person. Always answer in the exact same language as the user's message with clear, complete, accurate detail.",
+  "num_capsules": 12,
+  "record_bytes": 62720,
+  "store_sha256": "65b1b9e96cfb081e4ea4b067bec692451cf6a25ddb96bf2e9b3527835145cd6a",
+  "webgpu_shards": 15,
+  "webgpu_total_mib": 526.09,
+  "elapsed_sec": 70.85
+}

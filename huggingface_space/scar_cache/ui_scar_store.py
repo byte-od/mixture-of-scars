@@ -21,10 +21,12 @@ import torch
 import torch.nn as nn
 
 from scar_cache.cli_scar_store import (
+    DEFAULT_BILINGUAL_CALIBRATION_PROMPTS,
     DEFAULT_CALIBRATION_PROMPTS,
     DEFAULT_SYSTEM_PROMPT,
     HTTPRangeCapsuleClient,
     OFFICIAL_CATALOG_URL,
+    ScarStoreHTTPRangeServer,
     download_cloud_scarstore,
     fetch_official_catalog,
     format_chatml_prompt,
@@ -32,6 +34,11 @@ from scar_cache.cli_scar_store import (
     make_http_range_capsule_fetcher,
     resolve_official_cloud_tier,
     select_chat_system_prompt,
+)
+from scar_cache.dual_depth_bridge import DualDepthScarCapsule
+from scar_cache.golden_slice_v4 import (
+    GoldenSliceSynthesisEngine,
+    UNIVERSAL_CHAT_SYSTEM_PROMPT,
 )
 from scar_cache.head_expanded_attention import (
     HeadExpandedAttentionEngine,
@@ -44,6 +51,7 @@ from scar_cache.mos_student import (
     load_mos_student_model,
 )
 from scar_cache.open_weights_factory import (
+    PT_BR_SPECIALIST_CARTRIDGE_SPECS,
     discover_local_open_weight_models,
     mint_capsules_from_specs,
 )
@@ -357,9 +365,9 @@ _UI_HTML = r"""<!DOCTYPE html>
 <body>
 <header>
   <div class="brand">
-    <span class="brand-badge">MoS + SCache v3.0</span>
+    <span class="brand-badge">MoS + SCache v4.0</span>
     <div>
-      <h1>ScarStore — Biblioteca Visual de Cartuchos Cognitivos</h1>
+      <h1>ScarStore v4.0 — Cartuchos Conceituais Universais (EN • PT • ES • FR)</h1>
       <p id="modelSubtitle">Carregando estado do motor...</p>
     </div>
   </div>
@@ -375,8 +383,11 @@ _UI_HTML = r"""<!DOCTYPE html>
 <main>
   <section class="pane">
     <div class="pane-header">
-      <h2>Biblioteca de Cartuchos (Local mmap 4KB + Nuvem HTTP 206)</h2>
-      <button class="btn" onclick="refreshStatus()">Atualizar</button>
+      <h2>Cartuchos Conceituais Universais (1 Cartucho = Todos os Idiomas • HTTP 206)</h2>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button id="ptPackBtn" class="btn btn-green" onclick="installPtPack()">🇧🇷 Cunhar Pacote PT-BR (Legado v3)</button>
+        <button class="btn" onclick="refreshStatus()">Atualizar</button>
+      </div>
     </div>
     <div class="toolbar">
       <input id="searchBox" class="search-input" placeholder="Buscar por título, área, tema ou ID..." oninput="renderCards()" />
@@ -389,7 +400,7 @@ _UI_HTML = r"""<!DOCTYPE html>
 
   <section class="pane">
     <div class="pane-header">
-      <h2>Chat ao Vivo com Roteamento Esférico + SCache O(1)</h2>
+      <h2>Chat Multi-Turno com Roteamento P⊥lang (Golden-Slice) + SCache O(1)</h2>
       <div style="display:flex; gap:8px; align-items:center;">
         <label style="font-size:12px; color:var(--muted); display:flex; align-items:center; gap:5px; cursor:pointer;">
           <input type="checkbox" id="persistFetchedChk" /> Salvar no SSD ao baixar
@@ -399,12 +410,17 @@ _UI_HTML = r"""<!DOCTYPE html>
     </div>
     <div id="chatHistory" class="chat-history">
       <div class="msg msg-bot">
-        Bem-vindo à <strong>ScarStore v3.0</strong>! Clique em <em>"Testar Pergunta"</em> em qualquer cartucho ao lado (mesmo os que estão apenas na nuvem!) ou faça qualquer pergunta abaixo. Você verá em tempo real qual cartucho acendeu, os bytes exatos via <code>HTTP 206</code> e a memória constante <code>SCache O(1)</code>.
+        Bem-vindo à <strong>ScarStore v4.0 (Golden-Slice Cross-Lingual)</strong>! Cada conceito possui <strong>1 único cartucho universal</strong> ancorado em inglês, mas roteia via <code>P⊥lang</code> e responde nativamente em <strong>PT, EN, ES e FR</strong> via <code>HTTP 206</code> — mantendo o diálogo multi-turno em <code>SCache O(1)</code> constante!
       </div>
     </div>
     <div class="chat-composer">
       <div class="chat-row">
-        <textarea id="chatInput" placeholder="Pergunte sobre qualquer cartucho especialista ou um assunto cotidiano (ex: 15 * 14)..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendChat();}"></textarea>
+        <textarea id="chatInput" placeholder="Pergunte em PT, EN, ES ou FR (ex: O que é a constante de Boltzmann? / me fale sobre o princípio de Landauer / Discorra)..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendChat();}"></textarea>
+        <select id="maxTokensSel" class="btn" title="Limite máximo de tokens por resposta" style="height:54px;">
+          <option value="128">128 tok</option>
+          <option value="256" selected>256 tok</option>
+          <option value="512">512 tok</option>
+        </select>
         <button id="sendBtn" class="btn btn-primary" onclick="sendChat()">Enviar</button>
       </div>
     </div>
@@ -476,13 +492,16 @@ async function refreshStatus() {
   const data = await resp.json();
   STATE = data;
   const mosLabel = data.mos_enabled ? `MoS INT4+ASVD (r=${data.mos_rank})` : 'FP16 Denso';
+  const fmtLabel = data.store_format === 'GoldenSliceScarStoreV4' ? 'Golden-Slice v4.0 (P⊥lang EN•PT•ES•FR)' : 'HeadExpanded v3.0';
   document.getElementById('modelSubtitle').textContent =
-    `${data.student_model} • ${mosLabel} (${data.device}) • Grade Kronecker ${data.kronecker_grid_cells.toLocaleString()} células • Fonte: ${data.remote_mode}`;
+    `${data.student_model} • ${mosLabel} (${data.device}) • ${fmtLabel} • Grade ${data.kronecker_grid_cells.toLocaleString()} células`;
   document.getElementById('metricVram').textContent =
     data.gpu_allocated_gib > 0 ? `${data.gpu_allocated_gib.toFixed(2)} GiB` : `RSS ${data.process_peak_rss_gib.toFixed(2)} GiB`;
   document.getElementById('metricRecordKb').textContent = `${data.record_kb.toFixed(2)} KB`;
   document.getElementById('metricSlots').textContent = `${data.installed_count} locais / ${data.total_count} catálogo`;
   document.getElementById('metricScache').textContent = `${(data.scache_kb / 1024.0).toFixed(2)} MiB fixos`;
+  const ptBtn = document.getElementById('ptPackBtn');
+  if (ptBtn) ptBtn.style.display = data.store_format === 'GoldenSliceScarStoreV4' ? 'none' : 'inline-block';
 
   const catSel = document.getElementById('categoryFilter');
   const prevCat = catSel.value;
@@ -533,9 +552,18 @@ function renderCards() {
     else if (c.status === 'wiped') { stClass = 'st-wiped'; stText = '🧹 Apagado LGPD (0x00)'; }
 
     const lit = activeSet.has(c.capsule_id) ? 'active-lit' : '';
-    const promptEsc = escapeHtml(c.example_prompt || '');
     const canInstall = (c.status === 'cloud' || c.status === 'hot_ram') && STATE.has_remote;
     const canUnlearn = (c.status === 'installed' || c.status === 'hot_ram');
+    const poly = c.prompts_polyglot || null;
+    let testButtons = '';
+    if (poly && (poly.pt || poly.en)) {
+      if (poly.pt) testButtons += `<button class="btn" onclick="tryPrompt(${JSON.stringify(poly.pt).replace(/"/g, '&quot;')})">🇧🇷 PT</button>`;
+      if (poly.en) testButtons += `<button class="btn" onclick="tryPrompt(${JSON.stringify(poly.en).replace(/"/g, '&quot;')})">🇺🇸 EN</button>`;
+      if (poly.es) testButtons += `<button class="btn" onclick="tryPrompt(${JSON.stringify(poly.es).replace(/"/g, '&quot;')})">🇪🇸 ES</button>`;
+      if (poly.fr) testButtons += `<button class="btn" onclick="tryPrompt(${JSON.stringify(poly.fr).replace(/"/g, '&quot;')})">🇫🇷 FR</button>`;
+    } else if (c.example_prompt) {
+      testButtons = `<button class="btn" onclick="tryPrompt(${JSON.stringify(c.example_prompt).replace(/"/g, '&quot;')})">💬 Testar Pergunta</button>`;
+    }
 
     return `
       <div class="card ${lit}">
@@ -556,7 +584,7 @@ function renderCards() {
             <span>${escapeHtml(c.capsule_id)}</span>
           </div>
           <div class="card-actions">
-            ${c.example_prompt ? `<button class="btn" onclick="tryPrompt(${JSON.stringify(c.example_prompt).replace(/"/g, '&quot;')})">💬 Testar Pergunta</button>` : ''}
+            ${testButtons}
             ${canInstall ? `<button class="btn btn-green" onclick="installCapsule('${escapeHtml(c.capsule_id)}')">⬇️ Instalar (${c.record_kb.toFixed(0)} KB)</button>` : ''}
             ${canUnlearn ? `<button class="btn btn-danger" onclick="unlearnCapsule('${escapeHtml(c.capsule_id)}')">🗑️ Apagar LGPD (0x00)</button>` : ''}
           </div>
@@ -587,10 +615,11 @@ async function sendChat() {
 
   try {
     const persist = document.getElementById('persistFetchedChk').checked;
+    const maxTok = parseInt((document.getElementById('maxTokensSel') || {}).value || '256', 10);
     const resp = await fetch('/api/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ prompt, persist_fetched: persist })
+      body: JSON.stringify({ prompt, persist_fetched: persist, max_new_tokens: maxTok })
     });
     const res = await resp.json();
     if (!resp.ok) throw new Error(res.error || 'Falha na geração');
@@ -706,6 +735,23 @@ async function submitMint() {
   }
 }
 
+async function installPtPack() {
+  const btn = document.getElementById('ptPackBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cunhando 7 Cartuchos PT-BR (Zero SGD)...'; }
+  showToast('Sintetizando 7 cartuchos especialistas PT-BR via Woodbury + AlphaEdit...');
+  try {
+    const resp = await fetch('/api/install_pt_pack', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Falha ao instalar pacote PT-BR');
+    showToast(`Pacote PT-BR ativo (${data.installed_ids.length} cartuchos cunhados, ${(data.record_bytes/1024).toFixed(2)} KB cada)!`);
+    await refreshStatus();
+  } catch (err) {
+    showToast('Erro: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🇧🇷 Cunhar Pacote PT-BR (7 Cartuchos)'; }
+  }
+}
+
 refreshStatus();
 </script>
 </body>
@@ -729,7 +775,7 @@ class ScarStoreWebUI:
         port: int = 7860,
         window_size: int = 256,
         num_slots: int = 64,
-        max_new_tokens: int = 96,
+        max_new_tokens: int = 256,
         local_files_only: bool = False,
     ) -> None:
         self.student_model = student_model
@@ -742,7 +788,13 @@ class ScarStoreWebUI:
         self.num_slots = int(num_slots)
         self.max_new_tokens = int(max_new_tokens)
         self.local_files_only = bool(local_files_only)
-        self.scache = SCacheDynamicCache(window_size=self.window_size, num_slots=self.num_slots)
+        self._is_golden_v4 = getattr(self.store, "header", {}).get("format") == "GoldenSliceScarStoreV4"
+        self._sink_tokens = min(40, max(4, self.window_size // 4)) if self._is_golden_v4 else 4
+        self.scache = SCacheDynamicCache(
+            window_size=self.window_size,
+            num_slots=self.num_slots,
+            num_sink_tokens=self._sink_tokens,
+        )
         self._lock = threading.Lock()
         self._thread: Optional[threading.Thread] = None
 
@@ -807,6 +859,8 @@ class ScarStoreWebUI:
                             self._send_json(HTTPStatus.OK, parent.handle_unlearn(body))
                         elif self.path == "/api/mint":
                             self._send_json(HTTPStatus.OK, parent.handle_mint(body))
+                        elif self.path == "/api/install_pt_pack":
+                            self._send_json(HTTPStatus.OK, parent.handle_install_pt_pack())
                         else:
                             self._send_json(HTTPStatus.NOT_FOUND, {"error": f"Unknown endpoint {self.path}"})
                 except Exception as exc:
@@ -832,6 +886,7 @@ class ScarStoreWebUI:
             "category": str(merged.get("category") or "General"),
             "summary": str(merged.get("summary") or title),
             "example_prompt": str(merged.get("example_prompt") or ""),
+            "prompts_polyglot": dict(merged.get("prompts_polyglot") or {}),
             "teacher_model": str(merged.get("teacher_model") or "Qwen2.5-72B-Instruct MoS v2"),
         }
 
@@ -885,6 +940,7 @@ class ScarStoreWebUI:
         return {
             "student_model": self.student_name,
             "device": dev_str,
+            "store_format": str(summary.get("format", "HeadExpandedScarStoreV2")),
             "mos_enabled": bool(getattr(self.student_model, "mos_enabled", False)),
             "mos_rank": int(getattr(self.student_model, "mos_rank", 0)),
             "gpu_allocated_mib": float(mem_telem["gpu_allocated_mib"]),
@@ -913,6 +969,7 @@ class ScarStoreWebUI:
         max_tok = int(body.get("max_new_tokens") or self.max_new_tokens)
 
         prior_http = len(self.http_client.fetch_events) if self.http_client is not None else 0
+        sys_override = None if self._is_golden_v4 else select_chat_system_prompt(prompt)
         res, self.scache = generate_with_scar_store(
             student_model=self.student_model,
             tokenizer=self.tokenizer,
@@ -920,7 +977,7 @@ class ScarStoreWebUI:
             prompt_text_or_ids=prompt,
             max_new_tokens=max_tok,
             scache=self.scache,
-            system_prompt=select_chat_system_prompt(prompt),
+            system_prompt=sys_override,
             http_client=self.http_client,
             persist_fetched=False,
         )
@@ -949,7 +1006,11 @@ class ScarStoreWebUI:
         return payload
 
     def handle_reset_chat(self) -> Dict[str, Any]:
-        self.scache = SCacheDynamicCache(window_size=self.window_size, num_slots=self.num_slots)
+        self.scache = SCacheDynamicCache(
+            window_size=self.window_size,
+            num_slots=self.num_slots,
+            num_sink_tokens=self._sink_tokens,
+        )
         return {"ok": True, "scache_kb": 0.0}
 
     def handle_pull_capsule(self, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -970,20 +1031,35 @@ class ScarStoreWebUI:
         if raw_bytes is None:
             raise RuntimeError(f"Remote server did not contain {cid!r} at {coord}")
 
-        cap = HeadExpandedScarCapsule.from_int4_bytes(
-            raw_bytes=raw_bytes,
-            capsule_id=cid,
-            hidden_dim=self.store.hidden_dim,
-            num_heads=self.store.num_heads,
-            head_dim=self.store.head_dim,
-            rank=self.store.rank,
-            num_key_prototypes=self.store.num_key_prototypes,
-            tau=float(g_entry["tau"]),
-            ramp=float(g_entry["ramp"]),
-            parent_capsules=g_entry.get("parent_capsules", ()),
-            metadata=dict(g_entry.get("metadata", {})),
-            device=self.store.mu_query_last.device,
-        )
+        cap: Any
+        if self._is_golden_v4:
+            cap = DualDepthScarCapsule.from_int4_bytes(
+                raw_bytes=raw_bytes,
+                capsule_id=cid,
+                hidden_dim=self.store.hidden_dim,
+                rank_mid=self.store.rank_mid,
+                rank_final=self.store.rank_final,
+                tau=float(g_entry["tau"]),
+                ramp=float(g_entry["ramp"]),
+                parent_capsules=g_entry.get("parent_capsules", ()),
+                metadata=dict(g_entry.get("metadata", {})),
+                device=self.store.mu_query_last.device,
+            )
+        else:
+            cap = HeadExpandedScarCapsule.from_int4_bytes(
+                raw_bytes=raw_bytes,
+                capsule_id=cid,
+                hidden_dim=self.store.hidden_dim,
+                num_heads=self.store.num_heads,
+                head_dim=self.store.head_dim,
+                rank=self.store.rank,
+                num_key_prototypes=self.store.num_key_prototypes,
+                tau=float(g_entry["tau"]),
+                ramp=float(g_entry["ramp"]),
+                parent_capsules=g_entry.get("parent_capsules", ()),
+                metadata=dict(g_entry.get("metadata", {})),
+                device=self.store.mu_query_last.device,
+            )
         self.store.detach()
         self.store = self.store.append_capsule(cap)
         self.store.attach(self.student_model)
@@ -1022,6 +1098,49 @@ class ScarStoreWebUI:
             "example_prompt": p1,
         }
 
+        if self._is_golden_v4 and not teacher_id:
+            if not ans:
+                raise ValueError("Provide 'answer' or 'teacher_model'.")
+            import re
+
+            slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")[:36] or "custom_concept"
+            cid_new = f"concept_{slug}"
+            with self.store.paused():
+                cal_bank = GoldenSliceSynthesisEngine.calibrate_golden_slice_student(
+                    student_model=self.student_model,
+                    tokenizer=self.tokenizer,
+                    mid_layer_idx=self.store.mid_layer_idx,
+                    rank_mid=self.store.rank_mid,
+                    rank_final=self.store.rank_final,
+                    k_lang=self.store.k_lang,
+                )
+                gs_bank = self.store.to_golden_slice_bank(
+                    u_preserved_mid=cal_bank.u_preserved_mid,
+                    u_preserved_final=cal_bank.u_preserved_final,
+                    load_installed_capsules=False,
+                )
+                cap_new = GoldenSliceSynthesisEngine.solve_concept_capsule(
+                    student_model=self.student_model,
+                    tokenizer=self.tokenizer,
+                    bank=gs_bank,
+                    capsule_id=cid_new,
+                    english_anchor_prompts=prompts,
+                    seed_episodes=[(pr, ans) for pr in prompts],
+                    tau=0.40,
+                    ramp=0.14,
+                    metadata=dict(spec, teacher_model="Open-Weights Golden-Slice v4.0 (Zero SGD)"),
+                )
+            self._catalog_by_id[cap_new.capsule_id] = dict(cap_new.metadata, capsule_id=cap_new.capsule_id)
+            self.store.detach()
+            self.store = self.store.append_capsule(cap_new)
+            self.store.attach(self.student_model)
+            return {
+                "ok": True,
+                "capsule_id": cap_new.capsule_id,
+                "record_bytes": self.store.record_bytes,
+                "metadata": dict(cap_new.metadata),
+            }
+
         teacher_model = None
         teacher_tok = None
         owns_teacher = False
@@ -1046,16 +1165,19 @@ class ScarStoreWebUI:
                 raise ValueError("Provide either 'answer' or 'teacher_model'.")
             spec["episodes"] = [{"prompt": pr, "answer": ans} for pr in prompts]
 
-        sys_prompt = select_chat_system_prompt(p1)
-        fmt = lambda q: format_chatml_prompt(q, system_prompt=sys_prompt)
+        fmt = lambda q: format_chatml_prompt(q, system_prompt=select_chat_system_prompt(q))
         try:
             with self.store.paused():
-                head_bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
+                cal_bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
                     student_model=self.student_model,
-                    calibration_prompts=DEFAULT_CALIBRATION_PROMPTS,
+                    calibration_prompts=DEFAULT_BILINGUAL_CALIBRATION_PROMPTS,
                     tokenizer=self.tokenizer,
                     chat_formatter=fmt,
                     preserved_rank=4,
+                )
+                head_bank = self.store.to_head_bank(
+                    u_preserved_final=cal_bank.u_preserved_final,
+                    load_installed_capsules=False,
                 )
                 caps = mint_capsules_from_specs(
                     specs=[spec],
@@ -1089,6 +1211,72 @@ class ScarStoreWebUI:
             "capsule_id": cap_new.capsule_id,
             "record_bytes": self.store.record_bytes,
             "metadata": dict(cap_new.metadata),
+        }
+
+    def handle_install_pt_pack(self) -> Dict[str, Any]:
+        """Installs (via HTTP 206 if in Cloud Directory) or mints (via Zero-SGD Woodbury) all 7 PT-BR cartridges."""
+        existing_ids = set(self.store.capsule_ids)
+        global_by_cid = {
+            str(v.get("capsule_id")): v
+            for v in self.store._global_directory.values()
+            if v.get("capsule_id")
+        }
+        installed_ids: List[str] = []
+        pending_specs: List[Dict[str, Any]] = []
+        for sp in PT_BR_SPECIALIST_CARTRIDGE_SPECS:
+            cid = str(sp.get("capsule_id") or "")
+            if cid in existing_ids:
+                continue
+            if cid in global_by_cid and self.http_client is not None:
+                self.handle_pull_capsule({"capsule_id": cid})
+                installed_ids.append(cid)
+            else:
+                pending_specs.append(dict(sp))
+
+        if not pending_specs:
+            return {
+                "ok": True,
+                "installed_ids": installed_ids,
+                "already_installed": len(installed_ids) == 0,
+                "record_bytes": self.store.record_bytes,
+            }
+
+        fmt = lambda q: format_chatml_prompt(q, system_prompt=select_chat_system_prompt(q))
+        with self.store.paused():
+            cal_bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
+                student_model=self.student_model,
+                calibration_prompts=DEFAULT_BILINGUAL_CALIBRATION_PROMPTS,
+                tokenizer=self.tokenizer,
+                chat_formatter=fmt,
+                preserved_rank=4,
+            )
+            head_bank = self.store.to_head_bank(
+                u_preserved_final=cal_bank.u_preserved_final,
+                load_installed_capsules=False,
+            )
+            caps = mint_capsules_from_specs(
+                specs=pending_specs,
+                student_model=self.student_model,
+                student_tokenizer=self.tokenizer,
+                head_bank=head_bank,
+                chat_formatter=fmt,
+                teacher_model=None,
+                teacher_tokenizer=None,
+                teacher_label="Curated PT-BR Specialist Trajectory (Woodbury + AlphaEdit)",
+                rank=self.store.rank,
+                num_key_prototypes=self.store.num_key_prototypes,
+            )
+
+        self.store.detach()
+        for cap_new in caps:
+            self._catalog_by_id[cap_new.capsule_id] = dict(cap_new.metadata, capsule_id=cap_new.capsule_id)
+            self.store = self.store.append_capsule(cap_new)
+            installed_ids.append(cap_new.capsule_id)
+        self.store.attach(self.student_model)
+        return {
+            "ok": True,
+            "installed_ids": installed_ids,
+            "record_bytes": self.store.record_bytes,
         }
 
     def start_background(self) -> "ScarStoreWebUI":
@@ -1131,38 +1319,108 @@ def launch_scar_store_ui_from_args(args: Any) -> int:
     )
     student_d = int(slm.config.hidden_size)
 
+    import shutil
+
     remote_url = args.remote_url
     store_path: Optional[Path] = Path(args.store) if args.store else None
+    local_range_srv: Optional[ScarStoreHTTPRangeServer] = None
+    catalog_entries: List[Dict[str, Any]] = []
+
     if store_path is None or not store_path.exists():
-        if not remote_url:
-            remote_url = "auto"
         spec = resolve_official_cloud_tier(student_or_tier=args.student, hidden_dim=student_d)
-        default_shell = (
-            store_path
-            if store_path is not None
-            else (
-                Path.home()
-                / ".cache"
-                / "mixture_of_scars"
-                / "scarstore"
-                / f"qwen{spec['tier'].replace('.', 'p')}_v3_0.shell.scarstore"
+        tier_slug = spec["tier"].replace(".", "p")
+        repo_lib_dir = Path(__file__).resolve().parent.parent / "results" / "online_library_v3_0"
+        univ_full = repo_lib_dir / f"qwen{tier_slug}_universal_v4_0.scarstore"
+        univ_shell = repo_lib_dir / f"qwen{tier_slug}_universal_v4_0.shell.scarstore"
+        univ_cat = repo_lib_dir / "scarstore_universal_catalog_v4_0.json"
+        bilingual_full = repo_lib_dir / f"qwen{tier_slug}_bilingual_v3_1.scarstore"
+        bilingual_shell = repo_lib_dir / f"qwen{tier_slug}_bilingual_v3_1.shell.scarstore"
+        bilingual_cat = repo_lib_dir / "scarstore_bilingual_catalog_v3_1.json"
+
+        if not remote_url and univ_full.exists() and univ_shell.exists():
+            cache_shell = (
+                store_path
+                if store_path is not None
+                else (
+                    Path.home()
+                    / ".cache"
+                    / "mixture_of_scars"
+                    / "scarstore"
+                    / f"qwen{tier_slug}_universal_v4_0.shell.scarstore"
+                )
             )
-        )
-        if not default_shell.exists():
-            print(f"[mos-store ui] Downloading Cloud Shell -> {default_shell} ...", flush=True)
-            download_cloud_scarstore(tier_or_student=spec["tier"], out_path=default_shell, mode="shell")
-        store_path = default_shell
+            cache_shell.parent.mkdir(parents=True, exist_ok=True)
+            if not cache_shell.exists() or univ_shell.stat().st_mtime > cache_shell.stat().st_mtime:
+                shutil.copyfile(univ_shell, cache_shell)
+            store_path = cache_shell
+            local_range_srv = ScarStoreHTTPRangeServer(univ_full, host="127.0.0.1", port=0).start_background()
+            remote_url = local_range_srv.base_url
+            if univ_cat.exists():
+                try:
+                    cat_data = json.loads(univ_cat.read_text(encoding="utf-8"))
+                    catalog_entries = list(cat_data.get("cartridges", []))
+                except Exception:
+                    catalog_entries = []
+            print(
+                f"[mos-store ui] Mounted Universal Golden-Slice v4.0 Cloud Shell (EN/PT/ES/FR) -> HTTP 206 @ {remote_url}",
+                flush=True,
+            )
+        elif not remote_url and bilingual_full.exists() and bilingual_shell.exists():
+            cache_shell = (
+                store_path
+                if store_path is not None
+                else (
+                    Path.home()
+                    / ".cache"
+                    / "mixture_of_scars"
+                    / "scarstore"
+                    / f"qwen{tier_slug}_bilingual_v3_1.shell.scarstore"
+                )
+            )
+            cache_shell.parent.mkdir(parents=True, exist_ok=True)
+            if not cache_shell.exists():
+                shutil.copyfile(bilingual_shell, cache_shell)
+            store_path = cache_shell
+            local_range_srv = ScarStoreHTTPRangeServer(bilingual_full, host="127.0.0.1", port=0).start_background()
+            remote_url = local_range_srv.base_url
+            if bilingual_cat.exists():
+                try:
+                    cat_data = json.loads(bilingual_cat.read_text(encoding="utf-8"))
+                    catalog_entries = list(cat_data.get("cartridges", []))
+                except Exception:
+                    catalog_entries = []
+            print(
+                f"[mos-store ui] Mounted Bilingual Cloud Shell (9 EN 72.71B + 7 PT-BR) -> HTTP 206 @ {remote_url}",
+                flush=True,
+            )
+        else:
+            if not remote_url:
+                remote_url = "auto"
+            default_shell = (
+                store_path
+                if store_path is not None
+                else (
+                    Path.home()
+                    / ".cache"
+                    / "mixture_of_scars"
+                    / "scarstore"
+                    / f"qwen{tier_slug}_v3_0.shell.scarstore"
+                )
+            )
+            if not default_shell.exists():
+                print(f"[mos-store ui] Downloading Cloud Shell -> {default_shell} ...", flush=True)
+                download_cloud_scarstore(tier_or_student=spec["tier"], out_path=default_shell, mode="shell")
+            store_path = default_shell
 
     http_client: Optional[HTTPRangeCapsuleClient] = None
     fetcher: Optional[Callable[[Tuple[int, int], str], Optional[bytes]]] = None
-    catalog_entries: List[Dict[str, Any]] = []
     if remote_url:
         fetcher, http_client = make_http_range_capsule_fetcher(
             remote_url,
             hidden_dim=student_d,
             student_hint=args.student,
         )
-        if remote_url.lower() in ("auto", "official", "cloud", "3b", "0.5b", "0p5b"):
+        if not catalog_entries and remote_url.lower() in ("auto", "official", "cloud", "3b", "0.5b", "0p5b"):
             try:
                 cat = fetch_official_catalog(OFFICIAL_CATALOG_URL, timeout_s=8.0)
                 catalog_entries = list(cat.get("cartridges", []))
@@ -1195,4 +1453,6 @@ def launch_scar_store_ui_from_args(args: Any) -> int:
     finally:
         ui.stop()
         ui.store.close()
+        if local_range_srv is not None:
+            local_range_srv.stop()
     return 0

@@ -152,12 +152,16 @@ def _resolve_default_scarstore_for_dim(hidden_dim: int) -> Optional[Path]:
     candidates: List[Path] = []
     if int(hidden_dim) == 896:
         candidates = [
+            online_dir / "qwen0p5b_universal_v4_0.scarstore",
+            cache_dir / "qwen0p5b_universal_v4_0.scarstore",
             online_dir / "qwen0p5b_v3_0.scarstore",
             cache_dir / "qwen0p5b_v3_0.scarstore",
             cache_dir / "qwen0p5b_v3_0.shell.scarstore",
         ]
     elif int(hidden_dim) == 2048:
         candidates = [
+            online_dir / "qwen3b_universal_v4_0.scarstore",
+            cache_dir / "qwen3b_universal_v4_0.scarstore",
             online_dir / "qwen3b_v3_0.scarstore",
             cache_dir / "qwen3b_v3_0.scarstore",
             cache_dir / "qwen3b_v3_0.shell.scarstore",
@@ -186,19 +190,15 @@ def export_scarstore_for_webgpu(
     store = HeadExpandedScarStore.open(store_path)
     try:
         summary = store.inspect_summary()
+        is_v4 = summary.get("format") == "GoldenSliceScarStoreV4"
         d = store.hidden_dim
         n_heads = store.num_heads
         d_head = store.head_dim
-
-        mu_ql = store.mu_query_last.detach().cpu().to(torch.float32).contiguous()
-        mu_hf = store.mu_hidden_final.detach().cpu().to(torch.float32).contiguous()
-        mu_qh = store.mu_q_heads.detach().cpu().to(torch.float32).reshape(-1).contiguous()
 
         slots_by_cid = {s["capsule_id"]: s for s in summary["slots"]}
         capsules_manifest: List[Dict[str, Any]] = []
         z_rows: List[torch.Tensor] = []
 
-        # Build unified capsule list across installed slots + global cloud directory
         seen_cids: set[str] = set()
         ordered_entries: List[Dict[str, Any]] = []
         for s in summary["slots"]:
@@ -218,7 +218,6 @@ def export_scarstore_for_webgpu(
                 byte_offset = int(s_info["byte_offset"])
                 local_ready = bool(s_info["bitmap_present"] and not s_info["payload_all_zero_wiped"])
             else:
-                # Shell-only fallback: reconstruct z_anchor if slot descriptor has slot_idx
                 s_idx = int(entry.get("slot_idx", idx))
                 z_vec = torch.zeros((d,), dtype=torch.float32)
                 byte_offset = int(store.payload_offset + s_idx * store.record_bytes)
@@ -242,14 +241,49 @@ def export_scarstore_for_webgpu(
                 }
             )
 
-        z_mat = torch.stack(z_rows, dim=0).to(torch.float32).contiguous() if z_rows else torch.empty((0, d), dtype=torch.float32)
+        z_mat = (
+            torch.stack(z_rows, dim=0).to(torch.float32).contiguous()
+            if z_rows
+            else torch.empty((0, d), dtype=torch.float32)
+        )
 
-        router_bin_parts = [
-            mu_ql.numpy().tobytes(),
-            mu_hf.numpy().tobytes(),
-            mu_qh.numpy().tobytes(),
-            z_mat.numpy().tobytes(),
-        ]
+        if is_v4:
+            mu_qm = store.mu_query_mid.detach().cpu().to(torch.float32).contiguous()  # type: ignore[attr-defined]
+            mu_hm = store.mu_hidden_mid.detach().cpu().to(torch.float32).contiguous()  # type: ignore[attr-defined]
+            mu_hf = store.mu_hidden_final.detach().cpu().to(torch.float32).contiguous()
+            u_lang = store.u_lang_mid.detach().cpu().to(torch.float32).reshape(-1).contiguous()  # type: ignore[attr-defined]
+            k_lang = int(store.k_lang)  # type: ignore[attr-defined]
+            router_bin_parts = [
+                mu_qm.numpy().tobytes(),
+                mu_hm.numpy().tobytes(),
+                mu_hf.numpy().tobytes(),
+                u_lang.numpy().tobytes(),
+                z_mat.numpy().tobytes(),
+            ]
+            bin_layout = {
+                "mu_query_mid": {"offset_floats": 0, "length_floats": d},
+                "mu_hidden_mid": {"offset_floats": d, "length_floats": d},
+                "mu_hidden_final": {"offset_floats": 2 * d, "length_floats": d},
+                "u_lang_mid": {"offset_floats": 3 * d, "length_floats": d * k_lang},
+                "z_anchors": {"offset_floats": 3 * d + d * k_lang, "length_floats": len(capsules_manifest) * d},
+            }
+        else:
+            mu_ql = store.mu_query_last.detach().cpu().to(torch.float32).contiguous()
+            mu_hf = store.mu_hidden_final.detach().cpu().to(torch.float32).contiguous()
+            mu_qh = store.mu_q_heads.detach().cpu().to(torch.float32).reshape(-1).contiguous()
+            router_bin_parts = [
+                mu_ql.numpy().tobytes(),
+                mu_hf.numpy().tobytes(),
+                mu_qh.numpy().tobytes(),
+                z_mat.numpy().tobytes(),
+            ]
+            bin_layout = {
+                "mu_query_last": {"offset_floats": 0, "length_floats": d},
+                "mu_hidden_final": {"offset_floats": d, "length_floats": d},
+                "mu_q_heads": {"offset_floats": 2 * d, "length_floats": n_heads * d_head},
+                "z_anchors": {"offset_floats": 2 * d + n_heads * d_head, "length_floats": len(capsules_manifest) * d},
+            }
+
         router_bin = b"".join(router_bin_parts)
         router_bin_path = out_dir / "scarstore_router.bin"
         router_bin_path.write_bytes(router_bin)
@@ -268,36 +302,72 @@ def export_scarstore_for_webgpu(
             if Path(store_path).resolve() != dst_store.resolve():
                 shutil.copy2(store_path, dst_store)
 
-        router_json = {
-            "format": "WebGPUScarStoreRouterV1",
-            "version": "3.0.0",
-            "hidden_dim": d,
-            "num_heads": n_heads,
-            "head_dim": d_head,
-            "rank": int(store.rank),
-            "num_key_prototypes": int(store.num_key_prototypes),
-            "attention_beta": float(store.attention_beta),
-            "record_bytes": int(store.record_bytes),
-            "record_kb": round(store.record_bytes / 1024.0, 2),
-            "payload_offset": int(store.payload_offset),
-            "user_turn_prefix_ids": list(store.user_turn_prefix_ids or [151644, 872, 198]),
-            "routing_mode": "span_max",
-            "span_window": 10,
-            "span_stride": 3,
-            "router_bin_file": "scarstore_router.bin",
-            "router_bin_bytes": len(router_bin),
-            "router_bin_layout": {
-                "mu_query_last": {"offset_floats": 0, "length_floats": d},
-                "mu_hidden_final": {"offset_floats": d, "length_floats": d},
-                "mu_q_heads": {"offset_floats": 2 * d, "length_floats": n_heads * d_head},
-                "z_anchors": {"offset_floats": 2 * d + n_heads * d_head, "length_floats": len(capsules_manifest) * d},
-            },
-            "local_http206_store_url": local_store_filename,
-            "cloud_http206_store_url": remote_store_url,
-            "num_capsules": len(capsules_manifest),
-            "capsules": capsules_manifest,
-        }
-        (out_dir / "scarstore_router.json").write_text(json.dumps(router_json, indent=2, ensure_ascii=False), encoding="utf-8")
+        if is_v4:
+            router_json: Dict[str, Any] = {
+                "format": "WebGPUScarStoreRouterV1",
+                "version": "4.0.0",
+                "routing_architecture": "golden_slice_v4",
+                "hidden_dim": d,
+                "num_layers": int(getattr(store, "num_layers", 24)),
+                "mid_layer_idx": int(store.mid_layer_idx),  # type: ignore[attr-defined]
+                "num_heads": n_heads,
+                "head_dim": d_head,
+                "rank_mid": int(store.rank_mid),  # type: ignore[attr-defined]
+                "rank_final": int(store.rank_final),  # type: ignore[attr-defined]
+                "rank": int(store.rank),
+                "num_key_prototypes": 0,
+                "attention_beta": 0.0,
+                "k_lang": int(store.k_lang),  # type: ignore[attr-defined]
+                "seed_horizon": int(getattr(store, "seed_horizon", 44)),
+                "seed_fade_steps": int(getattr(store, "seed_fade_steps", 16)),
+                "winner_margin": float(getattr(store, "winner_margin", 0.0002)),
+                "record_bytes": int(store.record_bytes),
+                "record_kb": round(store.record_bytes / 1024.0, 2),
+                "payload_offset": int(store.payload_offset),
+                "user_turn_prefix_ids": list(store.user_turn_prefix_ids or [151644, 872, 198]),
+                "user_turn_suffix_ids": list(
+                    getattr(store, "user_turn_suffix_ids", None) or [151645, 198, 151644, 77091, 198]
+                ),
+                "routing_mode": "span_max",
+                "span_window": 10,
+                "span_stride": 3,
+                "router_bin_file": "scarstore_router.bin",
+                "router_bin_bytes": len(router_bin),
+                "router_bin_layout": bin_layout,
+                "local_http206_store_url": local_store_filename,
+                "cloud_http206_store_url": remote_store_url,
+                "num_capsules": len(capsules_manifest),
+                "capsules": capsules_manifest,
+            }
+        else:
+            router_json = {
+                "format": "WebGPUScarStoreRouterV1",
+                "version": "3.0.0",
+                "routing_architecture": "head_expanded_v3",
+                "hidden_dim": d,
+                "num_heads": n_heads,
+                "head_dim": d_head,
+                "rank": int(store.rank),
+                "num_key_prototypes": int(store.num_key_prototypes),
+                "attention_beta": float(store.attention_beta),
+                "record_bytes": int(store.record_bytes),
+                "record_kb": round(store.record_bytes / 1024.0, 2),
+                "payload_offset": int(store.payload_offset),
+                "user_turn_prefix_ids": list(store.user_turn_prefix_ids or [151644, 872, 198]),
+                "routing_mode": "span_max",
+                "span_window": 10,
+                "span_stride": 3,
+                "router_bin_file": "scarstore_router.bin",
+                "router_bin_bytes": len(router_bin),
+                "router_bin_layout": bin_layout,
+                "local_http206_store_url": local_store_filename,
+                "cloud_http206_store_url": remote_store_url,
+                "num_capsules": len(capsules_manifest),
+                "capsules": capsules_manifest,
+            }
+        (out_dir / "scarstore_router.json").write_text(
+            json.dumps(router_json, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         return router_json
     finally:
         store.close()
@@ -582,7 +652,7 @@ def export_mos_model_to_webgpu(
         },
         "scache_defaults": {
             "window_size": 128,
-            "num_sink_tokens": 4,
+            "num_sink_tokens": 36,
             "num_slots": 32,
             "delta_blend": 0.05,
         },
@@ -732,6 +802,7 @@ class NativeWebGPUMoSEngine:
             "vec_add_inplace_f32",
             "vec_copy_f32",
             "head_expanded_scar_inject",
+            "golden_slice_scar_inject",
             "int4_vocab_logits_gemv",
             "logits_top2_reduce_stage1",
             "logits_top2_reduce_stage2",
@@ -770,6 +841,20 @@ class NativeWebGPUMoSEngine:
             size=max(16, total_kv_heads * max(1, self.num_slots) * 4),
             usage=U.STORAGE | U.COPY_DST | U.COPY_SRC,
         )
+        self.scache_kv_snap_buf = self.device.create_buffer(
+            size=self.scache_kv_buf.size,
+            usage=U.COPY_DST | U.COPY_SRC,
+        )
+        self.scache_w_scar_snap_buf = self.device.create_buffer(
+            size=self.scache_w_scar_buf.size,
+            usage=U.COPY_DST | U.COPY_SRC,
+        )
+        self.scache_sal_snap_buf = self.device.create_buffer(
+            size=self.scache_salience_buf.size,
+            usage=U.COPY_DST | U.COPY_SRC,
+        )
+        self.session_pos: int = 0
+        self.turn_count: int = 0
 
         # Scratch single-token activation buffers
         q_dim = self.num_q_heads * self.head_dim
@@ -823,11 +908,20 @@ class NativeWebGPUMoSEngine:
         U = self.wgpu.BufferUsage
         q_dim = self.num_q_heads * self.head_dim
         self.router_meta: Optional[Dict[str, Any]] = None
+        self.is_golden_slice_v4: bool = False
+        self.mid_layer_idx: int = max(0, min(self.num_layers - 2, int(round(2.0 * self.num_layers / 3.0)) - 1))
         self.mu_query_last_np: Optional[np.ndarray] = None
+        self.u_lang_mid_np: Optional[np.ndarray] = None
         self.z_anchors_np: Optional[np.ndarray] = None
-        self._cached_capsules: Dict[str, np.ndarray] = {}
+        self._cached_capsules: Dict[str, Any] = {}
         self._unlearned_capsules: set[str] = set()
         self.http206_bytes_fetched = 0
+        self.scar_rank_mid = 12
+        self.scar_rank_final = 52
+        self.seed_horizon = 44
+        self.seed_fade_steps = 16
+        self.winner_margin = 0.0002
+        self.user_turn_suffix_ids: List[int] = [151645, 198, 151644, 77091, 198]
 
         router_file = self.manifest.get("scarstore_router_file")
         router_path = (self.bundle_dir / router_file) if router_file else None
@@ -836,17 +930,44 @@ class NativeWebGPUMoSEngine:
             rbin = (self.bundle_dir / self.router_meta["router_bin_file"]).read_bytes()
             floats = np.frombuffer(rbin, dtype=np.float32)
             lay = self.router_meta["router_bin_layout"]
-            o_ql, n_ql = lay["mu_query_last"]["offset_floats"], lay["mu_query_last"]["length_floats"]
-            o_hf, n_hf = lay["mu_hidden_final"]["offset_floats"], lay["mu_hidden_final"]["length_floats"]
-            o_qh, n_qh = lay["mu_q_heads"]["offset_floats"], lay["mu_q_heads"]["length_floats"]
-            o_za, n_za = lay["z_anchors"]["offset_floats"], lay["z_anchors"]["length_floats"]
-            self.mu_query_last_np = floats[o_ql : o_ql + n_ql].copy()
-            cal_concat = np.concatenate([floats[o_hf : o_hf + n_hf], floats[o_qh : o_qh + n_qh]]).astype(np.float32)
             n_caps = int(self.router_meta["num_capsules"])
-            self.z_anchors_np = floats[o_za : o_za + n_za].reshape(n_caps, self.hidden_dim).copy() if n_caps > 0 else np.zeros((0, self.hidden_dim), dtype=np.float32)
-            self.scar_rank = int(self.router_meta["rank"])
-            self.scar_num_proto = int(self.router_meta["num_key_prototypes"])
-            self.scar_beta = float(self.router_meta.get("attention_beta", 14.0))
+            o_za, n_za = lay["z_anchors"]["offset_floats"], lay["z_anchors"]["length_floats"]
+            self.z_anchors_np = (
+                floats[o_za : o_za + n_za].reshape(n_caps, self.hidden_dim).copy()
+                if n_caps > 0
+                else np.zeros((0, self.hidden_dim), dtype=np.float32)
+            )
+            if self.router_meta.get("routing_architecture") == "golden_slice_v4":
+                self.is_golden_slice_v4 = True
+                self.mid_layer_idx = int(self.router_meta["mid_layer_idx"])
+                self.scar_rank_mid = int(self.router_meta["rank_mid"])
+                self.scar_rank_final = int(self.router_meta["rank_final"])
+                self.scar_rank = self.scar_rank_mid + self.scar_rank_final
+                self.scar_num_proto = 0
+                self.scar_beta = 0.0
+                self.k_lang = int(self.router_meta["k_lang"])
+                self.seed_horizon = int(self.router_meta.get("seed_horizon", 44))
+                self.seed_fade_steps = int(self.router_meta.get("seed_fade_steps", 16))
+                self.winner_margin = float(self.router_meta.get("winner_margin", 0.0002))
+                self.user_turn_suffix_ids = [
+                    int(x) for x in self.router_meta.get("user_turn_suffix_ids", [151645, 198, 151644, 77091, 198])
+                ]
+                o_qm, n_qm = lay["mu_query_mid"]["offset_floats"], lay["mu_query_mid"]["length_floats"]
+                o_hm, n_hm = lay["mu_hidden_mid"]["offset_floats"], lay["mu_hidden_mid"]["length_floats"]
+                o_hf, n_hf = lay["mu_hidden_final"]["offset_floats"], lay["mu_hidden_final"]["length_floats"]
+                o_ul, n_ul = lay["u_lang_mid"]["offset_floats"], lay["u_lang_mid"]["length_floats"]
+                self.mu_query_last_np = floats[o_qm : o_qm + n_qm].copy()
+                self.u_lang_mid_np = floats[o_ul : o_ul + n_ul].reshape(self.hidden_dim, self.k_lang).copy()
+                cal_concat = np.concatenate([floats[o_hm : o_hm + n_hm], floats[o_hf : o_hf + n_hf]]).astype(np.float32)
+            else:
+                o_ql, n_ql = lay["mu_query_last"]["offset_floats"], lay["mu_query_last"]["length_floats"]
+                o_hf, n_hf = lay["mu_hidden_final"]["offset_floats"], lay["mu_hidden_final"]["length_floats"]
+                o_qh, n_qh = lay["mu_q_heads"]["offset_floats"], lay["mu_q_heads"]["length_floats"]
+                self.mu_query_last_np = floats[o_ql : o_ql + n_ql].copy()
+                cal_concat = np.concatenate([floats[o_hf : o_hf + n_hf], floats[o_qh : o_qh + n_qh]]).astype(np.float32)
+                self.scar_rank = int(self.router_meta["rank"])
+                self.scar_num_proto = int(self.router_meta["num_key_prototypes"])
+                self.scar_beta = float(self.router_meta.get("attention_beta", 14.0))
         else:
             cal_concat = np.zeros((self.hidden_dim + q_dim,), dtype=np.float32)
             self.scar_rank = 60
@@ -854,21 +975,93 @@ class NativeWebGPUMoSEngine:
             self.scar_beta = 14.0
 
         self.scar_calib_buf = self.device.create_buffer_with_data(data=cal_concat.tobytes(), usage=U.STORAGE)
-        cap_stride = 1 + 2 * (self.scar_rank * self.hidden_dim) + (self.scar_num_proto * q_dim)
-        self.scar_cap_stride = cap_stride
+        if self.is_golden_slice_v4:
+            self.scar_mid_stride = 1 + 2 * (self.scar_rank_mid * self.hidden_dim)
+            self.scar_cap_stride = 1 + 2 * (self.scar_rank_final * self.hidden_dim)
+            self.active_mid_capsules_buf = self.device.create_buffer(
+                size=max(64, 8 * self.scar_mid_stride * 4),
+                usage=U.STORAGE | U.COPY_DST,
+            )
+            self.scar_mid_uniform = self.device.create_buffer(size=64, usage=U.UNIFORM | U.COPY_DST)
+        else:
+            self.scar_mid_stride = 1
+            self.scar_cap_stride = 1 + 2 * (self.scar_rank * self.hidden_dim) + (self.scar_num_proto * q_dim)
+            self.active_mid_capsules_buf = self.device.create_buffer(size=64, usage=U.STORAGE | U.COPY_DST)
+            self.scar_mid_uniform = self.device.create_buffer(size=64, usage=U.UNIFORM | U.COPY_DST)
+
         self.active_capsules_buf = self.device.create_buffer(
-            size=max(64, 8 * cap_stride * 4),
+            size=max(64, 8 * self.scar_cap_stride * 4),
             usage=U.STORAGE | U.COPY_DST,
         )
         self.scar_telemetry_buf = self.device.create_buffer(size=64, usage=U.STORAGE | U.COPY_SRC | U.COPY_DST)
         self.scar_inject_uniform = self.device.create_buffer(size=64, usage=U.UNIFORM | U.COPY_DST)
         self._set_active_capsules_gpu([])
 
-    def _set_active_capsules_gpu(self, active_list: List[Tuple[str, float, np.ndarray]]) -> None:
+    def _update_horizon_scale_gpu(self, step_idx: int) -> None:
+        if not self.is_golden_slice_v4:
+            return
+        from scar_cache.golden_slice_v4 import compute_horizon_scale
+
+        hw = compute_horizon_scale(step_idx, self.seed_horizon, self.seed_fade_steps)
+        m_act = self._current_m_active
+        u_mid = _pack_kernel_params(
+            p0=self.hidden_dim,
+            p1=self.scar_rank_mid,
+            p2=m_act,
+            p3=0,
+            f0=hw,
+        )
+        u_fin = _pack_kernel_params(
+            p0=self.hidden_dim,
+            p1=self.scar_rank_final,
+            p2=m_act,
+            p3=self.hidden_dim,
+            f0=hw,
+        )
+        self.device.queue.write_buffer(self.scar_mid_uniform, 0, u_mid)
+        self.device.queue.write_buffer(self.scar_inject_uniform, 0, u_fin)
+
+    def _set_active_capsules_gpu(self, active_list: List[Tuple[str, float, Any]], horizon_scale: float = 1.0) -> None:
         m_act = min(8, len(active_list))
         self._current_m_active = m_act
         self._current_active_cids = [cid for cid, _, _ in active_list[:m_act]]
         self._current_active_gates = {cid: round(float(g), 4) for cid, g, _ in active_list[:m_act]}
+
+        if self.is_golden_slice_v4:
+            if m_act > 0:
+                w_sum = sum(float(g) for _, g, _ in active_list[:m_act])
+                norm_div = w_sum if (m_act > 1 and w_sum > 1.0) else 1.0
+                pk_mid = np.zeros((m_act * self.scar_mid_stride,), dtype=np.float32)
+                pk_fin = np.zeros((m_act * self.scar_cap_stride,), dtype=np.float32)
+                for idx, (_, g_val, cap_dict) in enumerate(active_list[:m_act]):
+                    eff_g = float(g_val) / norm_div
+                    bm = idx * self.scar_mid_stride
+                    bf = idx * self.scar_cap_stride
+                    pk_mid[bm] = eff_g
+                    pk_mid[bm + 1 : bm + self.scar_mid_stride] = cap_dict["mid"]
+                    pk_fin[bf] = eff_g
+                    pk_fin[bf + 1 : bf + self.scar_cap_stride] = cap_dict["final"]
+                self.device.queue.write_buffer(self.active_mid_capsules_buf, 0, pk_mid.tobytes())
+                self.device.queue.write_buffer(self.active_capsules_buf, 0, pk_fin.tobytes())
+
+            u_mid = _pack_kernel_params(
+                p0=self.hidden_dim,
+                p1=self.scar_rank_mid,
+                p2=m_act,
+                p3=0,
+                f0=float(horizon_scale),
+            )
+            u_fin = _pack_kernel_params(
+                p0=self.hidden_dim,
+                p1=self.scar_rank_final,
+                p2=m_act,
+                p3=self.hidden_dim,
+                f0=float(horizon_scale),
+            )
+            self.device.queue.write_buffer(self.scar_mid_uniform, 0, u_mid)
+            self.device.queue.write_buffer(self.scar_inject_uniform, 0, u_fin)
+            return
+
         if m_act > 0:
             packed = np.zeros((m_act * self.scar_cap_stride,), dtype=np.float32)
             for idx, (_, g_val, cap_arr) in enumerate(active_list[:m_act]):
@@ -888,14 +1081,9 @@ class NativeWebGPUMoSEngine:
         )
         self.device.queue.write_buffer(self.scar_inject_uniform, 0, u_bytes)
 
-    def _unpack_capsule_int4_bytes_np(self, raw: bytes) -> np.ndarray:
+    def _unpack_capsule_int4_bytes_np(self, raw: bytes) -> Any:
         """Pure NumPy `Block-64 INT4` capsule unpacker matching `scarstore_http206_browser.js` bit-for-bit."""
         d = self.hidden_dim
-        r = self.scar_rank
-        p_cnt = self.scar_num_proto
-        q_dim = self.num_q_heads * self.head_dim
-        n_ab = (d * r) // 64
-        n_k = (p_cnt * q_dim) // 64
         off = 0
 
         def _deq(n_blk: int) -> np.ndarray:
@@ -910,14 +1098,31 @@ class NativeWebGPUMoSEngine:
             out *= sc[:, None]
             return out.reshape(-1)
 
-        b_flat = _deq(n_ab)  # [d * r]
-        a_flat = _deq(n_ab)  # [r * d]
+        if self.is_golden_slice_v4:
+            n_mid = (d * self.scar_rank_mid) // 64
+            n_fin = (d * self.scar_rank_final) // 64
+            b_mid = _deq(n_mid)
+            a_mid = _deq(n_mid)
+            b_fin = _deq(n_fin)
+            a_fin = _deq(n_fin)
+            return {
+                "mid": np.concatenate([a_mid, b_mid]).astype(np.float32),
+                "final": np.concatenate([a_fin, b_fin]).astype(np.float32),
+            }
+
+        r = self.scar_rank
+        p_cnt = self.scar_num_proto
+        q_dim = self.num_q_heads * self.head_dim
+        n_ab = (d * r) // 64
+        n_k = (p_cnt * q_dim) // 64
+        b_flat = _deq(n_ab)
+        a_flat = _deq(n_ab)
         k_flat = _deq(n_k).reshape(p_cnt, self.num_q_heads, self.head_dim)
         norms = np.maximum(np.linalg.norm(k_flat, axis=-1, keepdims=True), 1e-8)
         k_norm_flat = (k_flat / norms).astype(np.float32).reshape(-1)
         return np.concatenate([a_flat, b_flat, k_norm_flat]).astype(np.float32)
 
-    def _fetch_and_unpack_capsule(self, cap_entry: Dict[str, Any]) -> np.ndarray:
+    def _fetch_and_unpack_capsule(self, cap_entry: Dict[str, Any]) -> Any:
         cid = str(cap_entry["capsule_id"])
         if cid in self._cached_capsules:
             return self._cached_capsules[cid]
@@ -943,14 +1148,19 @@ class NativeWebGPUMoSEngine:
         wiped = 0
         arr = self._cached_capsules.pop(capsule_id, None)
         if arr is not None:
-            arr.fill(0.0)
-            wiped = int(arr.nbytes)
+            if isinstance(arr, dict):
+                for sub_a in arr.values():
+                    sub_a.fill(0.0)
+                    wiped += int(sub_a.nbytes)
+            else:
+                arr.fill(0.0)
+                wiped = int(arr.nbytes)
         self._unlearned_capsules.add(capsule_id)
         self._set_active_capsules_gpu([])
         return wiped
 
-    def route_prompt_states(self, x_in_2d: np.ndarray) -> List[Tuple[str, float, np.ndarray]]:
-        """Exact `Span-Max` spherical cone router matching `HeadExpandedAttentionBank.route_query`."""
+    def route_prompt_states(self, x_in_2d: np.ndarray) -> List[Tuple[str, float, Any]]:
+        """Exact `Span-Max` spherical cone router (`P_perp_lang` Golden-Slice v4 or Head-Expanded v3)."""
         if self.router_meta is None or self.mu_query_last_np is None or self.z_anchors_np is None:
             return []
         caps = self.router_meta.get("capsules", [])
@@ -981,6 +1191,11 @@ class NativeWebGPUMoSEngine:
                 probes.append(v / max(float(np.linalg.norm(v)), 1e-8))
 
         probes_mat = np.stack(probes, axis=0)  # [N_p, d]
+        if self.is_golden_slice_v4 and self.u_lang_mid_np is not None:
+            probes_mat = probes_mat - (probes_mat @ self.u_lang_mid_np) @ self.u_lang_mid_np.T
+            norms = np.maximum(np.linalg.norm(probes_mat, axis=-1, keepdims=True), 1e-8)
+            probes_mat = (probes_mat / norms).astype(np.float32)
+
         cos_vec = (probes_mat @ self.z_anchors_np.T).max(axis=0)  # [N_caps]
 
         g_vals: List[float] = []
@@ -999,23 +1214,35 @@ class NativeWebGPUMoSEngine:
         if max(g_vals, default=0.0) <= 0.0:
             return []
 
-        base_cone = list(g_vals)
+        pre_gates = list(g_vals)
+        active_bridges: List[int] = []
         for i, c in enumerate(caps):
             parents = c.get("parent_capsules") or []
             if not parents:
                 continue
-            if any(p not in id_to_idx or base_cone[id_to_idx[p]] <= 0.0 for p in parents):
+            if any(p not in id_to_idx or pre_gates[id_to_idx[p]] <= 0.0 for p in parents):
                 g_vals[i] = 0.0
                 continue
-            p_min = min(base_cone[id_to_idx[p]] for p in parents)
-            eff_bg = g_vals[i] * min(1.0, p_min / 0.50)
+            p_min = min(pre_gates[id_to_idx[p]] for p in parents)
+            eff_bg = pre_gates[i] * min(1.0, p_min / (0.30 if self.is_golden_slice_v4 else 0.50))
             g_vals[i] = eff_bg
             if eff_bg > 0.0:
-                atten = max(0.0, 1.0 - eff_bg)
-                for p in parents:
-                    g_vals[id_to_idx[p]] *= atten
+                active_bridges.append(i)
 
-        active_out: List[Tuple[str, float, np.ndarray]] = []
+        if self.is_golden_slice_v4 and self.winner_margin > 0.0:
+            prim_indices = [i for i, c in enumerate(caps) if g_vals[i] > 0.0 and not (c.get("parent_capsules") or [])]
+            if len(prim_indices) > 1:
+                best_p_cos = max(float(cos_vec[i]) for i in prim_indices)
+                for i in prim_indices:
+                    if (best_p_cos - float(cos_vec[i])) > self.winner_margin:
+                        g_vals[i] = 0.0
+
+        for b_idx in active_bridges:
+            atten = max(0.0, 1.0 - g_vals[b_idx])
+            for p in caps[b_idx].get("parent_capsules") or []:
+                g_vals[id_to_idx[p]] = pre_gates[id_to_idx[p]] * atten
+
+        active_out: List[Tuple[str, float, Any]] = []
         for i, c in enumerate(caps):
             if g_vals[i] > 1e-6:
                 arr = self._fetch_and_unpack_capsule(c)
@@ -1203,21 +1430,52 @@ class NativeWebGPUMoSEngine:
             1,
         )
 
-        self.scar_inject_op = (
-            "head_expanded_scar_inject",
-            self._bg(
+        if self.is_golden_slice_v4:
+            self.scar_mid_inject_op = (
+                "golden_slice_scar_inject",
+                self._bg(
+                    "golden_slice_scar_inject",
+                    {
+                        0: self.scar_mid_uniform,
+                        3: self.scar_calib_buf,
+                        5: self.active_mid_capsules_buf,
+                        6: self.h_cur_buf,
+                        7: self.scar_telemetry_buf,
+                    },
+                ),
+                1,
+            )
+            self.scar_inject_op = (
+                "golden_slice_scar_inject",
+                self._bg(
+                    "golden_slice_scar_inject",
+                    {
+                        0: self.scar_inject_uniform,
+                        3: self.scar_calib_buf,
+                        5: self.active_capsules_buf,
+                        6: self.norm_buf,
+                        7: self.scar_telemetry_buf,
+                    },
+                ),
+                1,
+            )
+        else:
+            self.scar_mid_inject_op = None
+            self.scar_inject_op = (
                 "head_expanded_scar_inject",
-                {
-                    0: self.scar_inject_uniform,
-                    3: self.scar_calib_buf,
-                    4: self.q_unroped_last_buf,
-                    5: self.active_capsules_buf,
-                    6: self.norm_buf,
-                    7: self.scar_telemetry_buf,
-                },
-            ),
-            1,
-        )
+                self._bg(
+                    "head_expanded_scar_inject",
+                    {
+                        0: self.scar_inject_uniform,
+                        3: self.scar_calib_buf,
+                        4: self.q_unroped_last_buf,
+                        5: self.active_capsules_buf,
+                        6: self.norm_buf,
+                        7: self.scar_telemetry_buf,
+                    },
+                ),
+                1,
+            )
 
         self.lm_head_ops: List[Tuple[str, Any, int]] = []
         for ch in self.manifest["lm_head_chunks"]:
@@ -1256,12 +1514,90 @@ class NativeWebGPUMoSEngine:
         self.device.queue.write_buffer(self.scache_salience_buf, 0, bytes(self.scache_salience_buf.size))
         self._set_active_capsules_gpu([])
         self.http206_bytes_fetched = 0
+        self.session_pos = 0
+        self.turn_count = 0
 
     def _record_ops(self, cpass: Any, ops: Sequence[Tuple[str, Any, int]]) -> None:
         for ep, bg, wgs in ops:
             cpass.set_pipeline(self.pipelines[ep])
             cpass.set_bind_group(0, bg)
             cpass.dispatch_workgroups(wgs, 1, 1)
+
+    def _submit_prefill_sequence(
+        self,
+        token_ids: Sequence[int],
+        base_pos: int,
+        q_start: int,
+        prefill_xin_buf: Optional[Any] = None,
+        q_end: Optional[int] = None,
+    ) -> None:
+        U = self.wgpu.BufferUsage
+        lp = len(token_ids)
+        eff_q_end = lp if q_end is None else min(lp, max(q_start + 1, int(q_end)))
+        split_idx = self.mid_layer_idx if self.is_golden_slice_v4 else (self.num_layers - 2)
+        steps_arr = np.zeros((lp, 4), dtype=np.uint32)
+        for i, tid in enumerate(token_ids):
+            steps_arr[i, 0] = int(tid)
+            steps_arr[i, 1] = int(base_pos + i)
+        prefill_steps_buf = self.device.create_buffer_with_data(data=steps_arr.tobytes(), usage=U.COPY_SRC)
+
+        enc = self.device.create_command_encoder()
+        for t_idx in range(lp):
+            enc.copy_buffer_to_buffer(prefill_steps_buf, t_idx * 16, self.step_state_buf, 0, 16)
+            if t_idx < lp - 1:
+                if prefill_xin_buf is not None and q_start <= t_idx < eff_q_end:
+                    cpass_pre = enc.begin_compute_pass()
+                    self._record_ops(cpass_pre, self.embed_ops)
+                    for l_i in range(split_idx + 1):
+                        self._record_ops(cpass_pre, self.layer_ops[l_i])
+                    cpass_pre.end()
+                    u_slot = t_idx - q_start
+                    enc.copy_buffer_to_buffer(
+                        self.h_cur_buf, 0, prefill_xin_buf, u_slot * self.hidden_dim * 4, self.hidden_dim * 4
+                    )
+                    cpass_last = enc.begin_compute_pass()
+                    for l_i in range(split_idx + 1, self.num_layers):
+                        self._record_ops(cpass_last, self.layer_ops[l_i])
+                    cpass_last.end()
+                else:
+                    cpass = enc.begin_compute_pass()
+                    self._record_ops(cpass, self.embed_ops)
+                    for l_ops in self.layer_ops:
+                        self._record_ops(cpass, l_ops)
+                    cpass.end()
+            else:
+                cpass_pre = enc.begin_compute_pass()
+                self._record_ops(cpass_pre, self.embed_ops)
+                for l_i in range(split_idx + 1):
+                    self._record_ops(cpass_pre, self.layer_ops[l_i])
+                cpass_pre.end()
+                if prefill_xin_buf is not None and q_start <= t_idx < eff_q_end:
+                    u_slot = t_idx - q_start
+                    enc.copy_buffer_to_buffer(
+                        self.h_cur_buf, 0, prefill_xin_buf, u_slot * self.hidden_dim * 4, self.hidden_dim * 4
+                    )
+        self.device.queue.submit([enc.finish()])
+
+    def _flush_closing_tokens_to_scache(self, closing_ids: Sequence[int], start_pos: int) -> int:
+        if not closing_ids:
+            return start_pos
+        U = self.wgpu.BufferUsage
+        n = len(closing_ids)
+        steps_arr = np.zeros((n, 4), dtype=np.uint32)
+        for i, tid in enumerate(closing_ids):
+            steps_arr[i, 0] = int(tid)
+            steps_arr[i, 1] = int(start_pos + i)
+        steps_buf = self.device.create_buffer_with_data(data=steps_arr.tobytes(), usage=U.COPY_SRC)
+        enc = self.device.create_command_encoder()
+        for i in range(n):
+            enc.copy_buffer_to_buffer(steps_buf, i * 16, self.step_state_buf, 0, 16)
+            cpass = enc.begin_compute_pass()
+            self._record_ops(cpass, self.embed_ops)
+            for l_ops in self.layer_ops:
+                self._record_ops(cpass, l_ops)
+            cpass.end()
+        self.device.queue.submit([enc.finish()])
+        return start_pos + n
 
     def forward_token(
         self,
@@ -1276,8 +1612,15 @@ class NativeWebGPUMoSEngine:
         enc = self.device.create_command_encoder()
         cpass = enc.begin_compute_pass()
         self._record_ops(cpass, self.embed_ops)
-        for l_ops in self.layer_ops:
-            self._record_ops(cpass, l_ops)
+        if self.is_golden_slice_v4 and self.scar_mid_inject_op is not None:
+            for l_i in range(self.mid_layer_idx + 1):
+                self._record_ops(cpass, self.layer_ops[l_i])
+            self._record_ops(cpass, [self.scar_mid_inject_op])
+            for l_i in range(self.mid_layer_idx + 1, self.num_layers):
+                self._record_ops(cpass, self.layer_ops[l_i])
+        else:
+            for l_ops in self.layer_ops:
+                self._record_ops(cpass, l_ops)
         self._record_ops(cpass, [self.final_norm_op, self.scar_inject_op])
         self._record_ops(cpass, self.lm_head_ops)
         self._record_ops(cpass, self.reduce_ops)
@@ -1302,86 +1645,123 @@ class NativeWebGPUMoSEngine:
         max_new_tokens: int = 48,
         enable_scarstore: bool = True,
         system_prompt: Optional[str] = None,
+        reset_cache: bool = True,
     ) -> WebGPUGenerationResult:
         """End-to-end batched GPU prefill + `Span-Max` `HTTP 206` routing + `SCache O(1)` WGSL generation."""
         from transformers import AutoTokenizer
 
         from scar_cache.cli_scar_store import select_chat_system_prompt
+        from scar_cache.golden_slice_v4 import UNIVERSAL_CHAT_SYSTEM_PROMPT, extract_user_content_bounds
         from scar_cache.scar_grafting import find_subsequence_last_end
 
+        if reset_cache:
+            self.reset_scache()
+
         tok = AutoTokenizer.from_pretrained(self.bundle_dir, local_files_only=True)
-        sys_txt = system_prompt if system_prompt is not None else select_chat_system_prompt(user_query)
+        if system_prompt is not None:
+            sys_txt = system_prompt
+        elif self.is_golden_slice_v4:
+            sys_txt = UNIVERSAL_CHAT_SYSTEM_PROMPT
+        else:
+            sys_txt = select_chat_system_prompt(user_query)
         messages = [
             {"role": "system", "content": sys_txt},
             {"role": "user", "content": user_query},
         ]
         raw_enc: Any = tok.apply_chat_template(messages, tokenize=True, add_generation_prompt=True)
-        prompt_ids: List[int] = list(raw_enc["input_ids"] if hasattr(raw_enc, "keys") else raw_enc)
-        lp = len(prompt_ids)
-        q_start = min(find_subsequence_last_end(prompt_ids, self.user_turn_prefix_ids), max(0, lp - 1))
-        lu = max(1, lp - q_start)
+        clean_probe_ids: List[int] = list(raw_enc["input_ids"] if hasattr(raw_enc, "keys") else raw_enc)
+        lp_probe = len(clean_probe_ids)
+        if self.is_golden_slice_v4:
+            q_start_probe, q_end_probe = extract_user_content_bounds(
+                clean_probe_ids, self.user_turn_prefix_ids, self.user_turn_suffix_ids
+            )
+            lu_probe = max(1, q_end_probe - q_start_probe)
+        else:
+            q_start_probe = min(find_subsequence_last_end(clean_probe_ids, self.user_turn_prefix_ids), max(0, lp_probe - 1))
+            q_end_probe = lp_probe
+            lu_probe = max(1, lp_probe - q_start_probe)
 
-        self.reset_scache()
+        base_pos = int(self.session_pos)
+        if base_pos == 0:
+            prompt_ids = clean_probe_ids
+        else:
+            prompt_ids = list(
+                tok.encode(f"<|im_start|>user\n{user_query}<|im_end|>\n<|im_start|>assistant\n", add_special_tokens=False)
+            )
+        lp = len(prompt_ids)
         scache_b0 = self.scache_gpu_bytes
 
         U = self.wgpu.BufferUsage
-        steps_arr = np.zeros((lp, 4), dtype=np.uint32)
-        for i, tid in enumerate(prompt_ids):
-            steps_arr[i, 0] = int(tid)
-            steps_arr[i, 1] = i
-        prefill_steps_buf = self.device.create_buffer_with_data(data=steps_arr.tobytes(), usage=U.COPY_SRC)
-        prefill_xin_buf = self.device.create_buffer(size=lu * self.hidden_dim * 4, usage=U.COPY_DST | U.COPY_SRC)
-
         t0 = time.perf_counter()
-        # Submit ONE single command buffer for tokens `0 .. lp-2` (all layers) + token `lp-1` (`0 .. L-2`)!
-        enc = self.device.create_command_encoder()
-        for t_idx in range(lp):
-            enc.copy_buffer_to_buffer(prefill_steps_buf, t_idx * 16, self.step_state_buf, 0, 16)
-            if t_idx < lp - 1:
-                if t_idx >= q_start:
-                    cpass_pre = enc.begin_compute_pass()
-                    self._record_ops(cpass_pre, self.embed_ops)
-                    for l_i in range(self.num_layers - 1):
-                        self._record_ops(cpass_pre, self.layer_ops[l_i])
-                    cpass_pre.end()
-                    u_slot = t_idx - q_start
-                    enc.copy_buffer_to_buffer(
-                        self.h_cur_buf, 0, prefill_xin_buf, u_slot * self.hidden_dim * 4, self.hidden_dim * 4
-                    )
-                    cpass_last = enc.begin_compute_pass()
-                    self._record_ops(cpass_last, self.layer_ops[self.num_layers - 1])
-                    cpass_last.end()
-                else:
-                    cpass = enc.begin_compute_pass()
-                    self._record_ops(cpass, self.embed_ops)
-                    for l_ops in self.layer_ops:
-                        self._record_ops(cpass, l_ops)
-                    cpass.end()
-            else:
-                # Final prompt token `lp - 1`: run `0 .. L-2`, capture `x_in_last`, then route ScarStore!
-                cpass_pre = enc.begin_compute_pass()
-                self._record_ops(cpass_pre, self.embed_ops)
-                for l_i in range(self.num_layers - 1):
-                    self._record_ops(cpass_pre, self.layer_ops[l_i])
-                cpass_pre.end()
-                u_slot = t_idx - q_start
-                enc.copy_buffer_to_buffer(
-                    self.h_cur_buf, 0, prefill_xin_buf, u_slot * self.hidden_dim * 4, self.hidden_dim * 4
+
+        if base_pos == 0:
+            prefill_xin_buf = (
+                self.device.create_buffer(size=lu_probe * self.hidden_dim * 4, usage=U.COPY_DST | U.COPY_SRC)
+                if (enable_scarstore and self.router_meta is not None)
+                else None
+            )
+            self._submit_prefill_sequence(prompt_ids, 0, q_start_probe, prefill_xin_buf, q_end=q_end_probe)
+            if prefill_xin_buf is not None:
+                xin_np = np.frombuffer(self.device.queue.read_buffer(prefill_xin_buf), dtype=np.float32).reshape(
+                    lu_probe, self.hidden_dim
                 )
-        self.device.queue.submit([enc.finish()])
-
-        # Read `x_in` across user tokens `[q_start .. lp-1]` and route `HeadExpandedScarStore` (HTTP 206 ready!)
-        if enable_scarstore and self.router_meta is not None:
-            xin_np = np.frombuffer(self.device.queue.read_buffer(prefill_xin_buf), dtype=np.float32).reshape(lu, self.hidden_dim)
-            active = self.route_prompt_states(xin_np)
-            self._set_active_capsules_gpu(active)
+                active = self.route_prompt_states(xin_np)
+                self._set_active_capsules_gpu(active, horizon_scale=1.0)
+            else:
+                self._set_active_capsules_gpu([])
         else:
-            self._set_active_capsules_gpu([])
+            if enable_scarstore and self.router_meta is not None:
+                prefill_xin_buf = self.device.create_buffer(
+                    size=lu_probe * self.hidden_dim * 4, usage=U.COPY_DST | U.COPY_SRC
+                )
+                enc_save = self.device.create_command_encoder()
+                enc_save.copy_buffer_to_buffer(
+                    self.scache_kv_buf, 0, self.scache_kv_snap_buf, 0, self.scache_kv_buf.size
+                )
+                enc_save.copy_buffer_to_buffer(
+                    self.scache_w_scar_buf, 0, self.scache_w_scar_snap_buf, 0, self.scache_w_scar_buf.size
+                )
+                enc_save.copy_buffer_to_buffer(
+                    self.scache_salience_buf, 0, self.scache_sal_snap_buf, 0, self.scache_salience_buf.size
+                )
+                self.device.queue.submit([enc_save.finish()])
 
-        # Complete `layers[L-1] -> final_norm -> head_expanded_scar_inject -> lm_head -> top2` for `lp - 1`
+                self.device.queue.write_buffer(self.scache_kv_buf, 0, bytes(self.scache_kv_buf.size))
+                self.device.queue.write_buffer(self.scache_w_scar_buf, 0, bytes(self.scache_w_scar_buf.size))
+                self.device.queue.write_buffer(self.scache_salience_buf, 0, bytes(self.scache_salience_buf.size))
+
+                self._submit_prefill_sequence(clean_probe_ids, 0, q_start_probe, prefill_xin_buf, q_end=q_end_probe)
+
+                enc_restore = self.device.create_command_encoder()
+                enc_restore.copy_buffer_to_buffer(
+                    self.scache_kv_snap_buf, 0, self.scache_kv_buf, 0, self.scache_kv_buf.size
+                )
+                enc_restore.copy_buffer_to_buffer(
+                    self.scache_w_scar_snap_buf, 0, self.scache_w_scar_buf, 0, self.scache_w_scar_buf.size
+                )
+                enc_restore.copy_buffer_to_buffer(
+                    self.scache_sal_snap_buf, 0, self.scache_salience_buf, 0, self.scache_salience_buf.size
+                )
+                self.device.queue.submit([enc_restore.finish()])
+
+                xin_np = np.frombuffer(self.device.queue.read_buffer(prefill_xin_buf), dtype=np.float32).reshape(
+                    lu_probe, self.hidden_dim
+                )
+                active = self.route_prompt_states(xin_np)
+                self._set_active_capsules_gpu(active, horizon_scale=1.0)
+            else:
+                self._set_active_capsules_gpu([])
+
+            self._submit_prefill_sequence(prompt_ids, base_pos, 0, None)
+
+        # Complete upper layers -> final_norm -> scar_inject -> lm_head -> top2 for `lp - 1`
+        split_idx = self.mid_layer_idx if self.is_golden_slice_v4 else (self.num_layers - 2)
         enc_tail = self.device.create_command_encoder()
         cpass_tail = enc_tail.begin_compute_pass()
-        self._record_ops(cpass_tail, self.layer_ops[self.num_layers - 1])
+        if self.is_golden_slice_v4 and self.scar_mid_inject_op is not None:
+            self._record_ops(cpass_tail, [self.scar_mid_inject_op])
+        for l_i in range(split_idx + 1, self.num_layers):
+            self._record_ops(cpass_tail, self.layer_ops[l_i])
         self._record_ops(cpass_tail, [self.final_norm_op, self.scar_inject_op])
         self._record_ops(cpass_tail, self.lm_head_ops)
         self._record_ops(cpass_tail, self.reduce_ops)
@@ -1397,27 +1777,45 @@ class NativeWebGPUMoSEngine:
         v2 = struct.unpack("<f", struct.pack("<I", v2_u32))[0]
         sexp = max(struct.unpack("<f", struct.pack("<I", sexp_u32))[0], 1e-12)
 
-        gen_ids: List[int] = [int(top1_id)]
+        gen_ids: List[int] = []
         confs: List[float] = [1.0 / sexp]
         margins: List[float] = [(1.0 - math.exp(max(-80.0, v2 - v1))) / sexp]
+        last_gen_fed = True
+        if int(top1_id) not in self.eos_token_ids:
+            gen_ids.append(int(top1_id))
+            last_gen_fed = False
+
         max_spread = 0.0
-        if self._current_m_active >= 2:
+        if not self.is_golden_slice_v4 and self._current_m_active >= 2:
             tel = np.frombuffer(self.device.queue.read_buffer(self.scar_telemetry_buf), dtype=np.float32)
             max_spread = max(max_spread, float(tel[8]))
 
         t_dec0 = time.perf_counter()
-        cur_pos = lp
-        while len(gen_ids) < max_new_tokens and gen_ids[-1] not in self.eos_token_ids:
+        cur_pos = base_pos + lp
+        dec_step_idx = 0
+        while len(gen_ids) > 0 and len(gen_ids) < max_new_tokens and gen_ids[-1] not in self.eos_token_ids:
+            dec_step_idx += 1
+            if self.is_golden_slice_v4 and self._current_m_active > 0:
+                self._update_horizon_scale_gpu(dec_step_idx)
             nxt_id, p1, marg, _ = self.forward_token(gen_ids[-1], cur_pos, return_full_logits=False)
             cur_pos += 1
-            if self._current_m_active >= 2:
+            last_gen_fed = True
+            if not self.is_golden_slice_v4 and self._current_m_active >= 2:
                 tel = np.frombuffer(self.device.queue.read_buffer(self.scar_telemetry_buf), dtype=np.float32)
                 max_spread = max(max_spread, float(tel[8]))
             if nxt_id in self.eos_token_ids:
                 break
             gen_ids.append(nxt_id)
+            last_gen_fed = False
             confs.append(p1)
             margins.append(marg)
+
+        closing_ids: List[int] = []
+        if gen_ids and not last_gen_fed:
+            closing_ids.append(gen_ids[-1])
+        closing_ids.extend(tok.encode("<|im_end|>\n", add_special_tokens=False))
+        self.session_pos = self._flush_closing_tokens_to_scache(closing_ids, cur_pos)
+        self.turn_count += 1
 
         decode_ms = (time.perf_counter() - t_dec0) * 1000.0
         scache_b_end = self.scache_gpu_bytes

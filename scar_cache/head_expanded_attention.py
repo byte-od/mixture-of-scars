@@ -312,6 +312,7 @@ class HeadExpandedAttentionBank(nn.Module):
         self._norm_hook_handle: Optional[Any] = None
 
         self._paused: bool = False
+        self._routing_locked: bool = False
         self._current_pass_is_prefill: bool = True
         self._current_query_start: int = 0
         self._rolling_id_tail: List[int] = []
@@ -1192,6 +1193,7 @@ class HeadExpandedScarStore(nn.Module):
         self._q_proj_hook_handle: Optional[Any] = None
         self._norm_hook_handle: Optional[Any] = None
         self._paused: bool = False
+        self._routing_locked: bool = False
         self._current_pass_is_prefill: bool = True
         self._current_query_start: int = 0
         self._rolling_id_tail: List[int] = []
@@ -1820,6 +1822,14 @@ class HeadExpandedScarStore(nn.Module):
                 raise ValueError(f"Invalid ScarStore magic in {p}: {magic!r}")
             (hdr_len,) = struct.unpack("<Q", f.read(8))
             header = json.loads(f.read(hdr_len).decode("utf-8"))
+            if header.get("format") == "GoldenSliceScarStoreV4":
+                from scar_cache.golden_slice_v4 import GoldenSliceScarStore
+
+                return GoldenSliceScarStore.open(  # type: ignore[return-value]
+                    store_path=p,
+                    device=device,
+                    on_demand_fetcher=on_demand_fetcher,
+                )
             router_offset = _align_up(16 + hdr_len, HEADER_ALIGN)
             f.seek(router_offset)
 
@@ -2050,7 +2060,7 @@ class HeadExpandedScarStore(nn.Module):
             p_list = tuple(str(x) for x in desc.get("parent_capsules", ()))
             if p_list and any(raw_gates.get(p, 0.0) <= 0.0 for p in p_list):
                 return
-            exact_cos = float(torch.mv(probes_2d, self.z_anchors_installed[s_idx]).max().item())
+            exact_cos = float(torch.mv(probes_2d.float(), self.z_anchors_installed[s_idx].float()).max().item())
             self.last_routing_cosines[cid] = exact_cos
             g_val = max(0.0, min(1.0, (exact_cos - float(desc["tau"])) / float(desc["ramp"])))
             if g_val > 0.0:
@@ -2207,7 +2217,7 @@ class HeadExpandedScarStore(nn.Module):
         self._current_pass_is_prefill = is_prefill_chunk
         self._cached_q_heads = None
 
-        if past_len == 0:
+        if past_len == 0 and not self._routing_locked:
             self._rolling_id_tail = []
             self._query_hidden_buf = None
             self._turn_slot_cache.clear()
@@ -2215,7 +2225,7 @@ class HeadExpandedScarStore(nn.Module):
             self.last_step_weights_history = []
             self.last_inter_head_spread_history = []
 
-        if is_prefill_chunk and seq_len > 0:
+        if is_prefill_chunk and seq_len > 0 and not self._routing_locked:
             tail = self._rolling_id_tail
             combined = tail + ids_1d
             match_end = _find_subsequence_last_end_strict(combined, self.user_turn_prefix_ids)
@@ -2231,8 +2241,18 @@ class HeadExpandedScarStore(nn.Module):
             else:
                 self._current_query_start = 0
 
+    @contextmanager
+    def locked_routing(self) -> Iterator[None]:
+        """Preserves pre-routed `_active_turn_capsules` across multi-turn `SCache` prefill + decode."""
+        prev = self._routing_locked
+        self._routing_locked = True
+        try:
+            yield
+        finally:
+            self._routing_locked = prev
+
     def _last_block_pre_hook(self, _module: nn.Module, args: Tuple[Any, ...]) -> None:
-        if self._paused or len(args) == 0 or not isinstance(args[0], torch.Tensor):
+        if self._paused or self._routing_locked or len(args) == 0 or not isinstance(args[0], torch.Tensor):
             return
         x_in = args[0]
         x_3d = x_in.unsqueeze(0) if x_in.ndim == 2 else x_in

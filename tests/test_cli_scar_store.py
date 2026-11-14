@@ -93,7 +93,7 @@ class _TinyTok:
         return {f"tok{i}": i for i in range(self.vocab_size)}
 
     def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
-        return [max(3, ((ord(c) + self.offset) % (self.vocab_size - 12)) + 10) for c in text[:48]]
+        return [max(3, ((ord(c) + self.offset) % (self.vocab_size - 12)) + 10) for c in text[:256]]
 
     def __call__(self, text: str, return_tensors: str = "pt") -> object:
         ids = self.encode(text)
@@ -462,5 +462,95 @@ def test_select_chat_system_prompt_language_routing() -> None:
     assert select_chat_system_prompt("Explain the FLP impossibility theorem in asynchronous distributed systems.") == DEFAULT_SYSTEM_PROMPT
     assert select_chat_system_prompt("Olá, tudo bem? Quem é você? Qual a diferença populacional entre as maiores capitais das américas?") == PT_CHAT_SYSTEM_PROMPT
     assert select_chat_system_prompt("Oi, como funciona o protocolo TCP?") == PT_CHAT_SYSTEM_PROMPT
+
+
+def test_multiturn_scache_clean_probe_routing_and_http206_on_turn2(tmp_path: Path) -> None:
+    """Verifies multi-turn `generate_with_scar_store` (`prior_kv_len > 0`) preserves `SCache O(1)` across turns,
+    avoids duplicate system prompts, and still triggers clean Turn-1 `HTTP 206` routing on Turn 2+!"""
+    from scar_cache.cli_scar_store import format_chatml_prompt
+    from scar_cache.open_weights_factory import mint_capsules_from_specs
+
+    slm = _TinyHeadCausalLM(vocab_size=256, d=128).eval()
+    tok = _TinyTok(vocab_size=256, offset=10)
+    sys_p = "Responda de forma clara."
+    fmt = lambda q: format_chatml_prompt(q, system_prompt=sys_p)
+
+    bank = HeadExpandedAttentionEngine.calibrate_head_expanded_student(
+        student_model=slm,
+        calibration_prompts=["ola bom dia", "qual a capital", "como vai voce", "teste simples"],
+        tokenizer=tok,
+        chat_formatter=fmt,
+        preserved_rank=2,
+    )
+    caps = mint_capsules_from_specs(
+        specs=[
+            {
+                "capsule_id": "ptbr_landauer_mini",
+                "title": "Landauer PT-BR Mini",
+                "tau": 0.78,
+                "ramp": 0.10,
+                "episodes": [
+                    {
+                        "prompt": "fale sobre o principio de landauer termodinamico exclusivo",
+                        "answer": "dissipa kB T ln 2 por bit",
+                    }
+                ],
+            }
+        ],
+        student_model=slm,
+        student_tokenizer=tok,
+        head_bank=bank,
+        chat_formatter=fmt,
+        rank=16,
+        num_key_prototypes=4,
+    )
+    bank.add_capsule(caps[0])
+
+    master_path = tmp_path / "mt_master.scarstore"
+    shell_path = tmp_path / "mt_shell.scarstore"
+    m_store = HeadExpandedScarStore.build_from_bank(bank, master_path)
+    s_store = m_store.export_subset(shell_path, include_capsule_ids=[])
+    s_store.close()
+    m_store.close()
+
+    with ScarStoreHTTPRangeServer(master_path, host="127.0.0.1", port=0) as srv:
+        fetcher, http_client = make_http_range_capsule_fetcher(srv.base_url)
+        live_shell = HeadExpandedScarStore.open(shell_path, device="cpu", on_demand_fetcher=fetcher)
+        try:
+            # Turn 1: casual greeting populates `cache` (`prior_kv_len == 0 -> seq_len_1 > 0`)
+            res1, cache = generate_with_scar_store(
+                student_model=slm,
+                tokenizer=tok,
+                store=live_shell,
+                prompt_text_or_ids="ola bom dia",
+                max_new_tokens=4,
+                system_prompt=sys_p,
+                http_client=http_client,
+                scache=None,
+                persist_fetched=False,
+            )
+            seq_len_1 = cache.get_seq_length()
+            assert seq_len_1 > 0
+            assert len(res1.http_range_events) == 0
+
+            # Turn 2 (`prior_kv_len > 0`!): specialist PT-BR prompt MUST route cleanly and fetch via HTTP 206!
+            res2, cache = generate_with_scar_store(
+                student_model=slm,
+                tokenizer=tok,
+                store=live_shell,
+                prompt_text_or_ids="fale sobre o principio de landauer termodinamico exclusivo",
+                max_new_tokens=5,
+                system_prompt=sys_p,
+                http_client=http_client,
+                scache=cache,
+                persist_fetched=False,
+            )
+            assert cache.get_seq_length() > seq_len_1
+            assert "ptbr_landauer_mini" in res2.active_gates
+            assert len(res2.http_range_events) == 1
+            assert res2.http_range_events[0]["http_status"] == 206
+        finally:
+            live_shell.close()
+
 
 

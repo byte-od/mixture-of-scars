@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ScarStore WebGPU Studio v3.0 — 100% Browser WGSL (MoS + SCache O(1))</title>
+  <title>ScarStore WebGPU Studio v4.0 — Golden-Slice Cross-Lingual (100% Browser WGSL)</title>
   <style>
     :root {
       --bg-0: #070a12;
@@ -372,19 +372,30 @@
 <body>
   <header>
     <div class="brand">
-      <span class="badge-wgsl">WebGPU • WGSL 1.0</span>
+      <span class="badge-wgsl">WebGPU • WGSL 1.0 • v4.0</span>
       <div>
-        <h1>ScarStore WebGPU Studio v3.0 — Zero Python Backend</h1>
-        <p>Kernels nativos <code>MoS INT4+ASVD</code> + <code>SCache O(1)</code> Widrow-Hoff + Streaming <code>HTTP 206</code> no navegador</p>
+        <h1>ScarStore WebGPU Studio v4.0 — Golden-Slice Cross-Lingual</h1>
+        <p>1 Cartucho por Conceito (<code>EN • PT • ES • FR</code> via <code>P⊥lang</code>) + <code>MoS INT4+ASVD</code> + <code>SCache O(1)</code> + <code>HTTP 206</code></p>
       </div>
     </div>
     <div class="controls-top">
-      <label class="toggle-pill" title="Ative/desative a injeção de cartuchos 72.71B para comparar na hora!">
+      <label class="toggle-pill" title="Ative/desative a injeção de cartuchos universais Golden-Slice v4.0 (EN, PT, ES, FR) para comparar na hora!">
         <input type="checkbox" id="toggle-scarstore" checked />
-        <span>Injeção <strong>ScarStore 72.71B</strong> Ativa</span>
+        <span>Injeção <strong>Golden-Slice v4.0 (EN•PT•ES•FR)</strong></span>
       </label>
-      <button id="btn-multi-head" disabled title="Testa 2 cartuchos 72.71B simultâneos (+2 Scar-Heads competitivos em WGSL)">
-        ⚡ Testar Fusão +2 Heads (Landauer + FLP)
+      <label class="toggle-pill" title="Limite máximo de tokens gerados por turno">
+        <span>Máx:</span>
+        <select id="max-tokens-select" style="background:transparent;color:var(--text-0);border:none;font-size:12.5px;font-weight:600;outline:none;cursor:pointer;">
+          <option value="128">128 tok</option>
+          <option value="224" selected>224 tok</option>
+          <option value="384">384 tok</option>
+        </select>
+      </label>
+      <button id="btn-multi-head" disabled title="Testa a Ponte Interdisciplinar de Sono (Landauer + Immerman-Szelepcsényi)">
+        ⚡ Ponte Conjuntiva (Landauer + Immerman)
+      </button>
+      <button id="btn-reset-chat" disabled title="Zera o SCache O(1) em 0 B de realocação para iniciar nova conversa">
+        🔄 Nova Sessão SCache
       </button>
     </div>
   </header>
@@ -393,7 +404,7 @@
     <div class="metric-card">
       <div class="metric-label">Hardware WebGPU</div>
       <div class="metric-value" id="m-adapter" data-testid="metric-adapter">Inicializando...</div>
-      <div class="metric-sub" id="m-shader">14 pipelines WGSL 1.0</div>
+      <div class="metric-sub" id="m-shader">15 pipelines WGSL 1.0</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">VRAM Modelo MoS (INT4+ASVD)</div>
@@ -430,8 +441,8 @@
   <main class="workspace">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h2>Biblioteca Online 72.71B (HTTP 206 Range)</h2>
-        <p>Nenhum cartucho é baixado no boot (<code>0 B</code>). Ao detectar um domínio, apenas a fatia exata de <code>61.25 KB</code> (<code>62,720 B</code>) é transferida via <code>HTTP 206</code>.</p>
+        <h2>Cartuchos Conceituais Universais v4.0 (Zero Duplicação de Idioma)</h2>
+        <p>Cada conceito tem <strong>1 único cartucho</strong> de <code>61.25 KB</code> (<code>62,720 B</code>) ancorado apenas em inglês, mas roteia via <code>P⊥lang</code> na <code>Camada 16/24</code> e responde nativamente em <strong>PT, EN, ES e FR</strong> via <code>HTTP 206</code>!</p>
       </div>
       <div class="capsule-list" id="capsule-list" data-testid="capsule-list"></div>
     </aside>
@@ -439,9 +450,9 @@
     <section class="main-panel">
       <div class="chat-box" id="chat-box" data-testid="chat-box">
         <div class="msg msg-assistant">
-          <strong>Motor Nativo WebGPU / WGSL v3.0</strong><br />
-          100% da inferência roda localmente na GPU do seu navegador via shaders <code>WGSL</code> proprietários (<code>mos_scache_kernels.wgsl</code>) — sem Python, sem ONNX e sem KV Cache linear <code>O(T)</code>.<br />
-          Clique em <strong>"Testar Pergunta"</strong> em qualquer cartucho ao lado ou envie uma pergunta abaixo!
+          <strong>Motor Nativo WebGPU / WGSL v4.0 (Golden-Slice Cross-Lingual + SCache O(1))</strong><br />
+          100% da inferência roda na GPU do navegador via 15 shaders <code>WGSL</code> proprietários (<code>mos_scache_kernels.wgsl</code>) — mantendo contexto multi-turno em <code>SCache O(1)</code> constante (<code>2694.8 KB</code>, <code>Δ +0 B</code>).<br />
+          Teste qualquer cartucho ao lado em <strong>PT, EN, ES ou FR</strong> (1 único arquivo de <code>61.25 KB</code> serve todos os idiomas!) ou faça perguntas de acompanhamento como <em>"Discorra"</em>!
         </div>
       </div>
 
@@ -450,7 +461,7 @@
           type="text"
           id="chat-input"
           data-testid="chat-input"
-          placeholder="Pergunte em português ou teste um teorema 72.71B (ex: Landauer's principle)..."
+          placeholder="Pergunte em PT, EN, ES ou FR (ex: O que é a constante de Boltzmann? / ¿Qué arquitectura utilizas?)..."
           autocomplete="off"
           disabled
         />
@@ -489,6 +500,8 @@
     const chatInput = document.getElementById("chat-input");
     const btnSend = document.getElementById("btn-send");
     const btnMultiHead = document.getElementById("btn-multi-head");
+    const btnResetChat = document.getElementById("btn-reset-chat");
+    const maxTokensSelect = document.getElementById("max-tokens-select");
     const toggleScarStore = document.getElementById("toggle-scarstore");
     const networkLog = document.getElementById("network-log");
 
@@ -528,6 +541,15 @@
 
         const cosStr = cap.lastCosine !== null ? `cos=${cap.lastCosine.toFixed(3)} (τ=${cap.tau})` : `τ=${cap.tau} • ${cap.record_kb} KB`;
         const gateStr = isFired ? ` • <strong>gate=${cap.lastGate.toFixed(2)}</strong>` : "";
+        const poly = meta.prompts_polyglot || null;
+        const langBtnsHtml = poly
+          ? `
+            <button type="button" class="btn-test-cap" data-lang="pt" ${busy ? "disabled" : ""}>🇧🇷 PT</button>
+            <button type="button" class="btn-test-lang" data-lang="en" ${busy ? "disabled" : ""}>🇺🇸 EN</button>
+            <button type="button" class="btn-test-lang" data-lang="es" ${busy ? "disabled" : ""}>🇪🇸 ES</button>
+            <button type="button" class="btn-test-lang" data-lang="fr" ${busy ? "disabled" : ""}>🇫🇷 FR</button>
+          `
+          : `<button type="button" class="btn-test-cap" ${busy ? "disabled" : ""}>Testar Pergunta</button>`;
 
         card.innerHTML = `
           <div class="cap-top">
@@ -538,17 +560,29 @@
             <code>${cap.capsule_id}</code> • ${cosStr}${gateStr}
           </div>
           <div class="cap-actions">
-            <button type="button" class="btn-test-cap" ${busy ? "disabled" : ""}>Testar Pergunta</button>
-            <button type="button" class="btn-danger btn-wipe-cap" ${busy || cap.unlearnedWiped ? "disabled" : ""}>Apagar 0x00 (LGPD)</button>
+            ${langBtnsHtml}
+            <button type="button" class="btn-danger btn-wipe-cap" ${busy || cap.unlearnedWiped ? "disabled" : ""}>0x00 LGPD</button>
           </div>
         `;
 
-        card.querySelector(".btn-test-cap").addEventListener("click", () => {
-          if (busy) return;
-          const q = meta.example_prompt || `Explain ${title} concisely.`;
-          chatInput.value = q;
-          runQuery(q);
+        card.querySelectorAll("[data-lang]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (busy) return;
+            const lg = btn.getAttribute("data-lang");
+            const q = (poly && poly[lg]) || meta.example_prompt || `Explain ${title} concisely.`;
+            chatInput.value = q;
+            runQuery(q);
+          });
         });
+
+        if (!poly) {
+          card.querySelector(".btn-test-cap").addEventListener("click", () => {
+            if (busy) return;
+            const q = meta.example_prompt || `Explain ${title} concisely.`;
+            chatInput.value = q;
+            runQuery(q);
+          });
+        }
 
         card.querySelector(".btn-wipe-cap").addEventListener("click", () => {
           if (busy) return;
@@ -574,6 +608,7 @@
       chatInput.disabled = true;
       btnSend.disabled = true;
       btnMultiHead.disabled = true;
+      btnResetChat.disabled = true;
       renderCapsules();
 
       const userDiv = document.createElement("div");
@@ -595,8 +630,9 @@
 
       try {
         const useScar = toggleScarStore.checked;
+        const maxTok = parseInt((maxTokensSelect && maxTokensSelect.value) || "224", 10);
         const result = await engine.generate(trimmed, {
-          maxNewTokens: 72,
+          maxNewTokens: maxTok,
           enableScarStore: useScar,
           onRouting: (routeRes) => {
             for (const ev of routeRes.httpEvents || []) {
@@ -619,13 +655,13 @@
 
         textSpan.textContent = result.answer || "(vazio)";
         elSpeed.textContent = `${result.decodeTokPerSec.toFixed(1)} tok/s`;
-        elPrefill.textContent = `Prefill ${result.prefillTokens} tok em ${result.prefillMs.toFixed(0)} ms`;
+        elPrefill.textContent = `Turno ${result.turnIndex} • Sessão ${result.sessionTokens} tok (${result.prefillMs.toFixed(0)} ms)`;
         elScache.textContent = `${(result.scacheBytesFinal / 1024).toFixed(1)} KB`;
-        elScacheDelta.textContent = `Δ Crescimento = +${result.scacheDeltaBytes} B (O(1) Provado)`;
+        elScacheDelta.textContent = `Δ = +${result.scacheDeltaBytes} B (${result.sessionTokens} tok acumulados O(1))`;
 
         const activeNames = result.activeCapsules.map((c) => `${c.capsuleId} (g=${c.gate.toFixed(2)})`).join(", ");
         badgesDiv.innerHTML = `
-          <span class="pill green">SCache O(1): ${(result.scacheBytesFinal / 1024).toFixed(1)} KB (Δ +${result.scacheDeltaBytes} B)</span>
+          <span class="pill green">SCache O(1): ${(result.scacheBytesFinal / 1024).toFixed(1)} KB (Δ +${result.scacheDeltaBytes} B • ${result.sessionTokens} tok sessão)</span>
           <span class="pill blue">${result.decodeTokPerSec.toFixed(1)} tok/s WGSL</span>
           <span class="pill purple">${
             result.activeCapsules.length > 0
@@ -640,7 +676,7 @@
         `;
 
         logAudit(
-          `✅ <strong>[WGSL Concluído]</strong> ${result.generatedTokens} tokens a <strong>${result.decodeTokPerSec.toFixed(1)} tok/s</strong> • SCache O(1) travado em <code>${result.scacheBytesFinal.toLocaleString()} B</code> (<code>Δ = +${result.scacheDeltaBytes} B</code>) • Cones ativos: <code>${result.activeCapsules.length}</code>`,
+          `✅ <strong>[WGSL Turno ${result.turnIndex}]</strong> ${result.generatedTokens} tok a <strong>${result.decodeTokPerSec.toFixed(1)} tok/s</strong> • Sessão: <code>${result.sessionTokens} tok</code> → SCache O(1) travado em <code>${result.scacheBytesFinal.toLocaleString()} B</code> (<code>Δ = +${result.scacheDeltaBytes} B</code>) • Cones: <code>${result.activeCapsules.length}</code>`,
         );
         renderCapsules();
       } catch (err) {
@@ -651,6 +687,7 @@
         chatInput.disabled = false;
         btnSend.disabled = false;
         btnMultiHead.disabled = false;
+        btnResetChat.disabled = false;
         renderCapsules();
         chatInput.focus();
       }
@@ -665,10 +702,26 @@
 
     btnMultiHead.addEventListener("click", () => {
       if (busy) return;
+      const items = (engine && engine.scarStore && engine.scarStore.getCapsulesDirectory()) || [];
+      const bridgeCap = items.find((c) => (c.parent_capsules || []).length >= 2);
       const multiPrompt =
-        "Explain concisely what Landauer's principle states for erasing one bit at temperature T, and what the Fischer-Lynch-Paterson impossibility theorem proves about asynchronous consensus.";
+        (bridgeCap && bridgeCap.metadata && bridgeCap.metadata.example_prompt) ||
+        "Como o princípio de Landauer sobre apagamento irreversível de bits se conecta à contagem indutiva de estados no teorema de Immerman-Szelepcsényi (NL = coNL)?";
       chatInput.value = multiPrompt;
       runQuery(multiPrompt);
+    });
+
+    btnResetChat.addEventListener("click", () => {
+      if (busy || !engine) return;
+      engine.resetSCache();
+      chatBox.innerHTML = `
+        <div class="msg msg-assistant">
+          Sessão <code>SCache O(1)</code> reiniciada em <code>0 B</code> de realocação GPU (<code>${(engine.scacheGpuBytes / 1024).toFixed(1)} KB</code> fixos). Envie uma nova pergunta!
+        </div>
+      `;
+      elScacheDelta.textContent = `Δ Crescimento = +0 B (Sessão limpa)`;
+      logAudit(`🔄 <strong>[SCache O(1) Reset]</strong> Memória associativa zerada in-place sem realocação de buffers.`);
+      renderCapsules();
     });
 
     // Boot Engine
@@ -691,6 +744,7 @@
         chatInput.disabled = false;
         btnSend.disabled = false;
         btnMultiHead.disabled = false;
+        btnResetChat.disabled = false;
         renderCapsules();
 
         logAudit(

@@ -57,6 +57,17 @@ from scar_cache.head_expanded_attention import (
     HeadExpandedTelemetry,
     extract_head_expansion_modules,
 )
+from scar_cache.golden_slice_v4 import (
+    PARALLEL_CALIBRATION_QUADS,
+    UNIVERSAL_CHAT_SYSTEM_PROMPT,
+    GoldenSliceScarBank,
+    GoldenSliceScarStore,
+    GoldenSliceSynthesisEngine,
+    compute_horizon_scale,
+    extract_user_content_bounds,
+    format_universal_chatml,
+    golden_slice_layer_index,
+)
 from scar_cache.cli_scar_store import (
     HTTPRangeCapsuleClient,
     ScarStoreHTTPRangeServer,
@@ -172,6 +183,15 @@ __all__ = [
     "HeadExpandedAttentionEngine",
     "HeadExpandedScarStore",
     "extract_head_expansion_modules",
+    "UNIVERSAL_CHAT_SYSTEM_PROMPT",
+    "PARALLEL_CALIBRATION_QUADS",
+    "GoldenSliceScarBank",
+    "GoldenSliceSynthesisEngine",
+    "GoldenSliceScarStore",
+    "golden_slice_layer_index",
+    "format_universal_chatml",
+    "extract_user_content_bounds",
+    "compute_horizon_scale",
     "ScarStoreHTTPRangeServer",
     "HTTPRangeCapsuleClient",
     "ScarStoreQueryResult",

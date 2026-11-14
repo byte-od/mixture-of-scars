@@ -33,6 +33,7 @@ import urllib.request
 import torch
 import torch.nn as nn
 
+from scar_cache.golden_slice_v4 import UNIVERSAL_CHAT_SYSTEM_PROMPT
 from scar_cache.head_expanded_attention import (
     HeadExpandedAttentionEngine,
     HeadExpandedScarCapsule,
@@ -59,12 +60,23 @@ DEFAULT_CALIBRATION_PROMPTS: Tuple[str, ...] = (
     "Who wrote the Brazilian novel Dom Casmurro?",
 )
 
+DEFAULT_BILINGUAL_CALIBRATION_PROMPTS: Tuple[str, ...] = DEFAULT_CALIBRATION_PROMPTS + (
+    "Olá, tudo bem? Quem é você?",
+    "Qual a maior capital entre os países da América do Sul e da América do Norte?",
+    "Explique de forma simples como funciona a fotossíntese nas plantas.",
+    "O que prova o teorema de Pitágoras na geometria euclidiana plana?",
+    "Me fale sobre a segunda lei de Newton na mecânica clássica.",
+    "Como funciona o contrato de aluguel residencial no direito civil?",
+    "Qual linguagem de programação você prefere para scripts rápidos?",
+    "Qual a raiz quadrada de pi elevado ao quadrado?",
+)
+
 DEFAULT_SYSTEM_PROMPT = "Answer concisely in one precise technical sentence."
-PT_CHAT_SYSTEM_PROMPT = "Responda de forma concisa, direta e precisa em português."
+PT_CHAT_SYSTEM_PROMPT = "Você é o assistente local System One. Responda em português de forma clara, completa e precisa."
 
 _PT_DIACRITIC_RE = re.compile(r"[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]")
 _PT_WORD_RE = re.compile(
-    r"\b(ol[aá]|oi|tudo|bem|quem|voc[eê]|qual|quais|como|por\s*que|porque|explique|diferen[cç]a|entre|sobre|para|n[aã]o|s[aã]o|est[aá]|fale|resuma)\b",
+    r"\b(ol[aá]|oi|tudo|bem|quem|voc[eê]|qual|quais|como|por\s*que|porque|explique|diferen[cç]a|entre|sobre|para|n[aã]o|s[aã]o|est[aá]|fale|resuma|detalhe|seja|discorra|exemplo)\b",
     re.IGNORECASE,
 )
 
@@ -502,13 +514,24 @@ def generate_with_scar_store(
     prefill_chunk_size: int = 64,
     temperature: float = 0.0,
     format_chat: bool = True,
-    system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+    system_prompt: Optional[str] = None,
     http_client: Optional[HTTPRangeCapsuleClient] = None,
     persist_fetched: bool = False,
 ) -> Tuple[ScarStoreQueryResult, SCacheDynamicCache]:
-    """Executes chunked prefill + decode with `SCache O(1)` and `HeadExpandedScarStore` attached."""
+    """Executes chunked prefill + decode with `SCache O(1)` and `HeadExpandedScarStore` / `GoldenSliceScarStore` attached."""
     dev = _infer_model_device(student_model)
-    cache = scache if scache is not None else SCacheDynamicCache(window_size=window_size, num_slots=num_slots)
+    is_golden_v4 = getattr(store, "header", {}).get("format") == "GoldenSliceScarStoreV4"
+    eff_sys_prompt = (
+        system_prompt
+        if system_prompt is not None
+        else (UNIVERSAL_CHAT_SYSTEM_PROMPT if is_golden_v4 else DEFAULT_SYSTEM_PROMPT)
+    )
+    sink_toks = min(40, max(4, int(window_size) // 4)) if is_golden_v4 else 4
+    cache = (
+        scache
+        if scache is not None
+        else SCacheDynamicCache(window_size=window_size, num_slots=num_slots, num_sink_tokens=sink_toks)
+    )
     was_attached = store._norm_hook_handle is not None
     if not was_attached:
         store.attach(student_model)
@@ -516,8 +539,27 @@ def generate_with_scar_store(
     prior_http_count = len(http_client.fetch_events) if http_client is not None else 0
 
     try:
+        prior_kv_len = int(cache.get_seq_length()) if hasattr(cache, "get_seq_length") else 0
+        lock_turn_routing = False
+
         if isinstance(prompt_text_or_ids, str):
-            raw_str = format_chatml_prompt(prompt_text_or_ids, system_prompt=system_prompt) if format_chat else prompt_text_or_ids
+            if format_chat:
+                if prior_kv_len > 0:
+                    # Run a clean single-turn routing probe so prior multi-turn KV context never dilutes cone cosines!
+                    clean_str = format_chatml_prompt(prompt_text_or_ids, system_prompt=eff_sys_prompt)
+                    clean_ids = tokenizer(clean_str, return_tensors="pt").input_ids.to(dev)
+                    backbone_mod = getattr(student_model, "model", getattr(student_model, "transformer", student_model))
+                    try:
+                        backbone_mod(clean_ids, use_cache=False)
+                    except TypeError:
+                        backbone_mod(clean_ids)
+                    lock_turn_routing = True
+                    # Multi-turn continuation: append ONLY `<|im_start|>user...` without duplicating `<|im_start|>system`!
+                    raw_str = f"<|im_start|>user\n{prompt_text_or_ids}<|im_end|>\n<|im_start|>assistant\n"
+                else:
+                    raw_str = format_chatml_prompt(prompt_text_or_ids, system_prompt=eff_sys_prompt)
+            else:
+                raw_str = prompt_text_or_ids
             ids_2d = tokenizer(raw_str, return_tensors="pt").input_ids.to(dev)
         else:
             ids_2d = (prompt_text_or_ids if prompt_text_or_ids.ndim == 2 else prompt_text_or_ids.unsqueeze(0)).to(dev)
@@ -525,35 +567,61 @@ def generate_with_scar_store(
         eos_id = getattr(tokenizer, "eos_token_id", None)
         t0 = time.perf_counter()
 
-        seq_len = int(ids_2d.shape[1])
-        chunk_sz = max(1, int(prefill_chunk_size))
-        last_lg: Optional[torch.Tensor] = None
-        for st in range(0, seq_len, chunk_sz):
-            chunk = ids_2d[:, st : min(seq_len, st + chunk_sz)]
-            last_lg = _forward_last_token_logits(student_model, chunk, cache)
-        assert last_lg is not None
+        from contextlib import nullcontext
 
-        def _pick_token(lg_1d: torch.Tensor) -> int:
-            if temperature <= 1e-6:
-                return int(lg_1d.float().argmax(dim=-1).item())
-            probs = torch.softmax(lg_1d.float() / float(temperature), dim=-1)
-            return int(torch.multinomial(probs, num_samples=1).item())
+        route_ctx = store.locked_routing() if lock_turn_routing else nullcontext()
+        with route_ctx:
+            seq_len = int(ids_2d.shape[1])
+            chunk_sz = max(1, int(prefill_chunk_size))
+            last_lg: Optional[torch.Tensor] = None
+            for st in range(0, seq_len, chunk_sz):
+                chunk = ids_2d[:, st : min(seq_len, st + chunk_sz)]
+                last_lg = _forward_last_token_logits(student_model, chunk, cache)
+            assert last_lg is not None
 
-        nxt = _pick_token(last_lg[0])
-        t_after_first = time.perf_counter()
-        gen_ids: List[int] = [nxt]
-        for _ in range(max(0, int(max_new_tokens) - 1)):
-            if eos_id is not None and nxt == int(eos_id):
-                break
-            lg_step = _forward_last_token_logits(
-                student_model,
-                torch.tensor([[nxt]], dtype=torch.long, device=dev),
-                cache,
-            )[0]
-            nxt = _pick_token(lg_step)
-            gen_ids.append(nxt)
-            if eos_id is not None and nxt == int(eos_id):
-                break
+            def _pick_token(lg_1d: torch.Tensor) -> int:
+                if temperature <= 1e-6:
+                    return int(lg_1d.float().argmax(dim=-1).item())
+                probs = torch.softmax(lg_1d.float() / float(temperature), dim=-1)
+                return int(torch.multinomial(probs, num_samples=1).item())
+
+            nxt = _pick_token(last_lg[0])
+            t_after_first = time.perf_counter()
+            gen_ids: List[int] = [nxt]
+            fed_last = False
+            for _ in range(max(0, int(max_new_tokens) - 1)):
+                if eos_id is not None and nxt == int(eos_id):
+                    fed_last = False
+                    break
+                lg_step = _forward_last_token_logits(
+                    student_model,
+                    torch.tensor([[nxt]], dtype=torch.long, device=dev),
+                    cache,
+                )[0]
+                nxt = _pick_token(lg_step)
+                gen_ids.append(nxt)
+                if eos_id is not None and nxt == int(eos_id):
+                    fed_last = False
+                    break
+            else:
+                fed_last = False
+
+        # Close the assistant ChatML turn cleanly inside `SCache O(1)` so follow-up turns stay syntactically exact!
+        if format_chat and isinstance(prompt_text_or_ids, str):
+            close_tokens: List[int] = []
+            if gen_ids and not fed_last:
+                last_tok = gen_ids[-1]
+                if eos_id is None or last_tok != int(eos_id):
+                    close_tokens.append(int(last_tok))
+            close_suffix = tokenizer.encode("<|im_end|>\n", add_special_tokens=False)
+            close_tokens.extend(int(t) for t in close_suffix)
+            if close_tokens:
+                with store.paused():
+                    _forward_last_token_logits(
+                        student_model,
+                        torch.tensor([close_tokens], dtype=torch.long, device=dev),
+                        cache,
+                    )
 
         t_end = time.perf_counter()
         elapsed_s = max(1e-6, t_end - t0)

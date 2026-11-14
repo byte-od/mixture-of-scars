@@ -33,6 +33,9 @@ import torch
 import torch.nn.functional as F
 
 from scar_cache import (
+    DualDepthScarCapsule,
+    GoldenSliceScarBank,
+    GoldenSliceScarStore,
     HeadExpandedAttentionBank,
     HeadExpandedScarCapsule,
     HeadExpandedScarStore,
@@ -56,8 +59,8 @@ def _get_wgpu_device():
     return adapter.request_device_sync(required_limits={})
 
 
-def test_wgsl_shader_compiles_all_14_pipelines_with_zero_errors() -> None:
-    """Verifies `mos_scache_kernels.wgsl` compiles cleanly under strict WGSL 1.0 default limits."""
+def test_wgsl_shader_compiles_all_15_pipelines_with_zero_errors() -> None:
+    """Verifies `mos_scache_kernels.wgsl` compiles all 15 compute pipelines cleanly under strict WGSL 1.0 default limits."""
     device = _get_wgpu_device()
     shader = device.create_shader_module(code=WGSL_KERNELS_PATH.read_text(encoding="utf-8"))
     entry_points = (
@@ -72,6 +75,7 @@ def test_wgsl_shader_compiles_all_14_pipelines_with_zero_errors() -> None:
         "vec_add_inplace_f32",
         "vec_copy_f32",
         "head_expanded_scar_inject",
+        "golden_slice_scar_inject",
         "int4_vocab_logits_gemv",
         "logits_top2_reduce_stage1",
         "logits_top2_reduce_stage2",
@@ -664,4 +668,271 @@ def test_js_scarstore_http206_and_webgpu_module_bit_exact_parity(tmp_path: Path)
         assert res["afterWipeActive"] == 0
     finally:
         srv.stop()
+
+
+def test_wgsl_golden_slice_scar_inject_zero_bleed_and_dual_depth_parity() -> None:
+    """Proves `0.0000000000` bit-for-bit invariance (`M=0` and `horizon_scale=0`) & `M=2` numerical parity
+    of `golden_slice_scar_inject` WGSL shader against PyTorch."""
+    torch.manual_seed(20261114)
+    device = _get_wgpu_device()
+    U = wgpu.BufferUsage
+    shader = device.create_shader_module(code=WGSL_KERNELS_PATH.read_text(encoding="utf-8"))
+    pipe = device.create_compute_pipeline(
+        layout="auto", compute={"module": shader, "entry_point": "golden_slice_scar_inject"}
+    )
+
+    d, rank = 128, 12
+    mu_hm = torch.randn(d) * 0.1
+    mu_hf = torch.randn(d) * 0.1
+    cal_np = np.concatenate([mu_hf.numpy(), mu_hm.numpy()]).astype(np.float32)
+    cal_buf = device.create_buffer_with_data(data=cal_np.tobytes(), usage=U.STORAGE)
+
+    a1, b1 = (torch.randn(rank, d) * 0.06).to(torch.float16), (torch.randn(d, rank) * 0.06).to(torch.float16)
+    a2, b2 = (torch.randn(rank, d) * 0.06).to(torch.float16), (torch.randn(d, rank) * 0.06).to(torch.float16)
+    gates = [0.90, 0.60]
+    w_sum = sum(gates)
+    stride = 1 + 2 * rank * d
+    packed = np.zeros((2 * stride,), dtype=np.float32)
+    for idx, (a_m, b_m, g_v) in enumerate(((a1, b1, gates[0]), (a2, b2, gates[1]))):
+        base = idx * stride
+        packed[base] = g_v / w_sum
+        packed[base + 1 : base + stride] = np.concatenate([a_m.float().reshape(-1).numpy(), b_m.float().reshape(-1).numpy()])
+    caps_buf = device.create_buffer_with_data(data=packed.tobytes(), usage=U.STORAGE)
+    tel_buf = device.create_buffer(size=64, usage=U.STORAGE | U.COPY_SRC)
+
+    h_in = torch.randn(d, dtype=torch.float32)
+
+    # 1. M == 0 -> bit-for-bit untouched
+    h_buf_0 = device.create_buffer_with_data(data=h_in.numpy().tobytes(), usage=U.STORAGE | U.COPY_SRC)
+    u_m0 = device.create_buffer_with_data(data=_pack_kernel_params(p0=d, p1=rank, p2=0, p3=d, p4=0, f0=1.0), usage=U.UNIFORM)
+    bg0 = device.create_bind_group(
+        layout=pipe.get_bind_group_layout(0),
+        entries=[
+            {"binding": 0, "resource": {"buffer": u_m0, "offset": 0, "size": 64}},
+            {"binding": 3, "resource": {"buffer": cal_buf, "offset": 0, "size": cal_buf.size}},
+            {"binding": 5, "resource": {"buffer": caps_buf, "offset": 0, "size": caps_buf.size}},
+            {"binding": 6, "resource": {"buffer": h_buf_0, "offset": 0, "size": h_buf_0.size}},
+            {"binding": 7, "resource": {"buffer": tel_buf, "offset": 0, "size": 64}},
+        ],
+    )
+    enc0 = device.create_command_encoder()
+    cp0 = enc0.begin_compute_pass()
+    cp0.set_pipeline(pipe)
+    cp0.set_bind_group(0, bg0)
+    cp0.dispatch_workgroups(1, 1, 1)
+    cp0.end()
+    device.queue.submit([enc0.finish()])
+    assert np.array_equal(np.frombuffer(device.queue.read_buffer(h_buf_0), dtype=np.float32), h_in.numpy())
+
+    # 2. M == 2 with horizon_scale == 0.0 -> bit-for-bit untouched!
+    h_buf_z = device.create_buffer_with_data(data=h_in.numpy().tobytes(), usage=U.STORAGE | U.COPY_SRC)
+    u_mz = device.create_buffer_with_data(data=_pack_kernel_params(p0=d, p1=rank, p2=2, p3=d, p4=0, f0=0.0), usage=U.UNIFORM)
+    bgz = device.create_bind_group(
+        layout=pipe.get_bind_group_layout(0),
+        entries=[
+            {"binding": 0, "resource": {"buffer": u_mz, "offset": 0, "size": 64}},
+            {"binding": 3, "resource": {"buffer": cal_buf, "offset": 0, "size": cal_buf.size}},
+            {"binding": 5, "resource": {"buffer": caps_buf, "offset": 0, "size": caps_buf.size}},
+            {"binding": 6, "resource": {"buffer": h_buf_z, "offset": 0, "size": h_buf_z.size}},
+            {"binding": 7, "resource": {"buffer": tel_buf, "offset": 0, "size": 64}},
+        ],
+    )
+    encz = device.create_command_encoder()
+    cpz = encz.begin_compute_pass()
+    cpz.set_pipeline(pipe)
+    cpz.set_bind_group(0, bgz)
+    cpz.dispatch_workgroups(1, 1, 1)
+    cpz.end()
+    device.queue.submit([encz.finish()])
+    assert np.array_equal(np.frombuffer(device.queue.read_buffer(h_buf_z), dtype=np.float32), h_in.numpy())
+
+    # 3. M == 2 with horizon_scale == 0.75 -> exact numerical parity vs PyTorch (`cos > 0.999999`)!
+    hw = 0.75
+    w_sum = sum(gates)  # 1.50 > 1.0 -> normalized by w_sum
+    hc = h_in - mu_hm
+    ref_out = h_in + hw * (
+        (gates[0] / w_sum) * (b1.float() @ (a1.float() @ hc))
+        + (gates[1] / w_sum) * (b2.float() @ (a2.float() @ hc))
+    )
+    h_buf_2 = device.create_buffer_with_data(data=h_in.numpy().tobytes(), usage=U.STORAGE | U.COPY_SRC)
+    u_m2 = device.create_buffer_with_data(data=_pack_kernel_params(p0=d, p1=rank, p2=2, p3=d, p4=1, f0=hw), usage=U.UNIFORM)
+    bg2 = device.create_bind_group(
+        layout=pipe.get_bind_group_layout(0),
+        entries=[
+            {"binding": 0, "resource": {"buffer": u_m2, "offset": 0, "size": 64}},
+            {"binding": 3, "resource": {"buffer": cal_buf, "offset": 0, "size": cal_buf.size}},
+            {"binding": 5, "resource": {"buffer": caps_buf, "offset": 0, "size": caps_buf.size}},
+            {"binding": 6, "resource": {"buffer": h_buf_2, "offset": 0, "size": h_buf_2.size}},
+            {"binding": 7, "resource": {"buffer": tel_buf, "offset": 0, "size": 64}},
+        ],
+    )
+    enc2 = device.create_command_encoder()
+    cp2 = enc2.begin_compute_pass()
+    cp2.set_pipeline(pipe)
+    cp2.set_bind_group(0, bg2)
+    cp2.dispatch_workgroups(1, 1, 1)
+    cp2.end()
+    device.queue.submit([enc2.finish()])
+    gpu_out = torch.from_numpy(np.frombuffer(device.queue.read_buffer(h_buf_2), dtype=np.float32).copy())
+    cos = float(F.cosine_similarity(ref_out.unsqueeze(0), gpu_out.unsqueeze(0)).item())
+    assert cos > 0.999999
+    assert float((ref_out - gpu_out).abs().max().item()) < 5e-5
+
+
+def test_js_golden_slice_v4_http206_p_perp_lang_and_dual_int4_parity(tmp_path: Path) -> None:
+    """Executes `scarstore_http206_browser.js` in Node.js on a `GoldenSliceScarStoreV4` export, proving
+    bit-exact `P_perp_lang` cross-lingual projection + `(midFloats, finalFloats)` `HTTP 206` unpacking!"""
+    node_bin = shutil.which("node")
+    if node_bin is None:
+        pytest.skip("Node.js not available.")
+
+    torch.manual_seed(20261114)
+    d, rank_mid, rank_final, k_lang = 128, 12, 20, 4
+    u_lang, _ = torch.linalg.qr(torch.randn(d, k_lang))
+    concept = F.normalize(torch.randn(d), dim=-1) * 2.0
+    bank = GoldenSliceScarBank(
+        hidden_dim=d,
+        num_layers=6,
+        mid_layer_idx=3,
+        num_heads=4,
+        head_dim=32,
+        mu_query_mid=torch.zeros(d),
+        u_lang_mid=u_lang,
+        mu_hidden_mid=torch.zeros(d),
+        u_preserved_mid=torch.zeros(d, 0),
+        mu_hidden_final=torch.zeros(d),
+        u_preserved_final=torch.zeros(d, 0),
+        rank_mid=rank_mid,
+        rank_final=rank_final,
+    )
+    z_anc = F.normalize(bank.project_lang_free(concept), dim=-1).to(torch.float16)
+    cap = DualDepthScarCapsule(
+        capsule_id="js_golden_v4_cap",
+        z_anchor_mid=z_anc,
+        A_mid=(torch.randn(rank_mid, d) * 0.05).to(torch.float16),
+        B_mid=(torch.randn(d, rank_mid) * 0.05).to(torch.float16),
+        A_final=(torch.randn(rank_final, d) * 0.05).to(torch.float16),
+        B_final=(torch.randn(d, rank_final) * 0.05).to(torch.float16),
+        tau=0.45,
+        ramp=0.10,
+    )
+    bank.add_capsule(cap)
+    store_file = tmp_path / "js_v4.scarstore"
+    store = GoldenSliceScarStore.build_from_bank(bank, store_file)
+    raw0 = store.read_raw_slot_bytes(0)
+    store.close()
+
+    router_info = export_scarstore_for_webgpu(store_file, tmp_path, copy_payload_store=True)
+    assert router_info["routing_architecture"] == "golden_slice_v4"
+    rec_bytes = int(router_info["record_bytes"])
+
+    py_deq = DualDepthScarCapsule.from_int4_bytes(
+        raw0, "js_golden_v4_cap", hidden_dim=d, rank_mid=rank_mid, rank_final=rank_final
+    )
+    py_mid = np.concatenate([py_deq.A_mid.float().reshape(-1).numpy(), py_deq.B_mid.float().reshape(-1).numpy()])
+    py_fin = np.concatenate([py_deq.A_final.float().reshape(-1).numpy(), py_deq.B_final.float().reshape(-1).numpy()])
+
+    # Add a large shift strictly inside `span(u_lang)`: JS `P_perp_lang` must cancel it to `gate == 1.0`!
+    lang_shift = u_lang @ (torch.randn(k_lang) * 5.0)
+    probe_pt = (concept + lang_shift).tolist()
+
+    srv = WebGPUStaticRangeServer(bundle_dir=tmp_path, host="127.0.0.1", port=0)
+    base_url = srv.start(background=True)
+    try:
+        scar_js = (WEBGPU_APP_DIR / "scarstore_http206_browser.js").as_uri()
+        js_code = f"""
+        import {{ BrowserScarStoreHTTP206 }} from {json.dumps(scar_js)};
+        const store = await BrowserScarStoreHTTP206.load({json.dumps(base_url + "/scarstore_router.json")});
+        const xin = new Float32Array({json.dumps(probe_pt)});
+        const routed = await store.routeAndFetchActiveCapsules(xin, 1);
+        const first = routed.active[0];
+        console.log(JSON.stringify({{
+          isGolden: store.isGoldenSliceV4,
+          numActive: routed.active.length,
+          gate: first.gate,
+          turnBytes: routed.turnBytesFetched,
+          httpStatus: routed.httpEvents[0].status,
+          midLen: first.midFloats.length,
+          finLen: first.finalFloats.length,
+          midHead8: Array.from(first.midFloats.slice(0, 8)),
+          finHead8: Array.from(first.finalFloats.slice(0, 8))
+        }}));
+        """
+        proc = subprocess.run([node_bin, "--input-type=module", "-e", js_code], check=True, capture_output=True, text=True)
+        res = json.loads(proc.stdout)
+        assert res["isGolden"] is True
+        assert res["numActive"] == 1
+        assert abs(res["gate"] - 1.0) < 1e-4
+        assert res["turnBytes"] == rec_bytes
+        assert res["httpStatus"] == 206
+        assert res["midLen"] == int(py_mid.size)
+        assert res["finLen"] == int(py_fin.size)
+        assert np.allclose(np.asarray(res["midHead8"], dtype=np.float32), py_mid[:8], atol=1e-4)
+        assert np.allclose(np.asarray(res["finHead8"], dtype=np.float32), py_fin[:8], atol=1e-4)
+    finally:
+        srv.stop()
+
+
+def test_webgpu_multiturn_scache_persistent_session_and_polyglot_http206_routing() -> None:
+    """Verifies multi-turn `NativeWebGPUMoSEngine.generate(..., reset_cache=False)` maintains `ΔBytes == 0`
+    while routing ONE SINGLE `62,720 B` Universal Golden-Slice v4.0 cartridge across PT, EN, ES, and FR!"""
+    bundle_dir = REPO_ROOT / "webgpu_dist" / "qwen0p5b"
+    router_json = bundle_dir / "scarstore_router.json"
+    if not (bundle_dir / "webgpu_manifest.json").exists() or not router_json.exists():
+        pytest.skip("Exported qwen0p5b WebGPU bundle not present.")
+
+    rmeta = json.loads(router_json.read_text(encoding="utf-8"))
+    cap_ids = {c["capsule_id"] for c in rmeta.get("capsules", [])}
+    if "concept_mos_scache_architecture" not in cap_ids:
+        pytest.skip("Universal Golden-Slice v4.0 cartridges not yet exported to webgpu_dist/qwen0p5b.")
+
+    srv = WebGPUStaticRangeServer(bundle_dir=bundle_dir, host="127.0.0.1", port=0)
+    base_url = srv.start(background=True)
+    try:
+        def _range_fetch(start: int, length: int) -> bytes:
+            req = urllib.request.Request(
+                f"{base_url}/capsules.scarstore",
+                headers={"Range": f"bytes={start}-{start + length - 1}"},
+            )
+            with urllib.request.urlopen(req) as resp:
+                assert resp.status == 206
+                return resp.read()
+
+        eng = NativeWebGPUMoSEngine(bundle_dir=bundle_dir, capsule_range_fetcher=_range_fetch)
+        b0 = eng.scache_gpu_bytes
+
+        # Turn 1: casual PT-BR greeting -> 0 active capsules, 0 B HTTP 206, session_pos > 0
+        r1 = eng.generate("Olá, bom dia! Quem é você?", max_new_tokens=20, reset_cache=True)
+        assert r1.scache_delta_bytes == 0 and eng.scache_gpu_bytes == b0
+        assert len(r1.active_capsules) == 0
+        assert r1.http206_bytes_fetched == 0
+        pos_after_t1 = eng.session_pos
+        assert pos_after_t1 > 10
+
+        # Turn 2 (`reset_cache=False`!): PT-BR architecture query -> streams `concept_mos_scache_architecture` (62,720 B) via HTTP 206!
+        r2 = eng.generate("Qual arquitetura você usa?", max_new_tokens=44, reset_cache=False)
+        assert r2.scache_delta_bytes == 0 and eng.scache_gpu_bytes == b0
+        assert eng.session_pos > pos_after_t1
+        assert "concept_mos_scache_architecture" in r2.active_capsules
+        assert r2.http206_bytes_fetched == 62720
+        assert "Mixture of Scars" in r2.answer
+
+        # Turn 3 (`reset_cache=False`!): Spanish Landauer query -> streams `concept_landauer_principle` (62,720 B) via HTTP 206!
+        pos_after_t2 = eng.session_pos
+        r3 = eng.generate("Explícame el principio de Landauer en la física de la información.", max_new_tokens=44, reset_cache=False)
+        assert r3.scache_delta_bytes == 0 and eng.scache_gpu_bytes == b0
+        assert eng.session_pos > pos_after_t2
+        assert "concept_landauer_principle" in r3.active_capsules
+        assert r3.http206_bytes_fetched == 2 * 62720
+        assert "ln 2" in r3.answer
+
+        # French query on that EXACT SAME already-cached `concept_mos_scache_architecture` cartridge (`0` extra HTTP 206 bytes!)
+        r4 = eng.generate("Quelle architecture utilisez-vous ?", max_new_tokens=44, reset_cache=True)
+        assert r4.scache_delta_bytes == 0 and eng.scache_gpu_bytes == b0
+        assert "concept_mos_scache_architecture" in r4.active_capsules
+        assert r4.http206_bytes_fetched == 0  # Zero extra bytes downloaded!
+        assert "Mixture of Scars" in r4.answer
+    finally:
+        srv.stop()
+
 

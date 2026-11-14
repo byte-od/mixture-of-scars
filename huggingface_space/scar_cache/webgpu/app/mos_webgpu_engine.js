@@ -1,10 +1,17 @@
 // ============================================================================
 // Native In-Browser WebGPU Engine (`MoS INT4+ASVD` + `SCache O(1)` + `ScarStore`)
 // Zero Python Backend, Zero ONNX / O(T) KV Facades, 100% Custom WGSL 1.0 Shaders
+// Supports `GoldenSliceScarStoreV4` (EN/PT/ES/FR Cross-Lingual) & `HeadExpandedV3`
 // ============================================================================
 
 import { QwenBPETokenizer, selectChatSystemPrompt } from "./qwen_bpe_tokenizer.js";
-import { BrowserScarStoreHTTP206, findSubsequenceLastEnd } from "./scarstore_http206_browser.js";
+import {
+  BrowserScarStoreHTTP206,
+  UNIVERSAL_CHAT_SYSTEM_PROMPT,
+  computeHorizonScale,
+  extractUserContentBounds,
+  findSubsequenceLastEnd,
+} from "./scarstore_http206_browser.js";
 
 const MAX_ROUTING_USER_TOKENS = 192;
 const PREFILL_BATCH_TOKENS = 128;
@@ -85,6 +92,7 @@ export class BrowserMoSWebGPUEngine {
       "vec_add_inplace_f32",
       "vec_copy_f32",
       "head_expanded_scar_inject",
+      "golden_slice_scar_inject",
       "int4_vocab_logits_gemv",
       "logits_top2_reduce_stage1",
       "logits_top2_reduce_stage2",
@@ -132,11 +140,10 @@ export class BrowserMoSWebGPUEngine {
       .filter(Boolean)
       .join(" • ") || "WebGPU Hardware Adapter";
 
-    // Universal WebGPU 1.0 default limits (every shard is strictly < 80 MiB <= 128 MiB!)
     const device = await adapter.requestDevice();
 
     const cleanBase = baseUrl.replace(/\/$/, "");
-    report("manifest", 5, "Carregando manifesto WebGPU + kernels WGSL 1.0...");
+    report("manifest", 5, "Carregando manifesto WebGPU + 15 kernels WGSL 1.0...");
     const [manifestResp, wgslResp] = await Promise.all([
       fetch(`${cleanBase}/webgpu_manifest.json`),
       fetch(`${cleanBase}/mos_scache_kernels.wgsl`),
@@ -147,7 +154,6 @@ export class BrowserMoSWebGPUEngine {
     const manifest = await manifestResp.json();
     const wgslSource = await wgslResp.text();
 
-    // Check WGSL compilation messages upfront
     const testMod = device.createShaderModule({ code: wgslSource });
     if (typeof testMod.getCompilationInfo === "function") {
       const comp = await testMod.getCompilationInfo();
@@ -159,7 +165,7 @@ export class BrowserMoSWebGPUEngine {
       }
     }
 
-    report("tokenizer", 10, "Inicializando tokenizador BPE Qwen2.5 + roteador ScarStore (42 KB)...");
+    report("tokenizer", 10, "Inicializando tokenizador BPE Qwen2.5 + roteador Golden-Slice v4.0...");
     const [tokenizer, scarStore] = await Promise.all([
       QwenBPETokenizer.fromUrl(`${cleanBase}/${manifest.tokenizer_file}`),
       manifest.scarstore_router_file
@@ -194,7 +200,7 @@ export class BrowserMoSWebGPUEngine {
       loadedBytes += arrBuf.byteLength;
     }
 
-    report("compile", 96, "Construindo pipelines WGSL e buffers fixos SCache O(1)...");
+    report("compile", 96, "Construindo 15 pipelines WGSL e buffers fixos SCache O(1)...");
     const engine = new BrowserMoSWebGPUEngine({
       device,
       adapterLabel,
@@ -204,7 +210,7 @@ export class BrowserMoSWebGPUEngine {
       scarStore,
       shardBuffers,
     });
-    report("ready", 100, "Motor WebGPU MoS + SCache O(1) pronto!");
+    report("ready", 100, "Motor WebGPU MoS + SCache O(1) + Golden-Slice v4.0 pronto!");
     return engine;
   }
 
@@ -239,6 +245,25 @@ export class BrowserMoSWebGPUEngine {
     this._zeroKvBytes = new Uint8Array(this.scacheKvBuf.size);
     this._zeroWScarBytes = new Uint8Array(this.scacheWScarBuf.size);
     this._zeroSalBytes = new Uint8Array(this.scacheSalienceBuf.size);
+
+    this.scacheKvSnapBuf = this.device.createBuffer({
+      label: "scache_kv_snap",
+      size: this.scacheKvBuf.size,
+      usage: U.COPY_DST | U.COPY_SRC,
+    });
+    this.scacheWScarSnapBuf = this.device.createBuffer({
+      label: "scache_w_scar_snap",
+      size: this.scacheWScarBuf.size,
+      usage: U.COPY_DST | U.COPY_SRC,
+    });
+    this.scacheSalSnapBuf = this.device.createBuffer({
+      label: "scache_sal_snap",
+      size: this.scacheSalienceBuf.size,
+      usage: U.COPY_DST | U.COPY_SRC,
+    });
+    this.turnSuffixIds = this.tokenizer.encode("<|im_end|>\n");
+    this.sessionPos = 0;
+    this.turnCount = 0;
 
     const qDim = this.numQHeads * this.headDim;
     const kvDim = this.numKvHeads * this.headDim;
@@ -284,7 +309,15 @@ export class BrowserMoSWebGPUEngine {
     this.top2OutBuf = this.device.createBuffer({ size: 16, usage: U.STORAGE | U.COPY_SRC });
     this.readbackTop2Buf = this.device.createBuffer({ size: 16, usage: U.COPY_DST | U.MAP_READ });
 
-    // ScarStore calibration & `+M` dynamic capsules buffers
+    this.isGoldenSliceV4 = Boolean(this.scarStore && this.scarStore.isGoldenSliceV4);
+    this.midLayerIdx = this.isGoldenSliceV4
+      ? this.scarStore.midLayerIdx
+      : Math.max(0, this.numLayers - 2);
+    this.scarRankMid = this.isGoldenSliceV4 ? this.scarStore.rankMid : 0;
+    this.scarRankFinal = this.isGoldenSliceV4 ? this.scarStore.rankFinal : 0;
+    this.seedHorizon = this.isGoldenSliceV4 ? this.scarStore.seedHorizon : 0;
+    this.seedFadeSteps = this.isGoldenSliceV4 ? this.scarStore.seedFadeSteps : 0;
+
     const calF32 = this.scarStore
       ? this.scarStore.getCalibrationBufferF32()
       : new Float32Array(this.hiddenDim + qDim);
@@ -297,8 +330,15 @@ export class BrowserMoSWebGPUEngine {
     this.scarRank = this.scarStore ? this.scarStore.rank : 60;
     this.scarNumProto = this.scarStore ? this.scarStore.numPrototypes : 8;
     this.scarBeta = this.scarStore ? this.scarStore.attentionBeta : 14.0;
-    this.scarCapStride = 1 + 2 * (this.scarRank * this.hiddenDim) + this.scarNumProto * qDim;
+    this.scarMidStride = this.scarStore ? this.scarStore.getMidCapsuleStrideFloats() : 1;
+    this.scarCapStride = this.scarStore
+      ? this.scarStore.getCapsuleStrideFloats()
+      : 1 + 2 * (this.scarRank * this.hiddenDim) + this.scarNumProto * qDim;
 
+    this.activeMidCapsulesBuf = this.device.createBuffer({
+      size: Math.max(64, 8 * this.scarMidStride * 4),
+      usage: U.STORAGE | U.COPY_DST,
+    });
     this.activeCapsulesBuf = this.device.createBuffer({
       size: Math.max(64, 8 * this.scarCapStride * 4),
       usage: U.STORAGE | U.COPY_DST,
@@ -310,6 +350,10 @@ export class BrowserMoSWebGPUEngine {
     this.readbackScarTelBuf = this.device.createBuffer({
       size: 64,
       usage: U.COPY_DST | U.MAP_READ,
+    });
+    this.scarMidUniform = this.device.createBuffer({
+      size: 64,
+      usage: U.UNIFORM | U.COPY_DST,
     });
     this.scarInjectUniform = this.device.createBuffer({
       size: 64,
@@ -538,18 +582,44 @@ export class BrowserMoSWebGPUEngine {
       1,
     ];
 
-    this.scarInjectOp = [
-      "head_expanded_scar_inject",
-      this._bg("head_expanded_scar_inject", {
-        0: this.scarInjectUniform,
-        3: this.scarCalibBuf,
-        4: this.qUnropedLastBuf,
-        5: this.activeCapsulesBuf,
-        6: this.normBuf,
-        7: this.scarTelemetryBuf,
-      }),
-      1,
-    ];
+    if (this.isGoldenSliceV4) {
+      this.scarMidInjectOp = [
+        "golden_slice_scar_inject",
+        this._bg("golden_slice_scar_inject", {
+          0: this.scarMidUniform,
+          3: this.scarCalibBuf,
+          5: this.activeMidCapsulesBuf,
+          6: this.hCurBuf,
+          7: this.scarTelemetryBuf,
+        }),
+        1,
+      ];
+      this.scarInjectOp = [
+        "golden_slice_scar_inject",
+        this._bg("golden_slice_scar_inject", {
+          0: this.scarInjectUniform,
+          3: this.scarCalibBuf,
+          5: this.activeCapsulesBuf,
+          6: this.normBuf,
+          7: this.scarTelemetryBuf,
+        }),
+        1,
+      ];
+    } else {
+      this.scarMidInjectOp = null;
+      this.scarInjectOp = [
+        "head_expanded_scar_inject",
+        this._bg("head_expanded_scar_inject", {
+          0: this.scarInjectUniform,
+          3: this.scarCalibBuf,
+          4: this.qUnropedLastBuf,
+          5: this.activeCapsulesBuf,
+          6: this.normBuf,
+          7: this.scarTelemetryBuf,
+        }),
+        1,
+      ];
+    }
 
     this.lmHeadOps = [];
     for (const ch of this.manifest.lm_head_chunks) {
@@ -594,9 +664,59 @@ export class BrowserMoSWebGPUEngine {
     ];
   }
 
-  _setActiveCapsulesGpu(activeCapsules) {
+  _updateHorizonScaleGpu(stepIdx) {
+    if (!this.isGoldenSliceV4) return;
+    const hw = computeHorizonScale(stepIdx, this.seedHorizon, this.seedFadeSteps);
+    const mAct = this.currentMActive;
+    const uMid = packKernelParams(
+      { p0: this.hiddenDim, p1: this.scarRankMid, p2: mAct, p3: 0 },
+      { f0: hw },
+    );
+    const uFin = packKernelParams(
+      { p0: this.hiddenDim, p1: this.scarRankFinal, p2: mAct, p3: this.hiddenDim },
+      { f0: hw },
+    );
+    this.device.queue.writeBuffer(this.scarMidUniform, 0, uMid);
+    this.device.queue.writeBuffer(this.scarInjectUniform, 0, uFin);
+  }
+
+  _setActiveCapsulesGpu(activeCapsules, horizonScale = 1.0) {
     const mAct = Math.min(8, activeCapsules.length);
     this.currentMActive = mAct;
+
+    if (this.isGoldenSliceV4) {
+      if (mAct > 0) {
+        let wSum = 0.0;
+        for (let i = 0; i < mAct; i++) wSum += activeCapsules[i].gate;
+        const normDiv = mAct > 1 && wSum > 1.0 ? wSum : 1.0;
+
+        const pkMid = new Float32Array(mAct * this.scarMidStride);
+        const pkFin = new Float32Array(mAct * this.scarCapStride);
+        for (let i = 0; i < mAct; i++) {
+          const effG = activeCapsules[i].gate / normDiv;
+          const bMid = i * this.scarMidStride;
+          const bFin = i * this.scarCapStride;
+          pkMid[bMid] = effG;
+          pkMid.set(activeCapsules[i].midFloats, bMid + 1);
+          pkFin[bFin] = effG;
+          pkFin.set(activeCapsules[i].finalFloats, bFin + 1);
+        }
+        this.device.queue.writeBuffer(this.activeMidCapsulesBuf, 0, pkMid);
+        this.device.queue.writeBuffer(this.activeCapsulesBuf, 0, pkFin);
+      }
+      const uMid = packKernelParams(
+        { p0: this.hiddenDim, p1: this.scarRankMid, p2: mAct, p3: 0 },
+        { f0: horizonScale },
+      );
+      const uFin = packKernelParams(
+        { p0: this.hiddenDim, p1: this.scarRankFinal, p2: mAct, p3: this.hiddenDim },
+        { f0: horizonScale },
+      );
+      this.device.queue.writeBuffer(this.scarMidUniform, 0, uMid);
+      this.device.queue.writeBuffer(this.scarInjectUniform, 0, uFin);
+      return;
+    }
+
     if (mAct > 0) {
       const packed = new Float32Array(mAct * this.scarCapStride);
       for (let i = 0; i < mAct; i++) {
@@ -625,6 +745,8 @@ export class BrowserMoSWebGPUEngine {
     this.device.queue.writeBuffer(this.scacheWScarBuf, 0, this._zeroWScarBytes);
     this.device.queue.writeBuffer(this.scacheSalienceBuf, 0, this._zeroSalBytes);
     this._setActiveCapsulesGpu([]);
+    this.sessionPos = 0;
+    this.turnCount = 0;
   }
 
   _recordOps(cpass, ops) {
@@ -634,6 +756,106 @@ export class BrowserMoSWebGPUEngine {
       cpass.setBindGroup(0, bg);
       cpass.dispatchWorkgroups(wgs, 1, 1);
     }
+  }
+
+  _submitPrefillSequence(tokenIds, basePos, qStart, captureXIn, qEnd = null) {
+    const lp = tokenIds.length;
+    const effQEnd = qEnd === null ? lp : Math.min(lp, Math.max(qStart + 1, qEnd));
+    const splitIdx = this.isGoldenSliceV4 ? this.midLayerIdx : this.numLayers - 2;
+
+    for (let batchStart = 0; batchStart < lp; batchStart += PREFILL_BATCH_TOKENS) {
+      const batchEnd = Math.min(lp, batchStart + PREFILL_BATCH_TOKENS);
+      const batchLen = batchEnd - batchStart;
+      const stepsU32 = new Uint32Array(batchLen * 4);
+      for (let i = 0; i < batchLen; i++) {
+        const relPos = batchStart + i;
+        stepsU32[i * 4 + 0] = tokenIds[relPos];
+        stepsU32[i * 4 + 1] = basePos + relPos;
+      }
+      this.device.queue.writeBuffer(this.prefillStepsBuf, 0, stepsU32);
+
+      const enc = this.device.createCommandEncoder();
+      for (let i = 0; i < batchLen; i++) {
+        const relPos = batchStart + i;
+        enc.copyBufferToBuffer(this.prefillStepsBuf, i * 16, this.stepStateBuf, 0, 16);
+
+        if (relPos < lp - 1) {
+          if (captureXIn && relPos >= qStart && relPos < effQEnd) {
+            const cpassPre = enc.beginComputePass();
+            this._recordOps(cpassPre, this.embedOps);
+            for (let l = 0; l <= splitIdx; l++) {
+              this._recordOps(cpassPre, this.layerOps[l]);
+            }
+            cpassPre.end();
+
+            const uSlot = relPos - qStart;
+            enc.copyBufferToBuffer(
+              this.hCurBuf,
+              0,
+              this.prefillXInReadBuf,
+              uSlot * this.hiddenDim * 4,
+              this.hiddenDim * 4,
+            );
+
+            const cpassUpper = enc.beginComputePass();
+            for (let l = splitIdx + 1; l < this.numLayers; l++) {
+              this._recordOps(cpassUpper, this.layerOps[l]);
+            }
+            cpassUpper.end();
+          } else {
+            const cpass = enc.beginComputePass();
+            this._recordOps(cpass, this.embedOps);
+            for (let l = 0; l < this.numLayers; l++) {
+              this._recordOps(cpass, this.layerOps[l]);
+            }
+            cpass.end();
+          }
+        } else {
+          // Final prompt token `lp - 1`: stop right after `layers[splitIdx]` so `encTail` finishes uniformly
+          const cpassPre = enc.beginComputePass();
+          this._recordOps(cpassPre, this.embedOps);
+          for (let l = 0; l <= splitIdx; l++) {
+            this._recordOps(cpassPre, this.layerOps[l]);
+          }
+          cpassPre.end();
+
+          if (captureXIn && relPos >= qStart && relPos < effQEnd) {
+            const uSlot = relPos - qStart;
+            enc.copyBufferToBuffer(
+              this.hCurBuf,
+              0,
+              this.prefillXInReadBuf,
+              uSlot * this.hiddenDim * 4,
+              this.hiddenDim * 4,
+            );
+          }
+        }
+      }
+      this.device.queue.submit([enc.finish()]);
+    }
+  }
+
+  _flushClosingTokensToSCache(closingIds, startPos) {
+    if (!closingIds || closingIds.length === 0) return startPos;
+    const len = closingIds.length;
+    const stepsU32 = new Uint32Array(len * 4);
+    for (let i = 0; i < len; i++) {
+      stepsU32[i * 4 + 0] = closingIds[i];
+      stepsU32[i * 4 + 1] = startPos + i;
+    }
+    this.device.queue.writeBuffer(this.prefillStepsBuf, 0, stepsU32);
+    const enc = this.device.createCommandEncoder();
+    for (let i = 0; i < len; i++) {
+      enc.copyBufferToBuffer(this.prefillStepsBuf, i * 16, this.stepStateBuf, 0, 16);
+      const cpass = enc.beginComputePass();
+      this._recordOps(cpass, this.embedOps);
+      for (let l = 0; l < this.numLayers; l++) {
+        this._recordOps(cpass, this.layerOps[l]);
+      }
+      cpass.end();
+    }
+    this.device.queue.submit([enc.finish()]);
+    return startPos + len;
   }
 
   async _readTop2AndTelemetry() {
@@ -652,7 +874,7 @@ export class BrowserMoSWebGPUEngine {
 
     let spread = 0.0;
     let stepWeights = null;
-    if (this.currentMActive >= 2) {
+    if (!this.isGoldenSliceV4 && this.currentMActive >= 2) {
       await this.readbackScarTelBuf.mapAsync(GPUMapMode.READ, 0, 64);
       const telRaw = this.readbackScarTelBuf.getMappedRange(0, 64).slice(0);
       this.readbackScarTelBuf.unmap();
@@ -665,130 +887,134 @@ export class BrowserMoSWebGPUEngine {
 
   async generate(userQuery, options = {}) {
     const {
-      maxNewTokens = 72,
+      maxNewTokens = 224,
       enableScarStore = true,
+      resetCache = false,
       systemPrompt = null,
       onToken = null,
       onRouting = null,
       signal = null,
     } = options;
 
-    const sysTxt = systemPrompt ?? selectChatSystemPrompt(userQuery);
-    const promptIds = this.tokenizer.applyChatTemplate(
+    if (resetCache) {
+      this.resetSCache();
+    }
+
+    const basePos = this.sessionPos;
+    const sysTxt =
+      systemPrompt ??
+      (this.isGoldenSliceV4 ? UNIVERSAL_CHAT_SYSTEM_PROMPT : selectChatSystemPrompt(userQuery));
+    const cleanProbeIds = this.tokenizer.applyChatTemplate(
       [
         { role: "system", content: sysTxt },
         { role: "user", content: userQuery },
       ],
       true,
     );
-    const lp = promptIds.length;
-    const rawQStart = Math.min(findSubsequenceLastEnd(promptIds, this.userTurnPrefixIds), Math.max(0, lp - 1));
-    const qStart = Math.max(rawQStart, lp - MAX_ROUTING_USER_TOKENS);
-    const lu = Math.max(1, lp - qStart);
+    const lpProbe = cleanProbeIds.length;
+    let qStartProbe = 0;
+    let qEndProbe = lpProbe;
+    if (this.isGoldenSliceV4) {
+      const bounds = extractUserContentBounds(
+        cleanProbeIds,
+        this.userTurnPrefixIds,
+        this.scarStore ? this.scarStore.userTurnSuffixIds : null,
+      );
+      qEndProbe = bounds.qEnd;
+      qStartProbe = Math.max(bounds.qStart, qEndProbe - MAX_ROUTING_USER_TOKENS);
+    } else {
+      const rawQStartProbe = Math.min(
+        findSubsequenceLastEnd(cleanProbeIds, this.userTurnPrefixIds),
+        Math.max(0, lpProbe - 1),
+      );
+      qStartProbe = Math.max(rawQStartProbe, lpProbe - MAX_ROUTING_USER_TOKENS);
+      qEndProbe = lpProbe;
+    }
+    const luProbe = Math.max(1, qEndProbe - qStartProbe);
 
-    this.resetSCache();
+    const promptIds =
+      basePos === 0
+        ? cleanProbeIds
+        : this.tokenizer.encode(`<|im_start|>user\n${userQuery}<|im_end|>\n<|im_start|>assistant\n`);
+    const lp = promptIds.length;
     const scacheBytesInitial = this.scacheGpuBytes;
 
     const t0 = performance.now();
-    // Chunked prefill submission (<= PREFILL_BATCH_TOKENS per command encoder) with zero mapAsync stalls!
-    for (let batchStart = 0; batchStart < lp; batchStart += PREFILL_BATCH_TOKENS) {
-      const batchEnd = Math.min(lp, batchStart + PREFILL_BATCH_TOKENS);
-      const batchLen = batchEnd - batchStart;
-      const stepsU32 = new Uint32Array(batchLen * 4);
-      for (let i = 0; i < batchLen; i++) {
-        const pos = batchStart + i;
-        stepsU32[i * 4 + 0] = promptIds[pos];
-        stepsU32[i * 4 + 1] = pos;
-      }
-      this.device.queue.writeBuffer(this.prefillStepsBuf, 0, stepsU32);
-
-      const enc = this.device.createCommandEncoder();
-      for (let i = 0; i < batchLen; i++) {
-        const pos = batchStart + i;
-        enc.copyBufferToBuffer(this.prefillStepsBuf, i * 16, this.stepStateBuf, 0, 16);
-
-        if (pos < lp - 1) {
-          if (pos >= qStart) {
-            const cpassPre = enc.beginComputePass();
-            this._recordOps(cpassPre, this.embedOps);
-            for (let l = 0; l < this.numLayers - 1; l++) {
-              this._recordOps(cpassPre, this.layerOps[l]);
-            }
-            cpassPre.end();
-
-            const uSlot = pos - qStart;
-            enc.copyBufferToBuffer(
-              this.hCurBuf,
-              0,
-              this.prefillXInReadBuf,
-              uSlot * this.hiddenDim * 4,
-              this.hiddenDim * 4,
-            );
-
-            const cpassLast = enc.beginComputePass();
-            this._recordOps(cpassLast, this.layerOps[this.numLayers - 1]);
-            cpassLast.end();
-          } else {
-            const cpass = enc.beginComputePass();
-            this._recordOps(cpass, this.embedOps);
-            for (let l = 0; l < this.numLayers; l++) {
-              this._recordOps(cpass, this.layerOps[l]);
-            }
-            cpass.end();
-          }
-        } else {
-          // Final prompt token `lp - 1`: stop right before `layers[L-1]` to route ScarStore!
-          const cpassPre = enc.beginComputePass();
-          this._recordOps(cpassPre, this.embedOps);
-          for (let l = 0; l < this.numLayers - 1; l++) {
-            this._recordOps(cpassPre, this.layerOps[l]);
-          }
-          cpassPre.end();
-
-          const uSlot = pos - qStart;
-          enc.copyBufferToBuffer(
-            this.hCurBuf,
-            0,
-            this.prefillXInReadBuf,
-            uSlot * this.hiddenDim * 4,
-            this.hiddenDim * 4,
-          );
-        }
-      }
-      this.device.queue.submit([enc.finish()]);
-    }
-
-    // Read `x_in` at `layers[L-1]` across user tokens and execute Span-Max + HTTP 206 Range fetch!
     let routeResult = { active: [], turnBytesFetched: 0, httpEvents: [] };
-    if (enableScarStore && this.scarStore) {
-      const readBytes = lu * this.hiddenDim * 4;
-      await this.prefillXInReadBuf.mapAsync(GPUMapMode.READ, 0, readBytes);
-      const xinRaw = this.prefillXInReadBuf.getMappedRange(0, readBytes).slice(0);
-      this.prefillXInReadBuf.unmap();
-      const xinF32 = new Float32Array(xinRaw);
-      routeResult = await this.scarStore.routeAndFetchActiveCapsules(xinF32, lu);
-      this._setActiveCapsulesGpu(routeResult.active);
-    } else {
-      if (this.scarStore) {
-        this.scarStore.lastActiveGates.clear();
+
+    if (basePos === 0) {
+      this._submitPrefillSequence(
+        promptIds,
+        0,
+        qStartProbe,
+        Boolean(enableScarStore && this.scarStore),
+        qEndProbe,
+      );
+      if (enableScarStore && this.scarStore) {
+        const readBytes = luProbe * this.hiddenDim * 4;
+        await this.prefillXInReadBuf.mapAsync(GPUMapMode.READ, 0, readBytes);
+        const xinRaw = this.prefillXInReadBuf.getMappedRange(0, readBytes).slice(0);
+        this.prefillXInReadBuf.unmap();
+        const xinF32 = new Float32Array(xinRaw);
+        routeResult = await this.scarStore.routeAndFetchActiveCapsules(xinF32, luProbe);
+        this._setActiveCapsulesGpu(routeResult.active, 1.0);
+      } else {
+        if (this.scarStore) this.scarStore.lastActiveGates.clear();
+        this._setActiveCapsulesGpu([]);
       }
-      this._setActiveCapsulesGpu([]);
+    } else {
+      if (enableScarStore && this.scarStore) {
+        const encSave = this.device.createCommandEncoder();
+        encSave.copyBufferToBuffer(this.scacheKvBuf, 0, this.scacheKvSnapBuf, 0, this.scacheKvBuf.size);
+        encSave.copyBufferToBuffer(this.scacheWScarBuf, 0, this.scacheWScarSnapBuf, 0, this.scacheWScarBuf.size);
+        encSave.copyBufferToBuffer(this.scacheSalienceBuf, 0, this.scacheSalSnapBuf, 0, this.scacheSalienceBuf.size);
+        this.device.queue.submit([encSave.finish()]);
+
+        this.device.queue.writeBuffer(this.scacheKvBuf, 0, this._zeroKvBytes);
+        this.device.queue.writeBuffer(this.scacheWScarBuf, 0, this._zeroWScarBytes);
+        this.device.queue.writeBuffer(this.scacheSalienceBuf, 0, this._zeroSalBytes);
+
+        this._submitPrefillSequence(cleanProbeIds, 0, qStartProbe, true, qEndProbe);
+
+        const encRestore = this.device.createCommandEncoder();
+        encRestore.copyBufferToBuffer(this.scacheKvSnapBuf, 0, this.scacheKvBuf, 0, this.scacheKvBuf.size);
+        encRestore.copyBufferToBuffer(this.scacheWScarSnapBuf, 0, this.scacheWScarBuf, 0, this.scacheWScarBuf.size);
+        encRestore.copyBufferToBuffer(this.scacheSalSnapBuf, 0, this.scacheSalienceBuf, 0, this.scacheSalienceBuf.size);
+        this.device.queue.submit([encRestore.finish()]);
+
+        const readBytes = luProbe * this.hiddenDim * 4;
+        await this.prefillXInReadBuf.mapAsync(GPUMapMode.READ, 0, readBytes);
+        const xinRaw = this.prefillXInReadBuf.getMappedRange(0, readBytes).slice(0);
+        this.prefillXInReadBuf.unmap();
+        const xinF32 = new Float32Array(xinRaw);
+        routeResult = await this.scarStore.routeAndFetchActiveCapsules(xinF32, luProbe);
+        this._setActiveCapsulesGpu(routeResult.active, 1.0);
+      } else {
+        if (this.scarStore) this.scarStore.lastActiveGates.clear();
+        this._setActiveCapsulesGpu([]);
+      }
+      this._submitPrefillSequence(promptIds, basePos, 0, false);
     }
 
     if (onRouting) {
       onRouting(routeResult);
     }
 
-    // Finish `layers[L-1] -> final_norm -> head_expanded_scar_inject -> lm_head -> top2` on `lp - 1`
+    const splitIdx = this.isGoldenSliceV4 ? this.midLayerIdx : this.numLayers - 2;
     const encTail = this.device.createCommandEncoder();
     const cpassTail = encTail.beginComputePass();
-    this._recordOps(cpassTail, this.layerOps[this.numLayers - 1]);
+    if (this.isGoldenSliceV4 && this.scarMidInjectOp) {
+      this._recordOps(cpassTail, [this.scarMidInjectOp]);
+    }
+    for (let l = splitIdx + 1; l < this.numLayers; l++) {
+      this._recordOps(cpassTail, this.layerOps[l]);
+    }
     this._recordOps(cpassTail, [this.finalNormOp, this.scarInjectOp]);
     this._recordOps(cpassTail, this.lmHeadOps);
     this._recordOps(cpassTail, this.reduceOps);
     cpassTail.end();
     encTail.copyBufferToBuffer(this.top2OutBuf, 0, this.readbackTop2Buf, 0, 16);
-    if (this.currentMActive >= 2) {
+    if (!this.isGoldenSliceV4 && this.currentMActive >= 2) {
       encTail.copyBufferToBuffer(this.scarTelemetryBuf, 0, this.readbackScarTelBuf, 0, 64);
     }
     this.device.queue.submit([encTail.finish()]);
@@ -801,9 +1027,11 @@ export class BrowserMoSWebGPUEngine {
     const confs = [];
     const margins = [];
     let maxSpread = firstStep.spread || 0.0;
+    let lastGenTokenFed = true;
 
     if (!this.eosTokenIds.has(firstStep.top1Id)) {
       generatedIds.push(firstStep.top1Id);
+      lastGenTokenFed = false;
       confs.push(firstStep.p1);
       margins.push(firstStep.margin);
       if (onToken) {
@@ -820,7 +1048,8 @@ export class BrowserMoSWebGPUEngine {
     }
 
     const tDec0 = performance.now();
-    let curPos = lp;
+    let curPos = basePos + lp;
+    let decStepIdx = 0;
     const singleStepArr = new Uint32Array(4);
 
     while (
@@ -830,6 +1059,11 @@ export class BrowserMoSWebGPUEngine {
     ) {
       if (signal && signal.aborted) break;
 
+      decStepIdx += 1;
+      if (this.isGoldenSliceV4 && this.currentMActive > 0) {
+        this._updateHorizonScaleGpu(decStepIdx);
+      }
+
       singleStepArr[0] = generatedIds[generatedIds.length - 1];
       singleStepArr[1] = curPos;
       singleStepArr[2] = this.currentMActive;
@@ -838,25 +1072,37 @@ export class BrowserMoSWebGPUEngine {
       const enc = this.device.createCommandEncoder();
       const cpass = enc.beginComputePass();
       this._recordOps(cpass, this.embedOps);
-      for (let l = 0; l < this.numLayers; l++) {
-        this._recordOps(cpass, this.layerOps[l]);
+      if (this.isGoldenSliceV4 && this.scarMidInjectOp) {
+        for (let l = 0; l <= this.midLayerIdx; l++) {
+          this._recordOps(cpass, this.layerOps[l]);
+        }
+        this._recordOps(cpass, [this.scarMidInjectOp]);
+        for (let l = this.midLayerIdx + 1; l < this.numLayers; l++) {
+          this._recordOps(cpass, this.layerOps[l]);
+        }
+      } else {
+        for (let l = 0; l < this.numLayers; l++) {
+          this._recordOps(cpass, this.layerOps[l]);
+        }
       }
       this._recordOps(cpass, [this.finalNormOp, this.scarInjectOp]);
       this._recordOps(cpass, this.lmHeadOps);
       this._recordOps(cpass, this.reduceOps);
       cpass.end();
       enc.copyBufferToBuffer(this.top2OutBuf, 0, this.readbackTop2Buf, 0, 16);
-      if (this.currentMActive >= 2) {
+      if (!this.isGoldenSliceV4 && this.currentMActive >= 2) {
         enc.copyBufferToBuffer(this.scarTelemetryBuf, 0, this.readbackScarTelBuf, 0, 64);
       }
       this.device.queue.submit([enc.finish()]);
 
       const stepOut = await this._readTop2AndTelemetry();
       curPos += 1;
+      lastGenTokenFed = true;
       if (stepOut.spread > maxSpread) maxSpread = stepOut.spread;
       if (this.eosTokenIds.has(stepOut.top1Id)) break;
 
       generatedIds.push(stepOut.top1Id);
+      lastGenTokenFed = false;
       confs.push(stepOut.p1);
       margins.push(stepOut.margin);
 
@@ -875,6 +1121,16 @@ export class BrowserMoSWebGPUEngine {
       }
     }
 
+    const closingIds = [];
+    if (generatedIds.length > 0 && !lastGenTokenFed) {
+      closingIds.push(generatedIds[generatedIds.length - 1]);
+    }
+    for (let i = 0; i < this.turnSuffixIds.length; i++) {
+      closingIds.push(this.turnSuffixIds[i]);
+    }
+    this.sessionPos = this._flushClosingTokensToSCache(closingIds, curPos);
+    this.turnCount += 1;
+
     const decodeMs = performance.now() - tDec0;
     const scacheBytesFinal = this.scacheGpuBytes;
     const decSteps = Math.max(1, generatedIds.length - 1);
@@ -886,6 +1142,8 @@ export class BrowserMoSWebGPUEngine {
       answer: this.tokenizer.decode(generatedIds, true).trim(),
       generatedTokenIds: generatedIds,
       prefillTokens: lp,
+      sessionTokens: this.sessionPos,
+      turnIndex: this.turnCount,
       generatedTokens: generatedIds.length,
       prefillMs: Math.round(prefillMs * 100) / 100,
       decodeMs: Math.round(decodeMs * 100) / 100,

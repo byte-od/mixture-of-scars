@@ -1,0 +1,428 @@
+{
+  "library_name": "Mixture of Scars (MoS) Universal Language-Invariant Conceptual ScarStore (Golden-Slice v4.0)",
+  "version": "v4.0.0",
+  "routing_architecture": "Golden-Slice (2L/3) + Within-Concept ANOVA Language Orthogonal Projector P_perp_lang (k_lang=14)",
+  "synthesis_method": "Closed-Form Two-Stage Prediction-Space RRR + Cutting-Plane Woodbury Rosetta (ZERO Backpropagation / ZERO SGD)",
+  "supported_languages_per_single_cartridge": [
+    "pt",
+    "en",
+    "es",
+    "fr"
+  ],
+  "tiers": {
+    "3b": {
+      "student_model": "Qwen/Qwen2.5-3B-Instruct",
+      "hidden_dim": 2048,
+      "mid_layer_idx": 23,
+      "record_bytes": 143360,
+      "record_kb": 140.0,
+      "assets": {
+        "store_file": "qwen3b_universal_v4_0.scarstore",
+        "store_bytes": 19193856,
+        "store_sha256": "7a29f0a686047e40c7849c30de0449e13a24c836f3da2476f6f12c53f59ee33c",
+        "manifest_file": "qwen3b_universal_v4_0.manifest.json",
+        "manifest_bytes": 48425,
+        "manifest_sha256": "ff6065ed90ea082912c791a9db0276f91156a002b2d2ba0baccf93567188f656",
+        "shell_file": "qwen3b_universal_v4_0.shell.scarstore",
+        "shell_bytes": 17403904,
+        "shell_gz_file": "qwen3b_universal_v4_0.shell.scarstore.gz",
+        "shell_gz_bytes": 15555002
+      }
+    },
+    "0.5b": {
+      "student_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "hidden_dim": 896,
+      "mid_layer_idx": 15,
+      "record_bytes": 62720,
+      "record_kb": 61.25,
+      "assets": {
+        "store_file": "qwen0p5b_universal_v4_0.scarstore",
+        "store_bytes": 4164608,
+        "store_sha256": "8b56ec4ac7b726cde30e47f396a72eaa670d90f1a3b15c2cfd810ab5547ae3c9",
+        "manifest_file": "qwen0p5b_universal_v4_0.manifest.json",
+        "manifest_bytes": 48409,
+        "manifest_sha256": "18930dc5353cb7a14ad20d5e71d8262ca247213a32ed987cbbd03cfe5e82aced",
+        "shell_file": "qwen0p5b_universal_v4_0.shell.scarstore",
+        "shell_bytes": 3371008,
+        "shell_gz_file": "qwen0p5b_universal_v4_0.shell.scarstore.gz",
+        "shell_gz_bytes": 3001657
+      }
+    }
+  },
+  "cartridges": [
+    {
+      "capsule_id": "concept_mos_scache_architecture",
+      "title": "System One Architecture (MoS INT4 + SCache O(1) + Golden-Slice ScarStore)",
+      "title_pt": "Arquitetura System One (MoS INT4 + SCache O(1) + ScarStore Golden-Slice)",
+      "category": "AI Systems Architecture",
+      "summary": "Mixture of Scars (Block-64 INT4 + ASVD), constant-memory associative SCache O(1) via Widrow-Hoff W_scar, and HTTP 206 Golden-Slice cartridges.",
+      "prompts_polyglot": {
+        "pt": "Qual arquitetura você usa? Detalhe como ela funciona.",
+        "en": "What architecture do you use? Detail how it works.",
+        "es": "¿Qué arquitectura utilizas? Detalla cómo funciona.",
+        "fr": "Quelle architecture utilisez-vous ? Détaillez son fonctionnement."
+      },
+      "anchor_queries_en": [
+        "What architecture do you use?",
+        "Detail your internal AI architecture and how your memory works.",
+        "Explain the neural architecture and cache mechanism you run on."
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        0,
+        0
+      ],
+      "byte_offset_3b": 17473536,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        0,
+        0
+      ],
+      "byte_offset_0p5b": 3411968,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_boltzmann_constant",
+      "title": "Boltzmann Constant (Exact 2019 SI Definition & Statistical Entropy)",
+      "title_pt": "Constante de Boltzmann (Valor Exato SI 2019 e Entropia Estatística)",
+      "category": "Statistical Physics",
+      "summary": "Exact 2019 SI value k_B = 1.380649 x 10^-23 J/K bridging macroscopic temperature T, microscopic thermal energy, and Boltzmann entropy S = k_B ln Omega.",
+      "prompts_polyglot": {
+        "pt": "O que é a constante de Boltzmann e onde ela se aplica?",
+        "en": "What is the Boltzmann constant and where does it apply?",
+        "es": "¿Qué es la constante de Boltzmann y dónde se aplica?",
+        "fr": "Qu'est-ce que la constante de Boltzmann et où s'applique-t-elle ?"
+      },
+      "anchor_queries_en": [
+        "What is the Boltzmann constant and where does it apply?",
+        "State the exact SI value and physical meaning of Boltzmann's constant.",
+        "Explain Boltzmann's constant in statistical mechanics and thermodynamics."
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        1,
+        1
+      ],
+      "byte_offset_3b": 17616896,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        1,
+        1
+      ],
+      "byte_offset_0p5b": 3474688,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_landauer_principle",
+      "title": "Landauer's Principle (Thermodynamic Cost of Irreversible Bit Erasure)",
+      "title_pt": "Princípio de Landauer (Limite Termodinâmico de Apagamento de 1 Bit)",
+      "category": "Physics of Information",
+      "summary": "Irreversibly erasing 1 bit of information in a thermal bath at temperature T dissipates at least E_min = k_B T ln 2 of heat.",
+      "prompts_polyglot": {
+        "pt": "Me fale sobre o princípio de Landauer na física da informação.",
+        "en": "Explain Landauer's principle in the physics of information.",
+        "es": "Explícame el principio de Landauer en la física de la información.",
+        "fr": "Expliquez le principe de Landauer en physique de l'information."
+      },
+      "anchor_queries_en": [
+        "Tell me about Landauer's principle.",
+        "Explain Landauer's principle for the minimum energy dissipated when erasing a bit.",
+        "What is the thermodynamic cost of irreversible information erasure under Landauer's bound?"
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        2,
+        2
+      ],
+      "byte_offset_3b": 17760256,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        2,
+        2
+      ],
+      "byte_offset_0p5b": 3537408,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_brazil_lc150_domestic_law",
+      "title": "Brazilian Domestic Labor Law (LC 150/2015 vs Diarista Regime)",
+      "title_pt": "Direito Trabalhista Doméstico no Brasil (LC 150/2015 vs Diarista)",
+      "category": "Labor Law (Brazil)",
+      "summary": "Constitutional Amendment EC 72/2013 and Complementary Law LC 150/2015 (> 2 days/week employment bond, 44h/week, FGTS 8% + 3.2%) vs autonomous diarista (up to 2 days/week).",
+      "prompts_polyglot": {
+        "pt": "Como funciona o direito trabalhista para faxineiras e domésticas no Brasil?",
+        "en": "How does Brazilian labor law work for housecleaners and domestic workers?",
+        "es": "¿Cómo funciona el derecho laboral para trabajadoras domésticas y limpiadoras en Brasil?",
+        "fr": "Comment fonctionne le droit du travail pour les employées domestiques et femmes de ménage au Brésil ?"
+      },
+      "anchor_queries_en": [
+        "How does Brazilian labor law work for housecleaners and domestic workers?",
+        "Explain domestic worker labor rights in Brazil and the legal distinction from a day cleaner.",
+        "When does a cleaner or maid in Brazil establish a formal domestic employment bond?"
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        3,
+        3
+      ],
+      "byte_offset_3b": 17903616,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        3,
+        3
+      ],
+      "byte_offset_0p5b": 3600128,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_immerman_szelepcsenyi",
+      "title": "Immerman-Szelepcsényi Theorem (NSPACE = co-NSPACE Inductive Counting)",
+      "title_pt": "Teorema de Immerman-Szelepcsényi (NSPACE = co-NSPACE por Contagem Indutiva)",
+      "category": "Computational Complexity",
+      "summary": "Every nondeterministic space class s(n) >= log n is closed under complementation (NL = coNL) via inductive counting of reachable configurations.",
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de espaço não-determinístico?",
+        "en": "What does the Immerman-Szelepcsényi theorem prove about nondeterministic space classes?",
+        "es": "¿Qué demuestra el teorema de Immerman-Szelepcsényi sobre la complejidad espacial no determinista?",
+        "fr": "Que démontre le théorème d'Immerman-Szelepcsényi sur les classes d'espace non déterministe ?"
+      },
+      "anchor_queries_en": [
+        "What does the Immerman-Szelepcsenyi theorem prove for nondeterministic space complexity?",
+        "Explain why nondeterministic logspace equals co-NL via the Immerman-Szelepcsenyi theorem.",
+        "How does inductive counting prove closure of NSPACE under complement?"
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        4,
+        4
+      ],
+      "byte_offset_3b": 18046976,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        4,
+        4
+      ],
+      "byte_offset_0p5b": 3662848,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_fischer_lynch_paterson",
+      "title": "FLP Impossibility Theorem (Asynchronous Crash-Fault Consensus)",
+      "title_pt": "Teorema da Impossibilidade FLP (Consenso Assíncrono com Falha por Parada)",
+      "category": "Distributed Systems",
+      "summary": "Fischer-Lynch-Paterson (1985) proves no deterministic consensus protocol in an asynchronous network can guarantee termination, agreement, and validity under even 1 unannounced process crash.",
+      "prompts_polyglot": {
+        "pt": "Explique o teorema da impossibilidade de Fischer-Lynch-Paterson em sistemas distribuídos.",
+        "en": "Explain the Fischer-Lynch-Paterson impossibility theorem in distributed systems.",
+        "es": "Explica el teorema de imposibilidad de Fischer-Lynch-Paterson en sistemas distribuidos.",
+        "fr": "Expliquez le théorème d'impossibilité de Fischer-Lynch-Paterson dans les systèmes distribués."
+      },
+      "anchor_queries_en": [
+        "Explain the Fischer-Lynch-Paterson impossibility theorem in asynchronous distributed systems.",
+        "What does the FLP theorem prove about deterministic consensus with crash faults?",
+        "Why is deterministic consensus impossible in asynchronous message passing under a single crash?"
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        5,
+        5
+      ],
+      "byte_offset_3b": 18190336,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        5,
+        5
+      ],
+      "byte_offset_0p5b": 3725568,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_marchenko_pastur_law",
+      "title": "Marchenko-Pastur Spectral Law (Random Sample Covariance Eigenvalues)",
+      "title_pt": "Lei Espectral de Marchenko-Pastur (Autovalores de Covariância Aleatória)",
+      "category": "Random Matrix Theory",
+      "summary": "Limiting eigenvalue support [lambda_-, lambda_+] with lambda_pm = sigma^2 (1 +- sqrt(gamma))^2 for p x n random matrices as p/n -> gamma.",
+      "prompts_polyglot": {
+        "pt": "O que estabelece a lei espectral de Marchenko-Pastur para matrizes aleatórias de covariância?",
+        "en": "What does the Marchenko-Pastur spectral law state for random sample covariance matrices?",
+        "es": "¿Qué establece la ley espectral de Marchenko-Pastur para matrices aleatorias de covarianza?",
+        "fr": "Qu'établit la loi spectrale de Marchenko-Pastur pour les matrices de covariance aléatoires ?"
+      },
+      "anchor_queries_en": [
+        "What does the Marchenko-Pastur law state for eigenvalues of sample covariance matrices?",
+        "Give the limiting spectral support bounds of the Marchenko-Pastur distribution.",
+        "Explain the Marchenko-Pastur eigenvalue spectrum in high-dimensional random matrix theory."
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        6,
+        6
+      ],
+      "byte_offset_3b": 18333696,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        6,
+        6
+      ],
+      "byte_offset_0p5b": 3788288,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_kabatiansky_levenshtein",
+      "title": "Kabatiansky-Levenshtein Bound (High-Dimensional Sphere Packing 0.5990)",
+      "title_pt": "Limite de Kabatiansky-Levenshtein (Empacotamento Esférico 0.5990)",
+      "category": "Information & Coding Theory",
+      "summary": "Best known asymptotic upper bound 2^{-0.5990 n (1 + o(1))} on Euclidean sphere-packing density in R^n via Gegenbauer polynomials.",
+      "prompts_polyglot": {
+        "pt": "Qual limite superior assintótico o teorema de Kabatiansky-Levenshtein estabelece para empacotamento de esferas?",
+        "en": "What asymptotic upper bound does the Kabatiansky-Levenshtein theorem establish for sphere packing?",
+        "es": "¿Qué cota superior asintótica establece el teorema de Kabatiansky-Levenshtein para el empaquetamiento de esferas?",
+        "fr": "Quelle borne supérieure asymptotique le théorème de Kabatiansky-Levenshtein établit-il pour l'empilement de sphères ?"
+      },
+      "anchor_queries_en": [
+        "What asymptotic upper bound does the Kabatiansky-Levenshtein theorem give for sphere packing in R^n?",
+        "Explain the Kabatiansky-Levenshtein bound on high-dimensional Euclidean sphere packing density.",
+        "How do Gegenbauer polynomials yield the Kabatiansky-Levenshtein sphere-packing exponent?"
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        7,
+        7
+      ],
+      "byte_offset_3b": 18477056,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        7,
+        7
+      ],
+      "byte_offset_0p5b": 3851008,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_chaitin_incompleteness",
+      "title": "Chaitin's Algorithmic Incompleteness (Kolmogorov Complexity K(x) > L & Omega)",
+      "title_pt": "Incompletude Algorítmica de Chaitin (Complexidade de Kolmogorov K(x) > L e Ômega)",
+      "category": "Algorithmic Information Theory",
+      "summary": "Any sound formal axiom system F cannot prove K(x) > L for strings beyond L_F = K(F) + c bits, epitomized by Chaitin's halting probability Omega.",
+      "prompts_polyglot": {
+        "pt": "O que afirma o teorema da incompletude algorítmica de Chaitin sobre a complexidade de Kolmogorov?",
+        "en": "What does Chaitin's algorithmic incompleteness theorem state about Kolmogorov complexity?",
+        "es": "¿Qué afirma el teorema de incompletitud algorítmica de Chaitin sobre la complejidad de Kolmogorov?",
+        "fr": "Qu'affirme le théorème d'incomplétude algorithmique de Chaitin sur la complexité de Kolmogorov ?"
+      },
+      "anchor_queries_en": [
+        "What does Chaitin's algorithmic incompleteness theorem state about proving Kolmogorov complexity bounds?",
+        "Explain Chaitin's incompleteness bound and the halting probability constant.",
+        "Why can a formal system only prove finitely many lower bounds on Kolmogorov complexity?"
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        8,
+        8
+      ],
+      "byte_offset_3b": 18620416,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        8,
+        8
+      ],
+      "byte_offset_0p5b": 3913728,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_regev_lwe_lattice",
+      "title": "Regev's LWE Reduction (Worst-Case GapSVP / SIVP Post-Quantum Hardness)",
+      "title_pt": "Redução LWE de Regev (Segurança Pós-Quântica de Pior Caso GapSVP / SIVP)",
+      "category": "Post-Quantum Cryptography",
+      "summary": "Regev (2005) proves average-case Learning With Errors (LWE) is at least as hard as worst-case lattice problems GapSVP and SIVP under quantum reductions.",
+      "prompts_polyglot": {
+        "pt": "Qual redução de dificuldade de pior caso em reticulados fundamenta o problema LWE de Regev?",
+        "en": "What worst-case lattice hardness reduction underpins Regev's Learning With Errors problem?",
+        "es": "¿Qué reducción de dificultad en el peor caso sobre retículos fundamenta el problema LWE de Regev?",
+        "fr": "Quelle réduction de difficulté dans le pire cas sur les réseaux fonde le problème LWE de Regev ?"
+      },
+      "anchor_queries_en": [
+        "What worst-case lattice hardness reduction underpins Regev's Learning With Errors cryptosystem?",
+        "Explain Regev's quantum reduction from worst-case lattice problems to average-case LWE.",
+        "Why does Learning With Errors enjoy worst-case to average-case post-quantum security?"
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        9,
+        9
+      ],
+      "byte_offset_3b": 18763776,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        9,
+        9
+      ],
+      "byte_offset_0p5b": 3976448,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "concept_shannon_hartley_capacity",
+      "title": "Shannon-Hartley Capacity & Ultimate -1.59 dB Eb/N0 Limit",
+      "title_pt": "Capacidade de Shannon-Hartley e Limite Fundamental de -1,59 dB Eb/N0",
+      "category": "Information Theory",
+      "summary": "AWGN channel capacity C = B log_2(1 + S/N) bits/s and ultimate infinite-bandwidth energy-per-bit limit Eb/N0 = ln 2 (-1.59 dB).",
+      "prompts_polyglot": {
+        "pt": "Enuncie o teorema da capacidade de canal de Shannon-Hartley e o limite fundamental de Eb/N0.",
+        "en": "State the Shannon-Hartley channel capacity theorem and its fundamental Eb/N0 limit.",
+        "es": "Enuncia el teorema de capacidad de canal de Shannon-Hartley y su límite fundamental de Eb/N0.",
+        "fr": "Énoncez le théorème de capacité de canal de Shannon-Hartley et sa limite fondamentale Eb/N0."
+      },
+      "anchor_queries_en": [
+        "State the Shannon-Hartley channel capacity theorem for an AWGN channel and its ultimate Eb/N0 limit.",
+        "Explain the Shannon-Hartley capacity formula in Gaussian noise and the infinite-bandwidth Shannon limit.",
+        "How is maximum error-free bit rate bounded by bandwidth and signal-to-noise ratio?"
+      ],
+      "parent_capsules": [],
+      "coord_3b": [
+        10,
+        10
+      ],
+      "byte_offset_3b": 18907136,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        10,
+        10
+      ],
+      "byte_offset_0p5b": 4039168,
+      "record_bytes_0p5b": 62720
+    },
+    {
+      "capsule_id": "bridge_landauer_immerman",
+      "title": "Sleep-Consolidated Bridge: Landauer Thermodynamics x Immerman-Szelepcsényi Space",
+      "title_pt": "Ponte Consolidada (Sleep): Termodinâmica de Landauer x Espaço de Immerman-Szelepcsényi",
+      "category": "Interdisciplinary Sleep Bridge",
+      "summary": "Conjunctive bridge (fires ONLY when both Landauer and Immerman-Szelepcsényi co-activate) reconciling O(log n) inductive counter overwrites with k_B T ln 2 via Bennett reversible pebbling.",
+      "prompts_polyglot": {
+        "pt": "Como a reutilização de espaço da contagem indutiva de Immerman-Szelepcsényi interage com a dissipação térmica do princípio de Landauer?",
+        "en": "How does space reuse in Immerman-Szelepcsényi inductive counting interact with thermal dissipation under Landauer's principle?",
+        "es": "¿Cómo interactúa la reutilización de espacio del conteo inductivo de Immerman-Szelepcsényi con el principio termodinámico de Landauer?",
+        "fr": "Comment la réutilisation d'espace du comptage inductif d'Immerman-Szelepcsényi interagit-elle avec le principe thermodynamique de Landauer ?"
+      },
+      "anchor_queries_en": [
+        "How do the inductive counter overwrites in the Immerman-Szelepcsenyi theorem interact with Landauer's principle of heat dissipation?",
+        "Connect Landauer's thermodynamic bit-erasure cost with Immerman-Szelepcsenyi logspace inductive counting."
+      ],
+      "parent_capsules": [
+        "concept_landauer_principle",
+        "concept_immerman_szelepcsenyi"
+      ],
+      "coord_3b": [
+        11,
+        11
+      ],
+      "byte_offset_3b": 19050496,
+      "record_bytes_3b": 143360,
+      "coord_0p5b": [
+        11,
+        11
+      ],
+      "byte_offset_0p5b": 4101888,
+      "record_bytes_0p5b": 62720
+    }
+  ]
+}

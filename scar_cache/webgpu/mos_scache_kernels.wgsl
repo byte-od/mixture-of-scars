@@ -965,6 +965,88 @@ fn head_expanded_scar_inject(@builtin(local_invocation_id) lid: vec3<u32>) {
 }
 
 // ----------------------------------------------------------------------------
+// 9b. Golden-Slice Language-Invariant Conceptual Scar Injection (`v4.0`)
+//     Executes both Stage A (`layers[mid_layer_idx]` on `h_cur_buf`, `rank_mid=12`)
+//     and Stage B (`final_norm` on `norm_buf`, `rank_final=52`) with smooth
+//     `horizon_scale` cosine handoff (`1.0 -> 0.0`).
+//     When `m_active == 0` or `horizon_scale <= 0.0`, returns immediately on line 1
+//     guaranteeing exact `0.0000000000` bit-for-bit out-of-cone logit invariance!
+//
+//     params: p0=hidden_dim (<= 2048), p1=rank (<= 64), p2=m_active (<= 8),
+//             p3=mu_offset (0 for mid, hidden_dim for final), f0=horizon_scale
+//     ro_f32_a: calibration buffer [mu_hidden_mid(d), mu_hidden_final(d)]
+//     ro_f32_c: packed stage capsules for m in [0..m_active):
+//               stride = 1 + 2 * rank * hidden_dim
+//               - [0]: normalized gate weight `g_m / norm_div`
+//               - [1 .. 1 + rank*hidden_dim]: A_stage [rank, hidden_dim]
+//               - [.. + hidden_dim*rank]: B_stage [hidden_dim, rank]
+//     rw_f32_a: target state [hidden_dim] (`h_cur_buf` or `norm_buf`)
+//     rw_f32_b: scar_telemetry_f32 [0..m_active-1]=eff_weights, [8]=0.0
+// ----------------------------------------------------------------------------
+var<workgroup> wg_gs_hc: array<f32, 2048>;
+var<workgroup> wg_gs_u: array<f32, 64>;
+var<workgroup> wg_gs_red: array<f32, 256>;
+
+@compute @workgroup_size(256, 1, 1)
+fn golden_slice_scar_inject(@builtin(local_invocation_id) lid: vec3<u32>) {
+    let m_active = params.p2;
+    let horizon_scale = params.f0;
+    if (m_active == 0u || horizon_scale <= 0.0) {
+        return;
+    }
+
+    let tid = lid.x;
+    let hidden_dim = params.p0;
+    let rank = params.p1;
+    let mu_off = params.p3;
+    let ab_elems = rank * hidden_dim;
+    let cap_stride = 1u + 2u * ab_elems;
+
+    for (var d = tid; d < hidden_dim; d += 256u) {
+        wg_gs_hc[d] = rw_f32_a[d] - ro_f32_a[mu_off + d];
+    }
+    workgroupBarrier();
+
+    for (var m = 0u; m < m_active; m += 1u) {
+        let m_base = m * cap_stride;
+        let w_m = horizon_scale * ro_f32_c[m_base];
+        if (tid == 0u) {
+            rw_f32_b[m] = w_m;
+            rw_f32_b[8] = 0.0;
+        }
+        let a_base = m_base + 1u;
+        let b_base = a_base + ab_elems;
+
+        let r_idx = tid >> 2u;
+        let sub_lane = tid & 3u;
+        var a_acc: f32 = 0.0;
+        if (r_idx < rank) {
+            let a_row = a_base + r_idx * hidden_dim;
+            for (var c = sub_lane; c < hidden_dim; c += 4u) {
+                a_acc += ro_f32_c[a_row + c] * wg_gs_hc[c];
+            }
+        }
+        wg_gs_red[tid] = a_acc;
+        workgroupBarrier();
+
+        if (sub_lane == 0u && r_idx < rank) {
+            wg_gs_u[r_idx] = wg_gs_red[tid] + wg_gs_red[tid + 1u] + wg_gs_red[tid + 2u] + wg_gs_red[tid + 3u];
+        }
+        workgroupBarrier();
+
+        for (var d = tid; d < hidden_dim; d += 256u) {
+            let b_row = b_base + d * rank;
+            var b_acc: f32 = 0.0;
+            for (var r = 0u; r < rank; r += 1u) {
+                b_acc += ro_f32_c[b_row + r] * wg_gs_u[r];
+            }
+            rw_f32_a[d] = rw_f32_a[d] + w_m * b_acc;
+        }
+        workgroupBarrier();
+    }
+}
+
+// ----------------------------------------------------------------------------
 // 10. Block-64 INT4 Vocabulary Logits GEMV (`< 128 MiB` Chunked Vocab Safe)
 //     params: p0=vocab_rows, p1=hidden_dim, p2=packed_u32_off,
 //             p3=scales_u32_off, p4=vocab_start
