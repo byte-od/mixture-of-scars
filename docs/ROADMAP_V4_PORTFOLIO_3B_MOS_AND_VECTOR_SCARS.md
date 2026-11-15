@@ -51,7 +51,7 @@ Nos experimentos forenses (`scripts/forensic_2bit_noise_anatomy.py` e `scripts/t
   - Os *shards* `.bin` (`<= 44 MiB`) e o arquivo `capsules.scarstore` do `Qwen2.5-3B MoS` (`Config 3`: `1,593 GiB`, `KL médio = 0,6938`, `Top-1 = 74,5%`, `0%` de vazamento `FR -> ZH` verificado em `scripts/test_vector_scar_codebook_3b.py`) — ou da variante compacta de **Micro-Cicatrizes Vetoriais `vec4`** caso atinja paridade poliglota `< 1 GiB` — são servidos via repositório público no **Hugging Face Hub** (`CORS *` + suporte nativo a `HTTP 206 Partial Content`) com persistência local na `CacheStorage` do navegador (`'mos-webgpu-v4-assets-v1'`).
 
 ### 2.4 Trilha Anotada: `VQ4-Scar` Unificado (`Nativo + WebGPU`) — `< 1,00 GiB` e `~1,10 GiB`
-> Ver documento arquitetural completo e Mapa das 8 Soluções em `docs/SCAR_NATIVE_ARCHITECTURE_AND_8_SOLUTIONS.md`.
+> Ver documento arquitetural completo e Mapa das 8 Soluções em [`UNIFIED_SCAR_OPERATORS_AND_8_SOLUTIONS.md`](UNIFIED_SCAR_OPERATORS_AND_8_SOLUTIONS.md).
 
 - **Escopo Unificado (`Nativo + WebGPU`):** O mecanismo `VQ4-Scar` opera em **todo o ecossistema** (`PyTorch / Metal MPS / CUDA` via `scar_cache/vq4_scar_mos.py` E `WebGPU / WGSL 1.0` via `vq4_equilibrate_fwht64` + `mos_fused_vq4_int4scar_gemv`), exigindo sempre testes duplos de paridade (`tests/test_vq4_scar_native_and_webgpu.py`).
 - **Resultados Verificados (`scripts/test_vector_scar_codebook_3b.py` & `scripts/test_sub1gb_vq4_compressed_scars_3b.py`):**

@@ -1,0 +1,73 @@
+{
+  "suite": "scar_codec_physical_v4_0_audit",
+  "version": "4.0.0",
+  "proof_1_radio_telescope_rfi_1000x": {
+    "array_shape": [
+      64,
+      4096
+    ],
+    "raw_fp32_bytes": 1048576,
+    "rfi_to_signal_amplitude_ratio": 1000.0,
+    "rfi_sir_db": -60.0,
+    "out_of_cone_orthogonal_max_abs_err": 1.862645149230957e-08,
+    "raw_unfiltered_beam_cosine": 0.00437,
+    "raw_unfiltered_beam_snr_db": 0.0,
+    "naive_2bit_vlbi_then_null_cosine": 0.02486,
+    "naive_2bit_vlbi_then_null_snr_db": 0.0,
+    "vq4_without_p_perp_cosine": 0.01971,
+    "vq4_without_p_perp_snr_db": 0.0,
+    "p_perp_plus_vq4_scar_bytes": 120960,
+    "p_perp_plus_vq4_scar_compression_x": 8.67,
+    "p_perp_plus_vq4_scar_cosine": 0.97516,
+    "p_perp_plus_vq4_scar_snr_db": 13.09
+  },
+  "proof_2_blackbox_scache_34p8kb": {
+    "stream_frames": 50000,
+    "channels": 64,
+    "raw_stream_bytes": 12800000,
+    "scache_bytes_initial": 34816,
+    "scache_bytes_mid_25k": 34816,
+    "scache_bytes_final_50k": 34816,
+    "scache_delta_bytes": 0,
+    "circular_ring_budget_bytes": 34816,
+    "circular_ring_frame_capacity": 256,
+    "early_fault_timestamps": [
+      210,
+      580,
+      940,
+      1310,
+      1750
+    ],
+    "circular_ring_fault_recall": "0/5",
+    "circular_ring_fault_recall_pct": 0.0,
+    "scache_fault_recall": "5/5",
+    "scache_fault_recall_pct": 100.0,
+    "scache_associative_mean_cosine": 0.99883,
+    "ingest_fps": 38572.5
+  },
+  "proof_3_cfd_hdr_shock_field_o1": {
+    "field_shape": [
+      512,
+      512
+    ],
+    "raw_fp32_bytes": 1048576,
+    "zlib_level9_bytes": 571074,
+    "zlib_compression_x": 1.84,
+    "zlib_random_access": false,
+    "fft_truncated_bytes": 86528,
+    "fft_compression_x": 12.12,
+    "fft_rmse": 6.152,
+    "fft_vacuum_max_abs_err": 3.3759,
+    "fft_hdr_spike_max_abs_err": 480.01,
+    "scar_codec_bytes": 87040,
+    "scar_codec_compression_x": 12.05,
+    "scar_codec_rmse": 0.082,
+    "scar_codec_vacuum_max_abs_err": 0.0,
+    "scar_codec_hdr_spike_max_abs_err": 0.1244,
+    "rmse_gain_vs_fft_x": 75.03,
+    "hdr_spike_error_reduction_vs_fft_x": 3857.9,
+    "o1_single_block_decode_us": 150.37,
+    "zlib_full_stream_decompress_us": 1387.86,
+    "o1_block_vs_full_decode_max_diff": 0.0
+  }
+}

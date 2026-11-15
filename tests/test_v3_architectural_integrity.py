@@ -1,18 +1,15 @@
-"""Forensic Architectural Integrity & Release Synchronization Suite for `v3.0.0`.
+"""Forensic Architectural Integrity & Release Synchronization Suite for `v4.0.0`.
 
 Enforces the Zero-Facades / Zero-Shortcuts engineering mandate across the entire repository:
-  1. Exact `3.0.0` version parity across `scar_cache`, `mixture_of_scars`, `pyproject.toml`,
+  1. Exact `4.0.0` version parity across `scar_cache`, `mixture_of_scars`, `scar_codec`, `pyproject.toml`,
      `CITATION.cff`, `paper_latex/main.tex`, and `huggingface_space/scar_cache/__init__.py`.
   2. Exact `100%` public symbol parity (`__all__` & object identity) between `scar_cache` and `mixture_of_scars`.
-  3. Live `--help` smoke verification across all `5` registered CLI entry points (`mos-run`, `mos-store`,
-     `mos-graft`, `mos-rebasin`, `mos-transcode-sub2bit`).
-  4. Anti-Facade byte-level invariants:
-     - `SCacheDynamicCache`: `0 B` growth across `16x` window overflow (`64 -> 512` tokens) and `0 B`
-       discrepancy via recursive `untyped_storage().data_ptr()` object-graph walk.
-     - `Sub2BitMoSLinear`: genuine `uint8` 4-weights-per-byte (`2-bit`) storage (`packed_base.numel() * 4 == N * K`).
-     - `HeadExpandedScarCapsule`: exact `35 x 4,096 B = 143,360 B` (`0 B` internal padding) at `3B` geometry.
-     - `SharedGridMoSLinear`: genuine `untyped_storage().data_ptr()` sharing (`0 B` unique-byte discrepancy).
-  5. Integrity of all committed JSON audit proofs in `results/` and `benchmark_results/`.
+  3. Live `--help` smoke verification across all `7` registered CLI entry points (`mos-run`, `mos-store`,
+     `mos-graft`, `mos-rebasin`, `mos-transcode-sub2bit`, `mos-webgpu`, `mos-scar-codec`).
+  4. Anti-Facade byte-level invariants across `SCacheDynamicCache`, `Sub2BitMoSLinear`, `HeadExpandedScarCapsule`,
+     `SharedGridMoSLinear`, and standalone `scar_codec` (`SurpriseGatedAnomalySCache` exact `34,816 B` `Δ = 0 B`
+     and `ScarCodec` exact `0.0` vacuum + `O(1)` single-block random access).
+  5. Integrity of all committed JSON audit proofs in `results/`, `benchmark_results/`, and `zenodo_deposit_v4_0/`.
 """
 
 from __future__ import annotations
@@ -28,6 +25,7 @@ import torch.nn.functional as F
 
 import mixture_of_scars
 import scar_cache
+import scar_codec
 from scar_cache import (
     HeadExpandedScarCapsule,
     SCacheDynamicCache,
@@ -43,32 +41,47 @@ from scar_cache.sinkhorn_rebasin import main_cli as mos_rebasin_main
 from scar_cache.speculative_ghost_jump import recursive_scache_storage_bytes
 from scar_cache.sub2bit_mos import main_cli as mos_sub2bit_main
 from scar_cache.webgpu_engine import main_cli as mos_webgpu_main
+from scar_codec.cli import main_cli as mos_scar_codec_main
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_v3_version_and_metadata_synchronization() -> None:
-    """Verifies `3.0.0` version parity across packages, metadata files, LaTeX paper, and HF Space."""
-    assert scar_cache.__version__ == "3.0.0"
-    assert mixture_of_scars.__version__ == "3.0.0"
+    """Verifies `4.0.0` version parity across packages, metadata files, LaTeX paper, Zenodo kit, and HF Space."""
+    assert scar_cache.__version__ == "4.0.0"
+    assert mixture_of_scars.__version__ == "4.0.0"
+    assert scar_codec.__version__ == "4.0.0"
 
     pyproject_txt = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "3.0.0"' in pyproject_txt
+    assert 'version = "4.0.0"' in pyproject_txt
 
     cff_txt = (REPO_ROOT / "CITATION.cff").read_text(encoding="utf-8")
-    assert 'version: "3.0.0"' in cff_txt
+    assert 'version: "4.0.0"' in cff_txt
 
     tex_txt = (REPO_ROOT / "paper_latex" / "main.tex").read_text(encoding="utf-8")
-    assert "Revision v3.0" in tex_txt
-    assert "v3.0" in tex_txt
+    assert "Revision v4.0" in tex_txt
+    assert "v4.0" in tex_txt
 
     hf_init = (REPO_ROOT / "huggingface_space" / "scar_cache" / "__init__.py").read_text(encoding="utf-8")
-    assert '__version__ = "3.0.0"' in hf_init
+    assert '__version__ = "4.0.0"' in hf_init
 
-    # Verify zero broken relative markdown links in README.md, Audit Guide & Archive Index
+    # Verify Zenodo v4.0 deposit artifacts exist and are non-empty
+    for z_name in (
+        "Mixture_of_Scars_and_SCache_Preprint_v4.0.pdf",
+        "MoS_SCache_LaTeX_arXiv_TMLR_v4.0.zip",
+        "arXiv_Direct_Upload_v4.0.zip",
+        "MoS_SCache_Adversarial_Replication_v4.0.zip",
+        "mos_scache_v4_0_hero.png",
+    ):
+        zp = REPO_ROOT / "zenodo_deposit_v4_0" / z_name
+        assert zp.exists() and zp.stat().st_size > 1024, f"Missing or empty Zenodo v4.0 file: {zp}"
+
+    # Verify zero broken relative markdown links in README.md, Docs & Archive Index
     for md_path in (
         REPO_ROOT / "README.md",
         REPO_ROOT / "docs" / "AUDIT_AND_VERIFICATION_GUIDE.md",
+        REPO_ROOT / "docs" / "UNIFIED_SCAR_OPERATORS_AND_8_SOLUTIONS.md",
+        REPO_ROOT / "docs" / "BEYOND_AI_SCAR_ARCHITECTURE_APPLICATIONS.md",
         REPO_ROOT / "docs" / "ONLINE_CARTRIDGE_LIBRARY.md",
         REPO_ROOT / "archive" / "README.md",
     ):
@@ -82,6 +95,26 @@ def test_v3_version_and_metadata_synchronization() -> None:
             assert resolved.exists(), f"Broken relative link in {md_path.name}: {target} -> {resolved}"
 
 
+def test_v4_scope_boundary_and_wgsl_20_shader_integrity() -> None:
+    """Enforces strict v4.0 scope separation and 20-shader WGSL 1.0 kernel inventory."""
+    wgsl_txt = (REPO_ROOT / "scar_cache" / "webgpu" / "mos_scache_kernels.wgsl").read_text(encoding="utf-8")
+    compute_entries = re.findall(r"@compute\s+@workgroup_size\([^)]+\)\s*fn\s+([A-Za-z0-9_]+)", wgsl_txt)
+    assert len(compute_entries) == 20, f"Expected 20 WGSL @compute shaders, found {len(compute_entries)}: {compute_entries}"
+
+    # Ensure v4.0 paper, metadata, and docs stay strictly within v4.0 scope
+    checked_files = [
+        REPO_ROOT / "README.md",
+        REPO_ROOT / "CITATION.cff",
+        REPO_ROOT / "paper_latex" / "main.tex",
+        REPO_ROOT / "paper_latex" / "references.bib",
+        REPO_ROOT / "paper_latex" / "main.bbl",
+        *sorted((REPO_ROOT / "docs").glob("*.md")),
+    ]
+    for fp in checked_files:
+        txt = fp.read_text(encoding="utf-8")
+        assert not re.search(r"(?<!vq4_)scar[-_\s]native", txt, flags=re.IGNORECASE), f"Out-of-scope term in {fp.name}"
+
+
 def test_scar_cache_and_mixture_of_scars_100pct_symbol_parity() -> None:
     """Ensures `mixture_of_scars` exports 100% of `scar_cache.__all__` with identical object references."""
     sc_all = set(scar_cache.__all__)
@@ -91,11 +124,11 @@ def test_scar_cache_and_mixture_of_scars_100pct_symbol_parity() -> None:
         assert getattr(scar_cache, sym) is getattr(mixture_of_scars, sym), f"Object mismatch on {sym}"
 
 
-def test_all_five_v3_cli_entrypoints_load_and_respond_to_help(
+def test_all_seven_v4_cli_entrypoints_load_and_respond_to_help(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Smoke-tests all 5 `pyproject.toml` console scripts via `--help` with zero import or argparse errors."""
+    """Smoke-tests all 7 `pyproject.toml` console scripts via `--help` with zero import or argparse errors."""
     cli_funcs = [
         ("mos-run", mos_run_main),
         ("mos-store", mos_store_main),
@@ -103,6 +136,7 @@ def test_all_five_v3_cli_entrypoints_load_and_respond_to_help(
         ("mos-rebasin", mos_rebasin_main),
         ("mos-transcode-sub2bit", mos_sub2bit_main),
         ("mos-webgpu", mos_webgpu_main),
+        ("mos-scar-codec", mos_scar_codec_main),
     ]
     for name, fn in cli_funcs:
         monkeypatch.setattr(sys, "argv", [name, "--help"])
@@ -114,7 +148,7 @@ def test_all_five_v3_cli_entrypoints_load_and_respond_to_help(
 
 
 def test_anti_facade_no_hidden_kv_growth_or_fake_quantization() -> None:
-    """Proves byte-for-byte physical storage honesty across SCache O(1), Sub-2-Bit, ScarStore, and Re-Basin."""
+    """Proves byte-for-byte physical storage honesty across SCache O(1), Sub-2-Bit, ScarStore, Re-Basin & ScarCodec."""
     torch.manual_seed(2026)
 
     # 1. SCache O(1): Push 512 tokens through a window_size=32 cache (16x overflow) -> 0 B growth & 0 B discrepancy!
@@ -170,6 +204,16 @@ def test_anti_facade_no_hidden_kv_growth_or_fake_quantization() -> None:
     assert reported == audit_unique_module_bytes(holder)
     assert rb_a["gate_proj"].packed_shared.untyped_storage().data_ptr() == rb_b["gate_proj"].packed_shared.untyped_storage().data_ptr()
 
+    # 5. Standalone Physical ScarCodec: Exact 34,816 B (34.8 KB) SCache O(1) with 0 B drift
+    anom_sc = scar_codec.SurpriseGatedAnomalySCache()
+    assert anom_sc.physical_bytes() == 34816
+    frames = torch.randn(512, 64) * 0.05
+    frames[128] += 12.0
+    for ts in range(512):
+        anom_sc.ingest(frames[ts], timestamp=ts)
+    assert anom_sc.physical_bytes() == 34816
+    assert 128 in anom_sc.recorded_timestamps()
+
 
 def test_published_json_audit_reports_exist_and_verify_zero_discrepancy() -> None:
     """Audits every committed JSON empirical report in `results/` and `benchmark_results/`."""
@@ -183,8 +227,10 @@ def test_published_json_audit_reports_exist_and_verify_zero_discrepancy() -> Non
         REPO_ROOT / "results" / "mos_store_v2_3_cli_http206_audit.json",
         REPO_ROOT / "results" / "online_cartridge_library_v3_0_audit.json",
         REPO_ROOT / "results" / "online_library_v3_0" / "scarstore_catalog_v3_0.json",
+        REPO_ROOT / "results" / "online_library_v3_0" / "qwen3b_portfolio_v4_3_prot_int4.manifest.json",
         REPO_ROOT / "results" / "webgpu_wgsl_v3_0_audit.json",
         REPO_ROOT / "results" / "sinkhorn_rebasin_v2_4_audit.json",
+        REPO_ROOT / "results" / "scar_codec_physical_v4_0_audit.json",
         REPO_ROOT / "results" / "scale_7b_audit" / "adversarial_scale_7b_report.json",
         REPO_ROOT / "results" / "scale_72b_audit" / "adversarial_scale_72b_report.json",
         REPO_ROOT / "results" / "scale_72b_audit" / "apple_m2_72b_speed_memory_audit.json",
@@ -198,7 +244,7 @@ def test_published_json_audit_reports_exist_and_verify_zero_discrepancy() -> Non
         def _walk_zero_discrepancy(node: object, path: str = "") -> None:
             if isinstance(node, dict):
                 for k, v in node.items():
-                    if re.search(r"(discrepancy_bytes|reported_vs_unique_diff_bytes|discrepancy_kb)$", k):
+                    if re.search(r"(discrepancy_bytes|reported_vs_unique_diff_bytes|discrepancy_kb|scache_delta_bytes)$", k):
                         assert float(v) == 0.0, f"Non-zero storage discrepancy in {rp.name}:{path}.{k} = {v}"
                     _walk_zero_discrepancy(v, f"{path}.{k}")
             elif isinstance(node, list):

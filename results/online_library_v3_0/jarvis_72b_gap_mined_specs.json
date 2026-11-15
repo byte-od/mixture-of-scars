@@ -1,0 +1,2480 @@
+{
+  "generator": "colab_open_weights_gap_factory_v4",
+  "gpu_name": "NVIDIA A100-SXM4-80GB",
+  "vram_allocated_gb": 47.38,
+  "teacher_model": "unsloth/Qwen2.5-72B-Instruct-bnb-4bit",
+  "student_model": "Qwen/Qwen2.5-3B-Instruct",
+  "num_specs": 27,
+  "elapsed_s": 792.75,
+  "gap_summary": [
+    {
+      "capsule_id": "concept_boltzmann_constant",
+      "kl_72b_3b": 0.3524,
+      "agree_72b_3b": 0.8226,
+      "s3b_margin": 0.7036,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "concept_fischer_lynch_paterson",
+      "kl_72b_3b": 0.8156,
+      "agree_72b_3b": 0.7316,
+      "s3b_margin": 0.6806,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "concept_chaitin_incompleteness",
+      "kl_72b_3b": 0.8762,
+      "agree_72b_3b": 0.7184,
+      "s3b_margin": 0.7017,
+      "s3b_hit": true,
+      "live_72b": 3
+    },
+    {
+      "capsule_id": "concept_marchenko_pastur_law",
+      "kl_72b_3b": 0.8578,
+      "agree_72b_3b": 0.7218,
+      "s3b_margin": 0.7198,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "concept_kabatiansky_levenshtein",
+      "kl_72b_3b": 1.3859,
+      "agree_72b_3b": 0.6122,
+      "s3b_margin": 0.7168,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "concept_regev_lwe_lattice",
+      "kl_72b_3b": 0.9711,
+      "agree_72b_3b": 0.6914,
+      "s3b_margin": 0.693,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "concept_shannon_hartley_capacity",
+      "kl_72b_3b": 0.247,
+      "agree_72b_3b": 0.9191,
+      "s3b_margin": 0.7688,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "concept_brazil_lc150_domestic_law",
+      "kl_72b_3b": 0.9524,
+      "agree_72b_3b": 0.6898,
+      "s3b_margin": 0.8372,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_quantum_applied_theorems",
+      "kl_72b_3b": 0.966,
+      "agree_72b_3b": 0.743,
+      "s3b_margin": 0.7268,
+      "s3b_hit": false,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_quantum_no_cloning_wootters_zurek",
+      "kl_72b_3b": 0.591,
+      "agree_72b_3b": 0.7995,
+      "s3b_margin": 0.8131,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_quantum_bell_chsh_tsirelson",
+      "kl_72b_3b": 0.6377,
+      "agree_72b_3b": 0.8264,
+      "s3b_margin": 0.6558,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_quantum_holevo_bound",
+      "kl_72b_3b": 1.0454,
+      "agree_72b_3b": 0.6667,
+      "s3b_margin": 0.7483,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_quantum_knill_laflamme_qec",
+      "kl_72b_3b": 1.2646,
+      "agree_72b_3b": 0.585,
+      "s3b_margin": 0.7455,
+      "s3b_hit": true,
+      "live_72b": 1
+    },
+    {
+      "capsule_id": "ow_systems_roofline_model",
+      "kl_72b_3b": 0.891,
+      "agree_72b_3b": 0.7018,
+      "s3b_margin": 0.7333,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_systems_cap_pacelc",
+      "kl_72b_3b": 0.9892,
+      "agree_72b_3b": 0.7155,
+      "s3b_margin": 0.7066,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_crypto_zk_snarks_groth16",
+      "kl_72b_3b": 1.0102,
+      "agree_72b_3b": 0.6665,
+      "s3b_margin": 0.7768,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_compilers_ssa_dominance",
+      "kl_72b_3b": 1.0941,
+      "agree_72b_3b": 0.6495,
+      "s3b_margin": 0.6909,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_astro_bekenstein_hawking",
+      "kl_72b_3b": 0.67,
+      "agree_72b_3b": 0.7784,
+      "s3b_margin": 0.8153,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_astro_chandrasekhar_limit",
+      "kl_72b_3b": 0.7184,
+      "agree_72b_3b": 0.7774,
+      "s3b_margin": 0.739,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_physics_jarzynski_equality",
+      "kl_72b_3b": 1.0514,
+      "agree_72b_3b": 0.7084,
+      "s3b_margin": 0.5557,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_math_ito_lemma_black_scholes",
+      "kl_72b_3b": 0.557,
+      "agree_72b_3b": 0.7696,
+      "s3b_margin": 0.6369,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_math_cramer_rao_fisher",
+      "kl_72b_3b": 0.4705,
+      "agree_72b_3b": 0.826,
+      "s3b_margin": 0.6446,
+      "s3b_hit": true,
+      "live_72b": 1
+    },
+    {
+      "capsule_id": "ow_math_godel_incompleteness",
+      "kl_72b_3b": 0.6688,
+      "agree_72b_3b": 0.7859,
+      "s3b_margin": 0.7343,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_bio_crispr_cas9_pam",
+      "kl_72b_3b": 0.9807,
+      "agree_72b_3b": 0.7028,
+      "s3b_margin": 0.6358,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_neuro_friston_free_energy",
+      "kl_72b_3b": 1.3403,
+      "agree_72b_3b": 0.6134,
+      "s3b_margin": 0.7285,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_econ_arrow_impossibility",
+      "kl_72b_3b": 0.8929,
+      "agree_72b_3b": 0.7398,
+      "s3b_margin": 0.641,
+      "s3b_hit": true,
+      "live_72b": 4
+    },
+    {
+      "capsule_id": "ow_law_brazil_lgpd_13709",
+      "kl_72b_3b": 0.4982,
+      "agree_72b_3b": 0.8309,
+      "s3b_margin": 0.7229,
+      "s3b_hit": false,
+      "live_72b": 4
+    }
+  ],
+  "specs": [
+    {
+      "capsule_id": "concept_boltzmann_constant",
+      "title": "Boltzmann Constant (Exact 2019 SI Definition & Entropy S = k_B ln Ω)",
+      "title_pt": "Constante de Boltzmann (Valor Exato SI 2019 e Entropia S = k_B ln Ω)",
+      "category": "Statistical Physics",
+      "summary": "Exact 2019 SI value k_B = 1.380649e-23 J/K linking temperature T, thermal energy, and S = k_B ln Ω.",
+      "tau": 0.41,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is the Boltzmann constant and where does it apply?",
+        "State the exact 2019 SI value and physical meaning of Boltzmann's constant.",
+        "Explain Boltzmann's constant k_B in statistical mechanics and entropy."
+      ],
+      "prompts_polyglot": {
+        "pt": "O que é a constante de Boltzmann e onde ela se aplica?",
+        "en": "What is the Boltzmann constant and where does it apply?",
+        "es": "¿Qué es la constante de Boltzmann y dónde se aplica?",
+        "fr": "Qu'est-ce que la constante de Boltzmann et où s'applique-t-elle ?"
+      },
+      "must_any": [
+        "1.380649",
+        "1,380649"
+      ],
+      "seeds": [
+        [
+          "What is the Boltzmann constant and where does it apply?",
+          "The Boltzmann constant k_B = 1.380649 × 10^-23 J/K links temperature T, thermal energy, and entropy S = k_B ln Ω in statistical mechanics."
+        ],
+        [
+          "O que é a constante de Boltzmann e onde ela se aplica?",
+          "A constante de Boltzmann k_B = 1.380649 × 10^-23 J/K relaciona temperatura T, energia térmica e entropia S = k_B ln Ω."
+        ],
+        [
+          "¿Qué es la constante de Boltzmann y dónde se aplica?",
+          "La constante de Boltzmann k_B = 1.380649 × 10^-23 J/K relaciona la temperatura T con la energía térmica y la entropía S = k_B ln �."
+        ],
+        [
+          "Qu'est-ce que la constante de Boltzmann et où s'applique-t-elle ?",
+          "La constante de Boltzmann k_B = 1.380649 × 10^-23 J/K lie la température T, l'énergie thermique et l'entropie S = k_B."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A constante de Boltzmann é uma constante fundamental da física, igual a 1.380649 × 10^-23 J/K, que une a energia molecular de um sistema",
+        "student_mean_margin": 0.7036,
+        "student_min_margin": 0.0505,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.3524,
+        "mean_top1_agree_72b_3b_4lang": 0.8226,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3292,
+            "top1_agree_72b_3b": 0.8043,
+            "teacher_72b_mean_logprob": -2.5847
+          },
+          "pt": {
+            "bpe_tokens": 49,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.2862,
+            "top1_agree_72b_3b": 0.898,
+            "teacher_72b_mean_logprob": -2.4037
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3727,
+            "top1_agree_72b_3b": 0.8039,
+            "teacher_72b_mean_logprob": -2.5747
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4214,
+            "top1_agree_72b_3b": 0.7843,
+            "teacher_72b_mean_logprob": -2.4582
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "concept_fischer_lynch_paterson",
+      "title": "Fischer–Lynch–Paterson (FLP) Distributed Consensus Impossibility (1985)",
+      "title_pt": "Teorema da Impossibilidade FLP em Consenso Distribuído Assíncrono",
+      "category": "Distributed Systems",
+      "summary": "No deterministic consensus protocol guarantees termination in an asynchronous system under even 1 unannounced crash.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What does the Fischer-Lynch-Paterson (FLP) impossibility theorem prove about asynchronous consensus?",
+        "Explain the FLP impossibility result in fault-tolerant distributed systems.",
+        "Why is deterministic consensus impossible under one crash in the FLP model?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema da impossibilidade FLP (Fischer-Lynch-Paterson) em sistemas distribuídos?",
+        "en": "What does the Fischer-Lynch-Paterson (FLP) impossibility theorem prove in distributed systems?",
+        "es": "¿Qué demuestra el teorema de imposibilidad FLP (Fischer-Lynch-Paterson) en sistemas distribuidos?",
+        "fr": "Que démontre le théorème d'impossibilité FLP (Fischer-Lynch-Paterson) dans les systèmes distribués ?"
+      },
+      "must_any": [
+        "FLP",
+        "Fischer"
+      ],
+      "seeds": [
+        [
+          "What does the Fischer-Lynch-Paterson (FLP) impossibility theorem prove in distributed systems?",
+          "The Fischer-Lynch-Paterson (FLP) theorem states that achieving consensus in an asynchronous system is impossible if even one process may fail."
+        ],
+        [
+          "O que prova o teorema da impossibilidade FLP (Fischer-Lynch-Paterson) em sistemas distribuídos?",
+          "O teorema FLP afirma que nenhum protocolo determinístico de consenso garante terminação em sistemas assíncronos com crashes não anunciados."
+        ],
+        [
+          "¿Qué demuestra el teorema de imposibilidad FLP (Fischer-Lynch-Paterson) en sistemas distribuidos?",
+          "El teorema FLP establece que ningún protocolo determinista de consenso garantiza terminación en un sistema asincrónico con al menos un fallo de crash."
+        ],
+        [
+          "Que démontre le théorème d'impossibilité FLP (Fischer-Lynch-Paterson) dans les systèmes distribués ?",
+          "Le théorème FLP établit l'impossibilité de consensus déterministe en système asynchrone avec au moins une panne non annoncée."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema da impossibilidade FLP afirma que em sistemas distribuídos, não é possível ter simultaneidade, consistência e tolerância a falhas ao mesmo tempo. Isso significa que em qualquer",
+        "student_mean_margin": 0.6806,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.8156,
+        "mean_top1_agree_72b_3b_4lang": 0.7316,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 29,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6756,
+            "top1_agree_72b_3b": 0.7931,
+            "teacher_72b_mean_logprob": -1.2388
+          },
+          "pt": {
+            "bpe_tokens": 35,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7713,
+            "top1_agree_72b_3b": 0.8,
+            "teacher_72b_mean_logprob": -2.6457
+          },
+          "es": {
+            "bpe_tokens": 36,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8623,
+            "top1_agree_72b_3b": 0.6111,
+            "teacher_72b_mean_logprob": -2.0509
+          },
+          "fr": {
+            "bpe_tokens": 36,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9533,
+            "top1_agree_72b_3b": 0.7222,
+            "teacher_72b_mean_logprob": -1.8483
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "concept_chaitin_incompleteness",
+      "title": "Chaitin's Algorithmic Incompleteness Theorem (Kolmogorov Complexity)",
+      "title_pt": "Teorema da Incompletude Algorítmica de Chaitin (Complexidade de Kolmogorov)",
+      "category": "Algorithmic Information Theory",
+      "summary": "Any consistent formal system F has an explicit constant L_F above which no statement K(x) > L_F is provable.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What does Chaitin's incompleteness theorem prove about Kolmogorov complexity?",
+        "Explain Chaitin's bound L on proving lower bounds K(x) > L in formal axiomatic systems.",
+        "How does Berry's paradox lead to Chaitin's algorithmic incompleteness theorem?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema da incompletude de Chaitin sobre a complexidade de Kolmogorov?",
+        "en": "What does Chaitin's incompleteness theorem prove about Kolmogorov complexity?",
+        "es": "¿Qué demuestra el teorema de incompletitud de Chaitin sobre la complejidad de Kolmogórov?",
+        "fr": "Que démontre le théorème d'incomplétude de Chaitin sur la complexité de Kolmogorov ?"
+      },
+      "must_any": [
+        "Chaitin",
+        "Kolmogorov",
+        "Kolmogórov"
+      ],
+      "seeds": [
+        [
+          "What does Chaitin's incompleteness theorem prove about Kolmogorov complexity?",
+          "Chaitin's Algorithmic Incompleteness Theorem states that for any consistent formal system F, there exists a constant L_F such that no statement K(x) > L_F is provable within F."
+        ],
+        [
+          "O que prova o teorema da incompletude de Chaitin sobre a complexidade de Kolmogorov?",
+          "O teorema da incompletude algorítmica de Chaitin afirma que em qualquer sistema formal consistente F existe uma constante L_F tal que nenhuma afirmação K(x) > L_F é provável."
+        ],
+        [
+          "¿Qué demuestra el teorema de incompletitud de Chaitin sobre la complejidad de Kolmogórov?",
+          "El teorema de incompletitud algorítmica de Chaitin establece que en cualquier sistema formal consistente F existe una constante L_F tal que ninguna afirmación K(x) > L_F es demostrable."
+        ],
+        [
+          "Que démontre le théorème d'incomplétude de Chaitin sur la complexité de Kolmogorov ?",
+          "Le théorème de Chaitin prouve que tout système formel cohérent F possède une borne L au-delà de laquelle il ne démontre jamais K(x) > L en complexité de Kolmogorov."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema da incompletude de Chaitin sobre a complexidade de Kolmogorov afirma que não é possível provar, usando uma teoria de números como a aritmética, que",
+        "student_mean_margin": 0.7017,
+        "student_min_margin": 0.0351,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.8762,
+        "mean_top1_agree_72b_3b_4lang": 0.7184,
+        "live_72b_generated_langs": 3,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 43,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9261,
+            "top1_agree_72b_3b": 0.7209,
+            "teacher_72b_mean_logprob": -2.5358
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8864,
+            "top1_agree_72b_3b": 0.7255,
+            "teacher_72b_mean_logprob": -2.2823
+          },
+          "es": {
+            "bpe_tokens": 49,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8719,
+            "top1_agree_72b_3b": 0.7347,
+            "teacher_72b_mean_logprob": -2.2516
+          },
+          "fr": {
+            "bpe_tokens": 52,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 0.8204,
+            "top1_agree_72b_3b": 0.6923,
+            "teacher_72b_mean_logprob": -2.4984
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "concept_marchenko_pastur_law",
+      "title": "Marchenko–Pastur Spectral Law of Random Sample Covariance Matrices",
+      "title_pt": "Lei Espectral de Marchenko–Pastur para Matrizes Aleatórias de Covariância",
+      "category": "Random Matrix Theory",
+      "summary": "Limiting eigenvalue support lambda_+- = sigma^2 (1 +- sqrt(gamma))^2 for p/n -> gamma Wishart covariance matrices.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is the Marchenko-Pastur law in random matrix theory?",
+        "State the eigenvalue support bounds of the Marchenko-Pastur distribution for sample covariance matrices.",
+        "How does the Marchenko-Pastur law separate signal eigenvalues from random noise?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que estabelece a lei de Marchenko-Pastur na teoria de matrizes aleatórias?",
+        "en": "What does the Marchenko-Pastur law establish in random matrix theory?",
+        "es": "¿Qué establece la ley de Marchenko-Pastur en la teoría de matrices aleatorias?",
+        "fr": "Qu'établit la loi de Marchenko-Pastur dans la théorie des matrices aléatoires ?"
+      },
+      "must_any": [
+        "Marchenko",
+        "Pastur"
+      ],
+      "seeds": [
+        [
+          "What does the Marchenko-Pastur law establish in random matrix theory?",
+          "The Marchenko-Pastur law states that for Wishart covariance matrices, the limiting eigenvalue support is given by λ_± = σ^2 (1 ± √γ)^2 as p/n → γ."
+        ],
+        [
+          "O que estabelece a lei de Marchenko-Pastur na teoria de matrizes aleatórias?",
+          "A lei espectral de Marchenko-Pastur para matrizes de covariância amostrais aleatórias estabelece que o suporte limite dos autovalores é λ_± = σ²(1 ± √γ."
+        ],
+        [
+          "¿Qué establece la ley de Marchenko-Pastur en la teoría de matrices aleatorias?",
+          "La ley espectral de Marchenko-Pastur establece que el soporte límite de los valores propios λ_± = σ^2 (1 ± √γ)^2 para matrices de covarianza Wishart con p/n →."
+        ],
+        [
+          "Qu'établit la loi de Marchenko-Pastur dans la théorie des matrices aléatoires ?",
+          "La loi spectrale de Marchenko-Pastur pour les matrices de covariance aléatoires énonce que la limite du support des valeurs propres est λ_± = σ²(1 ± √γ)² lorsque p/n → γ."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A Lei de Marchenko-Pastur é estabelecida na teoria de matrizes aleatórias para descrever a distribuição das menores valências de uma matriz de covariâncias ale",
+        "student_mean_margin": 0.7198,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.8578,
+        "mean_top1_agree_72b_3b_4lang": 0.7218,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7809,
+            "top1_agree_72b_3b": 0.75,
+            "teacher_72b_mean_logprob": -3.6099
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8979,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -2.9166
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9475,
+            "top1_agree_72b_3b": 0.6471,
+            "teacher_72b_mean_logprob": -3.4944
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8049,
+            "top1_agree_72b_3b": 0.7843,
+            "teacher_72b_mean_logprob": -2.8043
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "concept_kabatiansky_levenshtein",
+      "title": "Kabatiansky–Levenshtein High-Dimensional Sphere Packing Bound (1978)",
+      "title_pt": "Cota de Kabatiansky–Levenshtein para Empacotamento Esférico em Alta Dimensão",
+      "category": "Geometry & Coding Theory",
+      "summary": "Upper bound on spherical codes in R^n proving kissing numbers grow at most as 2^{0.4014 n + o(n)}.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What does the Kabatiansky-Levenshtein bound prove for sphere packing and kissing numbers in high dimensions?",
+        "Explain the Kabatiansky-Levenshtein theorem on spherical codes in R^n.",
+        "What asymptotic upper bound does Kabatiansky-Levenshtein establish on kissing numbers?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que prova a cota de Kabatiansky-Levenshtein sobre empacotamento de esferas em alta dimensão?",
+        "en": "What does the Kabatiansky-Levenshtein bound prove about high-dimensional sphere packing?",
+        "es": "¿Qué demuestra la cota de Kabatiansky-Levenshtein sobre el empaquetamiento de esferas en alta dimensión?",
+        "fr": "Que démontre la borne de Kabatiansky-Levenshtein sur l'empilement de sphères en grande dimension ?"
+      },
+      "must_any": [
+        "0.401",
+        "0,401",
+        "Kabatiansky"
+      ],
+      "seeds": [
+        [
+          "What does the Kabatiansky-Levenshtein bound prove about high-dimensional sphere packing?",
+          "The Kabatiansky–Levenshtein bound states that the maximum number of non-overlapping spheres in R^n is at most 2^{0.4014 n + o(n)}."
+        ],
+        [
+          "O que prova a cota de Kabatiansky-Levenshtein sobre empacotamento de esferas em alta dimensão?",
+          "O teorema de Kabatiansky-Levenshtein estabelece que o número de beijos em R^n é limitado superiormente por 2^{0.4014 n + o(n)}."
+        ],
+        [
+          "¿Qué demuestra la cota de Kabatiansky-Levenshtein sobre el empaquetamiento de esferas en alta dimensión?",
+          "El teorema de Kabatiansky-Levenshtein establece que el número de besos en R^n está acotado superiormente por 2^{0.4014 n + o(n)}."
+        ],
+        [
+          "Que démontre la borne de Kabatiansky-Levenshtein sur l'empilement de sphères en grande dimension ?",
+          "Le théorème de Kabatiansky-Levenshtein borne supérieurement les nombres de contact dans R^n par 2^{0.4014 n + o(n)}."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A cota de Kabatiansky-Levenshtein é crucial para entender como empacotar esferas de tamanho fixo em espaços de alta dimensão de maneira eficiente. Ela",
+        "student_mean_margin": 0.7168,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.3859,
+        "mean_top1_agree_72b_3b_4lang": 0.6122,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 41,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2558,
+            "top1_agree_72b_3b": 0.561,
+            "teacher_72b_mean_logprob": -2.4773
+          },
+          "pt": {
+            "bpe_tokens": 47,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3627,
+            "top1_agree_72b_3b": 0.6383,
+            "teacher_72b_mean_logprob": -2.2205
+          },
+          "es": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2371,
+            "top1_agree_72b_3b": 0.7111,
+            "teacher_72b_mean_logprob": -2.0854
+          },
+          "fr": {
+            "bpe_tokens": 39,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.6882,
+            "top1_agree_72b_3b": 0.5385,
+            "teacher_72b_mean_logprob": -2.8494
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "concept_regev_lwe_lattice",
+      "title": "Regev's Quantum Worst-Case Lattice Reduction for Learning With Errors (LWE)",
+      "title_pt": "Redução Quântica de Regev em Reticulados e Criptografia Pós-Quântica (LWE)",
+      "category": "Post-Quantum Cryptography",
+      "summary": "Oded Regev (2005) proved solving average-case LWE implies a quantum algorithm for worst-case GapSVP and SIVP.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What did Oded Regev prove about Learning With Errors (LWE) and worst-case lattice problems?",
+        "Explain Regev's quantum reduction from GapSVP and SIVP to LWE in post-quantum cryptography.",
+        "Why does Regev's LWE theorem underpin NIST post-quantum lattice cryptography like ML-KEM?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que Oded Regev provou sobre Learning With Errors (LWE) e criptografia pós-quântica em reticulados?",
+        "en": "What did Oded Regev prove about Learning With Errors (LWE) and post-quantum lattice cryptography?",
+        "es": "¿Qué demostró Oded Regev sobre Learning With Errors (LWE) y la criptografía poscuántica en retículos?",
+        "fr": "Qu'a démontré Oded Regev sur Learning With Errors (LWE) et la cryptographie post-quantique sur réseaux ?"
+      },
+      "must_any": [
+        "Regev",
+        "LWE",
+        "GapSVP",
+        "SIVP"
+      ],
+      "seeds": [
+        [
+          "What did Oded Regev prove about Learning With Errors (LWE) and post-quantum lattice cryptography?",
+          "Oded Regev's theorem states that solving average-case LWE problems implies the existence of a quantum algorithm for worst-case GapSVP and SIVP."
+        ],
+        [
+          "O que Oded Regev provou sobre Learning With Errors (LWE) e criptografia pós-quântica em reticulados?",
+          "Oded Regev provou que resolver LWE em casos médios implica um algoritmo quântico para os problemas GapSVP e SIVP em casos piores."
+        ],
+        [
+          "¿Qué demostró Oded Regev sobre Learning With Errors (LWE) y la criptografía poscuántica en retículos?",
+          "Oded Regev demostró en 2005 que resolver LWE en casos promedio implica un algoritmo cuántico para GapSVP y SIVP en el peor caso."
+        ],
+        [
+          "Qu'a démontré Oded Regev sur Learning With Errors (LWE) et la cryptographie post-quantique sur réseaux ?",
+          "Oded Regev a prouvé en 2005 que résoudre LWE en cas moyen implique un algorithme quantique pour les problèmes GapSVP et SIVP en cas pire."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "Oded Regev provou que o problema de aprendizado com erros (Learning With Errors, LWE) é difícil para computadores quânticos, o que é uma característica importante para a cri",
+        "student_mean_margin": 0.693,
+        "student_min_margin": 0.0253,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.9711,
+        "mean_top1_agree_72b_3b_4lang": 0.6914,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 33,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8959,
+            "top1_agree_72b_3b": 0.6364,
+            "teacher_72b_mean_logprob": -3.3336
+          },
+          "pt": {
+            "bpe_tokens": 40,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9799,
+            "top1_agree_72b_3b": 0.75,
+            "teacher_72b_mean_logprob": -2.7116
+          },
+          "es": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9098,
+            "top1_agree_72b_3b": 0.7333,
+            "teacher_72b_mean_logprob": -2.382
+          },
+          "fr": {
+            "bpe_tokens": 48,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0985,
+            "top1_agree_72b_3b": 0.6458,
+            "teacher_72b_mean_logprob": -2.2997
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "concept_shannon_hartley_capacity",
+      "title": "Shannon–Hartley Noisy Channel Capacity Theorem (C = B log2(1 + S/N))",
+      "title_pt": "Teorema da Capacidade de Canal de Shannon–Hartley (C = B log2(1 + S/N))",
+      "category": "Information Theory",
+      "summary": "Maximum error-free bit rate C = B log2(1 + S/N) bits/s over bandwidth B Hz under additive white Gaussian noise.",
+      "tau": 0.41,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is the Shannon-Hartley theorem for channel capacity under Gaussian noise?",
+        "State the Shannon-Hartley formula relating bandwidth B, SNR, and maximum bit rate C.",
+        "Explain the Shannon limit C = B log2(1 + S/N) in digital communications."
+      ],
+      "prompts_polyglot": {
+        "pt": "O que estabelece o teorema de Shannon-Hartley para a capacidade de um canal com ruído?",
+        "en": "What does the Shannon-Hartley theorem establish for noisy channel capacity?",
+        "es": "¿Qué establece el teorema de Shannon-Hartley para la capacidad de un canal con ruido?",
+        "fr": "Qu'établit le théorème de Shannon-Hartley sur la capacité d'un canal bruité ?"
+      },
+      "must_any": [
+        "log2(1 + S/N)",
+        "log_2(1 + S/N)",
+        "Shannon"
+      ],
+      "seeds": [
+        [
+          "What does the Shannon-Hartley theorem establish for noisy channel capacity?",
+          "The Shannon-Hartley theorem states that the maximum channel capacity C is given by C = B log2(1 + S/N) bits/s, where B is the bandwidth in Hz and S/N is the signal-to-noise ratio."
+        ],
+        [
+          "O que estabelece o teorema de Shannon-Hartley para a capacidade de um canal com ruído?",
+          "O teorema de Shannon-Hartley estabelece que a capacidade C de um canal ruidoso é C = B log2(1 + S/N) bits/s, onde B é a largura de banda em Hz e."
+        ],
+        [
+          "¿Qué establece el teorema de Shannon-Hartley para la capacidad de un canal con ruido?",
+          "El teorema de Shannon-Hartley establece que la capacidad C de un canal ruidoso es C = B log2(1 + S/N) bits/s."
+        ],
+        [
+          "Qu'établit le théorème de Shannon-Hartley sur la capacité d'un canal bruité ?",
+          "Le théorème de Shannon-Hartley stipule que la capacité C d'un canal bruyant est C = B log2(1 + S/N) bits/s, où B est la bande passante en Hz et S/N le rapport."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema de Shannon-Hartley estabelece que a capacidade máxima de um canal de comunicação, considerando a presença de ruído, é dada pela fórmula C = B",
+        "student_mean_margin": 0.7688,
+        "student_min_margin": 0.0982,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.247,
+        "mean_top1_agree_72b_3b_4lang": 0.9191,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 48,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3294,
+            "top1_agree_72b_3b": 0.9167,
+            "teacher_72b_mean_logprob": -1.6976
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.2003,
+            "top1_agree_72b_3b": 0.902,
+            "teacher_72b_mean_logprob": -2.1603
+          },
+          "es": {
+            "bpe_tokens": 36,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.2492,
+            "top1_agree_72b_3b": 0.9167,
+            "teacher_72b_mean_logprob": -1.5259
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.209,
+            "top1_agree_72b_3b": 0.9412,
+            "teacher_72b_mean_logprob": -1.8978
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "concept_brazil_lc150_domestic_law",
+      "title": "Brazilian Domestic Employment Statute — Complementary Law 150/2015 (PEC das Domésticas)",
+      "title_pt": "Direito Trabalhista Doméstico no Brasil — Lei Complementar 150/2015",
+      "category": "Labor Law (Brazil)",
+      "summary": "LC 150/2015 regulates domestic employment (>= 3 days/week): 8h/day, 44h/week, 50% overtime, mandatory FGTS 8% + 3.2%.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "How does labor law for domestic workers and housekeepers work in Brazil under LC 150/2015?",
+        "What rights and weekly hour limits does Complementary Law 150/2015 establish for Brazilian domestic workers?",
+        "When is a cleaner or housekeeper legally a domestic employee in Brazil under LC 150?"
+      ],
+      "prompts_polyglot": {
+        "pt": "Como funciona o direito trabalhista para empregadas domésticas e diaristas no Brasil pela LC 150/2015?",
+        "en": "How does Brazilian labor law work for domestic workers and cleaners under LC 150/2015?",
+        "es": "¿Cómo funciona el derecho laboral para empleadas domésticas en Brasil según la LC 150/2015?",
+        "fr": "Comment fonctionne le droit du travail des employés domestiques au Brésil selon la LC 150/2015 ?"
+      },
+      "must_any": [
+        "150/2015",
+        "44",
+        "FGTS"
+      ],
+      "seeds": [
+        [
+          "How does Brazilian labor law work for domestic workers and cleaners under LC 150/2015?",
+          "Complementary Law 150/2015 (PEC das Domésticas) in Brazil mandates 8-hour workdays, 44-hour workweeks, 50% overtime pay, and 11.2% FG."
+        ],
+        [
+          "Como funciona o direito trabalhista para empregadas domésticas e diaristas no Brasil pela LC 150/2015?",
+          "A Lei Complementar 150/2015 estabelece que o trabalho doméstico (≥ 3 dias/semana) tem jornada de 8h/dia, 44h/semana, ad."
+        ],
+        [
+          "¿Cómo funciona el derecho laboral para empleadas domésticas en Brasil según la LC 150/2015?",
+          "La LC 150/2015 regula el empleo doméstico (≥3 días/semana): 8h/día, 44h/semana, 50% extra, FGTS obligatorio."
+        ],
+        [
+          "Comment fonctionne le droit du travail des employés domestiques au Brésil selon la LC 150/2015 ?",
+          "La Loi Complémentaire 150/2015 réglemente l'emploi domestique (≥ 3 jours/semaine) : 8h/jour, 44h/semaine, 5."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O direito trabalhista para empregadas domésticas e diaristas no Brasil, regulamentado pela Lei Complementar 150/2015, oferece proteções específicas",
+        "student_mean_margin": 0.8372,
+        "student_min_margin": 0.0237,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.9524,
+        "mean_top1_agree_72b_3b_4lang": 0.6898,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2517,
+            "top1_agree_72b_3b": 0.6471,
+            "teacher_72b_mean_logprob": -3.1771
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6808,
+            "top1_agree_72b_3b": 0.6863,
+            "teacher_72b_mean_logprob": -2.1767
+          },
+          "es": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9143,
+            "top1_agree_72b_3b": 0.72,
+            "teacher_72b_mean_logprob": -2.679
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9628,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -2.291
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_quantum_applied_theorems",
+      "title": "Applied Theorems of Quantum Physics & Quantum Information (No-Cloning, Bell-CHSH, Holevo)",
+      "title_pt": "Teoremas Aplicados da Física e Informação Quântica (Não-Clonagem, Bell-CHSH e Holevo)",
+      "category": "Quantum Physics",
+      "summary": "Core applied theorems of quantum physics: Wootters-Zurek No-Cloning (BB84 QKD), Bell-CHSH (2*sqrt(2) QRNG), and Holevo's capacity bound.",
+      "tau": 0.39,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "Tell me about a random applied theorem from quantum physics.",
+        "Give me an applied theorem of quantum physics and explain its practical technology use.",
+        "What is a fundamental theorem of applied quantum mechanics and quantum information?"
+      ],
+      "prompts_polyglot": {
+        "pt": "Me fale sobre um teorema da física quântica aplicado e onde ele é usado na prática.",
+        "en": "Tell me about an applied quantum physics theorem and where it is used in practice.",
+        "es": "Háblame de un teorema aplicado de la física cuántica y dónde se usa en la práctica.",
+        "fr": "Parlez-moi d'un théorème appliqué de la physique quantique et de son usage pratique."
+      },
+      "must_any": [
+        "Wootters",
+        "BB84",
+        "clon"
+      ],
+      "seeds": [
+        [
+          "Tell me about an applied quantum physics theorem and where it is used in practice.",
+          "The Wootters-Zurek No-Cloning theorem states that an unknown quantum state cannot be duplicated, underpinning the unconditional security of BB84 quantum key distribution."
+        ],
+        [
+          "Me fale sobre um teorema da física quântica aplicado e onde ele é usado na prática.",
+          "O teorema de Wootters-Zurek estabelece que não é possível clonar um estado quântico desconhecido com precisão."
+        ],
+        [
+          "Háblame de un teorema aplicado de la física cuántica y dónde se usa en la práctica.",
+          "El teorema de Wootters-Zurek establece que no se puede clonar un estado cuántico desconocido, fundamentando la criptografía cuántica BB84."
+        ],
+        [
+          "Parlez-moi d'un théorème appliqué de la physique quantique et de son usage pratique.",
+          "Le théorème de Wootters-Zurek stipule qu'il est impossible de cloner un état quantique inconnu, sous-tendant la sécurité de la distribution de clés quantiques BB84."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "Um teorema muito importante na física quântica é o Teorema de Noether, que é fundamental para entender a relação entre simetria e conservação. Este teorema afirma que para",
+        "student_mean_margin": 0.7268,
+        "student_min_margin": 0.0242,
+        "student_refused": false,
+        "student_hit_exact_anchor": false,
+        "mean_kl_72b_to_3b_4lang": 0.966,
+        "mean_top1_agree_72b_3b_4lang": 0.743,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 35,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8311,
+            "top1_agree_72b_3b": 0.8,
+            "teacher_72b_mean_logprob": -3.6036
+          },
+          "pt": {
+            "bpe_tokens": 35,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9565,
+            "top1_agree_72b_3b": 0.7143,
+            "teacher_72b_mean_logprob": -1.6028
+          },
+          "es": {
+            "bpe_tokens": 42,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0281,
+            "top1_agree_72b_3b": 0.7619,
+            "teacher_72b_mean_logprob": -1.8628
+          },
+          "fr": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0481,
+            "top1_agree_72b_3b": 0.6957,
+            "teacher_72b_mean_logprob": -1.9626
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_quantum_no_cloning_wootters_zurek",
+      "title": "Wootters–Zurek Quantum No-Cloning Theorem (1982) & BB84 Security",
+      "title_pt": "Teorema da Não-Clonagem Quântica de Wootters–Zurek (1982)",
+      "category": "Quantum Physics",
+      "summary": "No unitary operator U satisfies U(|psi>|0>) = e^{i phi}|psi>|psi> for arbitrary superpositions, securing quantum key distribution.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "Explain the quantum no-cloning theorem of Wootters and Zurek.",
+        "Why does linearity of unitary evolution forbid cloning an unknown quantum state?",
+        "What does the Wootters-Zurek no-cloning theorem prove for qubits and QKD?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema da não-clonagem quântica de Wootters e Zurek?",
+        "en": "What does the Wootters-Zurek quantum no-cloning theorem prove?",
+        "es": "¿Qué demuestra el teorema de no clonación cuántica de Wootters y Zurek?",
+        "fr": "Que démontre le théorème de non-clonage quantique de Wootters et Zurek ?"
+      },
+      "must_any": [
+        "Wootters",
+        "Zurek",
+        "1982",
+        "BB84"
+      ],
+      "seeds": [
+        [
+          "What does the Wootters-Zurek quantum no-cloning theorem prove?",
+          "The Wootters-Zurek no-cloning theorem states that no unitary operator U can duplicate an arbitrary unknown quantum state |ψ⟩, ensuring the security of quantum key distribution protocols like BB84."
+        ],
+        [
+          "O que prova o teorema da não-clonagem quântica de Wootters e Zurek?",
+          "O teorema de Wootters-Zurek proíbe a clonagem de estados quânticos desconhecidos, fundamentando a segurança da distribuição de chaves quânticas BB84."
+        ],
+        [
+          "¿Qué demuestra el teorema de no clonación cuántica de Wootters y Zurek?",
+          "El teorema de no-clonación cuántica de Wootters-Zurek establece que no existe un operador unitario U que satisfaga U(|ψ⟩|0⟩) = e^{iφ}|ψ⟩|."
+        ],
+        [
+          "Que démontre le théorème de non-clonage quantique de Wootters et Zurek ?",
+          "Le théorème de non-clonage quantique de Wootters-Zurek (1982) stipule que aucun opérateur unitaire U ne satisfait U(|ψ⟩|0⟩) = e^{i."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema da não-clonagem quântica de Wootters e Zurek afirma que é impossível clonar um estado quântico idêntico a outro, sem",
+        "student_mean_margin": 0.8131,
+        "student_min_margin": 0.0313,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.591,
+        "mean_top1_agree_72b_3b_4lang": 0.7995,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 42,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3586,
+            "top1_agree_72b_3b": 0.8333,
+            "teacher_72b_mean_logprob": -3.3123
+          },
+          "pt": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9966,
+            "top1_agree_72b_3b": 0.7391,
+            "teacher_72b_mean_logprob": -2.2332
+          },
+          "es": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.2879,
+            "top1_agree_72b_3b": 0.9,
+            "teacher_72b_mean_logprob": -2.8203
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.721,
+            "top1_agree_72b_3b": 0.7255,
+            "teacher_72b_mean_logprob": -3.1778
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_quantum_bell_chsh_tsirelson",
+      "title": "Bell's Theorem, CHSH Inequality (<= 2) & Tsirelson's Bound (2*sqrt(2))",
+      "title_pt": "Teorema de Bell, Desigualdade CHSH (<= 2) e Cota de Tsirelson (2√2)",
+      "category": "Quantum Physics",
+      "summary": "Local hidden-variable models satisfy |S_CHSH| <= 2, while entangled singlet states reach Tsirelson's bound 2*sqrt(2) ≈ 2.828.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What do Bell's theorem and the CHSH inequality prove about local hidden variables and entanglement?",
+        "Explain the classical CHSH bound of 2 versus Tsirelson's quantum bound of 2 sqrt(2).",
+        "How do Bell-CHSH violations certify quantum nonlocality?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que provam o teorema de Bell e a desigualdade CHSH sobre variáveis ocultas locais?",
+        "en": "What do Bell's theorem and the CHSH inequality prove about local hidden variables?",
+        "es": "¿Qué demuestran el teorema de Bell y la desigualdad CHSH sobre variables ocultas locales?",
+        "fr": "Que démontrent le théorème de Bell et l'inégalité CHSH sur les variables cachées locales ?"
+      },
+      "must_any": [
+        "CHSH",
+        "Tsirelson",
+        "2.828",
+        "2,828",
+        "sqrt(2)",
+        "√2"
+      ],
+      "seeds": [
+        [
+          "What do Bell's theorem and the CHSH inequality prove about local hidden variables?",
+          "The CHSH inequality states that for local hidden-variable models, |S_CHSH| ≤ 2, whereas quantum mechanics allows |S_CHSH| up to 2√2."
+        ],
+        [
+          "O que provam o teorema de Bell e a desigualdade CHSH sobre variáveis ocultas locais?",
+          "O teorema de Bell estabelece que modelos de variáveis ocultas locais satisfazem |S_CHSH| <= 2, enquanto estados emaranhados atingem o limite de Tsirelson 2."
+        ],
+        [
+          "¿Qué demuestran el teorema de Bell y la desigualdad CHSH sobre variables ocultas locales?",
+          "El teorema de Bell establece que los modelos de variables ocultas locales satisfacen |S_CHSH| <= 2, mientras que los estados enlazados alcanzan el límite de Tsirelson 2*sqrt."
+        ],
+        [
+          "Que démontrent le théorème de Bell et l'inégalité CHSH sur les variables cachées locales ?",
+          "Le théorème de Bell énonce que pour les modèles à variables cachées locales, |S_CHSH| ≤ 2, contre 2√2 pour les états singlets entrelacés."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema de Bell e a desigualdade CHSH são fundamentais para refutar a possibilidade de comunicação instantânea entre distâncias consideráveis, sugerindo que a física quâ",
+        "student_mean_margin": 0.6558,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.6377,
+        "mean_top1_agree_72b_3b_4lang": 0.8264,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 37,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3509,
+            "top1_agree_72b_3b": 0.8919,
+            "teacher_72b_mean_logprob": -3.8953
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7597,
+            "top1_agree_72b_3b": 0.7843,
+            "teacher_72b_mean_logprob": -2.7669
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.505,
+            "top1_agree_72b_3b": 0.902,
+            "teacher_72b_mean_logprob": -2.9773
+          },
+          "fr": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9352,
+            "top1_agree_72b_3b": 0.7273,
+            "teacher_72b_mean_logprob": -2.653
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_quantum_holevo_bound",
+      "title": "Holevo's Bound (1973) on Accessible Classical Information from Quantum States",
+      "title_pt": "Cota de Holevo (1973) sobre Informação Clássica Extraível de Qubits",
+      "category": "Quantum Information",
+      "summary": "Mutual information I(X:Y) <= chi = S(rho) - sum_x p_x S(rho_x) <= n bits for n qubits without shared entanglement.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is Holevo's bound on extracting classical information from quantum states?",
+        "Explain Holevo's theorem and why n unentangled qubits carry at most n classical bits.",
+        "State the Holevo chi quantity S(rho) - sum p_i S(rho_i) in quantum information theory."
+      ],
+      "prompts_polyglot": {
+        "pt": "O que estabelece a cota de Holevo sobre a informação clássica extraível de estados quânticos?",
+        "en": "What does Holevo's bound establish on classical information extractable from quantum states?",
+        "es": "¿Qué establece la cota de Holevo sobre la información clásica extraíble de estados cuánticos?",
+        "fr": "Qu'établit la borne de Holevo sur l'information classique extractible d'états quantiques ?"
+      },
+      "must_any": [
+        "Holevo",
+        "S(rho)",
+        "n bit"
+      ],
+      "seeds": [
+        [
+          "What does Holevo's bound establish on classical information extractable from quantum states?",
+          "Holevo's bound states that the accessible classical information I(X:Y) from quantum states is limited by chi = S(rho) - Σ p_x S(rho_x) ≤ n bits for n qubits without shared entanglement."
+        ],
+        [
+          "O que estabelece a cota de Holevo sobre a informação clássica extraível de estados quânticos?",
+          "O limite de Holevo estabelece que a informação mútua I(X:Y) acessível de estados quânticos é limitada por χ = S(ρ) - Σp_x S(ρ_x) ≤."
+        ],
+        [
+          "¿Qué establece la cota de Holevo sobre la información clásica extraíble de estados cuánticos?",
+          "El teorema de Holevo establece que la información mutua I(X:Y) ≤ χ = S(ρ) - ∑_x p_x S(ρ_x) ≤ n bits para n qubits sin entrelaz."
+        ],
+        [
+          "Qu'établit la borne de Holevo sur l'information classique extractible d'états quantiques ?",
+          "Le théorème de Holevo stipule que l'information mutuelle I(X:Y) ≤ χ = S(ρ) - Σ_p_x S(ρ_x) ≤ n bits pour n qubits sans entrelacement part."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A cota de Holevo estabelece que a quantidade máxima de informação clássica que pode ser extraída de um conjunto de estados quânticos é limitada pela entropia de von Ne",
+        "student_mean_margin": 0.7483,
+        "student_min_margin": 0.0297,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.0454,
+        "mean_top1_agree_72b_3b_4lang": 0.6667,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9042,
+            "top1_agree_72b_3b": 0.6667,
+            "teacher_72b_mean_logprob": -2.8123
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0415,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -3.0074
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.988,
+            "top1_agree_72b_3b": 0.6667,
+            "teacher_72b_mean_logprob": -3.124
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2479,
+            "top1_agree_72b_3b": 0.6275,
+            "teacher_72b_mean_logprob": -3.4717
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_quantum_knill_laflamme_qec",
+      "title": "Knill–Laflamme Quantum Error Correction Conditions & Surface Code Threshold",
+      "title_pt": "Condições de Correção Quântica de Erros de Knill–Laflamme e Surface Codes",
+      "category": "Quantum Computing",
+      "summary": "A code projector P corrects Kraus errors {E_a} iff P E_a^dagger E_b P = alpha_{ab} P; 2D surface codes achieve ~1% threshold.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What are the Knill-Laflamme conditions for quantum error correction?",
+        "Explain how Knill-Laflamme conditions and 2D surface codes protect logical qubits from decoherence.",
+        "When is a set of Kraus noise operators correctable by a quantum error-correcting code?"
+      ],
+      "prompts_polyglot": {
+        "pt": "Quais são as condições de Knill-Laflamme para correção quântica de erros?",
+        "en": "What are the Knill-Laflamme conditions for quantum error correction?",
+        "es": "¿Cuáles son las condiciones de Knill-Laflamme para la corrección cuántica de errores?",
+        "fr": "Quelles sont les conditions de Knill-Laflamme pour la correction d'erreurs quantiques ?"
+      },
+      "must_any": [
+        "Knill",
+        "Laflamme",
+        "alpha"
+      ],
+      "seeds": [
+        [
+          "What are the Knill-Laflamme conditions for quantum error correction?",
+          "The Knill-Laflamme conditions state that a code projector P corrects Kraus errors {E_a} if P E_a^dagger E_b P = α_{ab} P, achieving ~1% error threshold in 2D."
+        ],
+        [
+          "Quais são as condições de Knill-Laflamme para correção quântica de erros?",
+          "As condições de Knill-Laflamme (1997) provam que um projetor P corrige erros E_a se e só se P E_a* E_b P = alpha_ab P nos surface codes."
+        ],
+        [
+          "¿Cuáles son las condiciones de Knill-Laflamme para la corrección cuántica de errores?",
+          "Las condiciones de Knill-Laflamme (1997) prueban que un proyector P corrige errores E_a si P E_a* E_b P = alpha_ab P en surface codes."
+        ],
+        [
+          "Quelles sont les conditions de Knill-Laflamme pour la correction d'erreurs quantiques ?",
+          "Les conditions de Knill-Laflamme (1997) prouvent qu'un projecteur P corrige les erreurs E_a ssi P E_a* E_b P = alpha_ab P en codes de surface."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "As condições de Knill-Laflamme são fundamentais para a correção quântica de erros em sistemas quânticos. Elas garantem que um operador de correção quânt",
+        "student_mean_margin": 0.7455,
+        "student_min_margin": 0.0516,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.2646,
+        "mean_top1_agree_72b_3b_4lang": 0.585,
+        "live_72b_generated_langs": 1,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8558,
+            "top1_agree_72b_3b": 0.6471,
+            "teacher_72b_mean_logprob": -3.5408
+          },
+          "pt": {
+            "bpe_tokens": 47,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 1.497,
+            "top1_agree_72b_3b": 0.5319,
+            "teacher_72b_mean_logprob": -4.0926
+          },
+          "es": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 1.3229,
+            "top1_agree_72b_3b": 0.5778,
+            "teacher_72b_mean_logprob": -3.8234
+          },
+          "fr": {
+            "bpe_tokens": 48,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 1.3825,
+            "top1_agree_72b_3b": 0.5833,
+            "teacher_72b_mean_logprob": -3.7394
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_systems_roofline_model",
+      "title": "Roofline Performance Model (Arithmetic Intensity & Memory Bandwidth Ceiling)",
+      "title_pt": "Modelo Roofline de Desempenho (Intensidade Aritmética e Teto de Banda)",
+      "category": "Computer Architecture",
+      "summary": "Attainable throughput P = min(P_peak, B_mem * I) as a function of arithmetic intensity I (FLOPs/Byte) and memory bandwidth.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "Explain the Roofline performance model and arithmetic intensity in GPUs and CPUs.",
+        "How does the Roofline model determine whether a kernel is memory-bound or compute-bound?",
+        "State the Roofline equation relating peak FLOP/s, memory bandwidth, and ridge point."
+      ],
+      "prompts_polyglot": {
+        "pt": "Como funciona o modelo Roofline de desempenho e intensidade aritmética em GPUs e CPUs?",
+        "en": "How does the Roofline performance model and arithmetic intensity work on GPUs and CPUs?",
+        "es": "¿Cómo funciona el modelo Roofline de rendimiento e intensidad aritmética en GPUs y CPUs?",
+        "fr": "Comment fonctionne le modèle Roofline de performance et d'intensité arithmétique sur GPU et CPU ?"
+      },
+      "must_any": [
+        "Roofline",
+        "min(",
+        "FLOP"
+      ],
+      "seeds": [
+        [
+          "How does the Roofline performance model and arithmetic intensity work on GPUs and CPUs?",
+          "The Roofline model states that attainable performance P is given by P = min(P_peak, B_mem * I), where I is the arithmetic intensity (FLOPs/Byte) and B_mem is the memory bandwidth."
+        ],
+        [
+          "Como funciona o modelo Roofline de desempenho e intensidade aritmética em GPUs e CPUs?",
+          "O modelo Roofline define o throughput atingível P como P = min(P_peak, B_mem * I), onde I é a intensidade aritmética (FLOPs/Byte)."
+        ],
+        [
+          "¿Cómo funciona el modelo Roofline de rendimiento e intensidad aritmética en GPUs y CPUs?",
+          "El modelo Roofline define el rendimiento alcanzable P como P = min(P_peak, B_mem * I), donde I es la intensidad aritmética (FLOPs/Byte)."
+        ],
+        [
+          "Comment fonctionne le modèle Roofline de performance et d'intensité arithmétique sur GPU et CPU ?",
+          "Le modèle Roofline définit le débit atteignable P comme P = min(P_peak, B_mem * I), où I est l'intensité arithmétique (FLOPs/Byte)."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O modelo Roofline de desempenho e intensidade aritmética é uma ferramenta visual que ajuda a entender como os processadores (GPUs e CPUs) utilizam sua capacidade de processamento",
+        "student_mean_margin": 0.7333,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.891,
+        "mean_top1_agree_72b_3b_4lang": 0.7018,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.615,
+            "top1_agree_72b_3b": 0.8667,
+            "teacher_72b_mean_logprob": -2.5276
+          },
+          "pt": {
+            "bpe_tokens": 39,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0647,
+            "top1_agree_72b_3b": 0.641,
+            "teacher_72b_mean_logprob": -2.9205
+          },
+          "es": {
+            "bpe_tokens": 40,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9746,
+            "top1_agree_72b_3b": 0.625,
+            "teacher_72b_mean_logprob": -2.4274
+          },
+          "fr": {
+            "bpe_tokens": 43,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9097,
+            "top1_agree_72b_3b": 0.6744,
+            "teacher_72b_mean_logprob": -2.5146
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_systems_cap_pacelc",
+      "title": "Brewer's CAP Theorem (Gilbert–Lynch) & Abadi's PACELC Extension",
+      "title_pt": "Teorema CAP de Brewer (Gilbert–Lynch) e Extensão PACELC",
+      "category": "Distributed Systems",
+      "summary": "Under network Partition (P), distributed stores trade Consistency (C) vs Availability (A); Else (E), Latency (L) vs Consistency (C).",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "Explain Brewer's CAP theorem and Abadi's PACELC extension in distributed databases.",
+        "What trade-offs do CAP and PACELC formalize during network partitions and normal operation?",
+        "How does PACELC extend the Gilbert-Lynch proof of the CAP theorem?"
+      ],
+      "prompts_polyglot": {
+        "pt": "Explique o teorema CAP de Brewer e a extensão PACELC em bancos de dados distribuídos.",
+        "en": "Explain Brewer's CAP theorem and the PACELC extension in distributed databases.",
+        "es": "Explica el teorema CAP de Brewer y la extensión PACELC en bases de datos distribuidas.",
+        "fr": "Expliquez le théorème CAP de Brewer et l'extension PACELC dans les bases de données distribuées."
+      },
+      "must_any": [
+        "CAP",
+        "PACELC"
+      ],
+      "seeds": [
+        [
+          "Explain Brewer's CAP theorem and the PACELC extension in distributed databases.",
+          "Brewer's CAP theorem states that in a distributed system, under network partition (P), one must choose between consistency (C) and availability (A); otherwise, between latency (L) and consistency (C)."
+        ],
+        [
+          "Explique o teorema CAP de Brewer e a extensão PACELC em bancos de dados distribuídos.",
+          "O Teorema CAP de Brewer, estendido por Abadi com PACELC, afirma que em partições de rede, sistemas distribuídos devem escolher entre consistência ou disponibilidade; caso contrário, entre latência."
+        ],
+        [
+          "Explica el teorema CAP de Brewer y la extensión PACELC en bases de datos distribuidas.",
+          "El teorema CAP de Brewer y su extensión PACELC de Abadi establecen que en una partición de red, se debe elegir entre consistencia o disponibilidad; en caso contrario, entre latencia o consistencia."
+        ],
+        [
+          "Expliquez le théorème CAP de Brewer et l'extension PACELC dans les bases de données distribuées.",
+          "Le théorème CAP de Brewer et son extension PACELC d'Abadi stipulent que sous partition réseau (P), les systèmes distribués sacrifient la cohérence (C) pour la disponibilité (A),."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O Teorema CAP, também conhecido como Teorema de Brewer, é um princípio fundamental em arquitetura de sistemas distribuídos que afirma que em um sistema de banco de dados distribuído",
+        "student_mean_margin": 0.7066,
+        "student_min_margin": 0.0295,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.9892,
+        "mean_top1_agree_72b_3b_4lang": 0.7155,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7628,
+            "top1_agree_72b_3b": 0.75,
+            "teacher_72b_mean_logprob": -1.88
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2747,
+            "top1_agree_72b_3b": 0.6863,
+            "teacher_72b_mean_logprob": -2.6141
+          },
+          "es": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9096,
+            "top1_agree_72b_3b": 0.72,
+            "teacher_72b_mean_logprob": -2.5472
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0096,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -2.5006
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_crypto_zk_snarks_groth16",
+      "title": "Zero-Knowledge Proofs (`zk-SNARKs` & Groth16 O(1) Pairing Verification)",
+      "title_pt": "Provas de Conhecimento Zero (`zk-SNARKs` e Verificação O(1) Groth16)",
+      "category": "Applied Cryptography",
+      "summary": "Succinct Non-Interactive Arguments of Knowledge proving NP witness validity in zero knowledge with O(1) proof size (3 group elements in Groth16).",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "How do zk-SNARKs and Groth16 zero-knowledge proofs achieve O(1) verification?",
+        "Explain completeness, knowledge soundness, and zero-knowledge in zk-SNARKs.",
+        "What makes Groth16 proofs constant-size using arithmetic circuits, QAP, and bilinear pairings?"
+      ],
+      "prompts_polyglot": {
+        "pt": "Como funcionam as provas de conhecimento zero zk-SNARKs e o protocolo Groth16?",
+        "en": "How do zk-SNARK zero-knowledge proofs and the Groth16 protocol work?",
+        "es": "¿Cómo funcionan las pruebas de conocimiento cero zk-SNARKs y el protocolo Groth16?",
+        "fr": "Comment fonctionnent les preuves à divulgation nulle de connaissance zk-SNARKs et Groth16 ?"
+      },
+      "must_any": [
+        "SNARK",
+        "Groth16",
+        "O(1)"
+      ],
+      "seeds": [
+        [
+          "How do zk-SNARK zero-knowledge proofs and the Groth16 protocol work?",
+          "Succinct Non-Interactive Arguments of Knowledge (SNARKs) enable zero-knowledge proofs of NP statements with Groth16 achieving O(1) verification using 3 group elements."
+        ],
+        [
+          "Como funcionam as provas de conhecimento zero zk-SNARKs e o protocolo Groth16?",
+          "O teorema zk-SNARK permite provar a validade de testemunhas NP em conhecimento zero com tamanho de prova O(1) (3 elementos de grupo em Groth16)."
+        ],
+        [
+          "¿Cómo funcionan las pruebas de conocimiento cero zk-SNARKs y el protocolo Groth16?",
+          "Los zk-SNARKs, como en Groth16, permiten probar la validez de un testigo NP en conocimiento cero con un tamaño de prueba constante de 3 elementos de grupo."
+        ],
+        [
+          "Comment fonctionnent les preuves à divulgation nulle de connaissance zk-SNARKs et Groth16 ?",
+          "Les zk-SNARKs, comme Groth16, permettent de prouver la validité d'un témoin NP en connaissance nulle avec une taille de preuve constante O(1)."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "Zk-SNARKs (Zero-Knowledge Succinct Non-Interactive Argument of Knowledge) são uma tecnologia criptográfica que permite provar a veracidade de uma declaração sem revelar qu",
+        "student_mean_margin": 0.7768,
+        "student_min_margin": 0.0564,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.0102,
+        "mean_top1_agree_72b_3b_4lang": 0.6665,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 39,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7852,
+            "top1_agree_72b_3b": 0.6923,
+            "teacher_72b_mean_logprob": -3.916
+          },
+          "pt": {
+            "bpe_tokens": 43,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3938,
+            "top1_agree_72b_3b": 0.5581,
+            "teacher_72b_mean_logprob": -3.616
+          },
+          "es": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.025,
+            "top1_agree_72b_3b": 0.7111,
+            "teacher_72b_mean_logprob": -2.8727
+          },
+          "fr": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.837,
+            "top1_agree_72b_3b": 0.7045,
+            "teacher_72b_mean_logprob": -2.3894
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_compilers_ssa_dominance",
+      "title": "Static Single Assignment (`SSA`), Dominance Frontiers & Cytron Phi Placement",
+      "title_pt": "Forma Estática de Atribuição Única (`SSA`), Fronteira de Dominância e Nós Phi",
+      "category": "Compilers",
+      "summary": "Every variable in SSA is defined exactly once, with minimal phi-functions inserted at iterated dominance frontiers (Cytron et al., 1991).",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is Static Single Assignment (SSA) form and how do dominance frontiers place phi-nodes in compilers?",
+        "Explain Cytron's SSA construction algorithm in LLVM and shader compilers.",
+        "Why does SSA form simplify constant propagation, dead-code elimination, and register allocation?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que é a forma Static Single Assignment (SSA) e como a fronteira de dominância posiciona funções phi em compiladores?",
+        "en": "What is Static Single Assignment (SSA) form and how do dominance frontiers place phi-functions in compilers?",
+        "es": "¿Qué es la forma Static Single Assignment (SSA) y cómo ubican las fronteras de dominancia las funciones phi?",
+        "fr": "Qu'est-ce que la forme Static Single Assignment (SSA) et comment les frontières de dominance placent-elles les fonctions phi ?"
+      },
+      "must_any": [
+        "SSA",
+        "Cytron",
+        "phi"
+      ],
+      "seeds": [
+        [
+          "What is Static Single Assignment (SSA) form and how do dominance frontiers place phi-functions in compilers?",
+          "In SSA form, every variable is defined exactly once, and phi-functions are inserted at the iterated dominance frontiers to ensure this property."
+        ],
+        [
+          "O que é a forma Static Single Assignment (SSA) e como a fronteira de dominância posiciona funções phi em compiladores?",
+          "Na SSA, cada variável é definida uma única vez, com funções phi mínimas inseridas nos fronteiras de dominação iteradas."
+        ],
+        [
+          "¿Qué es la forma Static Single Assignment (SSA) y cómo ubican las fronteras de dominancia las funciones phi?",
+          "En SSA, cada variable se define una sola vez, insertando funciones phi mínimas en los frentes de dominancia iterados."
+        ],
+        [
+          "Qu'est-ce que la forme Static Single Assignment (SSA) et comment les frontières de dominance placent-elles les fonctions phi ?",
+          "Dans SSA, chaque variable est définie une seule fois, avec des fonctions phi minimales insérées aux frontières de dominance itérées."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A forma SSA (Static Single Assignment) é uma representação de código que garante que cada variável seja atribuída e usada exatamente uma vez. Isso ajuda a simplificar a análise de",
+        "student_mean_margin": 0.6909,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.0941,
+        "mean_top1_agree_72b_3b_4lang": 0.6495,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 28,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3149,
+            "top1_agree_72b_3b": 0.5357,
+            "teacher_72b_mean_logprob": -3.4666
+          },
+          "pt": {
+            "bpe_tokens": 31,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8692,
+            "top1_agree_72b_3b": 0.7097,
+            "teacher_72b_mean_logprob": -4.0066
+          },
+          "es": {
+            "bpe_tokens": 28,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2894,
+            "top1_agree_72b_3b": 0.6429,
+            "teacher_72b_mean_logprob": -4.184
+          },
+          "fr": {
+            "bpe_tokens": 31,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9028,
+            "top1_agree_72b_3b": 0.7097,
+            "teacher_72b_mean_logprob": -3.8019
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_astro_bekenstein_hawking",
+      "title": "Bekenstein–Hawking Black Hole Entropy (S_BH = k_B c^3 A / 4 G hbar)",
+      "title_pt": "Entropia de Buracos Negros de Bekenstein–Hawking (Lei da Área A / 4 l_P^2)",
+      "category": "Relativistic Astrophysics",
+      "summary": "Black hole entropy scales with event-horizon area A rather than volume: S_BH = k_B c^3 A / (4 G hbar) = k_B A / (4 l_P^2).",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is the Bekenstein-Hawking black hole entropy formula and why does it scale with horizon area?",
+        "State S_BH = k_B c^3 A / (4 G hbar) and its link to the holographic principle.",
+        "Explain Bekenstein-Hawking thermodynamics and Hawking temperature of black holes."
+      ],
+      "prompts_polyglot": {
+        "pt": "Qual é a fórmula da entropia de buracos negros de Bekenstein-Hawking e por que ela depende da área?",
+        "en": "What is the Bekenstein-Hawking black hole entropy formula and why does it scale with area?",
+        "es": "¿Cuál es la fórmula de la entropía de agujeros negros de Bekenstein-Hawking y por qué escala con el área?",
+        "fr": "Quelle est la formule de l'entropie des trous noirs de Bekenstein-Hawking et pourquoi dépend-elle de l'aire ?"
+      },
+      "must_any": [
+        "Bekenstein",
+        "4 G",
+        "4G",
+        "A / 4",
+        "A/4"
+      ],
+      "seeds": [
+        [
+          "What is the Bekenstein-Hawking black hole entropy formula and why does it scale with area?",
+          "The Bekenstein-Hawking formula states that black hole entropy S_BH is proportional to the event horizon area A, given by S_BH = k_B c^3 A / (4 G hbar)."
+        ],
+        [
+          "Qual é a fórmula da entropia de buracos negros de Bekenstein-Hawking e por que ela depende da área?",
+          "A entropia de um buraco negro, S_BH, é proporcional à área A do horizonte de eventos, conforme S_BH = k_B c^3 A / (4 G hbar)."
+        ],
+        [
+          "¿Cuál es la fórmula de la entropía de agujeros negros de Bekenstein-Hawking y por qué escala con el área?",
+          "La entropía de un agujero negro, S_BH, es proporcional al área de su horizonte de eventos A, según S_BH = k_B c^3 A / (4 G hbar)."
+        ],
+        [
+          "Quelle est la formule de l'entropie des trous noirs de Bekenstein-Hawking et pourquoi dépend-elle de l'aire ?",
+          "L'entropie d'un trou noir, selon Bekenstein-Hawking, est proportionnelle à l'aire de son horizon d'événement : S_BH = k_B c^3 A / (4 G hbar."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A fórmula da entropia de buracos negros de Bekenstein-Hawking é dada pela equação S = (k * A) / (4 * l̅²), onde",
+        "student_mean_margin": 0.8153,
+        "student_min_margin": 0.0713,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.67,
+        "mean_top1_agree_72b_3b_4lang": 0.7784,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4852,
+            "top1_agree_72b_3b": 0.8182,
+            "teacher_72b_mean_logprob": -1.8867
+          },
+          "pt": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.652,
+            "top1_agree_72b_3b": 0.7391,
+            "teacher_72b_mean_logprob": -1.901
+          },
+          "es": {
+            "bpe_tokens": 48,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6474,
+            "top1_agree_72b_3b": 0.7917,
+            "teacher_72b_mean_logprob": -1.7439
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8956,
+            "top1_agree_72b_3b": 0.7647,
+            "teacher_72b_mean_logprob": -1.8024
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_astro_chandrasekhar_limit",
+      "title": "Chandrasekhar Mass Limit (~1.44 Solar Masses) for White Dwarf Stars",
+      "title_pt": "Limite de Chandrasekhar (~1,44 Massas Solares) para Anãs Brancas",
+      "category": "Astrophysics",
+      "summary": "Maximum mass ~1.44 M_sun supported by relativistic electron degeneracy pressure (Pauli exclusion) before collapse or Type Ia supernova.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is the Chandrasekhar limit for white dwarf stars and why does it equal 1.44 solar masses?",
+        "Explain how relativistic electron degeneracy pressure sets the Chandrasekhar mass limit.",
+        "Why do white dwarfs approaching the 1.44 M_sun Chandrasekhar limit trigger Type Ia supernovae?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que é o limite de Chandrasekhar para anãs brancas e por que ele vale cerca de 1,44 massas solares?",
+        "en": "What is the Chandrasekhar limit for white dwarfs and why is it about 1.44 solar masses?",
+        "es": "¿Qué es el límite de Chandrasekhar para enanas blancas y por qué vale unas 1,44 masas solares?",
+        "fr": "Qu'est-ce que la limite de Chandrasekhar pour les naines blanches et pourquoi vaut-elle environ 1,44 masse solaire ?"
+      },
+      "must_any": [
+        "1.44",
+        "1,44",
+        "Chandrasekhar"
+      ],
+      "seeds": [
+        [
+          "What is the Chandrasekhar limit for white dwarfs and why is it about 1.44 solar masses?",
+          "The Chandrasekhar limit states that the maximum mass of a white dwarf star supported by electron degeneracy pressure is approximately 1.44 solar masses."
+        ],
+        [
+          "O que é o limite de Chandrasekhar para anãs brancas e por que ele vale cerca de 1,44 massas solares?",
+          "A massa limite de Chandrasekhar para anãs brancas, suportada por pressão de degenerescência eletrônica, é de aproximadamente 1.44 M_sun antes do colapso ou supernova."
+        ],
+        [
+          "¿Qué es el límite de Chandrasekhar para enanas blancas y por qué vale unas 1,44 masas solares?",
+          "La masa límite de Chandrasekhar para enanas blancas es de aproximadamente 1.44 M_sun, soportada por la presión de degeneración electrónica antes del colapso o supernova tipo Ia."
+        ],
+        [
+          "Qu'est-ce que la limite de Chandrasekhar pour les naines blanches et pourquoi vaut-elle environ 1,44 masse solaire ?",
+          "La masse maximale d'une naine blanche supportée par la pression de dégénérescence électronique est de 1.44 masses solaires avant l'effondrement ou une supernova de type Ia."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O limite de Chandrasekhar é um valor crítico de massa acima do qual uma anã branca não pode se formar. Ele vale cerca de 1,44 massas solares porque",
+        "student_mean_margin": 0.739,
+        "student_min_margin": 0.0234,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.7184,
+        "mean_top1_agree_72b_3b_4lang": 0.7774,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 33,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.1997,
+            "top1_agree_72b_3b": 0.8788,
+            "teacher_72b_mean_logprob": -1.0709
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0654,
+            "top1_agree_72b_3b": 0.6471,
+            "teacher_72b_mean_logprob": -2.4263
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7233,
+            "top1_agree_72b_3b": 0.8039,
+            "teacher_72b_mean_logprob": -2.1094
+          },
+          "fr": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8852,
+            "top1_agree_72b_3b": 0.78,
+            "teacher_72b_mean_logprob": -1.783
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_physics_jarzynski_equality",
+      "title": "Jarzynski Non-Equilibrium Fluctuation Equality (<exp(-beta W)> = exp(-beta Delta F))",
+      "title_pt": "Igualdade de Jarzynski fora do Equilíbrio (<exp(-βW)> = exp(-βΔF))",
+      "category": "Non-Equilibrium Statistical Mechanics",
+      "summary": "Exact relation <e^{-beta W}> = e^{-beta Delta F} linking irreversible work trajectories W to equilibrium Helmholtz free energy Delta F.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is the Jarzynski equality in non-equilibrium statistical mechanics?",
+        "Explain how <exp(-beta W)> = exp(-beta Delta F) recovers equilibrium free energy from irreversible work.",
+        "How does Jensen's inequality recover the Second Law <W> >= Delta F from Jarzynski's equality?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que estabelece a igualdade de Jarzynski na termodinâmica fora do equilíbrio?",
+        "en": "What does the Jarzynski equality establish in non-equilibrium thermodynamics?",
+        "es": "¿Qué establece la igualdad de Jarzynski en la termodinámica fuera del equilibrio?",
+        "fr": "Qu'établit l'égalité de Jarzynski en thermodynamique hors d'équilibre ?"
+      },
+      "must_any": [
+        "Jarzynski",
+        "Delta F",
+        "ΔF",
+        "beta W"
+      ],
+      "seeds": [
+        [
+          "What does the Jarzynski equality establish in non-equilibrium thermodynamics?",
+          "The Jarzynski equality states that the average of e^{-βW} over all work trajectories equals e^{-βΔF}, linking irreversible work to equilibrium free energy."
+        ],
+        [
+          "O que estabelece a igualdade de Jarzynski na termodinâmica fora do equilíbrio?",
+          "A igualdade de flutuação fora do equilíbrio de Jarzynski estabelece que <e^{-βW}> = e^{-βΔF}, onde W é o trabalho irreversível e ΔF a."
+        ],
+        [
+          "¿Qué establece la igualdad de Jarzynski en la termodinámica fuera del equilibrio?",
+          "La igualdad de fluctuación no equilibrada de Jarzynski establece que <e^{-βW}> = e^{-βΔF}, donde W es el trabajo irreversible y ΔF la energía libre de Helmholtz."
+        ],
+        [
+          "Qu'établit l'égalité de Jarzynski en thermodynamique hors d'équilibre ?",
+          "La relation de fluctuation non-équilibre de Jarzynski <e^{-βW}> = e^{-βΔF} lie les trajectoires de travail irréversible W à l'énergie libre d'Helmh."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A igualdade de Jarzynski estabelece uma relação entre a energia potencial de um sistema e a energia térmica associada a uma operação de quântica não reversível fora",
+        "student_mean_margin": 0.5557,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.0514,
+        "mean_top1_agree_72b_3b_4lang": 0.7084,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 35,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3956,
+            "top1_agree_72b_3b": 0.6571,
+            "teacher_72b_mean_logprob": -2.9448
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.637,
+            "top1_agree_72b_3b": 0.8235,
+            "teacher_72b_mean_logprob": -2.6859
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0591,
+            "top1_agree_72b_3b": 0.7451,
+            "teacher_72b_mean_logprob": -2.1109
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.1141,
+            "top1_agree_72b_3b": 0.6078,
+            "teacher_72b_mean_logprob": -2.7981
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_math_ito_lemma_black_scholes",
+      "title": "Itô's Lemma (Quadratic Variation (dW_t)^2 = dt) & Black–Scholes PDE",
+      "title_pt": "Lema de Itô (Variação Quadrática (dW_t)^2 = dt) e Equação de Black–Scholes",
+      "category": "Stochastic Calculus",
+      "summary": "For dX_t = mu dt + sigma dW_t, df(t,X_t) = (df/dt + mu df/dx + 1/2 sigma^2 d^2f/dx^2) dt + sigma df/dx dW_t.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "State Itô's lemma in stochastic calculus and explain why the 1/2 sigma^2 f'' dt term appears.",
+        "How does quadratic variation (dW_t)^2 = dt in Itô's lemma derive the Black-Scholes PDE?",
+        "Explain the difference between the classical chain rule and Itô's stochastic chain rule."
+      ],
+      "prompts_polyglot": {
+        "pt": "O que diz o lema de Itô no cálculo estocástico e como ele leva à equação de Black-Scholes?",
+        "en": "What does Itô's lemma state in stochastic calculus and how does it yield the Black-Scholes PDE?",
+        "es": "¿Qué dice el lema de Itô en el cálculo estocástico y cómo conduce a la ecuación de Black-Scholes?",
+        "fr": "Qu'énonce le lemme d'Itô en calcul stochastique et comment mène-t-il à l'EDP de Black-Scholes ?"
+      },
+      "must_any": [
+        "Itô",
+        "Ito",
+        "1/2",
+        "sigma^2",
+        "dW"
+      ],
+      "seeds": [
+        [
+          "What does Itô's lemma state in stochastic calculus and how does it yield the Black-Scholes PDE?",
+          "Itô's Lemma states that for a stochastic process dX_t = μ dt + σ dW_t, the differential of a function f(t, X_t) is given by df(t, X_t) = (df/dt + μ df."
+        ],
+        [
+          "O que diz o lema de Itô no cálculo estocástico e como ele leva à equação de Black-Scholes?",
+          "O lema de Itô estabelece que para dX_t = μ dt + σ dW_t, a variação quadrática é dada por (dW_t)^2 = dt e df(t,X_t) = (∂."
+        ],
+        [
+          "¿Qué dice el lema de Itô en el cálculo estocástico y cómo conduce a la ecuación de Black-Scholes?",
+          "El lema de Itô establece que para dX_t = μ dt + σ dW_t, la diferencial df(t,X_t) es (df/dt + μ df/dx + 1/2 σ^2 d²."
+        ],
+        [
+          "Qu'énonce le lemme d'Itô en calcul stochastique et comment mène-t-il à l'EDP de Black-Scholes ?",
+          "Le lemme d'Itô stipule que pour dX_t = μ dt + σ dW_t, la différentielle df(t,X_t) est donnée par (df/dt + μ df/dx + 1/2 σ."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O lema de Itô no cálculo estocástico é fundamental para modelar processos aleatórios, como preços de ações que podem variar de maneira não linear e com varia",
+        "student_mean_margin": 0.6369,
+        "student_min_margin": 0.0325,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.557,
+        "mean_top1_agree_72b_3b_4lang": 0.7696,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.374,
+            "top1_agree_72b_3b": 0.8235,
+            "teacher_72b_mean_logprob": -2.0565
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6573,
+            "top1_agree_72b_3b": 0.7843,
+            "teacher_72b_mean_logprob": -2.5895
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6983,
+            "top1_agree_72b_3b": 0.7451,
+            "teacher_72b_mean_logprob": -2.0604
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4985,
+            "top1_agree_72b_3b": 0.7255,
+            "teacher_72b_mean_logprob": -1.9778
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_math_cramer_rao_fisher",
+      "title": "Cramér–Rao Lower Bound & Fisher Information Matrix (Var(theta_hat) >= I(theta)^-1)",
+      "title_pt": "Limite Inferior de Cramér–Rao e Informação de Fisher (Var >= I(θ)^-1)",
+      "category": "Mathematical Statistics",
+      "summary": "Any unbiased estimator theta_hat obeys Cov(theta_hat) >= I(theta)^{-1}, where I(theta) = E[(d/dtheta log p(X;theta))^2].",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What is the Cramér-Rao lower bound and how does it relate variance to Fisher information?",
+        "State the Cramér-Rao inequality Var(theta_hat) >= 1 / I(theta) for unbiased statistical estimators.",
+        "Explain Fisher information and efficient estimators achieving the Cramér-Rao bound."
+      ],
+      "prompts_polyglot": {
+        "pt": "O que estabelece o limite inferior de Cramér-Rao e sua relação com a informação de Fisher?",
+        "en": "What does the Cramér-Rao lower bound establish in relation to Fisher information?",
+        "es": "¿Qué establece la cota inferior de Cramér-Rao y su relación con la información de Fisher?",
+        "fr": "Qu'établit la borne inférieure de Cramér-Rao en lien avec l'information de Fisher ?"
+      },
+      "must_any": [
+        "Fisher",
+        "I(theta)",
+        "Cramér",
+        "Cramer"
+      ],
+      "seeds": [
+        [
+          "What does the Cramér-Rao lower bound establish in relation to Fisher information?",
+          "The Cramér-Rao Lower Bound states that for any unbiased estimator θ_hat, its covariance matrix satisfies Cov(θ_hat) ≥ I(θ)^{-1}, where I(θ) = E[(d/dθ log p(X."
+        ],
+        [
+          "O que estabelece o limite inferior de Cramér-Rao e sua relação com a informação de Fisher?",
+          "O limite de Cramér-Rao prova que todo estimador não-viesado regular cumpre Var(theta_hat) >= 1 / I(theta), sendo I(theta) a informação de Fisher."
+        ],
+        [
+          "¿Qué establece la cota inferior de Cramér-Rao y su relación con la información de Fisher?",
+          "La cota de Cramér-Rao prueba que todo estimador insesgado regular cumple Var(theta_hat) >= 1 / I(theta), con I(theta) la información de Fisher."
+        ],
+        [
+          "Qu'établit la borne inférieure de Cramér-Rao en lien avec l'information de Fisher ?",
+          "La borne de Cramér-Rao prouve que tout estimateur sans biais vérifie Var(theta_hat) >= 1 / I(theta), où I(theta) est l'information de Fisher."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O limite inferior de Cramér-Rao é estabelecido pela matriz de variancia-covariância da estimativa de um parâmetro, e é obtido a partir da matriz de informação de",
+        "student_mean_margin": 0.6446,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.4705,
+        "mean_top1_agree_72b_3b_4lang": 0.826,
+        "live_72b_generated_langs": 1,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3075,
+            "top1_agree_72b_3b": 0.82,
+            "teacher_72b_mean_logprob": -3.166
+          },
+          "pt": {
+            "bpe_tokens": 41,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 0.6659,
+            "top1_agree_72b_3b": 0.8293,
+            "teacher_72b_mean_logprob": -3.22
+          },
+          "es": {
+            "bpe_tokens": 40,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 0.4648,
+            "top1_agree_72b_3b": 0.85,
+            "teacher_72b_mean_logprob": -3.4802
+          },
+          "fr": {
+            "bpe_tokens": 41,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 0.4438,
+            "top1_agree_72b_3b": 0.8049,
+            "teacher_72b_mean_logprob": -2.5725
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_math_godel_incompleteness",
+      "title": "Gödel's First & Second Incompleteness Theorems (1931)",
+      "title_pt": "Primeiro e Segundo Teoremas da Incompletude de Gödel (1931)",
+      "category": "Mathematical Logic",
+      "summary": "Any consistent recursively enumerable formal system containing Peano arithmetic has undecidable sentences and cannot prove Con(T).",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "Explain Gödel's first and second incompleteness theorems in mathematical logic.",
+        "Why can no consistent recursively enumerable arithmetic system prove its own consistency Con(T)?",
+        "How does Gödel numbering construct a self-referential unprovable arithmetic sentence?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que provam o primeiro e o segundo teoremas da incompletude de Gödel na lógica matemática?",
+        "en": "What do Gödel's first and second incompleteness theorems prove in mathematical logic?",
+        "es": "¿Qué demuestran el primer y el segundo teorema de incompletitud de Gödel en lógica matemática?",
+        "fr": "Que démontrent les premier et second théorèmes d'incomplétude de Gödel en logique mathématique ?"
+      },
+      "must_any": [
+        "Gödel",
+        "Godel",
+        "Con("
+      ],
+      "seeds": [
+        [
+          "What do Gödel's first and second incompleteness theorems prove in mathematical logic?",
+          "Gödel's First and Second Incompleteness Theorems state that any consistent recursively enumerable formal system containing Peano arithmetic has undecidable sentences and cannot prove its own consistency, denoted as Con(T)."
+        ],
+        [
+          "O que provam o primeiro e o segundo teoremas da incompletude de Gödel na lógica matemática?",
+          "Os teoremas de incompletude de Gödel estabelecem que qualquer sistema formal consistente e recursivamente enumerável contendo aritmética de Peano possui afirmações indecidíveis e não pode provar sua própria consistência."
+        ],
+        [
+          "¿Qué demuestran el primer y el segundo teorema de incompletitud de Gödel en lógica matemática?",
+          "Los teoremas de incompletitud de Gödel afirman que cualquier sistema formal recursivamente enumerable y consistente que contenga aritmética de Peano tiene oraciones indecidibles y no puede probar su propia consistencia."
+        ],
+        [
+          "Que démontrent les premier et second théorèmes d'incomplétude de Gödel en logique mathématique ?",
+          "Les théorèmes d'incomplétude de Gödel (1931) établissent qu'un système formel récursivement énumérable contenant l'arithmétique de Peano est incomplet et ne peut."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O primeiro teorema da incompletude de Gödel afirma que em qualquer sistema de lógica matemática robusto e consistente, existe uma proposição que pode ser declarada verdadeira dentro do",
+        "student_mean_margin": 0.7343,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.6688,
+        "mean_top1_agree_72b_3b_4lang": 0.7859,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4068,
+            "top1_agree_72b_3b": 0.8182,
+            "teacher_72b_mean_logprob": -3.319
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8973,
+            "top1_agree_72b_3b": 0.7647,
+            "teacher_72b_mean_logprob": -1.4234
+          },
+          "es": {
+            "bpe_tokens": 49,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7229,
+            "top1_agree_72b_3b": 0.7959,
+            "teacher_72b_mean_logprob": -1.5887
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6481,
+            "top1_agree_72b_3b": 0.7647,
+            "teacher_72b_mean_logprob": -1.7597
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_bio_crispr_cas9_pam",
+      "title": "CRISPR-Cas9 Genome Editing (`5'-NGG-3'` PAM, HNH/RuvC & NHEJ/HDR)",
+      "title_pt": "Edição Genômica CRISPR-Cas9 (Motivo PAM `5'-NGG-3'`, HNH/RuvC e NHEJ/HDR)",
+      "category": "Molecular Bioengineering",
+      "summary": "SpCas9 guided by sgRNA recognizes 5'-NGG-3' PAM, cleaving target and non-target DNA strands via HNH and RuvC for NHEJ or HDR repair.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "How does CRISPR-Cas9 recognize the 5'-NGG-3' PAM sequence and cut double-stranded DNA?",
+        "Explain the roles of sgRNA, HNH and RuvC nuclease domains, NHEJ, and HDR in CRISPR-Cas9 editing.",
+        "Why is a Protospacer Adjacent Motif (PAM) required for SpCas9 genome editing?"
+      ],
+      "prompts_polyglot": {
+        "pt": "Como o sistema CRISPR-Cas9 reconhece a sequência PAM 5'-NGG-3' e edita o DNA?",
+        "en": "How does the CRISPR-Cas9 system recognize the 5'-NGG-3' PAM sequence and edit DNA?",
+        "es": "¿Cómo reconoce el sistema CRISPR-Cas9 la secuencia PAM 5'-NGG-3' y edita el ADN?",
+        "fr": "Comment le système CRISPR-Cas9 reconnaît-il le motif PAM 5'-NGG-3' et édite-t-il l'ADN ?"
+      },
+      "must_any": [
+        "NGG",
+        "PAM",
+        "HNH",
+        "RuvC"
+      ],
+      "seeds": [
+        [
+          "How does the CRISPR-Cas9 system recognize the 5'-NGG-3' PAM sequence and edit DNA?",
+          "SpCas9, guided by sgRNA, recognizes the 5'-NGG-3' PAM and cleaves target and non-target DNA strands using HNH and RuvC domains, initiating NHEJ or HDR repair."
+        ],
+        [
+          "Como o sistema CRISPR-Cas9 reconhece a sequência PAM 5'-NGG-3' e edita o DNA?",
+          "A enzima SpCas9, guiada por sgRNA, reconhece o PAM 5'-NGG-3', cleavendo as cadeias de DNA alvo e não alvo através de HNH e RuvC."
+        ],
+        [
+          "¿Cómo reconoce el sistema CRISPR-Cas9 la secuencia PAM 5'-NGG-3' y edita el ADN?",
+          "SpCas9 guiado por sgRNA reconoce el PAM 5'-NGG-3', cortando las cadenas de ADN objetivo y no objetivo mediante HNH y RuvC para reparación NHEJ o HDR."
+        ],
+        [
+          "Comment le système CRISPR-Cas9 reconnaît-il le motif PAM 5'-NGG-3' et édite-t-il l'ADN ?",
+          "SpCas9 guidé par sgRNA reconnaît le motif 5'-NGG-3' PAM, clivant les brins cible et non-cible via HNH et RuvC pour la réparation NHEJ ou."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O sistema CRISPR-Cas9 utiliza uma RNA guide específico para encontrar e reconhecer a sequência PAM 5'-NGG-3' no DNA alvo. Este RNA guide, que é uma",
+        "student_mean_margin": 0.6358,
+        "student_min_margin": 0.0286,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.9807,
+        "mean_top1_agree_72b_3b_4lang": 0.7028,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 47,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6064,
+            "top1_agree_72b_3b": 0.7447,
+            "teacher_72b_mean_logprob": -3.4165
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9184,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -3.3687
+          },
+          "es": {
+            "bpe_tokens": 49,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.1189,
+            "top1_agree_72b_3b": 0.6939,
+            "teacher_72b_mean_logprob": -4.0137
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2792,
+            "top1_agree_72b_3b": 0.6667,
+            "teacher_72b_mean_logprob": -3.862
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_neuro_friston_free_energy",
+      "title": "Karl Friston's Free Energy Principle & Active Inference (F = D_KL[q||p] - ln p(y))",
+      "title_pt": "Princípio da Energia Livre de Karl Friston e Inferência Ativa",
+      "category": "Computational Neuroscience",
+      "summary": "Self-organizing brains bound sensory surprise -ln p(y) by minimizing variational free energy F = D_KL[q(x)||p(x|y)] - ln p(y).",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "Explain Karl Friston's Free Energy Principle and active inference in neuroscience.",
+        "How does minimizing variational free energy F = D_KL[q||p] - ln p(y) unify perception and action?",
+        "What is the relation between predictive coding, sensory surprise, and Friston's free energy?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que estabelece o Princípio da Energia Livre de Karl Friston e a inferência ativa na neurociência?",
+        "en": "What do Karl Friston's Free Energy Principle and active inference establish in neuroscience?",
+        "es": "¿Qué establecen el Principio de Energía Libre de Karl Friston y la inferencia activa en neurociencia?",
+        "fr": "Qu'établissent le Principe de l'Énergie Libre de Karl Friston et l'inférence active en neurosciences ?"
+      },
+      "must_any": [
+        "Friston",
+        "KL",
+        "ln p"
+      ],
+      "seeds": [
+        [
+          "What do Karl Friston's Free Energy Principle and active inference establish in neuroscience?",
+          "Karl Friston's Free Energy Principle states that self-organizing brains minimize variational free energy F = D_KL[q(x)||p(x|y)] - ln p(y) to bound sensory surprise."
+        ],
+        [
+          "O que estabelece o Princípio da Energia Livre de Karl Friston e a inferência ativa na neurociência?",
+          "O cérebro auto-organiza minimizando energia livre variacional F = D_KL[q(x)||p(x|y)] - ln p(y) para limitar surpresa sensorial -ln p(y)."
+        ],
+        [
+          "¿Qué establecen el Principio de Energía Libre de Karl Friston y la inferencia activa en neurociencia?",
+          "El cerebro autoorganiza minimizando la energía libre variacional F = D_KL[q(x)||p(x|y)] - ln p(y) para acotar la sorpresa sensorial -ln p(y)."
+        ],
+        [
+          "Qu'établissent le Principe de l'Énergie Libre de Karl Friston et l'inférence active en neurosciences ?",
+          "Le principe d'énergie libre de Friston stipule que le cerveau minimise F = D_KL[q(x)||p(x|y)] - ln p(y) pour borné la surprise sensorielle."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O Princípio da Energia Livre, estabelecido por Karl Friston, é uma abordagem filosófica e matemática que busca explicar como o cérebro infer",
+        "student_mean_margin": 0.7285,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.3403,
+        "mean_top1_agree_72b_3b_4lang": 0.6134,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3886,
+            "top1_agree_72b_3b": 0.6364,
+            "teacher_72b_mean_logprob": -3.0273
+          },
+          "pt": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.5073,
+            "top1_agree_72b_3b": 0.6,
+            "teacher_72b_mean_logprob": -3.4247
+          },
+          "es": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2898,
+            "top1_agree_72b_3b": 0.6087,
+            "teacher_72b_mean_logprob": -3.2857
+          },
+          "fr": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.1754,
+            "top1_agree_72b_3b": 0.6087,
+            "teacher_72b_mean_logprob": -2.9678
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_econ_arrow_impossibility",
+      "title": "Arrow's Impossibility Theorem (1951) in Social Choice Theory",
+      "title_pt": "Teorema da Impossibilidade de Arrow (1951) na Escolha Social",
+      "category": "Economics & Game Theory",
+      "summary": "With >= 3 alternatives, no ordinal voting rule simultaneously satisfies Unrestricted Domain, Pareto Efficiency, IIA, and Non-Dictatorship.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "What does Kenneth Arrow's impossibility theorem prove about ranked voting systems?",
+        "Explain Pareto efficiency, Independence of Irrelevant Alternatives (IIA), and non-dictatorship in Arrow's theorem.",
+        "Why is no ordinal social welfare function ideal when there are three or more candidates?"
+      ],
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema da impossibilidade de Kenneth Arrow sobre sistemas de votação?",
+        "en": "What does Kenneth Arrow's impossibility theorem prove about voting systems?",
+        "es": "¿Qué demuestra el teorema de imposibilidad de Kenneth Arrow sobre los sistemas de votación?",
+        "fr": "Que démontre le théorème d'impossibilité de Kenneth Arrow sur les systèmes de vote ?"
+      },
+      "must_any": [
+        "Arrow",
+        "Pareto",
+        "IIA",
+        "alternativ"
+      ],
+      "seeds": [
+        [
+          "What does Kenneth Arrow's impossibility theorem prove about voting systems?",
+          "Arrow's Impossibility Theorem states that no ordinal voting system can satisfy Unrestricted Domain, Pareto Efficiency, IIA, and Non-Dictatorship with three or more alternatives."
+        ],
+        [
+          "O que prova o teorema da impossibilidade de Kenneth Arrow sobre sistemas de votação?",
+          "O Teorema da Impossibilidade de Arrow afirma que nenhuma regra de votação ordinal pode simultaneamente satisfazer Domínio Ilimitado, Eficiência de Pareto, Independência de Alternativas Irrelevantes."
+        ],
+        [
+          "¿Qué demuestra el teorema de imposibilidad de Kenneth Arrow sobre los sistemas de votación?",
+          "El Teorema de Imposibilidad de Arrow establece que con tres o más alternativas, ninguna regla de votación ordinal puede satisfacer simultáneamente Dominio Ilimitado, Eficiencia de Pareto, Independencia de."
+        ],
+        [
+          "Que démontre le théorème d'impossibilité de Kenneth Arrow sur les systèmes de vote ?",
+          "Le théorème d'Arrow stipule qu'avec au moins trois alternatives, aucune règle de vote ordonnale ne peut simultanément satisfaire le domaine illimité, l'efficacité de Pareto, l."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema da impossibilidade de Kenneth Arrow afirma que em um sistema de votação universal, é impossível criar uma regra de votação que seja proporcional, transicional, e que não ten",
+        "student_mean_margin": 0.641,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.8929,
+        "mean_top1_agree_72b_3b_4lang": 0.7398,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 38,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.5846,
+            "top1_agree_72b_3b": 0.7632,
+            "teacher_72b_mean_logprob": -3.1357
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0628,
+            "top1_agree_72b_3b": 0.6863,
+            "teacher_72b_mean_logprob": -1.69
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.1306,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -2.1628
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7938,
+            "top1_agree_72b_3b": 0.8039,
+            "teacher_72b_mean_logprob": -2.74
+          }
+        }
+      }
+    },
+    {
+      "capsule_id": "ow_law_brazil_lgpd_13709",
+      "title": "Brazil's General Data Protection Law (`LGPD — Lei 13.709/2018`, Art. 7 & Art. 18)",
+      "title_pt": "Lei Geral de Proteção de Dados (`LGPD — Lei 13.709/2018`, Art. 7º e Art. 18)",
+      "category": "Data Privacy Law (Brazil)",
+      "summary": "Law 13.709/2018 sets 10 legal bases for personal data processing (Art. 7), holder rights including deletion (Art. 18), and ANPD sanctions.",
+      "tau": 0.4,
+      "ramp": 0.05,
+      "anchor_queries_en": [
+        "How does Brazil's LGPD data protection law (Law 13.709/2018) regulate legal bases and deletion rights?",
+        "Explain Articles 7 and 18 of the Brazilian LGPD and the role of the ANPD.",
+        "What data subject rights and legal bases exist under Brazil's Law 13.709/2018 (LGPD)?"
+      ],
+      "prompts_polyglot": {
+        "pt": "Como a LGPD (Lei 13.709/2018) regula as bases legais e o direito de eliminação de dados no Brasil?",
+        "en": "How does Brazil's LGPD (Law 13.709/2018) regulate legal bases and data deletion rights?",
+        "es": "¿Cómo regula la LGPD de Brasil (Ley 13.709/2018) las bases legales y la eliminación de datos?",
+        "fr": "Comment la LGPD brésilienne (Loi 13.709/2018) encadre-t-elle les bases légales et la suppression des données ?"
+      },
+      "must_any": [
+        "13.709/2018",
+        "Art. 7",
+        "Art. 18",
+        "ANPD"
+      ],
+      "seeds": [
+        [
+          "How does Brazil's LGPD (Law 13.709/2018) regulate legal bases and data deletion rights?",
+          "Law 13.709/2018 (LGPD) establishes 10 legal bases for personal data processing and grants data subjects rights including deletion, with violations subject to ANPD sanctions."
+        ],
+        [
+          "Como a LGPD (Lei 13.709/2018) regula as bases legais e o direito de eliminação de dados no Brasil?",
+          "A Lei 13.709/2018 estabelece 10 bases legais para o tratamento de dados pessoais e direitos do titular, incluindo a exclusão."
+        ],
+        [
+          "¿Cómo regula la LGPD de Brasil (Ley 13.709/2018) las bases legales y la eliminación de datos?",
+          "La LGPD (Ley 13.709/2018) establece 10 bases legales para el procesamiento de datos personales y derechos del titular, incluyendo la eliminación."
+        ],
+        [
+          "Comment la LGPD brésilienne (Loi 13.709/2018) encadre-t-elle les bases légales et la suppression des données ?",
+          "La Loi Générale de Protection des Données (LGPD — Lei 13.709/2018) établit 10 bases légales pour le traitement des données personnelles et les droits du."
+        ]
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A Lei Geral de Proteção de Dados (LGPD) brasileira estabelece que as bases legais para tratamento de dados pessoais devem ser claras e fundamentadas, e que o",
+        "student_mean_margin": 0.7229,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": false,
+        "mean_kl_72b_to_3b_4lang": 0.4982,
+        "mean_top1_agree_72b_3b_4lang": 0.8309,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 43,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.5504,
+            "top1_agree_72b_3b": 0.7209,
+            "teacher_72b_mean_logprob": -3.3697
+          },
+          "pt": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3143,
+            "top1_agree_72b_3b": 0.8889,
+            "teacher_72b_mean_logprob": -2.4715
+          },
+          "es": {
+            "bpe_tokens": 47,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4031,
+            "top1_agree_72b_3b": 0.8511,
+            "teacher_72b_mean_logprob": -1.9909
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7248,
+            "top1_agree_72b_3b": 0.8627,
+            "teacher_72b_mean_logprob": -2.317
+          }
+        }
+      }
+    }
+  ]
+}

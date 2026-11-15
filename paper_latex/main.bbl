@@ -1,4 +1,4 @@
-\begin{thebibliography}{21}
+\begin{thebibliography}{25}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -9,6 +9,11 @@
 Samuel~K. Ainsworth, Jonathan Hayase, and Siddhartha Srinivasa.
 \newblock Git {Re-Basin}: Merging models modulo permutation symmetries.
 \newblock In \emph{International Conference on Learning Representations (ICLR)}, 2023.
+
+\bibitem[Conway and Sloane(1982)]{conway1982fast}
+John~H. Conway and Neil J.~A. Sloane.
+\newblock Fast quantizing and decoding algorithms for lattice quantizers and codes.
+\newblock \emph{IEEE Transactions on Information Theory}, 28\penalty0 (2):\penalty0 227--232, 1982.
 
 \bibitem[Dettmers et~al.(2022)Dettmers, Lewis, Belkada, and Zettlemoyer]{dettmers2022llmint8}
 Tim Dettmers, Mike Lewis, Younes Belkada, and Luke Zettlemoyer.
@@ -29,6 +34,11 @@ Junfeng Fang, Houcheng Jiang, Kun Wang, Yunshan Ma, Xiang Wang, Xiangnan He, and
 Grigory~A. Kabatiansky and Vladimir~I. Levenshtein.
 \newblock Bounds for packings on a sphere and in space.
 \newblock \emph{Problems of Information Transmission}, 14\penalty0 (1):\penalty0 1--17, 1978.
+
+\bibitem[Leshem et~al.(2000)Leshem, van~der Veen, and Boonstra]{leshem2000multichannel}
+Amir Leshem, Alle-Jan van~der Veen, and Albert-Jan Boonstra.
+\newblock Multichannel radio astronomical imaging in the presence of strong radio-frequency interference.
+\newblock \emph{The Astrophysical Journal Supplement Series}, 131\penalty0 (1):\penalty0 355--373, 2000.
 
 \bibitem[Leviathan et~al.(2023)Leviathan, Kalman, and Matias]{leviathan2023fast}
 Yaniv Leviathan, Matan Kalman, and Yossi Matias.
@@ -57,7 +67,7 @@ Kevin Meng, David Bau, Alex Andonian, and Yonatan Belinkov.
 
 \bibitem[Reis~Filho(2026{\natexlab{a}})]{reisfilho2026mos_zenodo}
 Julio~Cesar Reis~Filho.
-\newblock Mixture of scars ({MoS}) v3.0 and {SCache} $\mathcal{O}(1)$: Sub-2-bit colossal compression ($<24$~{GB} $72.7\text{B}$), closed-form $140$~{KB} scar cartridges, {Sinkhorn Re-Basin}, and constant-memory $32\text{k}$ attention.
+\newblock Mixture of scars ({MoS}) v4.0, {SCache} $\mathcal{O}(1)$, and domain-independent \texttt{ScarCodec}: Unified native \& 20-shader {WebGPU} scar operators, $<24$~{GB} $72.7\text{B}$ compression, language-invariant $140$~{KB} {HTTP 206} cartridges, and hardware-to-science signal proofs.
 \newblock \emph{Zenodo Preprint}, 2026{\natexlab{a}}.
 \newblock \doi{10.5281/zenodo.24172784}.
 \newblock URL \href{https://doi.org/10.5281/zenodo.24172784}{\texttt{https://doi.org/10.5281/zenodo.24172784}}.
@@ -87,6 +97,17 @@ Richard Sinkhorn and Paul Knopp.
 Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan~N. Gomez, {\L}ukasz Kaiser, and Illia Polosukhin.
 \newblock Attention is all you need.
 \newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~30, 2017.
+
+\bibitem[{W3C GPU for the Web Working Group}(2024)]{w3c2024webgpu}
+{W3C GPU for the Web Working Group}.
+\newblock {WebGPU} and {WebGPU} shading language ({WGSL}) specification.
+\newblock Technical Report, World Wide Web Consortium (W3C), 2024.
+\newblock URL \url{https://www.w3.org/TR/webgpu/}.
+
+\bibitem[Walsh(1923)]{walsh1923closed}
+Joseph~L. Walsh.
+\newblock A closed set of normal orthogonal functions.
+\newblock \emph{American Journal of Mathematics}, 45\penalty0 (1):\penalty0 5--24, 1923.
 
 \bibitem[Widrow and Hoff(1960)]{widrow1960adaptive}
 Bernard Widrow and Marcian~E. Hoff.

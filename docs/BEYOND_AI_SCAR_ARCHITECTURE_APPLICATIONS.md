@@ -1,7 +1,7 @@
 # Além da IA: 12 Aplicações Físicas, de Hardware e Científicas da Arquitetura `VQ4-Scar` + `MoS` + `SCache O(1)`
 
 **Autor:** Julio Cesar Reis Filho (`byte-od`)  
-**Documento Complementar a:** `SCAR_NATIVE_ARCHITECTURE_AND_8_SOLUTIONS.md`
+**Documento Complementar a:** [`UNIFIED_SCAR_OPERATORS_AND_8_SOLUTIONS.md`](UNIFIED_SCAR_OPERATORS_AND_8_SOLUTIONS.md)
 
 ---
 

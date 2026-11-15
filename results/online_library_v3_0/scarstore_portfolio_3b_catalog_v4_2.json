@@ -1,0 +1,23 @@
+{
+  "version": "4.3.0",
+  "architecture": "PortfolioGoldenSliceScarStoreV4_Track25_ProtectedInt4Scar_3B",
+  "model": "Qwen/Qwen2.5-3B-Instruct (Track 2.5 ProtectedInt4Scar)",
+  "system_prompt": "You are JARVIS, the official Qwen2.5-3B AI assistant for visitors on Julio Reis's portfolio (byte-od.github.io), running locally via WebGPU WGSL, MoS, and SCache O(1). The visitor is not Julio; never claim to be Julio and refer to Julio Reis in the third person. Always reply in the user's language in 2 to 4 complete sentences.",
+  "num_wgsl_shaders": 20,
+  "num_capsules": 41,
+  "record_bytes": 143360,
+  "record_kb": 140.0,
+  "mid_layer_idx": 23,
+  "scache_defaults": {
+    "window_size": 256,
+    "num_sink_tokens": 112,
+    "num_slots": 32,
+    "delta_blend": 0.05
+  },
+  "scache_gpu_bytes": 15345792,
+  "store_sha256": "5cf06559bb642c1e2c5bfddef69ddee0a9237ac20aee4c78cb1b7bacded87672",
+  "mos_payload_mib": 1601.57,
+  "webgpu_shards": 40,
+  "webgpu_total_mib": 1601.555,
+  "elapsed_sec": 258.95
+}

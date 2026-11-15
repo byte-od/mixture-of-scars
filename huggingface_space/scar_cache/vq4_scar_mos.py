@@ -332,6 +332,38 @@ class VQ4ScarPackedMatrix:
 
         return np.concatenate(chunks, axis=0), offsets
 
+    def to_safetensors_dict(self, prefix: str) -> Dict[str, torch.Tensor]:
+        out: Dict[str, torch.Tensor] = {
+            f"{prefix}.vq_codes_u8": self.vq_codes_u8.detach().cpu().contiguous(),
+            f"{prefix}.vq_scales_f16": self.vq_scales_f16.detach().cpu().to(torch.float16).contiguous(),
+            f"{prefix}.lut256_f16": self.lut256_f16.detach().cpu().to(torch.float16).contiguous(),
+            f"{prefix}.d_eq_f16": self.d_eq_f16.detach().cpu().to(torch.float16).contiguous(),
+        }
+        if self.rank > 0 and self.a_scar_packed_u8 is not None and self.b_scar_packed_u8 is not None:
+            assert self.a_scar_scales_f16 is not None and self.b_scar_scales_f16 is not None
+            out[f"{prefix}.a_scar_packed_u8"] = self.a_scar_packed_u8.detach().cpu().contiguous()
+            out[f"{prefix}.a_scar_scales_f16"] = self.a_scar_scales_f16.detach().cpu().to(torch.float16).contiguous()
+            out[f"{prefix}.b_scar_packed_u8"] = self.b_scar_packed_u8.detach().cpu().contiguous()
+            out[f"{prefix}.b_scar_scales_f16"] = self.b_scar_scales_f16.detach().cpu().to(torch.float16).contiguous()
+        if self.bias_f16 is not None:
+            out[f"{prefix}.bias"] = self.bias_f16.detach().cpu().to(torch.float16).contiguous()
+        return out
+
+    @torch.no_grad()
+    def reconstruct_weight_f32(self, device: torch.device) -> torch.Tensor:
+        signs = rademacher_signs_u32_exact(self.in_dim, device)
+        lut_f32 = self.lut256_f16.to(device).float()
+        codes_idx = self.vq_codes_u8.to(device).long()
+        w_rot_blk = lut_f32[codes_idx].reshape(self.out_dim, self.in_dim // 64, 64)
+        w_rot_q = (w_rot_blk * self.vq_scales_f16.to(device).float().unsqueeze(-1)).reshape(self.out_dim, self.in_dim)
+        w_base = fwht_block64_orthonormal(w_rot_q, signs, inverse=True) / self.d_eq_f16.to(device).float().unsqueeze(0)
+        if self.rank > 0 and self.a_scar_packed_u8 is not None and self.b_scar_packed_u8 is not None:
+            assert self.a_scar_scales_f16 is not None and self.b_scar_scales_f16 is not None
+            aq = dequant_block64_int4(self.a_scar_packed_u8.to(device), self.a_scar_scales_f16.to(device))
+            bq = dequant_rowwise_int4(self.b_scar_packed_u8.to(device), self.b_scar_scales_f16.to(device))
+            w_base = w_base + (bq @ aq)
+        return w_base
+
 
 @torch.no_grad()
 def _fit_vq4_pass(
@@ -547,8 +579,208 @@ class VQ4ScarLinear(nn.Module):
         return self.as_packed().forward_native(x)
 
 
+class ProtectedInt4ScarMatrix:
+    """Unified `Block-64 INT4 + Channel Eq + Row-Scaled INT4-ASVD Scar` matrix (Native + WebGPU).
+
+    Shields nonlinear projections (`gate_proj`, `o_proj`, `k/v_proj`, boundary `q_proj`) with zero
+    FP16 weight expansion via WGSL Kernels #19 (`vec_equilibrate_f16`) and #20
+    (`mos_fused_prot_int4_int4scar_gemv`).
+    """
+
+    def __init__(
+        self,
+        out_dim: int,
+        in_dim: int,
+        rank: int,
+        base_packed_u8: torch.Tensor,
+        base_scales_f16: torch.Tensor,
+        d_eq_f16: Optional[torch.Tensor] = None,
+        a_packed_u8: Optional[torch.Tensor] = None,
+        a_scales_f16: Optional[torch.Tensor] = None,
+        b_packed_u8: Optional[torch.Tensor] = None,
+        b_scales_f16: Optional[torch.Tensor] = None,
+        bias_f16: Optional[torch.Tensor] = None,
+    ) -> None:
+        self.out_dim = out_dim
+        self.in_dim = in_dim
+        self.rank = rank
+        self.base_packed_u8 = base_packed_u8
+        self.base_scales_f16 = base_scales_f16
+        self.d_eq_f16 = d_eq_f16
+        self.a_packed_u8 = a_packed_u8
+        self.a_scales_f16 = a_scales_f16
+        self.b_packed_u8 = b_packed_u8
+        self.b_scales_f16 = b_scales_f16
+        self.bias_f16 = bias_f16
+
+    @property
+    def physical_bytes(self) -> int:
+        b = self.base_packed_u8.numel() + self.base_scales_f16.numel() * 2
+        if self.d_eq_f16 is not None:
+            b += self.d_eq_f16.numel() * 2
+        if self.rank > 0 and self.a_packed_u8 is not None and self.b_packed_u8 is not None:
+            assert self.a_scales_f16 is not None and self.b_scales_f16 is not None
+            b += (
+                self.a_packed_u8.numel()
+                + self.a_scales_f16.numel() * 2
+                + self.b_packed_u8.numel()
+                + self.b_scales_f16.numel() * 2
+            )
+        if self.bias_f16 is not None:
+            b += self.bias_f16.numel() * 2
+        return int(b)
+
+    def to_safetensors_dict(self, prefix: str) -> Dict[str, torch.Tensor]:
+        out: Dict[str, torch.Tensor] = {
+            f"{prefix}.prot_packed_u8": self.base_packed_u8.detach().cpu().contiguous(),
+            f"{prefix}.prot_scales_f16": self.base_scales_f16.detach().cpu().to(torch.float16).contiguous(),
+        }
+        if self.d_eq_f16 is not None:
+            out[f"{prefix}.d_eq_f16"] = self.d_eq_f16.detach().cpu().to(torch.float16).contiguous()
+        if self.rank > 0 and self.a_packed_u8 is not None and self.b_packed_u8 is not None:
+            assert self.a_scales_f16 is not None and self.b_scales_f16 is not None
+            out[f"{prefix}.a_scar_packed_u8"] = self.a_packed_u8.detach().cpu().contiguous()
+            out[f"{prefix}.a_scar_scales_f16"] = self.a_scales_f16.detach().cpu().to(torch.float16).contiguous()
+            out[f"{prefix}.b_scar_packed_u8"] = self.b_packed_u8.detach().cpu().contiguous()
+            out[f"{prefix}.b_scar_scales_f16"] = self.b_scales_f16.detach().cpu().to(torch.float16).contiguous()
+        if self.bias_f16 is not None:
+            out[f"{prefix}.bias"] = self.bias_f16.detach().cpu().to(torch.float16).contiguous()
+        return out
+
+    def pack_webgpu_u32_shard(self) -> Tuple[np.ndarray, Dict[str, int]]:
+        chunks: List[np.ndarray] = []
+        offs: Dict[str, int] = {}
+        cur = 0
+
+        def _append(name: str, raw: bytes) -> None:
+            nonlocal cur
+            if len(raw) % 4 != 0:
+                raw = raw + b"\x00" * (4 - (len(raw) % 4))
+            arr = np.frombuffer(raw, dtype=np.uint32).copy()
+            offs[name] = cur
+            chunks.append(arr)
+            cur += int(arr.size)
+
+        _append("packed_u32_off", self.base_packed_u8.detach().cpu().contiguous().numpy().tobytes())
+        _append("scales_u32_off", self.base_scales_f16.detach().cpu().to(torch.float16).contiguous().numpy().tobytes())
+        if self.d_eq_f16 is not None:
+            _append("d_eq_u32_off", self.d_eq_f16.detach().cpu().to(torch.float16).contiguous().numpy().tobytes())
+            offs["has_d_eq"] = 1
+        else:
+            offs["d_eq_u32_off"] = 0
+            offs["has_d_eq"] = 0
+
+        if self.rank > 0 and self.a_packed_u8 is not None and self.b_packed_u8 is not None:
+            assert self.a_scales_f16 is not None and self.b_scales_f16 is not None
+            _append("ascar_packed_u32_off", self.a_packed_u8.detach().cpu().contiguous().numpy().tobytes())
+            _append(
+                "ascar_scales_u32_off",
+                self.a_scales_f16.detach().cpu().to(torch.float16).contiguous().numpy().tobytes(),
+            )
+            b_comb = (
+                self.b_packed_u8.detach().cpu().contiguous().numpy().tobytes()
+                + self.b_scales_f16.detach().cpu().to(torch.float16).contiguous().numpy().tobytes()
+            )
+            _append("bscar_u32_off", b_comb)
+        else:
+            offs["ascar_packed_u32_off"] = 0
+            offs["ascar_scales_u32_off"] = 0
+            offs["bscar_u32_off"] = 0
+
+        if self.bias_f16 is not None:
+            _append("bias_u32_off", self.bias_f16.detach().cpu().to(torch.float16).contiguous().numpy().tobytes())
+            offs["has_bias"] = 1
+        else:
+            offs["bias_u32_off"] = 0
+            offs["has_bias"] = 0
+
+        return np.concatenate(chunks, axis=0), offs
+
+    @torch.no_grad()
+    def reconstruct_weight_f32(self, device: torch.device) -> torch.Tensor:
+        wq = dequant_block64_int4(self.base_packed_u8.to(device), self.base_scales_f16.to(device))
+        if self.d_eq_f16 is not None:
+            wq = wq / self.d_eq_f16.to(device).float().unsqueeze(0)
+        if self.rank > 0 and self.a_packed_u8 is not None and self.b_packed_u8 is not None:
+            assert self.a_scales_f16 is not None and self.b_scales_f16 is not None
+            aq = dequant_block64_int4(self.a_packed_u8.to(device), self.a_scales_f16.to(device))
+            bq = dequant_rowwise_int4(self.b_packed_u8.to(device), self.b_scales_f16.to(device))
+            wq = wq + (bq @ aq)
+        return wq
+
+    @torch.no_grad()
+    def forward_native(self, x: torch.Tensor) -> torch.Tensor:
+        orig_dtype = x.dtype
+        orig_prefix = x.shape[:-1]
+        x2d = x.reshape(-1, self.in_dim).float()
+        dev = x2d.device
+        x_in = (x2d / self.d_eq_f16.to(dev).float().unsqueeze(0)) if self.d_eq_f16 is not None else x2d
+        w_base = dequant_block64_int4(self.base_packed_u8.to(dev), self.base_scales_f16.to(dev))
+        y = x_in @ w_base.T
+        if self.rank > 0 and self.a_packed_u8 is not None and self.b_packed_u8 is not None:
+            assert self.a_scales_f16 is not None and self.b_scales_f16 is not None
+            aq = dequant_block64_int4(self.a_packed_u8.to(dev), self.a_scales_f16.to(dev))
+            bq = dequant_rowwise_int4(self.b_packed_u8.to(dev), self.b_scales_f16.to(dev))
+            y = y + ((x2d @ aq.T) @ bq.T)
+        if self.bias_f16 is not None:
+            y = y + self.bias_f16.to(dev).float().unsqueeze(0)
+        return y.reshape(*orig_prefix, self.out_dim).to(orig_dtype)
+
+
+@torch.no_grad()
+def quantize_protected_int4_2pass(
+    weight: torch.Tensor,
+    col_rms: Optional[torch.Tensor] = None,
+    bias: Optional[torch.Tensor] = None,
+    rank: int = 24,
+    use_eq: bool = True,
+) -> ProtectedInt4ScarMatrix:
+    """Quantizes a shielded projection (`gate_proj`, `o_proj`, etc.) into `Block-64 INT4 + Eq + 2-Pass INT4-ASVD`."""
+    if rank > 0 and (rank % 8) != 0:
+        raise ValueError(f"ProtectedInt4ScarMatrix rank ({rank}) must be 0 or a multiple of 8 for packed INT4 B_scar.")
+    w_f32 = weight.detach().float()
+    n_out, k_in = w_f32.shape
+    dev = w_f32.device
+    bias_f16 = bias.detach().to(dev, dtype=torch.float16).contiguous() if bias is not None else None
+
+    if use_eq and col_rms is not None:
+        c_rms = col_rms.detach().to(dev, dtype=torch.float32).clamp(min=1e-6)
+        d_f16 = (c_rms / c_rms.median().clamp(min=1e-7)).pow(0.55).clamp(0.125, 32.0).to(torch.float16).contiguous()
+        d_f32 = d_f16.float()
+    else:
+        c_rms = col_rms.detach().to(dev, dtype=torch.float32).clamp(min=1e-6) if col_rms is not None else None
+        d_f16 = None
+        d_f32 = None
+
+    if rank > 0 and c_rms is not None:
+        w_in0 = (w_f32 * d_f32.unsqueeze(0)) if d_f32 is not None else w_f32
+        _, _, w_q0_in = pack_block64_int4(w_in0)
+        w_q0 = (w_q0_in / d_f32.unsqueeze(0)) if d_f32 is not None else w_q0_in
+        a_p, a_s, b_p, b_s, scar_hat = _extract_compressed_int4_asvd(w_f32 - w_q0, c_rms, rank=rank)
+        w_res = w_f32 - scar_hat
+    else:
+        a_p = a_s = b_p = b_s = None
+        w_res = w_f32
+
+    w_in = (w_res * d_f32.unsqueeze(0)) if d_f32 is not None else w_res
+    b_pack, b_sc, _ = pack_block64_int4(w_in)
+    return ProtectedInt4ScarMatrix(
+        out_dim=n_out,
+        in_dim=k_in,
+        rank=rank if a_p is not None else 0,
+        base_packed_u8=b_pack,
+        base_scales_f16=b_sc,
+        d_eq_f16=d_f16,
+        a_packed_u8=a_p,
+        a_scales_f16=a_s,
+        b_packed_u8=b_p,
+        b_scales_f16=b_s,
+        bias_f16=bias_f16,
+    )
+
+
 class WebGPUVQ4ScarExecutor:
-    """Physical WebGPU (`wgpu` WGSL 1.0) executor for `VQ4ScarPackedMatrix` parity & speed tests."""
+    """Physical WebGPU (`wgpu` WGSL 1.0) executor for `VQ4ScarPackedMatrix` & `ProtectedInt4ScarMatrix` parity tests."""
 
     def __init__(self, wgsl_path: Optional[Path] = None) -> None:
         import wgpu
@@ -572,6 +804,9 @@ class WebGPUVQ4ScarExecutor:
                 "vq4_equilibrate_fwht64",
                 "mos_fused_int4_bscar_gemv",
                 "mos_fused_vq4_int4scar_gemv",
+                "apply_script_subspace_gate",
+                "vec_equilibrate_f16",
+                "mos_fused_prot_int4_int4scar_gemv",
             )
         }
 
@@ -585,8 +820,9 @@ class WebGPUVQ4ScarExecutor:
         p5: int = 0,
         p6: int = 0,
         p7: int = 0,
+        f0: float = 0.0,
     ) -> Any:
-        raw = struct.pack("<8I8f", p0, p1, p2, p3, p4, p5, p6, p7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        raw = struct.pack("<8I8f", p0, p1, p2, p3, p4, p5, p6, p7, float(f0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         return self.device.create_buffer_with_data(data=raw, usage=self.wgpu.BufferUsage.UNIFORM)
 
     def _bind_group(self, ep: str, bindings: Dict[int, Any]) -> Any:
@@ -679,3 +915,218 @@ class WebGPUVQ4ScarExecutor:
             outs.append(np.frombuffer(raw_y, dtype=np.float32).copy())
 
         return np.stack(outs, axis=0).reshape(*x_batch_f32.shape[:-1], packed.out_dim)
+
+    def execute_prot_int4_gemv(self, packed: ProtectedInt4ScarMatrix, x_batch_f32: np.ndarray) -> np.ndarray:
+        """Runs physical WGSL 1.0 `vec_equilibrate_f16` + `A_scar` + `mos_fused_prot_int4_int4scar_gemv`."""
+        U = self.wgpu.BufferUsage
+        shard_u32, offs = packed.pack_webgpu_u32_shard()
+        assert shard_u32.nbytes <= 128 * 1024 * 1024, "Single shard exceeds WebGPU 128 MiB binding limit!"
+
+        shard_buf = self.device.create_buffer_with_data(data=shard_u32.tobytes(), usage=U.STORAGE)
+        x_in_buf = self.device.create_buffer(size=packed.in_dim * 4, usage=U.STORAGE | U.COPY_DST)
+        x_eq_buf = self.device.create_buffer(size=packed.in_dim * 4, usage=U.STORAGE) if offs["has_d_eq"] else x_in_buf
+        u_buf = self.device.create_buffer(size=max(4, packed.rank * 4), usage=U.STORAGE)
+        dummy_f32 = self.device.create_buffer(size=4, usage=U.STORAGE)
+        y_out_buf = self.device.create_buffer(size=packed.out_dim * 4, usage=U.STORAGE | U.COPY_SRC)
+
+        bg_eq = None
+        if offs["has_d_eq"]:
+            u_eq = self._params_buf(p0=packed.in_dim, p1=offs["d_eq_u32_off"])
+            bg_eq = self._bind_group(
+                "vec_equilibrate_f16",
+                {0: u_eq, 1: shard_buf, 3: x_in_buf, 6: x_eq_buf},
+            )
+
+        bg_ascar = None
+        if packed.rank > 0:
+            u_ascar = self._params_buf(
+                p0=packed.rank,
+                p1=packed.in_dim,
+                p2=0,
+                p3=offs["ascar_packed_u32_off"],
+                p4=offs["ascar_scales_u32_off"],
+            )
+            bg_ascar = self._bind_group(
+                "mos_fused_int4_bscar_gemv",
+                {0: u_ascar, 1: shard_buf, 3: x_in_buf, 4: dummy_f32, 6: u_buf},
+            )
+
+        u_prot = self._params_buf(
+            p0=packed.out_dim,
+            p1=packed.in_dim,
+            p2=packed.rank,
+            p3=offs["packed_u32_off"],
+            p4=offs["scales_u32_off"],
+            p5=offs["bscar_u32_off"],
+            p6=offs["bias_u32_off"],
+            p7=offs["has_bias"],
+        )
+        bg_prot = self._bind_group(
+            "mos_fused_prot_int4_int4scar_gemv",
+            {0: u_prot, 1: shard_buf, 3: x_eq_buf, 4: u_buf, 6: y_out_buf},
+        )
+
+        x2d = np.ascontiguousarray(x_batch_f32.reshape(-1, packed.in_dim), dtype=np.float32)
+        outs: List[np.ndarray] = []
+        for t in range(x2d.shape[0]):
+            self.device.queue.write_buffer(x_in_buf, 0, x2d[t].tobytes())
+            enc = self.device.create_command_encoder()
+            cp = enc.begin_compute_pass()
+            if bg_eq is not None:
+                cp.set_pipeline(self.pipelines["vec_equilibrate_f16"])
+                cp.set_bind_group(0, bg_eq)
+                cp.dispatch_workgroups((packed.in_dim + 255) >> 8, 1, 1)
+            if bg_ascar is not None:
+                cp.set_pipeline(self.pipelines["mos_fused_int4_bscar_gemv"])
+                cp.set_bind_group(0, bg_ascar)
+                cp.dispatch_workgroups((packed.rank + 7) >> 3, 1, 1)
+            cp.set_pipeline(self.pipelines["mos_fused_prot_int4_int4scar_gemv"])
+            cp.set_bind_group(0, bg_prot)
+            cp.dispatch_workgroups((packed.out_dim + 7) >> 3, 1, 1)
+            cp.end()
+            self.device.queue.submit([enc.finish()])
+            raw_y = self.device.queue.read_buffer(y_out_buf)
+            outs.append(np.frombuffer(raw_y, dtype=np.float32).copy())
+
+        return np.stack(outs, axis=0).reshape(*x_batch_f32.shape[:-1], packed.out_dim)
+
+    def execute_script_gate(
+        self,
+        logits_f32: np.ndarray,
+        bitmask_u32: np.ndarray,
+        suppress_cjk: bool,
+        penalty: float = 64.0,
+    ) -> np.ndarray:
+        """Runs physical WGSL 1.0 Shader #18 `apply_script_subspace_gate` on `[vocab_size]` logits."""
+        U = self.wgpu.BufferUsage
+        flat = np.ascontiguousarray(logits_f32.reshape(-1), dtype=np.float32)
+        vocab_size = int(flat.size)
+        mask_arr = np.ascontiguousarray(bitmask_u32, dtype=np.uint32)
+
+        mask_buf = self.device.create_buffer_with_data(data=mask_arr.tobytes(), usage=U.STORAGE)
+        logits_buf = self.device.create_buffer_with_data(data=flat.tobytes(), usage=U.STORAGE | U.COPY_SRC)
+        u_buf = self._params_buf(p0=vocab_size, p1=1 if suppress_cjk else 0, f0=penalty)
+        bg = self._bind_group("apply_script_subspace_gate", {0: u_buf, 1: mask_buf, 6: logits_buf})
+
+        enc = self.device.create_command_encoder()
+        cp = enc.begin_compute_pass()
+        cp.set_pipeline(self.pipelines["apply_script_subspace_gate"])
+        cp.set_bind_group(0, bg)
+        cp.dispatch_workgroups((vocab_size + 255) >> 8, 1, 1)
+        cp.end()
+        self.device.queue.submit([enc.finish()])
+
+        out = np.frombuffer(self.device.queue.read_buffer(logits_buf), dtype=np.float32).copy()
+        return out.reshape(logits_f32.shape)
+
+
+def has_cjk_script(text: str) -> bool:
+    """Returns True iff `text` contains any CJK/Hiragana/Katakana/Hangul/Fullwidth-CJK character."""
+    for ch in text:
+        cp = ord(ch)
+        if (
+            (0x3040 <= cp <= 0x30FF)  # Hiragana + Katakana
+            or (0x3400 <= cp <= 0x4DBF)  # CJK Extension A
+            or (0x4E00 <= cp <= 0x9FFF)  # CJK Unified Ideographs
+            or (0xAC00 <= cp <= 0xD7AF)  # Hangul Syllables
+            or (0xF900 <= cp <= 0xFAFF)  # CJK Compatibility Ideographs
+            or (0x3000 <= cp <= 0x303F)  # CJK Symbols & Punctuation
+            or (0xFF01 <= cp <= 0xFF60)  # Fullwidth CJK Forms
+        ):
+            return True
+    return False
+
+
+def _infer_tokenizer_vocab_size(tokenizer: Any, vocab_size: Optional[int] = None) -> int:
+    if vocab_size is not None:
+        return int(vocab_size)
+    try:
+        return int(len(tokenizer))
+    except TypeError:
+        pass
+    if getattr(tokenizer, "vocab_size", None) is not None:
+        return int(tokenizer.vocab_size)
+    if callable(getattr(tokenizer, "get_vocab", None)):
+        return int(len(tokenizer.get_vocab()))
+    return 0
+
+
+def build_cjk_vocab_bitmask_u32(tokenizer: Any, vocab_size: Optional[int] = None) -> np.ndarray:
+    """Builds the exact `ceil(vocab_size / 32)` `uint32` bitmask (`18.55 KB` for Qwen2.5) of CJK token IDs."""
+    v_size = _infer_tokenizer_vocab_size(tokenizer, vocab_size)
+    n_words = max(1, (v_size + 31) // 32)
+    mask_u32 = np.zeros((n_words,), dtype=np.uint32)
+    if v_size <= 0:
+        return mask_u32
+    has_batch = callable(getattr(tokenizer, "batch_decode", None))
+    has_single = callable(getattr(tokenizer, "decode", None))
+    if not has_batch and not has_single:
+        return mask_u32
+    batch = 4096
+    for s in range(0, v_size, batch):
+        e = min(v_size, s + batch)
+        if has_batch:
+            decoded = tokenizer.batch_decode([[tid] for tid in range(s, e)], skip_special_tokens=False)
+        else:
+            decoded = []
+            for tid in range(s, e):
+                try:
+                    decoded.append(str(tokenizer.decode([tid], skip_special_tokens=False)))
+                except TypeError:
+                    decoded.append(str(tokenizer.decode([tid])))
+        for offset, piece in enumerate(decoded):
+            if has_cjk_script(piece):
+                tid = s + offset
+                mask_u32[tid >> 5] |= np.uint32(1 << (tid & 31))
+    return mask_u32
+
+
+class ScriptSubspaceGate:
+    """Unified Native PyTorch + WebGPU WGSL `P_perp_CJK` Script Subspace Gate (`cos = 1.000000` parity)."""
+
+    def __init__(self, tokenizer: Any, vocab_size: Optional[int] = None, penalty: float = 64.0) -> None:
+        self.vocab_size = _infer_tokenizer_vocab_size(tokenizer, vocab_size)
+        self.penalty = float(penalty)
+        self.bitmask_u32 = build_cjk_vocab_bitmask_u32(tokenizer, self.vocab_size)
+        # Unpack boolean mask for fast Native PyTorch indexing
+        words = np.repeat(self.bitmask_u32, 32)[: self.vocab_size]
+        shifts = np.arange(self.vocab_size, dtype=np.uint32) & np.uint32(31)
+        is_cjk = ((words >> shifts) & np.uint32(1)).astype(bool) if self.vocab_size > 0 else np.zeros((0,), dtype=bool)
+        self.cjk_indices_cpu = torch.from_numpy(np.nonzero(is_cjk)[0].astype(np.int64))
+        self._dev_cache: Dict[torch.device, torch.Tensor] = {}
+
+    def _indices_on(self, dev: torch.device) -> torch.Tensor:
+        if dev not in self._dev_cache:
+            self._dev_cache[dev] = self.cjk_indices_cpu.to(dev)
+        return self._dev_cache[dev]
+
+    @torch.no_grad()
+    def apply_native(self, logits: torch.Tensor, user_query: str) -> torch.Tensor:
+        if has_cjk_script(user_query) or self.cjk_indices_cpu.numel() == 0:
+            return logits
+        out = logits.clone()
+        idx = self._indices_on(out.device)
+        idx = idx[idx < out.shape[-1]]
+        if idx.numel() == 0:
+            return out
+        if self.penalty >= 1e6:
+            out.index_fill_(-1, idx, -1e9)
+        else:
+            out[..., idx] = out[..., idx] - self.penalty
+        return out
+
+    def make_hf_logits_processor(self, user_query: str):
+        """Returns a HuggingFace `LogitsProcessor` callable `(input_ids, scores) -> scores`."""
+        suppress = (not has_cjk_script(user_query)) and (self.cjk_indices_cpu.numel() > 0)
+
+        def _proc(_input_ids: torch.Tensor, scores: torch.Tensor) -> torch.Tensor:
+            if not suppress:
+                return scores
+            idx = self._indices_on(scores.device)
+            idx = idx[idx < scores.shape[-1]]
+            if idx.numel() > 0:
+                scores[..., idx] = scores[..., idx] - self.penalty
+            return scores
+
+        return _proc
+

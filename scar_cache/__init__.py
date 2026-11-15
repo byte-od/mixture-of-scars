@@ -145,13 +145,26 @@ from scar_cache.triton_mos_gemm import (
     triton_fused_int4_mos_linear,
 )
 from scar_cache.vq4_scar_mos import (
+    ProtectedInt4ScarMatrix,
+    ScriptSubspaceGate,
     VQ4ScarLinear,
     VQ4ScarPackedMatrix,
     WebGPUVQ4ScarExecutor,
+    build_cjk_vocab_bitmask_u32,
+    has_cjk_script,
     quantize_matrix_vq4_scar_2pass,
+    quantize_protected_int4_2pass,
+)
+from scar_codec.core import (
+    CircularRingBufferOT,
+    OrthogonalSubspaceProjector,
+    PhysicalVQ4ScarCodec,
+    PhysicalVQ4ScarPackage,
+    SurpriseGatedAnomalySCache,
+    unique_tensor_storage_bytes,
 )
 
-__version__ = "3.0.0"
+__version__ = "4.0.0"
 
 __all__ = [
     "SCache",
@@ -270,7 +283,18 @@ __all__ = [
     "hebbian_outer_product",
     "VQ4ScarPackedMatrix",
     "VQ4ScarLinear",
+    "ProtectedInt4ScarMatrix",
     "WebGPUVQ4ScarExecutor",
     "quantize_matrix_vq4_scar_2pass",
+    "quantize_protected_int4_2pass",
+    "ScriptSubspaceGate",
+    "build_cjk_vocab_bitmask_u32",
+    "has_cjk_script",
+    "PhysicalVQ4ScarPackage",
+    "PhysicalVQ4ScarCodec",
+    "OrthogonalSubspaceProjector",
+    "CircularRingBufferOT",
+    "SurpriseGatedAnomalySCache",
+    "unique_tensor_storage_bytes",
     "__version__",
 ]

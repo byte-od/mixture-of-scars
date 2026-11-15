@@ -501,6 +501,20 @@ def _forward_last_token_logits(
     return lg[:, -1, :]
 
 
+_SCRIPT_GATE_CACHE: Dict[Tuple[int, int], Any] = {}
+
+
+def _get_cached_script_gate(tokenizer: Any, vocab_size: int) -> Any:
+    key = (id(tokenizer), int(vocab_size))
+    gate = _SCRIPT_GATE_CACHE.get(key)
+    if gate is None:
+        from scar_cache.vq4_scar_mos import ScriptSubspaceGate
+
+        gate = ScriptSubspaceGate(tokenizer, vocab_size=int(vocab_size), penalty=64.0)
+        _SCRIPT_GATE_CACHE[key] = gate
+    return gate
+
+
 @torch.no_grad()
 def generate_with_scar_store(
     student_model: nn.Module,
@@ -511,12 +525,14 @@ def generate_with_scar_store(
     scache: Optional[SCacheDynamicCache] = None,
     window_size: int = 256,
     num_slots: int = 64,
+    num_sink_tokens: Optional[int] = None,
     prefill_chunk_size: int = 64,
     temperature: float = 0.0,
     format_chat: bool = True,
     system_prompt: Optional[str] = None,
     http_client: Optional[HTTPRangeCapsuleClient] = None,
     persist_fetched: bool = False,
+    enable_script_subspace_gate: bool = True,
 ) -> Tuple[ScarStoreQueryResult, SCacheDynamicCache]:
     """Executes chunked prefill + decode with `SCache O(1)` and `HeadExpandedScarStore` / `GoldenSliceScarStore` attached."""
     dev = _infer_model_device(student_model)
@@ -526,7 +542,11 @@ def generate_with_scar_store(
         if system_prompt is not None
         else (UNIVERSAL_CHAT_SYSTEM_PROMPT if is_golden_v4 else DEFAULT_SYSTEM_PROMPT)
     )
-    sink_toks = min(40, max(4, int(window_size) // 4)) if is_golden_v4 else 4
+    sink_toks = (
+        int(num_sink_tokens)
+        if num_sink_tokens is not None
+        else (min(40, max(4, int(window_size) // 4)) if is_golden_v4 else 4)
+    )
     cache = (
         scache
         if scache is not None
@@ -579,10 +599,26 @@ def generate_with_scar_store(
                 last_lg = _forward_last_token_logits(student_model, chunk, cache)
             assert last_lg is not None
 
+            query_str_for_gate = (
+                prompt_text_or_ids
+                if isinstance(prompt_text_or_ids, str)
+                else tokenizer.decode(ids_2d[0].tolist(), skip_special_tokens=True)
+            )
+            script_gate = (
+                _get_cached_script_gate(tokenizer, int(last_lg.shape[-1]))
+                if enable_script_subspace_gate
+                else None
+            )
+
             def _pick_token(lg_1d: torch.Tensor) -> int:
+                lg_eff = (
+                    script_gate.apply_native(lg_1d, query_str_for_gate)
+                    if script_gate is not None
+                    else lg_1d
+                )
                 if temperature <= 1e-6:
-                    return int(lg_1d.float().argmax(dim=-1).item())
-                probs = torch.softmax(lg_1d.float() / float(temperature), dim=-1)
+                    return int(lg_eff.float().argmax(dim=-1).item())
+                probs = torch.softmax(lg_eff.float() / float(temperature), dim=-1)
                 return int(torch.multinomial(probs, num_samples=1).item())
 
             nxt = _pick_token(last_lg[0])

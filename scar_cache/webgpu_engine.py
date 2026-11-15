@@ -448,35 +448,86 @@ def export_mos_model_to_webgpu(
         all_keys = set(sf.keys())
 
         # 1. Quantize `embed_tokens` in Block-64 INT4 chunks (< 80 MiB per chunk -> universal WebGPU safe!)
-        emb_w = sf.get_tensor("model.embed_tokens.weight").to(torch.float32)
-        actual_vocab = int(emb_w.shape[0])
-        vocab_size = actual_vocab
-        # At d=896, 151936 rows is 68.97 MiB (< 80 MiB -> 1 single shard!); at d=2048, split into 75968-row shards!
-        bytes_per_vocab_row = (hidden_dim // 2) + (hidden_dim // 64) * 2
-        max_rows_per_chunk = min(actual_vocab, max(4096, (max_shard_bytes - 65536) // bytes_per_vocab_row))
+        if "model.embed_tokens.packed_u8" in all_keys and "model.embed_tokens.scales_f16" in all_keys:
+            emb_pk_full = sf.get_tensor("model.embed_tokens.packed_u8").contiguous()
+            emb_sc_full = sf.get_tensor("model.embed_tokens.scales_f16").to(torch.float16).contiguous()
+            actual_vocab = int(emb_pk_full.shape[0])
+            vocab_size = actual_vocab
+            bytes_per_vocab_row = (hidden_dim // 2) + (hidden_dim // 64) * 2
+            max_rows_per_chunk = min(actual_vocab, max(4096, (max_shard_bytes - 65536) // bytes_per_vocab_row))
+            for v_start in range(0, actual_vocab, max_rows_per_chunk):
+                v_end = min(actual_vocab, v_start + max_rows_per_chunk)
+                v_rows = v_end - v_start
+                pk_b = emb_pk_full[v_start:v_end].contiguous().numpy().tobytes()
+                sc_b = emb_sc_full[v_start:v_end].contiguous().numpy().tobytes()
+                builder.ensure_capacity_for_group(len(pk_b) + len(sc_b) + 64)
+                s_idx, pk_u32 = builder.append_blob(pk_b)
+                s_idx2, sc_u32 = builder.append_blob(sc_b)
+                assert s_idx == s_idx2
+                vocab_chunks_meta.append(
+                    {
+                        "shard_index": s_idx,
+                        "vocab_start": v_start,
+                        "vocab_rows": v_rows,
+                        "packed_u32_off": pk_u32,
+                        "scales_u32_off": sc_u32,
+                    }
+                )
+            del emb_pk_full, emb_sc_full
+        else:
+            emb_w = sf.get_tensor("model.embed_tokens.weight").to(torch.float32)
+            actual_vocab = int(emb_w.shape[0])
+            vocab_size = actual_vocab
+            # At d=896, 151936 rows is 68.97 MiB (< 80 MiB -> 1 single shard!); at d=2048, split into <=44 MiB shards!
+            bytes_per_vocab_row = (hidden_dim // 2) + (hidden_dim // 64) * 2
+            max_rows_per_chunk = min(actual_vocab, max(4096, (max_shard_bytes - 65536) // bytes_per_vocab_row))
 
-        for v_start in range(0, actual_vocab, max_rows_per_chunk):
-            v_end = min(actual_vocab, v_start + max_rows_per_chunk)
-            v_rows = v_end - v_start
-            pk, sc = quantize_2d_block64_int4(emb_w[v_start:v_end])
-            pk_b = pk.contiguous().numpy().tobytes()
-            sc_b = sc.contiguous().numpy().tobytes()
-            builder.ensure_capacity_for_group(len(pk_b) + len(sc_b) + 64)
-            s_idx, pk_u32 = builder.append_blob(pk_b)
-            s_idx2, sc_u32 = builder.append_blob(sc_b)
-            assert s_idx == s_idx2
-            chunk_entry = {
-                "shard_index": s_idx,
-                "vocab_start": v_start,
-                "vocab_rows": v_rows,
-                "packed_u32_off": pk_u32,
-                "scales_u32_off": sc_u32,
-            }
-            vocab_chunks_meta.append(chunk_entry)
-        del emb_w
+            for v_start in range(0, actual_vocab, max_rows_per_chunk):
+                v_end = min(actual_vocab, v_start + max_rows_per_chunk)
+                v_rows = v_end - v_start
+                pk, sc = quantize_2d_block64_int4(emb_w[v_start:v_end])
+                pk_b = pk.contiguous().numpy().tobytes()
+                sc_b = sc.contiguous().numpy().tobytes()
+                builder.ensure_capacity_for_group(len(pk_b) + len(sc_b) + 64)
+                s_idx, pk_u32 = builder.append_blob(pk_b)
+                s_idx2, sc_u32 = builder.append_blob(sc_b)
+                assert s_idx == s_idx2
+                chunk_entry = {
+                    "shard_index": s_idx,
+                    "vocab_start": v_start,
+                    "vocab_rows": v_rows,
+                    "packed_u32_off": pk_u32,
+                    "scales_u32_off": sc_u32,
+                }
+                vocab_chunks_meta.append(chunk_entry)
+            del emb_w
 
-        if tie_embeddings or "lm_head.weight" not in all_keys:
+        if tie_embeddings or (
+            "lm_head.weight" not in all_keys and "lm_head.packed_u8" not in all_keys
+        ):
             lm_head_chunks_meta = list(vocab_chunks_meta)
+        elif "lm_head.packed_u8" in all_keys and "lm_head.scales_f16" in all_keys:
+            lm_pk_full = sf.get_tensor("lm_head.packed_u8").contiguous()
+            lm_sc_full = sf.get_tensor("lm_head.scales_f16").to(torch.float16).contiguous()
+            for v_start in range(0, actual_vocab, max_rows_per_chunk):
+                v_end = min(actual_vocab, v_start + max_rows_per_chunk)
+                v_rows = v_end - v_start
+                pk_b = lm_pk_full[v_start:v_end].contiguous().numpy().tobytes()
+                sc_b = lm_sc_full[v_start:v_end].contiguous().numpy().tobytes()
+                builder.ensure_capacity_for_group(len(pk_b) + len(sc_b) + 64)
+                s_idx, pk_u32 = builder.append_blob(pk_b)
+                s_idx2, sc_u32 = builder.append_blob(sc_b)
+                assert s_idx == s_idx2
+                lm_head_chunks_meta.append(
+                    {
+                        "shard_index": s_idx,
+                        "vocab_start": v_start,
+                        "vocab_rows": v_rows,
+                        "packed_u32_off": pk_u32,
+                        "scales_u32_off": sc_u32,
+                    }
+                )
+            del lm_pk_full, lm_sc_full
         else:
             lm_w = sf.get_tensor("lm_head.weight").to(torch.float32)
             for v_start in range(0, actual_vocab, max_rows_per_chunk):
@@ -507,6 +558,57 @@ def export_mos_model_to_webgpu(
             bias_b = b""
             if f"{prefix_key}.bias" in all_keys:
                 bias_b = sf.get_tensor(f"{prefix_key}.bias").to(torch.float16).contiguous().numpy().tobytes()
+            if f"{prefix_key}.vq_codes_u8" in all_keys:
+                vc_t = sf.get_tensor(f"{prefix_key}.vq_codes_u8").contiguous()
+                vs_t = sf.get_tensor(f"{prefix_key}.vq_scales_f16").to(torch.float16).contiguous()
+                lut_t = sf.get_tensor(f"{prefix_key}.lut256_f16").to(torch.float16).contiguous()
+                deq_t = sf.get_tensor(f"{prefix_key}.d_eq_f16").to(torch.float16).contiguous()
+                out_d = int(vc_t.shape[0])
+                in_d = int(vc_t.shape[1]) * 4
+                blobs = {
+                    "vq_codes": vc_t.numpy().tobytes(),
+                    "vq_scales": vs_t.numpy().tobytes(),
+                    "lut256": lut_t.numpy().tobytes(),
+                    "d_eq": deq_t.numpy().tobytes(),
+                }
+                r_d = 0
+                if f"{prefix_key}.a_scar_packed_u8" in all_keys and f"{prefix_key}.b_scar_packed_u8" in all_keys:
+                    ap_t = sf.get_tensor(f"{prefix_key}.a_scar_packed_u8").contiguous()
+                    as_t = sf.get_tensor(f"{prefix_key}.a_scar_scales_f16").to(torch.float16).contiguous()
+                    bp_t = sf.get_tensor(f"{prefix_key}.b_scar_packed_u8").contiguous()
+                    bs_t = sf.get_tensor(f"{prefix_key}.b_scar_scales_f16").to(torch.float16).contiguous()
+                    r_d = int(ap_t.shape[0])
+                    blobs["ascar_packed"] = ap_t.numpy().tobytes()
+                    blobs["ascar_scales"] = as_t.numpy().tobytes()
+                    blobs["bscar_combined"] = bp_t.numpy().tobytes() + bs_t.numpy().tobytes()
+                if bias_b:
+                    blobs["bias"] = bias_b
+                return "vq4_scar", blobs, (out_d, in_d, r_d)
+            if f"{prefix_key}.prot_packed_u8" in all_keys:
+                pk_t = sf.get_tensor(f"{prefix_key}.prot_packed_u8").contiguous()
+                sc_t = sf.get_tensor(f"{prefix_key}.prot_scales_f16").to(torch.float16).contiguous()
+                out_d = int(pk_t.shape[0])
+                in_d = int(pk_t.shape[1]) * 2
+                blobs = {
+                    "packed": pk_t.numpy().tobytes(),
+                    "scales": sc_t.numpy().tobytes(),
+                }
+                if f"{prefix_key}.d_eq_f16" in all_keys:
+                    deq_t = sf.get_tensor(f"{prefix_key}.d_eq_f16").to(torch.float16).contiguous()
+                    blobs["d_eq"] = deq_t.numpy().tobytes()
+                r_d = 0
+                if f"{prefix_key}.a_scar_packed_u8" in all_keys and f"{prefix_key}.b_scar_packed_u8" in all_keys:
+                    ap_t = sf.get_tensor(f"{prefix_key}.a_scar_packed_u8").contiguous()
+                    as_t = sf.get_tensor(f"{prefix_key}.a_scar_scales_f16").to(torch.float16).contiguous()
+                    bp_t = sf.get_tensor(f"{prefix_key}.b_scar_packed_u8").contiguous()
+                    bs_t = sf.get_tensor(f"{prefix_key}.b_scar_scales_f16").to(torch.float16).contiguous()
+                    r_d = int(ap_t.shape[0])
+                    blobs["ascar_packed"] = ap_t.numpy().tobytes()
+                    blobs["ascar_scales"] = as_t.numpy().tobytes()
+                    blobs["bscar_combined"] = bp_t.numpy().tobytes() + bs_t.numpy().tobytes()
+                if bias_b:
+                    blobs["bias"] = bias_b
+                return "prot_int4_scar", blobs, (out_d, in_d, r_d)
             if f"{prefix_key}.packed_base" in all_keys:
                 pk_t = sf.get_tensor(f"{prefix_key}.packed_base").contiguous()
                 sc_t = sf.get_tensor(f"{prefix_key}.scales_base").to(torch.float16).contiguous()
@@ -567,7 +669,59 @@ def export_mos_model_to_webgpu(
                 bias_u32 = 0
                 if has_bias:
                     _, bias_u32 = builder.append_blob(blobs["bias"])
-                if mode == "mos_int4_asvd":
+                if mode == "vq4_scar":
+                    _, vc_u32 = builder.append_blob(blobs["vq_codes"])
+                    _, vs_u32 = builder.append_blob(blobs["vq_scales"])
+                    _, lut_u32 = builder.append_blob(blobs["lut256"])
+                    _, deq_u32 = builder.append_blob(blobs["d_eq"])
+                    ap_u32 = as_u32 = bs_comb_u32 = 0
+                    if r_d > 0:
+                        _, ap_u32 = builder.append_blob(blobs["ascar_packed"])
+                        _, as_u32 = builder.append_blob(blobs["ascar_scales"])
+                        _, bs_comb_u32 = builder.append_blob(blobs["bscar_combined"])
+                    layer_rec["projections"][full_name] = {
+                        "mode": "vq4_scar",
+                        "out_dim": out_d,
+                        "in_dim": in_d,
+                        "rank": r_d,
+                        "vq_codes_u32_off": vc_u32,
+                        "vq_scales_u32_off": vs_u32,
+                        "lut256_u32_off": lut_u32,
+                        "d_eq_u32_off": deq_u32,
+                        "ascar_packed_u32_off": ap_u32,
+                        "ascar_scales_u32_off": as_u32,
+                        "bscar_u32_off": bs_comb_u32,
+                        "bias_u32_off": bias_u32,
+                        "has_bias": has_bias,
+                    }
+                elif mode == "prot_int4_scar":
+                    _, pk_u32 = builder.append_blob(blobs["packed"])
+                    _, sc_u32 = builder.append_blob(blobs["scales"])
+                    has_deq = 1 if "d_eq" in blobs else 0
+                    deq_u32 = 0
+                    if has_deq:
+                        _, deq_u32 = builder.append_blob(blobs["d_eq"])
+                    ap_u32 = as_u32 = bs_comb_u32 = 0
+                    if r_d > 0:
+                        _, ap_u32 = builder.append_blob(blobs["ascar_packed"])
+                        _, as_u32 = builder.append_blob(blobs["ascar_scales"])
+                        _, bs_comb_u32 = builder.append_blob(blobs["bscar_combined"])
+                    layer_rec["projections"][full_name] = {
+                        "mode": "prot_int4_scar",
+                        "out_dim": out_d,
+                        "in_dim": in_d,
+                        "rank": r_d,
+                        "packed_u32_off": pk_u32,
+                        "scales_u32_off": sc_u32,
+                        "d_eq_u32_off": deq_u32,
+                        "has_d_eq": has_deq,
+                        "ascar_packed_u32_off": ap_u32,
+                        "ascar_scales_u32_off": as_u32,
+                        "bscar_u32_off": bs_comb_u32,
+                        "bias_u32_off": bias_u32,
+                        "has_bias": has_bias,
+                    }
+                elif mode == "mos_int4_asvd":
                     _, pk_u32 = builder.append_blob(blobs["packed"])
                     _, sc_u32 = builder.append_blob(blobs["scales"])
                     _, a_u32 = builder.append_blob(blobs["A_scar"])
@@ -784,13 +938,7 @@ class NativeWebGPUMoSEngine:
         # Request default WebGPU limits (strictly <= 128 MiB per storage binding!)
         self.device = self.adapter.request_device_sync(required_limits={})
 
-        wgsl_path = self.bundle_dir / self.manifest.get("wgsl_shader", "mos_scache_kernels.wgsl")
-        if not wgsl_path.exists():
-            wgsl_path = WGSL_KERNELS_PATH
-        self.shader_module = self.device.create_shader_module(code=wgsl_path.read_text(encoding="utf-8"))
-
-        self.pipelines: Dict[str, Any] = {}
-        for ep in (
+        required_entrypoints = (
             "embed_int4_lookup",
             "rmsnorm_f32",
             "fp16_gemv_bias",
@@ -806,7 +954,22 @@ class NativeWebGPUMoSEngine:
             "int4_vocab_logits_gemv",
             "logits_top2_reduce_stage1",
             "logits_top2_reduce_stage2",
-        ):
+            "vq4_equilibrate_fwht64",
+            "mos_fused_vq4_int4scar_gemv",
+            "apply_script_subspace_gate",
+            "vec_equilibrate_f16",
+            "mos_fused_prot_int4_int4scar_gemv",
+        )
+        wgsl_path = self.bundle_dir / self.manifest.get("wgsl_shader", "mos_scache_kernels.wgsl")
+        if not wgsl_path.exists():
+            wgsl_path = WGSL_KERNELS_PATH
+        wgsl_code = wgsl_path.read_text(encoding="utf-8")
+        if any(f"fn {ep}" not in wgsl_code for ep in required_entrypoints):
+            wgsl_code = WGSL_KERNELS_PATH.read_text(encoding="utf-8")
+        self.shader_module = self.device.create_shader_module(code=wgsl_code)
+
+        self.pipelines: Dict[str, Any] = {}
+        for ep in required_entrypoints:
             self.pipelines[ep] = self.device.create_compute_pipeline(
                 layout="auto",
                 compute={"module": self.shader_module, "entry_point": ep},
@@ -874,11 +1037,21 @@ class NativeWebGPUMoSEngine:
         self.proj_out_buf = self.device.create_buffer(size=self.hidden_dim * 4, usage=U.STORAGE)
         self.gate_buf = self.device.create_buffer(size=self.inter_dim * 4, usage=U.STORAGE)
         self.up_buf = self.device.create_buffer(size=self.inter_dim * 4, usage=U.STORAGE)
-        self.asvd_u_buf = self.device.create_buffer(size=max(64, self.mos_rank) * 4, usage=U.STORAGE)
+        self.asvd_u_buf = self.device.create_buffer(size=max(256, self.mos_rank) * 4, usage=U.STORAGE)
+        max_lin_in = max(self.hidden_dim, q_dim, self.inter_dim)
+        self.vq4_x_rot_buf = self.device.create_buffer(size=max_lin_in * 4, usage=U.STORAGE)
+        self.vq4_dummy_buf = self.device.create_buffer(size=16, usage=U.STORAGE)
         self.logits_buf = self.device.create_buffer(size=self.vocab_size * 4, usage=U.STORAGE | U.COPY_SRC)
         self.top2_s1_f32_buf = self.device.create_buffer(size=256 * 3 * 4, usage=U.STORAGE)
         self.top2_s1_u32_buf = self.device.create_buffer(size=256 * 4, usage=U.STORAGE)
         self.top2_out_buf = self.device.create_buffer(size=16, usage=U.STORAGE | U.COPY_SRC)
+
+        # Script-Orthogonal Active Subspace Gate (`P_perp_CJK` — 18.55 KB bitmask, default no-op until western query)
+        self._cjk_bitmask_ready = False
+        n_mask_words = (self.vocab_size + 31) // 32
+        self.cjk_bitmask_buf = self.device.create_buffer(size=max(16, n_mask_words * 4), usage=U.STORAGE | U.COPY_DST)
+        self.script_gate_uniform = self.device.create_buffer(size=64, usage=U.UNIFORM | U.COPY_DST)
+        self._set_script_gate_gpu(suppress_cjk=False)
 
         # ScarStore calibration + active `+M` capsules buffers
         self.capsule_range_fetcher = capsule_range_fetcher
@@ -1249,6 +1422,23 @@ class NativeWebGPUMoSEngine:
                 active_out.append((str(c["capsule_id"]), float(g_vals[i]), arr))
         return active_out
 
+    def _set_script_gate_gpu(self, suppress_cjk: bool, penalty: float = 64.0) -> None:
+        u_bytes = _pack_kernel_params(
+            p0=self.vocab_size,
+            p1=1 if suppress_cjk else 0,
+            f0=float(penalty),
+        )
+        self.device.queue.write_buffer(self.script_gate_uniform, 0, u_bytes)
+
+    def _ensure_cjk_bitmask_gpu(self, tokenizer: Any) -> None:
+        if self._cjk_bitmask_ready:
+            return
+        from scar_cache.vq4_scar_mos import build_cjk_vocab_bitmask_u32
+
+        mask_u32 = build_cjk_vocab_bitmask_u32(tokenizer, self.vocab_size)
+        self.device.queue.write_buffer(self.cjk_bitmask_buf, 0, mask_u32.tobytes())
+        self._cjk_bitmask_ready = True
+
     def _make_linear_ops(self, shard_buf: Any, spec: Dict[str, Any], x_buf: Any, y_buf: Any) -> List[Tuple[str, Any, int]]:
         ops: List[Tuple[str, Any, int]] = []
         out_dim = int(spec["out_dim"])
@@ -1266,6 +1456,94 @@ class NativeWebGPUMoSEngine:
             )
             bg = self._bg("fp16_gemv_bias", {0: u, 1: shard_buf, 3: x_buf, 6: y_buf})
             ops.append(("fp16_gemv_bias", bg, wgs))
+        elif spec["mode"] == "vq4_scar":
+            rank = int(spec["rank"])
+            u_eq = self._make_uniform(_pack_kernel_params(p0=in_dim, p1=spec["d_eq_u32_off"]))
+            bg_eq = self._bg(
+                "vq4_equilibrate_fwht64",
+                {0: u_eq, 1: shard_buf, 3: x_buf, 6: self.vq4_x_rot_buf},
+            )
+            ops.append(("vq4_equilibrate_fwht64", bg_eq, in_dim >> 6))
+
+            if rank > 0:
+                u_a = self._make_uniform(
+                    _pack_kernel_params(
+                        p0=rank,
+                        p1=in_dim,
+                        p2=0,
+                        p3=spec["ascar_packed_u32_off"],
+                        p4=spec["ascar_scales_u32_off"],
+                    )
+                )
+                bg_a = self._bg(
+                    "mos_fused_int4_bscar_gemv",
+                    {0: u_a, 1: shard_buf, 3: x_buf, 4: self.vq4_dummy_buf, 6: self.asvd_u_buf},
+                )
+                ops.append(("mos_fused_int4_bscar_gemv", bg_a, (rank + 7) >> 3))
+
+            p7_bias = ((1 << 31) | int(spec["bias_u32_off"])) if int(spec["has_bias"]) else 0
+            u_vq = self._make_uniform(
+                _pack_kernel_params(
+                    p0=out_dim,
+                    p1=in_dim,
+                    p2=rank,
+                    p3=spec["vq_codes_u32_off"],
+                    p4=spec["vq_scales_u32_off"],
+                    p5=spec["lut256_u32_off"],
+                    p6=spec["bscar_u32_off"],
+                    p7=p7_bias,
+                )
+            )
+            bg_vq = self._bg(
+                "mos_fused_vq4_int4scar_gemv",
+                {0: u_vq, 1: shard_buf, 3: self.vq4_x_rot_buf, 4: self.asvd_u_buf, 6: y_buf},
+            )
+            ops.append(("mos_fused_vq4_int4scar_gemv", bg_vq, wgs))
+        elif spec["mode"] == "prot_int4_scar":
+            rank = int(spec["rank"])
+            has_deq = int(spec.get("has_d_eq", 0)) != 0
+            x_base_buf = self.vq4_x_rot_buf if has_deq else x_buf
+            if has_deq:
+                u_eq = self._make_uniform(_pack_kernel_params(p0=in_dim, p1=spec["d_eq_u32_off"]))
+                bg_eq = self._bg(
+                    "vec_equilibrate_f16",
+                    {0: u_eq, 1: shard_buf, 3: x_buf, 6: self.vq4_x_rot_buf},
+                )
+                ops.append(("vec_equilibrate_f16", bg_eq, (in_dim + 255) >> 8))
+
+            if rank > 0:
+                u_a = self._make_uniform(
+                    _pack_kernel_params(
+                        p0=rank,
+                        p1=in_dim,
+                        p2=0,
+                        p3=spec["ascar_packed_u32_off"],
+                        p4=spec["ascar_scales_u32_off"],
+                    )
+                )
+                bg_a = self._bg(
+                    "mos_fused_int4_bscar_gemv",
+                    {0: u_a, 1: shard_buf, 3: x_buf, 4: self.vq4_dummy_buf, 6: self.asvd_u_buf},
+                )
+                ops.append(("mos_fused_int4_bscar_gemv", bg_a, (rank + 7) >> 3))
+
+            u_prot = self._make_uniform(
+                _pack_kernel_params(
+                    p0=out_dim,
+                    p1=in_dim,
+                    p2=rank,
+                    p3=spec["packed_u32_off"],
+                    p4=spec["scales_u32_off"],
+                    p5=spec["bscar_u32_off"],
+                    p6=spec["bias_u32_off"],
+                    p7=spec["has_bias"],
+                )
+            )
+            bg_prot = self._bg(
+                "mos_fused_prot_int4_int4scar_gemv",
+                {0: u_prot, 1: shard_buf, 3: x_base_buf, 4: self.asvd_u_buf, 6: y_buf},
+            )
+            ops.append(("mos_fused_prot_int4_int4scar_gemv", bg_prot, wgs))
         else:
             rank = int(spec["rank"])
             u_down = self._make_uniform(_pack_kernel_params(p0=rank, p1=in_dim, p2=spec["ascar_u32_off"], p3=0, p4=0))
@@ -1493,6 +1771,10 @@ class NativeWebGPUMoSEngine:
             bg = self._bg("int4_vocab_logits_gemv", {0: u, 1: sb, 3: self.norm_buf, 6: self.logits_buf})
             self.lm_head_ops.append(("int4_vocab_logits_gemv", bg, (v_rows + 7) // 8))
 
+        bg_script = self._bg(
+            "apply_script_subspace_gate",
+            {0: self.script_gate_uniform, 1: self.cjk_bitmask_buf, 6: self.logits_buf},
+        )
         u_r1 = self._make_uniform(_pack_kernel_params(p0=self.vocab_size))
         bg_r1 = self._bg(
             "logits_top2_reduce_stage1",
@@ -1503,6 +1785,7 @@ class NativeWebGPUMoSEngine:
             {1: self.top2_s1_u32_buf, 3: self.top2_s1_f32_buf, 8: self.top2_out_buf},
         )
         self.reduce_ops = [
+            ("apply_script_subspace_gate", bg_script, (self.vocab_size + 255) >> 8),
             ("logits_top2_reduce_stage1", bg_r1, 256),
             ("logits_top2_reduce_stage2", bg_r2, 1),
         ]
@@ -1513,6 +1796,7 @@ class NativeWebGPUMoSEngine:
         self.device.queue.write_buffer(self.scache_w_scar_buf, 0, bytes(self.scache_w_scar_buf.size))
         self.device.queue.write_buffer(self.scache_salience_buf, 0, bytes(self.scache_salience_buf.size))
         self._set_active_capsules_gpu([])
+        self._set_script_gate_gpu(suppress_cjk=False)
         self.http206_bytes_fetched = 0
         self.session_pos = 0
         self.turn_count = 0
@@ -1653,13 +1937,18 @@ class NativeWebGPUMoSEngine:
         from scar_cache.cli_scar_store import select_chat_system_prompt
         from scar_cache.golden_slice_v4 import UNIVERSAL_CHAT_SYSTEM_PROMPT, extract_user_content_bounds
         from scar_cache.scar_grafting import find_subsequence_last_end
+        from scar_cache.vq4_scar_mos import has_cjk_script
 
         if reset_cache:
             self.reset_scache()
 
         tok = AutoTokenizer.from_pretrained(self.bundle_dir, local_files_only=True)
+        self._ensure_cjk_bitmask_gpu(tok)
+        self._set_script_gate_gpu(suppress_cjk=(not has_cjk_script(user_query)))
         if system_prompt is not None:
             sys_txt = system_prompt
+        elif self.router_meta is not None and self.router_meta.get("system_prompt"):
+            sys_txt = str(self.router_meta["system_prompt"])
         elif self.is_golden_slice_v4:
             sys_txt = UNIVERSAL_CHAT_SYSTEM_PROMPT
         else:

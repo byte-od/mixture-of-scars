@@ -18,9 +18,12 @@ import torch.nn.functional as F
 
 from scar_cache.sub2bit_mos import dequantize_sub2bit_coalesced, quantize_sub2bit_block64
 from scar_cache.vq4_scar_mos import (
+    ScriptSubspaceGate,
     VQ4ScarLinear,
     WebGPUVQ4ScarExecutor,
+    has_cjk_script,
     quantize_matrix_vq4_scar_2pass,
+    quantize_protected_int4_2pass,
 )
 
 
@@ -243,3 +246,123 @@ def test_vq4_scar_real_qwen_polyglot_native_and_webgpu() -> None:
         )
         assert cos_g > 0.999999, f"[{lang}] Native vs WebGPU gate cosine={cos_g}"
         assert cos_d > 0.999999, f"[{lang}] Native vs WebGPU down cosine={cos_d}"
+
+
+def test_script_subspace_gate_polyglot_native_and_webgpu_parity() -> None:
+    """Verifies Shader #18 `apply_script_subspace_gate` <-> Native `ScriptSubspaceGate` parity across PT/EN/ES/FR & ZH."""
+    pytest.importorskip("wgpu")
+    from transformers import AutoTokenizer
+
+    model_id = "Qwen/Qwen2.5-0.5B-Instruct"
+    try:
+        tok = AutoTokenizer.from_pretrained(model_id, local_files_only=True)
+    except Exception:
+        pytest.skip(f"{model_id} not cached locally")
+
+    vocab_size = 151936
+    gate = ScriptSubspaceGate(tok, vocab_size=vocab_size, penalty=64.0)
+    executor = WebGPUVQ4ScarExecutor()
+
+    torch.manual_seed(202611)
+    raw_logits = torch.randn(vocab_size, dtype=torch.float32)
+
+    # Plant an artificial CJK logit collision (`量子` slightly above `quântica` / `quantum` / `cuántica` / `quantique`)
+    cjk_tid = tok.encode("量子", add_special_tokens=False)[0]
+    pt_tid = tok.encode(" quântica", add_special_tokens=False)[0]
+    es_tid = tok.encode(" cuántica", add_special_tokens=False)[0]
+    fr_tid = tok.encode(" quantique", add_special_tokens=False)[0]
+    raw_logits[pt_tid] = 18.20
+    raw_logits[es_tid] = 18.15
+    raw_logits[fr_tid] = 18.10
+    raw_logits[cjk_tid] = 18.35  # Would win greedy argmax without ScriptSubspaceGate!
+
+    western_queries = {
+        "PT": "Explique a física quântica e a constante de Boltzmann.",
+        "EN": "Explain quantum physics and Boltzmann's constant.",
+        "ES": "Explica la física cuántica y la constante de Boltzmann.",
+        "FR": "Expliquez la physique quantique et la constante de Boltzmann.",
+    }
+    for lang, q in western_queries.items():
+        assert not has_cjk_script(q)
+        lg_nat = gate.apply_native(raw_logits, q).numpy()
+        lg_web = executor.execute_script_gate(
+            raw_logits.numpy(), gate.bitmask_u32, suppress_cjk=True, penalty=64.0
+        )
+        max_diff = float(np.max(np.abs(lg_nat - lg_web)))
+        assert max_diff == 0.0, f"[{lang}] Exact bit parity required on Shader #18, got max_diff={max_diff}"
+        winner_tid = int(np.argmax(lg_web))
+        assert winner_tid == pt_tid, f"[{lang}] Expected accented Western token {pt_tid} to win over CJK collision!"
+        assert not has_cjk_script(tok.decode([winner_tid]))
+
+    # CJK prompt must leave CJK logits 100% untouched (`0.00000000` invariance)
+    zh_q = "请解释量子力学和玻尔兹曼常数。"
+    assert has_cjk_script(zh_q)
+    lg_zh_nat = gate.apply_native(raw_logits, zh_q).numpy()
+    lg_zh_web = executor.execute_script_gate(
+        raw_logits.numpy(), gate.bitmask_u32, suppress_cjk=False, penalty=64.0
+    )
+    assert float(np.max(np.abs(lg_zh_nat - raw_logits.numpy()))) == 0.0
+    assert float(np.max(np.abs(lg_zh_web - raw_logits.numpy()))) == 0.0
+    assert int(np.argmax(lg_zh_web)) == cjk_tid
+
+
+def test_protected_int4_scar_physical_webgpu_wgsl_parity() -> None:
+    """Verifies Shaders #19 `vec_equilibrate_f16` & #20 `mos_fused_prot_int4_int4scar_gemv` (`r=0` and `r=24`)."""
+    pytest.importorskip("wgpu")
+    torch.manual_seed(20261114)
+
+    executor = WebGPUVQ4ScarExecutor()
+    for rank, has_bias, use_eq in ((0, True, True), (24, False, True), (24, True, False)):
+        lin = nn.Linear(2048, 1024, bias=has_bias)
+        col_rms = torch.linspace(0.4, 18.0, 2048)
+        col_rms[11] = 260.0
+        col_rms[1027] = 390.0
+
+        prot_mat = quantize_protected_int4_2pass(
+            lin.weight,
+            col_rms=col_rms,
+            bias=lin.bias,
+            rank=rank,
+            use_eq=use_eq,
+        )
+        x_test = torch.randn(5, 2048) * col_rms.sqrt().unsqueeze(0)
+
+        y_native = prot_mat.forward_native(x_test).detach().cpu().numpy()
+        y_webgpu = executor.execute_prot_int4_gemv(prot_mat, x_test.numpy())
+
+        cos = float(
+            np.dot(y_native.ravel(), y_webgpu.ravel())
+            / (np.linalg.norm(y_native.ravel()) * np.linalg.norm(y_webgpu.ravel()) + 1e-12)
+        )
+        rel_l2 = float(np.linalg.norm(y_native - y_webgpu) / (np.linalg.norm(y_native) + 1e-12))
+        assert cos > 0.999999, f"ProtectedInt4Scar WGSL vs Native cosine={cos} (r={rank}, eq={use_eq})"
+        assert rel_l2 < 1e-5, f"ProtectedInt4Scar WGSL vs Native rel_l2={rel_l2} (r={rank}, eq={use_eq})"
+
+
+def test_full_webgpu_mos_engine_20_shaders_polyglot() -> None:
+    """Verifies `NativeWebGPUMoSEngine` compiles all 20 WGSL 1.0 shaders and runs PT/EN/ES/FR with 0% CJK leak & Δ +0 B."""
+    pytest.importorskip("wgpu")
+    from pathlib import Path
+
+    from scar_cache.webgpu_engine import NativeWebGPUMoSEngine
+
+    bundle_dir = Path("/Users/juliocesarreisfilho/Projects/portfolio/public/webgpu/qwen0p5b")
+    if not (bundle_dir / "webgpu_manifest.json").exists():
+        pytest.skip("qwen0p5b WebGPU bundle not present")
+
+    eng = NativeWebGPUMoSEngine(bundle_dir)
+    assert len(eng.pipelines) == 20, f"Expected all 20 WGSL 1.0 pipelines compiled, got {len(eng.pipelines)}"
+    b0 = eng.scache_gpu_bytes
+
+    for lang, q in (
+        ("PT", "Quem criou o Mixture of Scars?"),
+        ("EN", "What is SCache O(1)?"),
+        ("ES", "¿Qué es Mixture of Scars?"),
+        ("FR", "Qu'est-ce que SCache O(1) ?"),
+    ):
+        res = eng.generate(q, max_new_tokens=28, reset_cache=False)
+        assert res.scache_delta_bytes == 0, f"[{lang}] SCache O(1) drifted by {res.scache_delta_bytes} B!"
+        assert eng.scache_gpu_bytes == b0
+        assert not has_cjk_script(res.answer), f"[{lang}] CJK leak detected: {res.answer}"
+        assert len(res.answer.strip()) > 10
+
