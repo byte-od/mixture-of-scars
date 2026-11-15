@@ -1,34 +1,58 @@
-# Mixture of Scars (MoS) v4.0, SCache $\mathcal{O}(1)$ & Physical `ScarCodec`: Unified Native, 20-Shader WebGPU & Hardware-to-Science Scar Operators
+# Pure Scar-Native Neural Architecture (`ScarNativeLM v5.0`), Mixture of Scars (`MoS`), `SCache` $\mathcal{O}(1)$ & Physical `ScarCodec`: Tabula-Rasa $D_4$ Lattice Pretraining, 22-Shader WebGPU & Hardware-to-Science Scar Operators
 
-[![DOI v4.0.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![Release: v4.0.0](https://img.shields.io/badge/Release-v4.0.0%20(Preprint%20v4.0%3A%20Native%2B20--Shader%20WebGPU%20%7C%20P__perp__lang%20HTTP--206%20%7C%20Physical%20ScarCodec)-brightgreen.svg)](zenodo_deposit_v4_0/Mixture_of_Scars_and_SCache_Preprint_v4.0.pdf)
+[![DOI v5.0.0](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
+[![Release: v5.0.0](https://img.shields.io/badge/Release-v5.0.0%20(Foundation%20Preprint%20v5.0%3A%20Tabula--Rasa%20ScarNativeLM%20%7C%2022--Shader%20WebGPU%20%7C%20ScarCodec)-brightgreen.svg)](zenodo_deposit_v5_0/Pure_Scar_Native_and_MoS_Preprint_v5.0.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2+](https://img.shields.io/badge/PyTorch-2.2+-ee4c2c.svg)](https://pytorch.org/)
 [![HuggingFace Drop-in](https://img.shields.io/badge/HuggingFace-DynamicCache%20Drop--in-yellow.svg)](https://huggingface.co/)
+[![ScarNativeLM v5.0](https://img.shields.io/badge/ScarNativeLM%20v5.0-1.02%20MiB%20Tabula--Rasa%20%7C%200.0000%20KL%20Shock-059669.svg)](#0-pure-scar-native-foundation-engine-scarnativelm-v500--tabula-rasa-from-step-0)
 [![32.9k Passkey Recall](https://img.shields.io/badge/32.9k%20Passkey-100%25%20%40%2022.7%20MiB%20(5.84x%20Faster)-success.svg)](#1-166k--329k-passkey--needle-in-a-haystack-scache-o1-vs-normal-kv-cache)
 [![72.7B Sub-2-Bit](https://img.shields.io/badge/72.7B%20Sub--2--Bit-20.65%20GiB%20Shards%20(%3C24%20GB%20VRAM)-9cf.svg)](#3-horizon-1-v140-ghost-jump-speculative-reflex--sub-2-bit-mos--24-gb-7271b)
-[![Fused Metal, Triton & 20-Shader WebGPU](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16%20%7C%2020--Shader%20WebGPU%20WGSL-blueviolet.svg)](scar_cache/webgpu/mos_scache_kernels.wgsl)
-[![Tests Passing](https://img.shields.io/badge/Tests-114%2F114%20Passing-brightgreen.svg)](tests/)
-[![Forensic Audit Guide](https://img.shields.io/badge/Audit%20Guide-v4.0%20Zero--Facade-0ea5e9.svg)](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
+[![Fused Metal, Triton & 22-Shader WebGPU](https://img.shields.io/badge/Fused%20Kernels-Metal%2050.4x%20%7C%20Triton%20W4%2FW2A16%20%7C%2022--Shader%20WebGPU%20WGSL-blueviolet.svg)](scar_cache/webgpu/mos_scache_kernels.wgsl)
+[![Tests Passing](https://img.shields.io/badge/Tests-119%2F119%20Passing-brightgreen.svg)](tests/)
+[![Forensic Audit Guide](https://img.shields.io/badge/Audit%20Guide-v5.0%20Zero--Facade-0ea5e9.svg)](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
 [![72B MoS Download](https://img.shields.io/badge/72B%20MoS%20Model-38.12%20GiB%20Download-purple.svg)](https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos)
 [![Practical 72B Guide](https://img.shields.io/badge/Practical%2072B%20Guide-Docs-orange.svg)](docs/GUIA_PRATICO_MOS_SCACHE_72B.md)
 [![Physical ScarCodec](https://img.shields.io/badge/Physical%20ScarCodec-12%20Hardware%2FSpace%2FScience%20Domains-0d9488.svg)](docs/BEYOND_AI_SCAR_ARCHITECTURE_APPLICATIONS.md)
 [![Sponsor Research](https://img.shields.io/badge/Sponsor-Byte--OD%20Research-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/byte-od)
 [![Kaggle](https://kaggle.com/static/images/open-in-kaggle.svg)](https://www.kaggle.com/code/thetod/mixture-of-scars-benchmark)
 
-> **Unified Scar Operator (`v4.0.0`):** Pretrained autoregressive Transformers and physical high-dynamic-range signals share a universal triad: a correlated low-rank substrate, exact zero-energy vacuum spans, and sparse extreme shocks (`607×`–`195,720×` above RMS). **Mixture of Scars (`MoS v4.0`)**, **`SCache` $\mathcal{O}(1)$**, and domain-independent **`ScarCodec`** unify server/desktop execution, zero-Python WebGPU browser inference, and physical hardware/scientific signal processing under one directional law:
+> **Pure Scar-Native Foundation & Unified Scar Operator (`v5.0.0`):** Post-training compression of off-the-shelf dense LLMs inherits a *Pretrained Gaussian Backbone Floor* (`80,252`–`195,720×` kurtosis spikes, PTQ KL shock, $\mathcal{O}(T)$ training caches, and entangled parametric facts). In **`v5.0.0`**, we eliminate that floor with **`ScarNativeLM v5.0`** ([`scar_native/`](scar_native/__init__.py), CLI `mos-scar-native`), pretrained **100% from *Tabula Rasa* (`step = 0 → 520`, zero `torch.nn.Linear` modules, zero pretrained weights)** across **Native PyTorch** and **`22` pure `WebGPU WGSL 1.0` compute shaders**, unified with **`MoS` (`0.5B`–`72.71B`)**, **`SCache` $\mathcal{O}(1)$**, and physical **`ScarCodec`**:
+> 0. **Pure Scar-Native Foundation Engine (`ScarNativeLM v5.0` — *Tabula Rasa*, [`docs/SCAR_NATIVE_V5_FOUNDATION_ARCHITECTURE.md`](docs/SCAR_NATIVE_V5_FOUNDATION_ARCHITECTURE.md)):** Every projection (`ScarNativeLinear`) is born on the canonical $D_4$ + exact `(0,0,0,0)` `LUT256` lattice (`2 KB` shared across the entire model) with multiplier-free `FWHT-64`, bounded equilibration $\mathbf{d}_{\text{eq}} \in [0.25, 4.0]^K$, and `INT4-STE` scars — packing into **`1.02 MiB` (`1,071,040 B`, `5.39×` smaller than `5.50 MiB` FP16 Dense; `1.01 MiB` WebGPU shard)** with **exact `0.000000 nats` PTQ export shock** (vs. `0.3945 nats` post-hoc VQ4) and superior held-out perplexity (**`PPL = 1.0786`** vs. `1.5833` Dense). End-to-end **`DifferentiableSCacheAttention`** (`124.25 KB = 127,232 B`, `Δ = 0 B`, `20`-token window) sustains **`100% / 100% / 100% / 87.5%`** exact 3-slot passkey recall across `26.4×` window overflow (`T = 527`, `min_cos = 0.99999998` on WebGPU Shaders `#21`–`#22`), while contrastive $P_{\perp\text{lang}}$ (`k = 16`) + **`DetachedScarStore`** keep the trunk `100%` fact-free (`0/64` pre-mint) and mint English-only closed-form RRR cartridges (`8.0 KB = 2 × 4 KB`, `0` trunk SGD, `544.3 ms`) firing at **`58/64` (`90.62%`)** across `PT/EN/ES/FR` (`EN 100%`, `FR 93.8%`, `ES 87.5%`, `PT 81.3%`) with `0.0` out-of-cone drift and instant `0x00` GDPR wipe (`0.0000` PPL damage).
 > 1. **Unified Spatial Scars (`MoS`, `Sub-2-Bit`, `VQ4-Scar` & `ProtectedInt4Scar` — `0.5B`–`72.71B`, Native + WebGPU):** Pairs canonical `Block-64 INT4` (`38.12 GiB` at `72.71B`, `100.0%` Top-5, `50.38×` fused Apple Metal & CUDA Triton `W4A16+ASVD`), **Zero-Spike `MoS` Student Execution** (`3.49 GiB` VRAM & `0.55 GiB` CPU RSS on `3B`), `2.25 bpw` `Sub-2-Bit MoS` (`72.71B` in **`20.65 GiB` shards / `21.89 GiB` VRAM `< 24 GB` GPU**, `cos = 0.99911`), **`Sub-1GB VQ4-Scar`** (`0.992 GiB` on `Qwen2.5-3B` via multiplier-free `FWHT-64` + $D_4$ `LUT256` with `(0,0,0,0)` vacuum + `2-Pass INT4-ASVD` healing), and **`ProtectedInt4Scar + P_⊥CJK`** (`1,601.57 MiB` across `40 <= 44 MiB` WebGPU shards, `KL = 0.6938`, `0%` CJK leak, `cos = 1.00000012` Native↔WGSL parity).
 > 2. **`SCache` $\mathcal{O}(1)$ & `Ghost-Jump` Speculative Reflex (Temporal Memory & Decode):** Drop-in HuggingFace `DynamicCache` combining attention sinks, rolling FIFO, synchronized deep-layer `[L/2 : L)` Widrow-Hoff prediction-surprise routing over `32`-token micro-pages (`+0.00 Bytes` drift from `16.6k` to `32.9k` tokens; `50.9×` smaller & `5.84×` faster), and atomic $\mathcal{O}(1)$ speculative rollback (`KL = 0.0000`, `1.89×–1.92×` speedup).
 > 3. **Closed-Form `140 KB` `HeadExpandedScarStore` & Language-Nullspace `GoldenSliceScarStore v4.0` (`mos-store` + `HTTP 206`):** Transplants `72.71B` and open-weight derivations with **`0` SGD / `0` backprop** into OS-page-aligned **`140.00 KB` (`35 × 4 KB` `mmap`)** cartridges on `3B` (`98.61%` unseen Top-1 parity, `18 µs` RAM / `7.64 ms` `0x00` SSD GDPR unlearning) and projects Golden-Slice `Layer 23/36` routing onto $P_{\perp\text{lang}} = \mathbf{I} - \mathbf{U}_{\text{lang}}\mathbf{U}_{\text{lang}}^\top$ ($k_{\text{lang}}=14$), hitting **`164/164` (`100.0%`)** cross-lingual `HTTP/1.1 206` accuracy across `PT/EN/ES/FR` (`41` cartridges, `0` out-of-cone bleed).
 > 4. **Sinkhorn Monomial–Procrustes Re-Basin (`mos-rebasin`):** Exploits exact SwiGLU monomial gauge symmetry via tiled single-pass log-Sinkhorn (`< 350 MiB` VRAM at `72B+`, `0` extra runtime FLOPs), slashing shared-base KL by **`56.36×` (`0.1578 → 0.0028`)** on permuted specialists and **`14.68×`** across `12` layers.
-> 5. **`20`-Shader `WebGPU / WGSL 1.0` Browser Engine (`mos-webgpu`) & Standalone Physical `ScarCodec` (`mos-scar-codec`):** Compiles the complete `MoS` + `VQ4-Scar` + `ProtectedInt4Scar` + `P_⊥CJK` + `SCache O(1)` + `GoldenSlice HTTP 206` stack into **`20` pure `WGSL 1.0` compute shaders** (`~21 tok/s` on `3B`, `67.7–71.85 tok/s` on `0.5B`), and ships domain-independent [`scar_codec/`](scar_codec/__init__.py) (`0` `transformers` dependency) validated across `-60 dB` (`1,000×`) radio-telescope RFI (`cos = 0.9752`), `34.8 KB` (`Δ = 0 B`) black-box `SCache` (`5/5` fault recall), and `[512,512]` CFD/`500×`-HDR fields (`12.05×` compression, `75×` lower RMSE than FFT, `0.0` vacuum error).
+> 5. **`22`-Shader `WebGPU / WGSL 1.0` Browser Engine (`mos-webgpu` & `mos-scar-native`) & Standalone Physical `ScarCodec` (`mos-scar-codec`):** Compiles the complete `ScarNativeLM v5.0` + `MoS` + `VQ4-Scar` + `ProtectedInt4Scar` + `P_⊥CJK` + `SCache O(1)` + `GoldenSlice HTTP 206` stack into **`22` pure `WGSL 1.0` compute shaders** (`~21 tok/s` on `3B`, `67.7–71.85 tok/s` on `0.5B`), and ships domain-independent [`scar_codec/`](scar_codec/__init__.py) (`0` `transformers` dependency) validated across `-60 dB` (`1,000×`) radio-telescope RFI (`cos = 0.9752`), `34.8 KB` (`Δ = 0 B`) black-box `SCache` (`5/5` fault recall), and `[512,512]` CFD/`500×`-HDR fields (`12.05×` compression, `75×` lower RMSE than FFT, `0.0` vacuum error).
 
-![Multi-Scale v4.0.0 Empirical Audit — 32.9k Passkey O(1), <24 GB 72.71B, 3B Native+WebGPU Polyglot, 140 KB P_⊥lang HTTP-206, Sinkhorn Re-Basin & Physical ScarCodec](zenodo_deposit_v4_0/mos_scache_v4_0_hero.png)
+![Foundation v5.0.0 Empirical Audit — Tabula-Rasa ScarNativeLM (1.02 MiB, 0.0000 KL Shock), Differentiable SCache O(1), Detached 8 KB P_⊥lang RRR Cartridges, 22-Shader WebGPU, <24 GB 72.71B & Physical ScarCodec](zenodo_deposit_v5_0/mos_scarnative_v5_0_hero.png)
 
 ---
 
 ## 🔥 Red-Team Benchmarks (Top-of-README Quick-Look)
+
+### 0. Pure Scar-Native Foundation Engine (`ScarNativeLM v5.0.0` — *Tabula Rasa* from `step = 0`)
+Pretrained **100% from scratch (`step = 0 → 520`, `seed = 202605`, zero `torch.nn.Linear` modules, zero pretrained weights, zero `transformers` dependency)** on Apple Silicon M2 (`MPS` + `22`-shader `WebGPU Metal`, verified with `0.00 B` storage discrepancy in [`results/scar_native_v5_0_audit.json`](results/scar_native_v5_0_audit.json) and [`docs/SCAR_NATIVE_V5_FOUNDATION_ARCHITECTURE.md`](docs/SCAR_NATIVE_V5_FOUNDATION_ARCHITECTURE.md)):
+
+| Controlled Tabula-Rasa Model (`step 0 → 520`) | Packed Binary | Dynamic State @ `T = 527` | Held-Out PPL | PTQ Export KL Shock | Exact 3-Slot Passkey (`T = 83 / 127 / 260 / 527`) | 4-Lang Detached Facts (`PT/EN/ES/FR`) & GDPR |
+|---|---|---|---|---|---|---|
+| **1. `Dense Transformer O(T)` (FP16)** | `5,771,776 B` (`5.50 MiB`) | `1,054.0 KB` ($\mathcal{O}(T)$, `+909 KB`) | `1.5833` | `0.0` *(uncompressed)* | `8.3% / 4.2% / 4.2% / 0.0%` | `100.0%` *(entangled in trunk)* |
+| **2. `Dense + Post-Hoc VQ4 + Window O(1)`** | `1,116,800 B` (`1.06 MiB`) | `40.0 KB` (`Δ = 0 B`) | `2.3770` | **`0.394499 nats`** | `0.0% / 0.0% / 0.0% / 0.0%` *(amnesia)* | `100.0%` *(suffers PTQ shock)* |
+| **3. `ScarNativeLM w/o Widrow-Hoff`** | `1,071,040 B` (`1.02 MiB`) | `124.25 KB` (`Δ = 0 B`) | `1.3867` | **`0.000000 nats`** | `0.0% / 0.0% / 0.0% / 0.0%` | `0.0%` *(`0/64`: `100%` fact-free trunk)* |
+| **4. `ScarNativeLM v5.0 Full` (Ours)** | **`1,071,040 B` (`1.02 MiB`, `5.39×↓`)** | **`124.25 KB` (`127,232 B`, `Δ = 0 B!`)** | **`1.0786` *(Best!)*** | **`0.000000 nats!`** | **`100% / 100% / 100% / 87.5%` (`26.4×` window!)** | **`90.62%` (`58/64`, `0 SGD`) · `0.0000` ΔPPL!** |
+
+- **Detached English-Only (`EN`) `Zero-SGD RRR` Cartridges (`16 × 8,192 B = 8.0 KB = 2 × 4 KB` OS pages, `544.3 ms`/cartridge, `0` trunk SGD):** `EN 100.0%` (`16/16`), `FR 93.75%` (`15/16`), `ES 87.50%` (`14/16`), `PT 81.25%` (`13/16`), `100%` (`64/64`) cross-lingual routing, `max |Δlogits| = 0.00000000` out-of-cone drift, `100%` (`4/4`) continual fact update (`516 km → 684 km`), and instant `0x00` GDPR wipe (`0.0%` target recall, `max |Δlogits| = 0.00000000` vs. pre-mint trunk).
+- **`22`-Shader WebGPU `WGSL 1.0` Parity (Shaders `#21` `scarnative_widrow_hoff_evict_update` & `#22` `scarnative_o1_hybrid_gqa_attention`):** `min_cosine = 0.99999998`, `mean_cosine = 1.00000000` across `48` tokens (`ΔSCache = 0 B`).
+
+```bash
+# Reproduce the full Tabula-Rasa 4-model pretraining, detached RRR cartridge & 22-shader WebGPU parity audit:
+python scripts/pretrain_and_audit_scar_native_v5_0.py
+
+# Run the standalone Pure Scar-Native CLI (`mos-scar-native`):
+mos-scar-native verify-parity
+mos-scar-native benchmark
+```
 
 ### 1. `16.6k` & `32.9k` Passkey / Needle-in-a-Haystack: `SCache O(1)` vs. Normal KV Cache
 Measured live on Apple Silicon M2 (`16 GB`, `MPS`, `FP16`) across **100% non-repeating Python standard library documentation** (`5%, 25%, 50%, 75%, 95%` needle depths, **zero fine-tuning**, verified via recursive `untyped_storage().data_ptr()` byte audit with `0.00 B` discrepancy in [`results/passkey_16k_32k_llm_audit.json`](results/passkey_16k_32k_llm_audit.json)):
@@ -169,10 +193,10 @@ mos-scar-codec benchmark --json-out results/scar_codec_physical_v4_0_audit.json
 
 ---
 
-## 📄 Official Preprint (`v4.0.0`), Public `72.71B` Shards & Forensic Audit Guide
-- **Permanent Preprint (CERN / Zenodo `v4.0.0` DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) · *Concept DOI (all versions):* [`10.5281/zenodo.24144512`](https://doi.org/10.5281/zenodo.24144512) ([**Preprint v4.0 PDF**](zenodo_deposit_v4_0/Mixture_of_Scars_and_SCache_Preprint_v4.0.pdf) | [v3.0 PDF](zenodo_deposit_v3_0/Mixture_of_Scars_and_SCache_Preprint_v3.0.pdf) | [v1.3 PDF](archive/zenodo_deposits/zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](archive/zenodo_deposits/zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](archive/zenodo_deposits/zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](archive/zenodo_deposits/zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
-- **Academic LaTeX Source & Replication Bundles (`v4.0.0`, arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/), [`arXiv_Direct_Upload_v4.0.zip`](zenodo_deposit_v4_0/arXiv_Direct_Upload_v4.0.zip), [`MoS_SCache_LaTeX_arXiv_TMLR_v4.0.zip`](zenodo_deposit_v4_0/MoS_SCache_LaTeX_arXiv_TMLR_v4.0.zip) & [`MoS_SCache_Adversarial_Replication_v4.0.zip`](zenodo_deposit_v4_0/MoS_SCache_Adversarial_Replication_v4.0.zip)
-- **Forensic Audit & Zero-Facade Verification Guide (`114/114` Tests Across `29` Suites):** [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
+## 📄 Official Preprint (`v5.0.0`), Public `72.71B` Shards & Forensic Audit Guide
+- **Permanent Preprint (CERN / Zenodo `v5.0.0` DOI):** [`10.5281/zenodo.24172784`](https://doi.org/10.5281/zenodo.24172784) · *Concept DOI (all versions):* [`10.5281/zenodo.24144512`](https://doi.org/10.5281/zenodo.24144512) ([**Foundation Preprint v5.0 PDF**](zenodo_deposit_v5_0/Pure_Scar_Native_and_MoS_Preprint_v5.0.pdf) | [v4.0 PDF](zenodo_deposit_v4_0/Mixture_of_Scars_and_SCache_Preprint_v4.0.pdf) | [v3.0 PDF](zenodo_deposit_v3_0/Mixture_of_Scars_and_SCache_Preprint_v3.0.pdf) | [v1.3 PDF](archive/zenodo_deposits/zenodo_deposit_v1_3/Mixture_of_Scars_and_SCache_Preprint_v1.3.pdf) | [v1.2 PDF](archive/zenodo_deposits/zenodo_deposit_v1_2/Mixture_of_Scars_and_SCache_Preprint_v1.2.pdf) | [v1.1 PDF](archive/zenodo_deposits/zenodo_deposit_v1_1/Mixture_of_Scars_and_SCache_Preprint_v1.1.pdf) | [v1.0 PDF](archive/zenodo_deposits/zenodo_deposit_v1/Mixture_of_Scars_and_SCache_Preprint_v1.0.pdf))
+- **Academic LaTeX Source & Replication Bundles (`v5.0.0`, arXiv / TMLR / Double-Blind Ready):** [`paper_latex/`](paper_latex/), [`arXiv_Direct_Upload_v5.0.zip`](zenodo_deposit_v5_0/arXiv_Direct_Upload_v5.0.zip), [`MoS_ScarNative_LaTeX_arXiv_TMLR_v5.0.zip`](zenodo_deposit_v5_0/MoS_ScarNative_LaTeX_arXiv_TMLR_v5.0.zip) & [`MoS_ScarNative_Adversarial_Replication_v5.0.zip`](zenodo_deposit_v5_0/MoS_ScarNative_Adversarial_Replication_v5.0.zip)
+- **Pure Scar-Native Foundation Architecture & Forensic Audit Guide (`119/119` Tests Across `30` Suites):** [`docs/SCAR_NATIVE_V5_FOUNDATION_ARCHITECTURE.md`](docs/SCAR_NATIVE_V5_FOUNDATION_ARCHITECTURE.md) · [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md)
 - **Unified Native + WebGPU Operators (8 Structural Solutions) & 12 Physical Applications:** [`docs/UNIFIED_SCAR_OPERATORS_AND_8_SOLUTIONS.md`](docs/UNIFIED_SCAR_OPERATORS_AND_8_SOLUTIONS.md) · [`docs/BEYOND_AI_SCAR_ARCHITECTURE_APPLICATIONS.md`](docs/BEYOND_AI_SCAR_ARCHITECTURE_APPLICATIONS.md)
 - **Live Official Online Cartridge Library (`HTTP/1.1 206` Streaming):** [`docs/ONLINE_CARTRIDGE_LIBRARY.md`](docs/ONLINE_CARTRIDGE_LIBRARY.md) · [`releases/tag/v3.0.0`](https://github.com/byte-od/mixture-of-scars/releases/tag/v3.0.0)
 - **Public `Qwen2.5-72B-Instruct MoS v2` Checkpoint (`38.12 GiB`, `22` SHA-256 Shards, Zero Login) & Practical Guide:**
@@ -316,12 +340,13 @@ The Unified Scar Operator unlocks concrete mechanisms outside text generation �
 ## 📂 Reproduction Suites, Clean Repository Map & Executable Examples
 
 ```bash
-# Run all 114 unit, red-team causality, MoS Student, ScarStore HTTP-206/UI/GDPR, Sinkhorn Re-Basin, 20-Shader WebGPU WGSL, Physical ScarCodec, and v4.0 architectural integrity tests (29 suites):
+# Run all 119 unit, Tabula-Rasa ScarNativeLM v5.0, red-team causality, MoS Student, ScarStore HTTP-206/UI/GDPR, Sinkhorn Re-Basin, 22-Shader WebGPU WGSL, Physical ScarCodec, and v5.0 architectural integrity tests (30 suites):
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 pytest tests/ -v
 ```
 
-- **Forensic Audit & Repository Map (`v4.0.0`):** See [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md) for the complete `29`-file (`114`-test) anti-facade verification matrix, physical byte-pointer audit protocol (`0.00 B` discrepancy), and top-level directory map (`scar_cache/`, `scar_codec/`, `mixture_of_scars/`, `tests/`, `scripts/`, `results/`, `paper_latex/`, `zenodo_deposit_v4_0/`, and [`archive/`](archive/README.md)).
+- **Forensic Audit & Repository Map (`v5.0.0`):** See [`docs/AUDIT_AND_VERIFICATION_GUIDE.md`](docs/AUDIT_AND_VERIFICATION_GUIDE.md) for the complete `30`-file (`119`-test) anti-facade verification matrix, physical byte-pointer audit protocol (`0.00 B` discrepancy), and top-level directory map (`scar_native/`, `scar_cache/`, `scar_codec/`, `mixture_of_scars/`, `tests/`, `scripts/`, `results/`, `paper_latex/`, `zenodo_deposit_v5_0/`, `zenodo_deposit_v4_0/`, and [`archive/`](archive/README.md)).
 - **Core Verification & Red-Team Suites (`scripts/`):**
+  - [`scripts/pretrain_and_audit_scar_native_v5_0.py`](scripts/pretrain_and_audit_scar_native_v5_0.py) — Controlled 4-model *Tabula Rasa* (`step 0 → 520`) `ScarNativeLM v5.0` pretraining, detached `8 KB` `EN → PT/EN/ES/FR` RRR cartridges, `0x00` GDPR wipe & `22`-shader WebGPU WGSL parity.
   - [`scripts/benchmark_scar_codec_physical_v4_0.py`](scripts/benchmark_scar_codec_physical_v4_0.py) — Standalone `scar_codec` physical audit (`-60 dB` radio RFI, `34.8 KB` black-box `SCache O(1)`, `[512,512]` CFD/`500×`-HDR `O(1)` random access).
   - [`scripts/verify_track24c_shielded_3b_polyglot.py`](scripts/verify_track24c_shielded_3b_polyglot.py) & [`scripts/build_universal_scarstore_v4_0.py`](scripts/build_universal_scarstore_v4_0.py) — Unified `Native + 20-Shader WebGPU` polyglot `3B` (`PT/EN/ES/FR`, `P_⊥CJK` & `GoldenSlice v4.0` `P_⊥lang`).
   - [`scripts/build_online_cartridge_library_v3_0.py`](scripts/build_online_cartridge_library_v3_0.py) & [`scripts/publish_online_library_github_release.py`](scripts/publish_online_library_github_release.py) — Builds & audits the `9`-slot `72.71B → 3B & 0.5B` Online Cartridge Library (`HTTP/1.1 206` CDN verification).
@@ -358,13 +383,13 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 Developed by **Julio Cesar Reis Filho** (*Byte-OD Research & System One Architecture Lab*, 2026).
 
 ```bibtex
-@techreport{reisfilho2026mos_scache,
+@techreport{reisfilho2026mos_scarnative_v5,
   author      = {Reis Filho, Julio Cesar},
-  title       = {Mixture of Scars (MoS) v4.0, SCache O(1), and Domain-Independent ScarCodec: Unified Native \& 20-Shader WebGPU Scar Operators, <24 GB 72.7B Compression, Language-Invariant 140 KB HTTP 206 Cartridges, and Hardware-to-Science Signal Proofs},
+  title       = {Pure Scar-Native Neural Architecture (ScarNativeLM v5.0), Mixture of Scars (MoS), SCache O(1), and Domain-Independent ScarCodec: Tabula-Rasa Pretraining on D4 Lattice Bases, Differentiable Widrow-Hoff Fast-Weights, Detached P_perp_lang Cartridges, <24 GB 72.7B, and Physical Signal Proofs},
   institution = {Byte-OD Research \& System One Architecture Lab},
   year        = {2026},
   month       = nov,
-  version     = {4.0.0},
+  version     = {5.0.0},
   doi         = {10.5281/zenodo.24172784},
   url         = {https://doi.org/10.5281/zenodo.24172784}
 }

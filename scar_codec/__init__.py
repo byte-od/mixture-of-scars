@@ -1,4 +1,4 @@
-"""`scar_codec`: Domain-Independent Physical & Hardware Signal/Storage Scar Operators (`v4.0.0`)."""
+"""`scar_codec`: Domain-Independent Physical & Hardware Signal/Storage Scar Operators (`v5.0.0`)."""
 
 from scar_codec.core import (
     CircularRingBufferOT,

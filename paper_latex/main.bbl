@@ -1,4 +1,4 @@
-\begin{thebibliography}{25}
+\begin{thebibliography}{26}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -9,6 +9,11 @@
 Samuel~K. Ainsworth, Jonathan Hayase, and Siddhartha Srinivasa.
 \newblock Git {Re-Basin}: Merging models modulo permutation symmetries.
 \newblock In \emph{International Conference on Learning Representations (ICLR)}, 2023.
+
+\bibitem[Bengio et~al.(2013)Bengio, L{\'e}onard, and Courville]{bengio2013estimating}
+Yoshua Bengio, Nicholas L{\'e}onard, and Aaron Courville.
+\newblock Estimating or propagating gradients through stochastic neurons for conditional computation.
+\newblock \emph{arXiv preprint arXiv:1308.3432}, 2013.
 
 \bibitem[Conway and Sloane(1982)]{conway1982fast}
 John~H. Conway and Neil J.~A. Sloane.
@@ -67,7 +72,7 @@ Kevin Meng, David Bau, Alex Andonian, and Yonatan Belinkov.
 
 \bibitem[Reis~Filho(2026{\natexlab{a}})]{reisfilho2026mos_zenodo}
 Julio~Cesar Reis~Filho.
-\newblock Mixture of scars ({MoS}) v4.0, {SCache} $\mathcal{O}(1)$, and domain-independent \texttt{ScarCodec}: Unified native \& 20-shader {WebGPU} scar operators, $<24$~{GB} $72.7\text{B}$ compression, language-invariant $140$~{KB} {HTTP 206} cartridges, and hardware-to-science signal proofs.
+\newblock Pure scar-native neural architecture (\texttt{ScarNativeLM v5.0}), mixture of scars ({MoS}), {SCache} $\mathcal{O}(1)$, and domain-independent \texttt{ScarCodec}: Tabula-rasa pretraining on $D_4$ lattice bases, differentiable {Widrow-Hoff} fast-weights, and detached $P_{\perp\text{lang}}$ cartridges.
 \newblock \emph{Zenodo Preprint}, 2026{\natexlab{a}}.
 \newblock \doi{10.5281/zenodo.24172784}.
 \newblock URL \href{https://doi.org/10.5281/zenodo.24172784}{\texttt{https://doi.org/10.5281/zenodo.24172784}}.

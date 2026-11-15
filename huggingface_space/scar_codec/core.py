@@ -1,4 +1,4 @@
-"""Domain-Independent Physical & Hardware ScarCodec (`scar_codec` v4.0.0).
+"""Domain-Independent Physical & Hardware ScarCodec (`scar_codec` v5.0.0).
 
 Extracts the five pure mathematical operators of Mixture of Scars (MoS) and SCache O(1)
 into a standalone, neural-network-free signal, tensor, storage, and telemetry library:
@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 
-__version__ = "4.0.0"
+__version__ = "5.0.0"
 
 
 def rademacher_signs_u32_exact(k: int, device: torch.device) -> torch.Tensor:
@@ -28,22 +28,20 @@ def rademacher_signs_u32_exact(k: int, device: torch.device) -> torch.Tensor:
     return torch.where((h & 1) == 0, 1.0, -1.0)
 
 
-@torch.no_grad()
 def fwht_block64_orthonormal(x: torch.Tensor, signs: torch.Tensor, inverse: bool = False) -> torch.Tensor:
-    """Orthonormal 64-point Fast Walsh-Hadamard Transform with Rademacher pre/post-signs."""
+    """Orthonormal 64-point Fast Walsh-Hadamard Transform with Rademacher pre/post-signs (autograd-safe)."""
     orig_shape = x.shape
     assert orig_shape[-1] % 64 == 0
     y = x if inverse else (x * signs)
-    y = y.reshape(-1, 64).clone()
+    y = y.reshape(-1, 64)
     h = 1
     while h < 64:
-        y = y.view(-1, 64 // (2 * h), 2, h)
-        a = y[:, :, 0, :].clone()
-        b = y[:, :, 1, :].clone()
-        y[:, :, 0, :] = a + b
-        y[:, :, 1, :] = a - b
+        y = y.reshape(-1, 64 // (2 * h), 2, h)
+        a = y[:, :, 0, :]
+        b = y[:, :, 1, :]
+        y = torch.stack([a + b, a - b], dim=2)
         h *= 2
-    out = (y.view(-1, 64) * 0.125).view(orig_shape)
+    out = (y.reshape(-1, 64) * 0.125).reshape(orig_shape)
     return (out * signs) if inverse else out
 
 

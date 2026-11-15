@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mixture-of-scars"
-version = "4.0.0"
-description = "Mixture of Scars (MoS) v4.0, SCache O(1) & ScarCodec: Unified Native + 20-Shader WebGPU Scar Operators, Sub-2-Bit/VQ4-Scar/ProtectedInt4Scar, Language-Nullspace 140 KB HTTP 206 Cartridges, and Domain-Independent Physical Signal/Telemetry/CFD Operators"
+version = "5.0.0"
+description = "Mixture of Scars (MoS) v5.0, Pure Scar-Native Foundation Engine, SCache O(1) & ScarCodec: Tabula-Rasa D4-Lattice VQ4-STE Pretraining, End-to-End O(1) Widrow-Hoff Fast-Weights, 100% Detached Language-Nullspace Cartridges, 22-Shader WebGPU WGSL 1.0 & Physical Signal/Telemetry/CFD Operators"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -49,6 +49,7 @@ mos-store = "scar_cache.cli_scar_store:main"
 mos-rebasin = "scar_cache.sinkhorn_rebasin:main_cli"
 mos-webgpu = "scar_cache.webgpu_engine:main_cli"
 mos-scar-codec = "scar_codec.cli:main_cli"
+mos-scar-native = "scar_native.cli:main_cli"
 
 [project.optional-dependencies]
 dev = [
@@ -62,7 +63,7 @@ webgpu = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["scar_cache*", "mixture_of_scars*", "scar_codec*"]
+include = ["scar_cache*", "mixture_of_scars*", "scar_codec*", "scar_native*"]
 
 [tool.setuptools.package-data]
 scar_cache = ["webgpu/*.wgsl", "webgpu/app/*"]

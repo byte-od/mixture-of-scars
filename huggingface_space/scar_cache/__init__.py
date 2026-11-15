@@ -163,8 +163,22 @@ from scar_codec.core import (
     SurpriseGatedAnomalySCache,
     unique_tensor_storage_bytes,
 )
+from scar_native.model import (
+    DenseTransformerBaseline,
+    DetachedScarCartridge,
+    DetachedScarStore,
+    DifferentiableSCacheAttention,
+    LanguageNullspaceProjector,
+    ScarNativeBlock,
+    ScarNativeConfig,
+    ScarNativeLinear,
+    ScarNativeLM,
+    ScarNativeO1State,
+)
+from scar_native.tokenizer import ScarNativeTokenizer
+from scar_native.webgpu_v5 import ScarNativeWebGPUEngine, export_scar_native_webgpu_bundle
 
-__version__ = "4.0.0"
+__version__ = "5.0.0"
 
 __all__ = [
     "SCache",
@@ -296,5 +310,18 @@ __all__ = [
     "CircularRingBufferOT",
     "SurpriseGatedAnomalySCache",
     "unique_tensor_storage_bytes",
+    "ScarNativeConfig",
+    "ScarNativeLinear",
+    "DifferentiableSCacheAttention",
+    "LanguageNullspaceProjector",
+    "DetachedScarCartridge",
+    "DetachedScarStore",
+    "ScarNativeBlock",
+    "ScarNativeLM",
+    "ScarNativeO1State",
+    "DenseTransformerBaseline",
+    "ScarNativeTokenizer",
+    "ScarNativeWebGPUEngine",
+    "export_scar_native_webgpu_bundle",
     "__version__",
 ]

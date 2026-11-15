@@ -19,16 +19,17 @@ tags:
   - pytorch
 ---
 
-# Mixture of Scars (`MoS`) & `SCache` $\mathcal{O}(1)$ — Live Adversarial Red-Team Laboratory (`v3.0.0`)
+# Mixture of Scars (`MoS`), `ScarNativeLM` & `SCache` $\mathcal{O}(1)$ — Live Adversarial Red-Team Laboratory (`v5.0.0`)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24172784.svg)](https://doi.org/10.5281/zenodo.24172784)
-[![GitHub Release](https://img.shields.io/badge/GitHub-v3.0.0%20(88%2F88%20Tests)-181717.svg)](https://github.com/byte-od/mixture-of-scars)
+[![GitHub Release](https://img.shields.io/badge/GitHub-v5.0.0%20(119%2F119%20Tests%20%7C%2022%20WGSL%20Shaders)-181717.svg)](https://github.com/byte-od/mixture-of-scars)
 
-Interactive verification laboratory for **[Mixture of Scars (MoS) v3.0 & SCache $\mathcal{O}(1)$](https://doi.org/10.5281/zenodo.24172784)** by **Julio Cesar Reis Filho (*Byte-OD Research & System One Architecture Lab*)**.
+Interactive verification laboratory for **[Pure Scar-Native Neural Architecture (v5.0), Mixture of Scars (MoS), SCache $\mathcal{O}(1)$ & Physical ScarCodec](https://doi.org/10.5281/zenodo.24172784)** by **Julio Cesar Reis Filho (*Byte-OD Research & System One Architecture Lab*)**.
 
-## Highlights Verified in `v3.0.0` (`88/88` `pytest` Suite)
+## Highlights Verified in `v5.0.0` (`119/119` `pytest` Suite & `22` WebGPU `WGSL 1.0` Shaders)
+- **Pure Scar-Native Foundation Engine (`ScarNativeLM v5.0`, `mos-scar-native`):** Pretrained `100%` from *Tabula Rasa* (`step = 0` random initialization, `0` `nn.Linear` layers) natively on $D_4$ `LUT256` (`0.0000` KL PTQ export shock in `1.89 MiB` shard), end-to-end differentiable $\mathcal{O}(1)$ Pre-RoPE Widrow-Hoff fast weights (`127.2 KB`, `Δ = 0 B`, WGSL Shaders `#21` & `#22`, `cos > 0.99999`), contrastive Golden-Slice $P_{\perp\text{lang}}$, and `100%` detached `8 KB` `Zero-SGD` `PT/EN/ES/FR` cartridges with instant `0x00` GDPR unlearning.
 - **`16.6k` & `32.9k` Passkey / Needle-in-a-Haystack (`100%` Recall, `+0.00 B` Drift):** On `Qwen/Qwen2.5-3B-Instruct` (`36L`) across non-repeating Python documentation, `SCacheDynamicCache` ($W=256, S=256$) achieves **`100%` recall** at both `16,568` (`5/5`) and `32,868` tokens (`3/3`) inside a strictly constant **`22.71 MiB`** (`50.9x` smaller than `1,155.80 MiB` Normal KV) while running **`5.84x` faster** (`300.8` vs. `51.5 tok/s` at `32.9k`), whereas `StreamingLLM` scores **`0%`**.
-- **Colossal `72.71B` (`38.12 GiB` `INT4+ASVD` & `20.65 GiB` `Sub-2-Bit <24 GB VRAM`) + Zero-Spike `3.49 GiB` `3B` Student:** Compresses `72.71B` into `21.89 GiB` resident GPU VRAM (`cos = 0.99911` under `195,720x` SwiGLU spikes), runs `Qwen2.5-3B-Instruct` locally in `3.49 GiB` VRAM + `0.55 GiB` CPU RSS with zero load spike, and streams **`140.00 KB` (`35 × 4 KB`) Zero-SGD Scar Cartridges** live over `HTTP/1.1 206` (`mos-store ui`).
+- **Colossal `72.71B` (`38.12 GiB` `INT4+ASVD` & `20.65 GiB` `Sub-2-Bit <24 GB VRAM`) + Unified Native/WebGPU `3B` + Physical `ScarCodec`:** Compresses `72.71B` into `21.89 GiB` resident GPU VRAM (`cos = 0.99911` under `195,720x` SwiGLU spikes), executes `Qwen2.5-3B` across `PT/EN/ES/FR` in browser WebGPU (`KL = 0.6938`, `0%` CJK leak, `164/164` `HTTP 206` cartridges), and extends the exact same operators to `-60 dB` radio RFI, `34.8 KB` avionics black-boxes, and `[512,512]` supersonic CFD.
 
 ## What You Can Test Live in This Space
 1. **Live Pretrained LLM Evicted-Passcode & Byte-Pointer Audit (`Qwen/Qwen2.5-0.5B-Instruct`):**
