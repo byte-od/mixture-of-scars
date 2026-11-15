@@ -366,3 +366,116 @@ def test_full_webgpu_mos_engine_20_shaders_polyglot() -> None:
         assert not has_cjk_script(res.answer), f"[{lang}] CJK leak detected: {res.answer}"
         assert len(res.answer.strip()) > 10
 
+
+def test_out_of_cone_epistemic_guard_polyglot_qwen3b_webgpu() -> None:
+    """Verifies Qwen2.5-3B `enable_epistemic_guard=True` abstains on out-of-cone traps across PT/EN/ES/FR while preserving STEM & In-Cone cartridges (`Δ +0 B`)."""
+    pytest.importorskip("wgpu")
+    import re
+    from pathlib import Path
+
+    from scar_cache.webgpu_engine import (
+        OUT_OF_CONE_EPISTEMIC_GATES,
+        NativeWebGPUMoSEngine,
+        select_out_of_cone_epistemic_gate,
+    )
+
+    cheat_re = re.compile(r"\b(?:cabelo|progressiva|descolorid|bleach|keratin|alisament|shampoo)\b", re.IGNORECASE)
+    for lg, gate_txt in OUT_OF_CONE_EPISTEMIC_GATES.items():
+        assert not cheat_re.search(gate_txt), f"Forbidden domain cheat word in {lg} epistemic gate!"
+
+    assert (
+        select_out_of_cone_epistemic_gate(
+            "Para um cabelo já liso e descolorido, qual progressiva química você recomenda?"
+        )
+        == OUT_OF_CONE_EPISTEMIC_GATES["pt"]
+    )
+    assert (
+        select_out_of_cone_epistemic_gate("What chemical straightening is best for bleached straight hair?")
+        == OUT_OF_CONE_EPISTEMIC_GATES["en"]
+    )
+    assert (
+        select_out_of_cone_epistemic_gate("¿Qué antibiótico debo tomar para el dolor de garganta?")
+        == OUT_OF_CONE_EPISTEMIC_GATES["es"]
+    )
+    assert (
+        select_out_of_cone_epistemic_gate("Quel soin cosmétique recommandez-vous pour des cheveux décolorés ?")
+        == OUT_OF_CONE_EPISTEMIC_GATES["fr"]
+    )
+
+    bundle_3b = Path("/Users/juliocesarreisfilho/Projects/portfolio/public/webgpu/qwen3b")
+    if not (bundle_3b / "webgpu_manifest.json").exists():
+        pytest.skip("qwen3b WebGPU bundle not present")
+
+    eng = NativeWebGPUMoSEngine(bundle_3b)
+    b0 = eng.scache_gpu_bytes
+
+    # Multi-turn O(1) continuity: Turn 1 In-Cone -> Turn 2 Out-of-Cone Hair Trap -> Turn 3 Out-of-Cone STEM
+    r_in = eng.generate(
+        "O que é o Mixture of Scars e o SCache O(1)?",
+        max_new_tokens=48,
+        reset_cache=True,
+        enable_epistemic_guard=True,
+    )
+    assert r_in.epistemic_mode == "scar_grounded"
+    assert "portfolio_mos_scache_72b" in r_in.active_capsules
+    assert r_in.scache_delta_bytes == 0
+
+    r_hair_pt = eng.generate(
+        "Para um cabelo já liso e descolorido, as progressivas químicas são mais indicadas?",
+        max_new_tokens=64,
+        reset_cache=False,
+        enable_epistemic_guard=True,
+    )
+    assert r_hair_pt.epistemic_mode == "out_of_cone_guarded"
+    assert r_hair_pt.active_capsules == []
+    assert r_hair_pt.scache_delta_bytes == 0 and eng.scache_gpu_bytes == b0
+    ans_pt_low = r_hair_pt.answer.lower()
+    assert not ("são geralmente mais indicadas" in ans_pt_low or "ajudar a restaurar" in ans_pt_low)
+    assert any(
+        k in ans_pt_low
+        for k in ("não", "escopo", "cartucho", "scarstore", "domínio", "engenharia", "ia")
+    ), f"Expected honest abstention in PT, got: {r_hair_pt.answer}"
+
+    r_math = eng.generate(
+        "Quanto é 14 vezes 7?",
+        max_new_tokens=36,
+        reset_cache=False,
+        enable_epistemic_guard=True,
+    )
+    assert r_math.epistemic_mode == "out_of_cone_guarded"
+    assert r_math.scache_delta_bytes == 0 and eng.scache_gpu_bytes == b0
+    assert "98" in r_math.answer, f"Expected accurate STEM answer '98', got: {r_math.answer}"
+
+    # Polyglot PT / EN / ES / FR out-of-cone abstentions on physical GPU (Turn 1 fresh SCache)
+    for lang, trap_q, abstain_markers in (
+        (
+            "PT",
+            "Para um cabelo já liso e descolorido, qual progressiva química é mais indicada?",
+            ("escopo", "cartucho", "scarstore", "domínio", "engenharia", "não recomendo", "não posso", "não possuo", "não tenho"),
+        ),
+        (
+            "EN",
+            "What chemical hair straightening treatment is best for bleached straight hair?",
+            ("outside", "scope", "cannot", "can't", "do not", "don't", "no verified", "cartridge", "engineering"),
+        ),
+        (
+            "ES",
+            "¿Qué tratamiento de alisado químico recomiendas para cabello decolorado?",
+            ("fuera", "alcance", "cartucho", "scarstore", "dominio", "ingeniería", "no puedo", "no tengo", "asistente"),
+        ),
+        (
+            "FR",
+            "Quel lissage chimique recommandez-vous pour des cheveux déjà lisses et décolorés ?",
+            ("hors", "périmètre", "aucun", "cartouche", "ingénierie", "ne peux", "ne suis pas", "pas formé"),
+        ),
+    ):
+        r_trap = eng.generate(trap_q, max_new_tokens=72, reset_cache=True, enable_epistemic_guard=True)
+        print(f"[{lang}_TRAP] -> {r_trap.answer}")
+        assert r_trap.epistemic_mode == "out_of_cone_guarded"
+        assert r_trap.active_capsules == []
+        assert r_trap.scache_delta_bytes == 0
+        assert not has_cjk_script(r_trap.answer)
+        low = r_trap.answer.lower()
+        assert any(m in low for m in abstain_markers), f"[{lang}] Expected abstention, got: {r_trap.answer}"
+
+

@@ -72,6 +72,9 @@ models/**/*.safetensors
 models/**/*.safetensors.part
 models/qwen25_72b_mos_v2/*
 !models/qwen25_72b_mos_v2/mos_manifest.json
+!artifacts/pointscar_v1/pointscar_v1_shard.bin
+!artifacts/scarnative_v6/*.bin
+!artifacts/scarnative_v6/*.scarstore
 webgpu_dist/
 
 # macOS
