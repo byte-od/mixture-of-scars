@@ -29,6 +29,8 @@ from scripts.benchmark_scar_codec_public_datasets_v1_0 import DATA_DIR, read_fit
 
 def main() -> None:
     rep = json.loads((ROOT / "results/scar_codec_public_datasets_v1_0_audit.json").read_text(encoding="utf-8"))
+    rep_v11_path = ROOT / "results/scar_codec_public_datasets_v1_1_audit.json"
+    rep_v11 = json.loads(rep_v11_path.read_text(encoding="utf-8")) if rep_v11_path.exists() else None
     e1 = rep["experiment_1_physionet_64ch_cross_run_p_perp_vq4"]
     e2 = rep["experiment_2_scache_o1_public_telemetry"]
     e3 = rep["experiment_3_public_astronomy_fits_vq4_vs_fp16_rfft"]
@@ -46,17 +48,23 @@ def main() -> None:
     fig, axes = plt.subplots(2, 3, figsize=(16.0, 6.45), dpi=300)
 
     # ------------------------------------------------------------------
-    # Panel A: PhysioNet 64-Channel Cross-Run Blind P_perp + VQ4-Scar
+    # Panel A: PhysioNet 64-Channel Cross-Run Blind P_perp + VQ4-Scar vs ZFP
     # ------------------------------------------------------------------
     ax = axes[0, 0]
     cats_a = ["64-Ch Cortical\nArray SNR (dB)", "Model-Free Raw C3\nLaplacian SNR (dB)"]
     v_2b = [e1["clean_array_2bit_adc_snr_db"], e1["raw_c3_laplacian_2bit_adc_snr_db"]]
-    v_un = [e1["clean_array_unshielded_vq4_snr_db"], e1["raw_c3_laplacian_unshielded_vq4_snr_db"]]
+    if rep_v11 is not None:
+        z1 = rep_v11["experiment_1_physionet_64ch_vs_zfp"]
+        v_zfp = [z1["zfp_with_p_perp_array_snr_db"], z1["zfp_with_p_perp_raw_c3_laplacian_snr_db"]]
+        lbl_mid = f"Byte-Matched ZFP + P_⊥ ({z1['zfp_compression_x']}x)"
+    else:
+        v_zfp = [e1["clean_array_unshielded_vq4_snr_db"], e1["raw_c3_laplacian_unshielded_vq4_snr_db"]]
+        lbl_mid = "Unshielded VQ4 (No P_⊥)"
     v_sc = [e1["clean_array_p_perp_vq4_scar_snr_db"], e1["raw_c3_laplacian_p_perp_vq4_scar_snr_db"]]
     xa = np.arange(2)
     w = 0.25
     ax.bar(xa - w, v_2b, width=w, color="#dc2626", label="2-Bit Scalar ADC")
-    ax.bar(xa, v_un, width=w, color="#f59e0b", label="Unshielded VQ4 (No P_⊥)")
+    ax.bar(xa, v_zfp, width=w, color="#f59e0b", label=lbl_mid)
     bars_a = ax.bar(xa + w, v_sc, width=w, color="#0f766e", label=f"Cross-Run P_⊥ + VQ4 ({e1['scar_codec_compression_x']}x)")
     ax.axhline(0.0, color="#475569", lw=0.7)
     for b, val in zip(bars_a, v_sc):
@@ -173,37 +181,45 @@ def main() -> None:
     ax.legend(loc="upper right", fontsize=6.45, frameon=True)
 
     # ------------------------------------------------------------------
-    # Panel E: Empirical HDR Contrast Scaling Law Across 3 Real Telescopes
+    # Panel E: Monotonic HDR Contrast Scaling Behavior vs ZFP & FP16 2D rFFT
     # ------------------------------------------------------------------
     ax = axes[1, 1]
     hdr_x = [fc["hdr_peak_to_median_ratio_x"], bo["hdr_peak_to_median_ratio_x"], sp["hdr_peak_to_median_ratio_x"]]
     peak_gains = [fc["peak_error_reduction_vs_fp16_rfft_x"], bo["peak_error_reduction_vs_fp16_rfft_x"], sp["peak_error_reduction_vs_fp16_rfft_x"]]
+    ax.plot(hdr_x, peak_gains, marker="s", lw=2.3, color="#0f766e", label="Peak Gain vs FP16 2D rFFT (x)")
+    if rep_v11 is not None:
+        z3 = rep_v11["experiment_3_fits_vs_zfp_fpack_rfft_zlib"]
+        zfp_pk = [
+            z3["fcrao_l1448_13co_cube"]["scar_peak_gain_over_zfp_x"],
+            z3["cso_bolocam_sgr_a"]["scar_peak_gain_over_zfp_x"],
+            z3["nasa_spitzer_irac"]["scar_peak_gain_over_zfp_x"],
+        ]
+        ax.plot(hdr_x, zfp_pk, marker="^", lw=2.0, color="#7c3aed", linestyle="-.", label="Peak Gain vs Fixed-Rate ZFP (x)")
     rmse_gains = [fc["rmse_gain_vs_fp16_rfft_x"], bo["rmse_gain_vs_fp16_rfft_x"], sp["rmse_gain_vs_fp16_rfft_x"]]
-    ax.plot(hdr_x, peak_gains, marker="s", lw=2.3, color="#0f766e", label="Top-32 Peak Photometry Gain (x)")
-    ax.plot(hdr_x, rmse_gains, marker="o", lw=1.9, color="#2563eb", linestyle="--", label="Global Map RMSE Gain (x)")
+    ax.plot(hdr_x, rmse_gains, marker="o", lw=1.7, color="#2563eb", linestyle="--", label="Global RMSE Gain vs rFFT (x)")
     ax.set_xscale("log")
     ax.set_yscale("log")
     obs_lbls = [
-        f"FCRAO 14-m 13CO\n({peak_gains[0]:.1f}x peak)",
-        f"CSO Bolocam Sgr A*\n({peak_gains[1]:.1f}x peak)",
-        f"NASA Spitzer IRAC\n({peak_gains[2]:,.1f}x peak!)",
+        f"FCRAO 14-m 13CO\n({peak_gains[0]:.1f}x rFFT | 4.4x ZFP)",
+        f"CSO Bolocam Sgr A*\n(204x ZFP | 15.3x fpack)",
+        f"NASA Spitzer IRAC\n(2,094x rFFT | 1,636x ZFP)",
     ]
-    offsets = [(1.15, 1.35), (0.55, 1.55), (0.22, 0.50)]
+    offsets = [(1.55, 0.52), (0.85, 0.15), (0.065, 0.55)]
     for hx, pg, lb, (ox, oy) in zip(hdr_x, peak_gains, obs_lbls, offsets):
         ax.annotate(
             lb,
             xy=(hx, pg),
             xytext=(hx * ox, pg * oy),
             arrowprops=dict(arrowstyle="->", color="#0f766e", lw=0.9),
-            fontsize=6.65,
+            fontsize=6.35,
             fontweight="bold",
             color="#065f46",
         )
     ax.set_xlim(7.0, 2200.0)
-    ax.set_ylim(1.0, 5500.0)
-    ax.set_title("E. Empirical HDR Scaling Law vs FP16 2D rFFT")
+    ax.set_ylim(1.0, 6500.0)
+    ax.set_title("E. Monotonic HDR Advantage vs ZFP & 2D rFFT")
     ax.set_xlabel("Observational Peak-to-Median Dynamic Range (Log)")
-    ax.set_ylabel("Error Reduction Factor Over rFFT (Log)")
+    ax.set_ylabel("Error Reduction Factor (Log)")
     ax.grid(True, which="both", linestyle="--", alpha=0.35)
     ax.legend(loc="upper left", fontsize=6.5, frameon=True)
 

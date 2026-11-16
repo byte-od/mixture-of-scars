@@ -1,4 +1,4 @@
-\begin{thebibliography}{15}
+\begin{thebibliography}{17}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -45,10 +45,20 @@ Amir Leshem, Alle-Jan van~der Veen, and Albert-Jan Boonstra.
 \newblock Multichannel radio astronomical imaging in the presence of strong radio-frequency interference.
 \newblock \emph{The Astrophysical Journal Supplement Series}, 131\penalty0 (1):\penalty0 355--373, 2000.
 
+\bibitem[Lindstrom(2014)]{lindstrom2014zfp}
+Peter Lindstrom.
+\newblock Fixed-rate compressed floating-point arrays.
+\newblock \emph{IEEE Transactions on Visualization and Computer Graphics}, 20\penalty0 (12):\penalty0 2674--2683, 2014.
+
 \bibitem[Michie et~al.(1994)Michie, Spiegelhalter, and Taylor]{michie1994statlog}
 Donald Michie, David~J. Spiegelhalter, and Charles~C. Taylor.
 \newblock \emph{Machine Learning, Neural and Statistical Classification ({NASA} Space Shuttle {Statlog} Benchmark)}.
 \newblock Ellis Horwood, 1994.
+
+\bibitem[Pence et~al.(2009)Pence, Seaman, and White]{pence2009fpack}
+William~D. Pence, Rob Seaman, and Richard~L. White.
+\newblock Lossless astronomical image compression and the effects of noise.
+\newblock \emph{Publications of the Astronomical Society of the Pacific}, 121\penalty0 (878):\penalty0 414--427, 2009.
 
 \bibitem[Pence et~al.(2010)Pence, Chiappetti, Page, Shaw, and Stobie]{pence2010fits}
 William~D. Pence, Lucio Chiappetti, Clive~G. Page, Richard~A. Shaw, and Elizabeth Stobie.

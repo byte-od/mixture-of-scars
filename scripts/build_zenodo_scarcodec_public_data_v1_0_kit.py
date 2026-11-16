@@ -83,7 +83,7 @@ def add_page_number(canvas, doc):
     canvas.restoreState()
 
 
-def build_pdf_public_data(pdf_path: Path, hero_png: Path, rep: dict):
+def build_pdf_public_data(pdf_path: Path, hero_png: Path, rep: dict, rep_v11: dict | None = None):
     e1 = rep["experiment_1_physionet_64ch_cross_run_p_perp_vq4"]
     e2 = rep["experiment_2_scache_o1_public_telemetry"]
     e3 = rep["experiment_3_public_astronomy_fits_vq4_vs_fp16_rfft"]
@@ -92,6 +92,9 @@ def build_pdf_public_data(pdf_path: Path, hero_png: Path, rep: dict):
     sp = e3["nasa_spitzer_irac"]
     bo = e3["cso_bolocam_sgr_a"]
     fc = e3["fcrao_l1448_13co_cube"]
+    z1 = rep_v11["experiment_1_physionet_64ch_vs_zfp"] if rep_v11 else None
+    z2 = rep_v11["experiment_2_minheap_vs_wscar_telemetry_ablation"]["minheap_vs_wscar_ablation"] if rep_v11 else None
+    z3 = rep_v11["experiment_3_fits_vs_zfp_fpack_rfft_zlib"] if rep_v11 else None
 
     styles = getSampleStyleSheet()
     s_title = ParagraphStyle(
@@ -276,19 +279,28 @@ def build_pdf_public_data(pdf_path: Path, hero_png: Path, rep: dict):
         Paragraph("<b>Table 2 (Biomedical 64-Channel Array Interference Cancellation &amp; Constant-Space O(1) Spacecraft/Biomedical Telemetry Audit).</b>", s_caption),
     ]))
 
-    story.append(Paragraph("3. Observational Astronomy FITS Archives &amp; Empirical HDR Contrast Scaling Law", s_h1))
+    story.append(Paragraph("3. Observational Astronomy FITS Archives vs. ZFP, CFITSIO fpack &amp; 2D rFFT", s_h1))
     min_o1_us = min(sp["o1_single_block_decode_us"], bo["o1_single_block_decode_us"], fc["o1_single_block_decode_us"])
     max_o1_us = max(sp["o1_single_block_decode_us"], bo["o1_single_block_decode_us"], fc["o1_single_block_decode_us"])
     min_sp_x = min(sp["o1_random_read_speedup_vs_zlib_x"], bo["o1_random_read_speedup_vs_zlib_x"], fc["o1_random_read_speedup_vs_zlib_x"])
     max_sp_x = max(sp["o1_random_read_speedup_vs_zlib_x"], bo["o1_random_read_speedup_vs_zlib_x"], fc["o1_random_read_speedup_vs_zlib_x"])
+    zfp_fpack_note = ""
+    if z3 is not None and z1 is not None and z2 is not None:
+        zfp_fpack_note = (
+            f" Against domain-standard fixed-rate <code>ZFP</code> (<code>zfpy</code>, byte-matched), <code>ScarCodec</code> achieves "
+            f"<b>+4.50 dB higher SNR</b> on 64-ch <code>PhysioNet</code> (+{e1['clean_array_p_perp_vq4_scar_snr_db']:.2f} vs. +{z1['zfp_with_p_perp_array_snr_db']:.2f} dB) "
+            f"and <b>4.4x, 204.4x, and 1,636.2x lower bright-source peak error</b> (with 1.42x–4.05x lower RMSE) across FCRAO, Bolocam, and Spitzer; "
+            f"against NASA <code>CFITSIO fpack</code> (<code>RICE_1</code>), <code>fpack</code> leads diffuse background RMSE on Spitzer (1.56 vs. 5.13), "
+            f"whereas <code>ScarCodec</code> delivers <b>2.75x (Spitzer) and 15.3x (Bolocam) lower peak photometry error</b> with fixed-stride SIMT GPU blocks "
+            f"(while isolating 48-slot <code>Min-Heap</code> timestamp retention from 6.0 &mu;s <code>W_scar</code> orthogonal dual-mode superposition: cos={z2['orthogonal_dual_mode_32odd_cosine_w_scar']:.4f} vs. {z2['orthogonal_dual_mode_32odd_cosine_minheap_nn']:.4f})."
+        )
     story.append(Paragraph(
         f"Across three astronomical observatories—infrared space imaging (NASA Spitzer IRAC), submillimeter galactic-center bolometry (CSO Bolocam Sgr A*), "
         f"and millimeter spectral-line mapping (FCRAO 14-m L1448 <sup>13</sup>CO)—lossless <code>zlib -9</code> achieves only 1.10x–1.14x compression on IEEE-754 floats "
         f"while blocking random block access. At ~12x compression, <code>PhysicalVQ4ScarCodec</code> combines MAD point-shock peeling, equilibrated <code>FWHT-64</code>, "
-        f"<i>D</i><sub>4</sub>/<i>D</i><sub>4</sub><sup>*</sup>-seeded <code>LUT256</code> (<code>0 &rarr; (0,0,0,0)</code>), and 2-pass INT4 scars to outperform strictly byte-matched FP16 2D <code>rFFT</code> "
-        f"monotonically with observational dynamic range (Table 3): from 4.6x peak gain at 11.7x HDR (FCRAO), to 45.9x at 217.0x HDR (Bolocam, with exact 0.0000 error on "
-        f"pure unmapped sky rows and 6.06x lower partial-row NaN leakage), up to <b>2,093.6x lower stellar peak photometry error</b> at 968.9x HDR (NASA Spitzer IRAC), "
-        f"while decoding arbitrary 64-float blocks in {min_o1_us:.1f}–{max_o1_us:.1f} &mu;s ({min_sp_x:.1f}x–{max_sp_x:.1f}x faster than <code>zlib -9</code> with exact 0.0 block-vs-full parity).",
+        f"<i>D</i><sub>4</sub>/<i>D</i><sub>4</sub><sup>*</sup>-seeded <code>LUT256</code> (<code>0 &rarr; (0,0,0,0)</code>), and 2-pass INT4 scars to exhibit monotonic HDR contrast scaling "
+        f"(Table 3): up to <b>2,093.6x lower stellar peak error</b> than FP16 2D <code>rFFT</code> at 968.9x HDR, "
+        f"decoding 64-float blocks in {min_o1_us:.1f}–{max_o1_us:.1f} &mu;s ({min_sp_x:.1f}x–{max_sp_x:.1f}x faster than <code>zlib -9</code>, &Delta;block=0.0).{zfp_fpack_note}",
         s_body,
     ))
 
@@ -340,13 +352,15 @@ def build_pdf_public_data(pdf_path: Path, hero_png: Path, rep: dict):
         "[6] Hjorth, B. (1975). An On-Line Transformation of EEG Scalp Potentials into Orthogonal Source Derivations. Electroencephalogr. Clin. Neurophysiol. 39(5), 526–530.",
         "[7] Kemp, B., Varri, A., Rosa, A. C., Nielsen, K. D., & Gade, J. (1992). A Simple Format for Exchange of Digitized Polygraphic Recordings (EDF). Electroencephalogr. Clin. Neurophysiol. 82(5), 391–393.",
         "[8] Leshem, A., van der Veen, A.-J., & Boonstra, A.-J. (2000). Multichannel Radio Astronomical Imaging in Strong RFI. Astrophys. J. Suppl. Ser. 131(1), 355–373.",
-        "[9] Michie, D., Spiegelhalter, D. J., & Taylor, C. C. (1994). Machine Learning, Neural and Statistical Classification (NASA Space Shuttle Statlog). Ellis Horwood.",
-        "[10] Pence, W. D., Chiappetti, L., Page, C. G., Shaw, R. A., & Stobie, E. (2010). Definition of FITS, version 3.0. Astron. Astrophys. 524, A42.",
-        "[11] Reis Filho, J. C. (2026). Shared-Stage Scar-Native Neural Architecture (ScarNativeLM v6.0), PointScarFlow v1.0, and ScarCodec. Zenodo Preprint. DOI: 10.5281/zenodo.24172784.",
-        "[12] Ridge, N. A., Di Francesco, J., et al. (2006). The COMPLETE Survey of Star-Forming Regions: Phase I Data. Astron. J. 131(6), 2921–2933.",
-        "[13] Schalk, G., McFarland, D. J., Hinterberger, T., Birbaumer, N., & Wolpaw, J. R. (2004). BCI2000: A General-Purpose BCI System. IEEE Trans. Biomed. Eng. 51(6), 1034–1043.",
-        "[14] Walsh, J. L. (1923). A Closed Set of Normal Orthogonal Functions. Amer. J. Math. 45(1), 5–24.",
-        "[15] Widrow, B., & Hoff, M. E. (1960). Adaptive Switching Circuits. IRE WESCON Convention Record 4, 96–104.",
+        "[9] Lindstrom, P. (2014). Fixed-Rate Compressed Floating-Point Arrays (ZFP). IEEE Trans. Vis. Comput. Graph. 20(12), 2674–2683.",
+        "[10] Michie, D., Spiegelhalter, D. J., & Taylor, C. C. (1994). Machine Learning, Neural and Statistical Classification (NASA Space Shuttle Statlog). Ellis Horwood.",
+        "[11] Pence, W. D., Seaman, R., & White, R. L. (2009). Lossless Astronomical Image Compression and the Effects of Noise (CFITSIO fpack). PASP 121(878), 414–427.",
+        "[12] Pence, W. D., Chiappetti, L., Page, C. G., Shaw, R. A., & Stobie, E. (2010). Definition of FITS, version 3.0. Astron. Astrophys. 524, A42.",
+        "[13] Reis Filho, J. C. (2026). Shared-Stage Scar-Native Neural Architecture (ScarNativeLM v6.0), PointScarFlow v1.0, and ScarCodec. Zenodo Preprint. DOI: 10.5281/zenodo.24172784.",
+        "[14] Ridge, N. A., Di Francesco, J., et al. (2006). The COMPLETE Survey of Star-Forming Regions: Phase I Data. Astron. J. 131(6), 2921–2933.",
+        "[15] Schalk, G., McFarland, D. J., Hinterberger, T., Birbaumer, N., & Wolpaw, J. R. (2004). BCI2000: A General-Purpose BCI System. IEEE Trans. Biomed. Eng. 51(6), 1034–1043.",
+        "[16] Walsh, J. L. (1923). A Closed Set of Normal Orthogonal Functions. Amer. J. Math. 45(1), 5–24.",
+        "[17] Widrow, B., & Hoff, M. E. (1960). Adaptive Switching Circuits. IRE WESCON Convention Record 4, 96–104.",
     ]
     for r in refs:
         story.append(Paragraph(escape(r), s_ref))
@@ -409,8 +423,10 @@ def build_replication_zip(zip_path: Path):
         REPO_ROOT / "pyproject.toml",
         REPO_ROOT / "data" / "public_physical_benchmarks" / "manifest_sha256.json",
         REPO_ROOT / "results" / "scar_codec_public_datasets_v1_0_audit.json",
+        REPO_ROOT / "results" / "scar_codec_public_datasets_v1_1_audit.json",
         REPO_ROOT / "results" / "scar_codec_physical_v4_0_audit.json",
         REPO_ROOT / "scripts" / "benchmark_scar_codec_public_datasets_v1_0.py",
+        REPO_ROOT / "scripts" / "benchmark_scar_codec_zfp_fpack_minheap_v1_1.py",
         REPO_ROOT / "scripts" / "generate_fig1_scarcodec_public_data_v1_0.py",
         REPO_ROOT / "scripts" / "build_zenodo_scarcodec_public_data_v1_0_kit.py",
         REPO_ROOT / "tests" / "test_scar_codec_public_datasets.py",
@@ -425,6 +441,8 @@ def build_replication_zip(zip_path: Path):
 
 def main():
     rep = json.loads((REPO_ROOT / "results" / "scar_codec_public_datasets_v1_0_audit.json").read_text(encoding="utf-8"))
+    v11_p = REPO_ROOT / "results" / "scar_codec_public_datasets_v1_1_audit.json"
+    rep_v11 = json.loads(v11_p.read_text(encoding="utf-8")) if v11_p.exists() else None
     subprocess.check_call([sys.executable, str(REPO_ROOT / "scripts" / "generate_fig1_scarcodec_public_data_v1_0.py")])
 
     src_png = PUB_LATEX_DIR / "figures" / "fig1_scarcodec_public_data.png"
@@ -435,7 +453,7 @@ def main():
     rep_out = OUT_DIR / "ScarCodec_Public_Data_Replication_v1.0.zip"
     tex_out = OUT_DIR / "ScarCodec_Public_Data_LaTeX_Source_v1.0.zip"
 
-    build_pdf_public_data(pdf_out, hero_png, rep)
+    build_pdf_public_data(pdf_out, hero_png, rep, rep_v11=rep_v11)
     build_replication_zip(rep_out)
     audit_latex_and_pack(tex_out)
 

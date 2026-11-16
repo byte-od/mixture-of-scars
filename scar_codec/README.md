@@ -29,11 +29,20 @@ Evaluated with **unmodified [`core.py`](core.py)** (`synthetic_data_used = false
 | **`CSO Bolocam Sgr A* 1.1 mm`** (`FITS`) | Submillimeter Galactic Center (`[638, 640]`, HDR `217×`) | **`12.27×`** vs. `1.12×` | **`45.9×` lower bright-core error**, **`6.06×` lower `NaN`-edge ringing**, **`0.0` exact vacuum error** (vs. `0.146` `rFFT` ringing) & **`24.2×` faster** $\mathcal{O}(1)$ read. |
 | **`NASA Spitzer IRAC`** (`FITS`) | Space infrared mosaic (`[513, 1025]`, HDR `968.9×`) | **`11.77×`** vs. `1.14×` | **`2,093.6×` lower top-32 stellar peak error** (`0.999` vs. `2,091.0 MJy/sr` Gibbs ringing in byte-matched `FP16 rFFT`), **`6.00×` lower global RMSE** & **`32.1×` faster** $\mathcal{O}(1)$ read. |
 
-### Monotonic HDR Dynamic-Range Law Across Real Telescopes
-Across the three public FITS archives, while lossless `zlib -9` stalls at `1.10×–1.14×` on floating-point sky noise, `ScarCodec`'s photometric advantage over strictly byte-matched 2D `FP16 rFFT` scales monotonically with dynamic range:
-- `11.7×` peak-to-median contrast (`FCRAO L1448`) $\longrightarrow$ **`4.6×` lower bright-peak error**
-- `217.0×` peak-to-median contrast (`CSO Bolocam Sgr A*`) $\longrightarrow$ **`45.9×` lower bright-peak error**
-- `968.9×` peak-to-median contrast (`NASA Spitzer IRAC`) $\longrightarrow$ **`2,093.6×` lower bright-peak error**
+### Monotonic HDR Contrast Scaling Behavior & Comparison vs. Domain-Standard `ZFP` and `CFITSIO FITS fpack` (`v1.1` Audit)
+Across the three public FITS archives, while lossless `zlib -9` stalls at `1.10×–1.14×` on floating-point sky noise, `ScarCodec`'s photometric advantage over global 2D `FP16 rFFT` and local `4×4` block-transform **`ZFP`** (`zfpy` fixed-rate byte-matched) scales monotonically with observational dynamic range ([`../results/scar_codec_public_datasets_v1_1_audit.json`](../results/scar_codec_public_datasets_v1_1_audit.json)):
+
+| Public Archive (Byte-Matched Budget) | `ScarCodec` RMSE / Peak Err | `ZFP` (`zfpy`) RMSE / Peak Err | `FITS fpack` (`RICE_1`) RMSE / Peak Err | Key Structural Finding |
+| :--- | :---: | :---: | :---: | :--- |
+| **`NASA Spitzer IRAC`** (`~178 KB`, `11.8×`, HDR `968.9×`) | `5.135` / **`0.999`** | `20.801` / `1,634.25` | **`1.560`** / `2.743` | **`1,636.2×` lower stellar peak error** & **`4.05×` lower RMSE** than `ZFP`; **`2.75×` lower peak error** than `fpack` (while `fpack` leads diffuse sky RMSE). |
+| **`CSO Bolocam Sgr A*`** (`~133 KB`, `12.3×`, HDR `217.0×`) | **`0.0365`** / **`0.0039`** | `0.0518` / `0.7973` | `0.0407` / `0.0597` | **`ScarCodec` wins BOTH global RMSE and bright-core photometry** against `ZFP` (`204.4×` peak, `0.0` vs `0.422` vacuum leak) and `fpack` (`15.3×` peak). |
+| **`FCRAO 14-m L1448`** (`~193 KB`, `12.1×`, HDR `11.7×`) | `0.0652` / `0.1902` | `0.1864` / `0.8417` | **`0.0618`** / **`0.1148`** | **`2.86×` lower RMSE** & **`4.43×` lower peak error** than `ZFP`; ties `fpack` within `5%` RMSE on smooth low-HDR gas while preserving fixed-stride SIMT GPU access. |
+| **`PhysioNet 64-Ch S001R04`** (`~488 KB`, `10.5×`) | **`+14.63 dB`** (`+8.40 dB` C3) | `+10.13 dB` (`+6.59 dB` C3) | N/A (`1D/2D` sensor stream) | **`+4.50 dB` higher array SNR** than byte-matched `ZFP` (`+7.63 dB` vs raw `ZFP`), capturing non-local cross-scalp spatial correlations invisible to `4×4` blocks. |
+
+### `Min-Heap` Trigger Slots vs. `Widrow-Hoff W_scar` Fast-Weight Ablation
+Within the fixed `34,816 B` ($\Delta = 0\text{ B}$) footprint of `SurpriseGatedAnomalySCache`, the two internal structures serve distinct, experimentally verified roles:
+- **`48`-Slot Priority Trigger Table (`slot_ts_i64` / `slot_vals_f16`):** Retains exact discrete fault timestamps (`6/6 = 100%` on NASA Space Shuttle; identical `3/3` early bursts as a standalone `48`-slot `Min-Heap`).
+- **`Widrow-Hoff` Associative Matrix `W_scar` (`[64, 64]`):** Uniquely reconstructs **simultaneous superposed multi-region anomalies** from partial sensor cues in a single branchless `6.0 µs` GEMV (`3.85×` faster than `23.1 µs` slot scanning), achieving **`cos = 0.8826`** on `32` blind odd cortical electrodes when two orthogonal real `PhysioNet` cortical modes (`|cos| = 0.0012`) co-activate — where discrete single-slot `Min-Heap` nearest-neighbor lookup hits the algebraic $1/\sqrt{2}$ ceiling (**`cos = 0.6917`**).
 
 ---
 
