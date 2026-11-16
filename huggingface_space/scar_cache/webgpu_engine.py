@@ -40,63 +40,55 @@ PREFILL_BATCH_TOKENS = 4                    # 4 tokens per GPUCommandBuffer prev
 
 OUT_OF_CONE_EPISTEMIC_GATES: Dict[str, str] = {
     "pt": (
-        "[MANDATORY JARVIS SCOPE RULE — Reply in Portuguese (the visitor is NOT Julio Reis; refer to Julio Reis in "
-        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
-        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
-        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
-        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
-        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
-        "Engineering on Julio Reis's portfolio.]"
+        "[Nota JARVIS (o visitante não é Julio Reis; nunca diga 'como Julio Reis' e cite Julio Reis na 3ª pessoa): "
+        "Responda diretamente em português a perguntas de Ciência, Astronomia, Astrofísica, Física, Matemática, "
+        "Química, Biologia, Computação, IA, Engenharia e do portfólio. Recuse em 2 frases apenas pedidos de "
+        "estética, cosméticos, beleza pessoal, saúde/medicamentos, culinária ou direito, sem recomendar produtos "
+        "nem procedimentos.]"
     ),
     "en": (
-        "[MANDATORY JARVIS SCOPE RULE — Reply in English (the visitor is NOT Julio Reis; refer to Julio Reis in "
-        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
-        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
-        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
-        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
-        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
-        "Engineering on Julio Reis's portfolio.]"
+        "[JARVIS Note (the visitor is not Julio Reis; never claim to be Julio Reis and refer to Julio Reis in the "
+        "3rd person): Answer questions on Science, Astronomy, Astrophysics, Physics, Mathematics, Computer Science, "
+        "AI, Engineering, and the portfolio directly in English. IMPORTANT: If the user asks for personal beauty, "
+        "cosmetic, aesthetic, medical/medication, culinary, or legal advice (even if chemical terms appear), DO NOT "
+        "name any chemical, ingredient, product, or tip — politely decline in 2 sentences as JARVIS.]"
     ),
     "es": (
-        "[MANDATORY JARVIS SCOPE RULE — Reply in Spanish (the visitor is NOT Julio Reis; refer to Julio Reis in "
-        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
-        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
-        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
-        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
-        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
-        "Engineering on Julio Reis's portfolio.]"
+        "[Nota JARVIS (el visitante no es Julio Reis; nunca afirmes ser Julio Reis y menciona a Julio Reis en 3ª "
+        "persona): Responde directamente en español preguntas de Ciencia, Astronomía, Astrofísica, Física, "
+        "Matemáticas, Química, Biología, Computación, IA, Ingeniería y del portafolio. Rechaza cortésmente en 2 "
+        "frases únicamente consultas de estética, cosmética, belleza, salud/medicamentos, cocina o derecho, sin "
+        "sugerir productos ni procedimientos.]"
     ),
     "fr": (
-        "[MANDATORY JARVIS SCOPE RULE — Reply in French (the visitor is NOT Julio Reis; refer to Julio Reis in "
-        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
-        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
-        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
-        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
-        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
-        "Engineering on Julio Reis's portfolio.]"
+        "[Note JARVIS (le visiteur n'est pas Julio Reis ; ne prétendez jamais être Julio Reis et parlez de Julio "
+        "Reis à la 3e personne) : Répondez directement en français aux questions de Science, Astronomie, "
+        "Astrophysique, Physique, Mathématiques, Informatique, IA, Ingénierie et du portfolio. IMPORTANT : Pour "
+        "toute demande cosmétique, esthétique, beauté, médicale, culinaire ou juridique, NE DONNEZ AUCUN conseil "
+        "général, soin ni produit — déclinez poliment en 2 phrases en tant que JARVIS.]"
     ),
 }
 
 OUT_OF_CONE_GREETING_GATES: Dict[str, str] = {
     "pt": (
-        "[JARVIS GREETING RULE — Reply in Portuguese (the visitor is NOT Julio Reis; never address the visitor as "
-        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
-        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+        "[SAUDAÇÃO JARVIS — Responda em português em 1 a 2 frases curtas como JARVIS (o visitante NÃO é Julio Reis; "
+        "refira-se a Julio Reis na terceira pessoa): cumprimente cordialmente e ofereça ajuda em Ciência, Engenharia "
+        "de IA e no portfólio de Arquitetura de Cicatrizes de Julio Reis.]"
     ),
     "en": (
-        "[JARVIS GREETING RULE — Reply in English (the visitor is NOT Julio Reis; never address the visitor as "
-        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
-        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+        "[JARVIS GREETING — Reply in English in 1 to 2 short sentences as JARVIS (the visitor is NOT Julio Reis; "
+        "refer to Julio Reis in the third person): greet the visitor warmly and offer help with Science, AI "
+        "Engineering, and Julio Reis's Scar Architecture portfolio.]"
     ),
     "es": (
-        "[JARVIS GREETING RULE — Reply in Spanish (the visitor is NOT Julio Reis; never address the visitor as "
-        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
-        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+        "[SALUDO JARVIS — Responde en español en 1 a 2 frases breves como JARVIS (el visitante NO es Julio Reis; "
+        "refiérete a Julio Reis en tercera persona): saluda cordialmente y ofrece ayuda en Ciencia, Ingeniería de IA "
+        "y el portafolio de Arquitectura de Cicatrices de Julio Reis.]"
     ),
     "fr": (
-        "[JARVIS GREETING RULE — Reply in French (the visitor is NOT Julio Reis; never address the visitor as "
-        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
-        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+        "[SALUTATION JARVIS — Répondez en français en 1 à 2 phrases courtes en tant que JARVIS (le visiteur N'EST PAS "
+        "Julio Reis ; parlez de Julio Reis à la troisième personne) : saluez chaleureusement et proposez votre aide "
+        "en Science, Ingénierie IA et sur le portfolio d'Architecture de Cicatrices de Julio Reis.]"
     ),
 }
 
@@ -1234,10 +1226,14 @@ class NativeWebGPUMoSEngine:
         self.session_pos: int = 0
         self.turn_count: int = 0
 
-        # Scratch single-token activation buffers
+        # Scratch single-token & disjoint micro-batch step-state buffers (eliminates Metal Compute-Read -> Blit-Write WAR hazard)
         q_dim = self.num_q_heads * self.head_dim
         kv_dim = self.num_kv_heads * self.head_dim
-        self.step_state_buf = self.device.create_buffer(size=16, usage=U.STORAGE | U.COPY_DST)
+        self.step_state_bufs = [
+            self.device.create_buffer(size=16, usage=U.STORAGE | U.COPY_DST)
+            for _ in range(PREFILL_BATCH_TOKENS)
+        ]
+        self.step_state_buf = self.step_state_bufs[0]
         self.prefill_steps_buf = self.device.create_buffer(
             size=PREFILL_BATCH_TOKENS * 16,
             usage=U.COPY_SRC | U.COPY_DST,
@@ -1794,7 +1790,8 @@ class NativeWebGPUMoSEngine:
         return ops
 
     def _prebuild_dispatch_plan(self) -> None:
-        self.embed_ops: List[Tuple[str, Any, int]] = []
+        n_slots = len(self.step_state_bufs)
+        self.embed_ops_slots: List[List[Tuple[str, Any, int]]] = [[] for _ in range(n_slots)]
         for ch in self.manifest["embed_chunks"]:
             sb = self.shard_buffers[int(ch["shard_index"])]
             u = self._make_uniform(
@@ -1806,16 +1803,22 @@ class NativeWebGPUMoSEngine:
                     p4=ch["vocab_rows"],
                 )
             )
-            bg = self._bg("embed_int4_lookup", {0: u, 1: sb, 2: self.step_state_buf, 6: self.h_cur_buf})
-            self.embed_ops.append(("embed_int4_lookup", bg, (self.hidden_dim + 255) // 256))
+            wgs_emb = (self.hidden_dim + 255) // 256
+            for sl in range(n_slots):
+                bg = self._bg("embed_int4_lookup", {0: u, 1: sb, 2: self.step_state_bufs[sl], 6: self.h_cur_buf})
+                self.embed_ops_slots[sl].append(("embed_int4_lookup", bg, wgs_emb))
+        self.embed_ops: List[Tuple[str, Any, int]] = self.embed_ops_slots[0]
 
         q_dim = self.num_q_heads * self.head_dim
         total_rope_pairs = (self.num_q_heads + self.num_kv_heads) * (self.head_dim // 2)
         u_rope = self._make_uniform(_pack_kernel_params(p0=self.num_q_heads, p1=self.num_kv_heads, p2=self.head_dim))
-        bg_rope = self._bg(
-            "qwen_rope_inplace",
-            {0: u_rope, 2: self.step_state_buf, 3: self.inv_freq_buf, 6: self.q_buf, 7: self.k_buf},
-        )
+        bg_rope_slots = [
+            self._bg(
+                "qwen_rope_inplace",
+                {0: u_rope, 2: self.step_state_bufs[sl], 3: self.inv_freq_buf, 6: self.q_buf, 7: self.k_buf},
+            )
+            for sl in range(n_slots)
+        ]
 
         u_add_h = self._make_uniform(_pack_kernel_params(p0=self.hidden_dim))
         bg_add_h = self._bg("vec_add_inplace_f32", {0: u_add_h, 3: self.proj_out_buf, 6: self.h_cur_buf})
@@ -1828,31 +1831,27 @@ class NativeWebGPUMoSEngine:
 
         attn_scale = 1.0 / math.sqrt(float(self.head_dim))
 
-        self.layer_ops: List[List[Tuple[str, Any, int]]] = []
+        self.layer_ops_slots: List[List[List[Tuple[str, Any, int]]]] = [[] for _ in range(n_slots)]
         for l_idx, l_meta in enumerate(self.manifest["layers"]):
-            ops: List[Tuple[str, Any, int]] = []
             sb = self.shard_buffers[int(l_meta["shard_index"])]
             projs = l_meta["projections"]
 
-            # 1. Input RMSNorm
+            # 1. Input RMSNorm + 2. Q, K, V projections
             u_ln1 = self._make_uniform(
                 _pack_kernel_params(p0=self.hidden_dim, p1=l_meta["input_layernorm_u32_off"], f0=self.rms_norm_eps)
             )
-            ops.append(("rmsnorm_f32", self._bg("rmsnorm_f32", {0: u_ln1, 1: sb, 3: self.h_cur_buf, 6: self.norm_buf}), 1))
-
-            # 2. Q, K, V projections
-            ops.extend(self._make_linear_ops(sb, projs["self_attn.q_proj"], self.norm_buf, self.q_buf))
-            ops.extend(self._make_linear_ops(sb, projs["self_attn.k_proj"], self.norm_buf, self.k_buf))
-            ops.extend(self._make_linear_ops(sb, projs["self_attn.v_proj"], self.norm_buf, self.v_buf))
+            pre_rope_ops: List[Tuple[str, Any, int]] = [
+                ("rmsnorm_f32", self._bg("rmsnorm_f32", {0: u_ln1, 1: sb, 3: self.h_cur_buf, 6: self.norm_buf}), 1)
+            ]
+            pre_rope_ops.extend(self._make_linear_ops(sb, projs["self_attn.q_proj"], self.norm_buf, self.q_buf))
+            pre_rope_ops.extend(self._make_linear_ops(sb, projs["self_attn.k_proj"], self.norm_buf, self.k_buf))
+            pre_rope_ops.extend(self._make_linear_ops(sb, projs["self_attn.v_proj"], self.norm_buf, self.v_buf))
 
             # Capture un-rotated Q on last layer `L-1` for `HeadExpandedScarStore` multi-head routing
             if l_idx == self.num_layers - 1:
-                ops.append(("vec_copy_f32", bg_copy_q, (q_dim + 255) // 256))
+                pre_rope_ops.append(("vec_copy_f32", bg_copy_q, (q_dim + 255) // 256))
 
-            # 3. Split-Half RoPE on Q & K
-            ops.append(("qwen_rope_inplace", bg_rope, (total_rope_pairs + 63) // 64))
-
-            # 4. SCache O(1) Widrow-Hoff Delta + Surprise-Slot Update
+            # 4. SCache O(1) Widrow-Hoff Delta + Surprise-Slot Update uniform
             u_sc_upd = self._make_uniform(
                 _pack_kernel_params(
                     p0=l_idx,
@@ -1864,21 +1863,8 @@ class NativeWebGPUMoSEngine:
                     p6=self.counts_u32_total,
                 )
             )
-            bg_sc_upd = self._bg(
-                "scache_o1_update_widrow_hoff",
-                {
-                    0: u_sc_upd,
-                    2: self.step_state_buf,
-                    3: self.k_buf,
-                    4: self.v_buf,
-                    6: self.scache_w_scar_buf,
-                    7: self.scache_salience_buf,
-                    8: self.scache_kv_buf,
-                },
-            )
-            ops.append(("scache_o1_update_widrow_hoff", bg_sc_upd, self.num_kv_heads))
 
-            # 5. SCache O(1) Bounded-Horizon GQA Attention
+            # 5. SCache O(1) Bounded-Horizon GQA Attention + 6. O_proj + 7. SwiGLU MLP
             u_sc_att = self._make_uniform(
                 _pack_kernel_params(
                     p0=l_idx,
@@ -1903,24 +1889,43 @@ class NativeWebGPUMoSEngine:
                     6: self.attn_out_buf,
                 },
             )
-            ops.append(("scache_o1_gqa_attention", bg_sc_att, self.num_q_heads))
+            post_upd_ops: List[Tuple[str, Any, int]] = [
+                ("scache_o1_gqa_attention", bg_sc_att, self.num_q_heads),
+            ]
+            post_upd_ops.extend(self._make_linear_ops(sb, projs["self_attn.o_proj"], self.attn_out_buf, self.proj_out_buf))
+            post_upd_ops.append(("vec_add_inplace_f32", bg_add_h, (self.hidden_dim + 255) // 256))
 
-            # 6. Output projection + Residual Add
-            ops.extend(self._make_linear_ops(sb, projs["self_attn.o_proj"], self.attn_out_buf, self.proj_out_buf))
-            ops.append(("vec_add_inplace_f32", bg_add_h, (self.hidden_dim + 255) // 256))
-
-            # 7. Post-Attention RMSNorm + SwiGLU MoS/FP16 MLP + Residual Add
             u_ln2 = self._make_uniform(
                 _pack_kernel_params(p0=self.hidden_dim, p1=l_meta["post_attention_layernorm_u32_off"], f0=self.rms_norm_eps)
             )
-            ops.append(("rmsnorm_f32", self._bg("rmsnorm_f32", {0: u_ln2, 1: sb, 3: self.h_cur_buf, 6: self.norm_buf}), 1))
-            ops.extend(self._make_linear_ops(sb, projs["mlp.gate_proj"], self.norm_buf, self.gate_buf))
-            ops.extend(self._make_linear_ops(sb, projs["mlp.up_proj"], self.norm_buf, self.up_buf))
-            ops.append(("swiglu_mul_f32", bg_swiglu, (self.inter_dim + 255) // 256))
-            ops.extend(self._make_linear_ops(sb, projs["mlp.down_proj"], self.gate_buf, self.proj_out_buf))
-            ops.append(("vec_add_inplace_f32", bg_add_h, (self.hidden_dim + 255) // 256))
+            post_upd_ops.append(("rmsnorm_f32", self._bg("rmsnorm_f32", {0: u_ln2, 1: sb, 3: self.h_cur_buf, 6: self.norm_buf}), 1))
+            post_upd_ops.extend(self._make_linear_ops(sb, projs["mlp.gate_proj"], self.norm_buf, self.gate_buf))
+            post_upd_ops.extend(self._make_linear_ops(sb, projs["mlp.up_proj"], self.norm_buf, self.up_buf))
+            post_upd_ops.append(("swiglu_mul_f32", bg_swiglu, (self.inter_dim + 255) // 256))
+            post_upd_ops.extend(self._make_linear_ops(sb, projs["mlp.down_proj"], self.gate_buf, self.proj_out_buf))
+            post_upd_ops.append(("vec_add_inplace_f32", bg_add_h, (self.hidden_dim + 255) // 256))
 
-            self.layer_ops.append(ops)
+            rope_wgs = (total_rope_pairs + 63) // 64
+            for sl in range(n_slots):
+                bg_sc_upd = self._bg(
+                    "scache_o1_update_widrow_hoff",
+                    {
+                        0: u_sc_upd,
+                        2: self.step_state_bufs[sl],
+                        3: self.k_buf,
+                        4: self.v_buf,
+                        6: self.scache_w_scar_buf,
+                        7: self.scache_salience_buf,
+                        8: self.scache_kv_buf,
+                    },
+                )
+                slot_ops = list(pre_rope_ops)
+                slot_ops.append(("qwen_rope_inplace", bg_rope_slots[sl], rope_wgs))
+                slot_ops.append(("scache_o1_update_widrow_hoff", bg_sc_upd, self.num_kv_heads))
+                slot_ops.extend(post_upd_ops)
+                self.layer_ops_slots[sl].append(slot_ops)
+
+        self.layer_ops: List[List[Tuple[str, Any, int]]] = self.layer_ops_slots[0]
 
         # Final RMSNorm + HeadExpandedScarStore Inject + Chunked INT4 Vocab Logits + Top-2 Reduction
         fn_meta = self.manifest["final_norm"]
@@ -2049,23 +2054,22 @@ class NativeWebGPUMoSEngine:
         for batch_start in range(0, lp, PREFILL_BATCH_TOKENS):
             batch_end = min(lp, batch_start + PREFILL_BATCH_TOKENS)
             batch_len = batch_end - batch_start
-            steps_arr = np.zeros((batch_len, 4), dtype=np.uint32)
             for i in range(batch_len):
                 rel_pos = batch_start + i
-                steps_arr[i, 0] = int(token_ids[rel_pos])
-                steps_arr[i, 1] = int(base_pos + rel_pos)
-            self.device.queue.write_buffer(self.prefill_steps_buf, 0, steps_arr.tobytes())
+                slot_bytes = struct.pack("<4I", int(token_ids[rel_pos]), int(base_pos + rel_pos), 0, 0)
+                self.device.queue.write_buffer(self.step_state_bufs[i], 0, slot_bytes)
 
             enc = self.device.create_command_encoder()
             for i in range(batch_len):
                 t_idx = batch_start + i
-                enc.copy_buffer_to_buffer(self.prefill_steps_buf, i * 16, self.step_state_buf, 0, 16)
+                emb_ops_i = self.embed_ops_slots[i]
+                lay_ops_i = self.layer_ops_slots[i]
                 if t_idx < lp - 1 or run_full_on_last:
                     if prefill_xin_buf is not None and q_start <= t_idx < eff_q_end:
                         cpass_pre = enc.begin_compute_pass()
-                        self._record_ops(cpass_pre, self.embed_ops)
+                        self._record_ops(cpass_pre, emb_ops_i)
                         for l_i in range(split_idx + 1):
-                            self._record_ops(cpass_pre, self.layer_ops[l_i])
+                            self._record_ops(cpass_pre, lay_ops_i[l_i])
                         cpass_pre.end()
                         u_slot = t_idx - q_start
                         enc.copy_buffer_to_buffer(
@@ -2073,19 +2077,19 @@ class NativeWebGPUMoSEngine:
                         )
                         cpass_last = enc.begin_compute_pass()
                         for l_i in range(split_idx + 1, self.num_layers):
-                            self._record_ops(cpass_last, self.layer_ops[l_i])
+                            self._record_ops(cpass_last, lay_ops_i[l_i])
                         cpass_last.end()
                     else:
                         cpass = enc.begin_compute_pass()
-                        self._record_ops(cpass, self.embed_ops)
-                        for l_ops in self.layer_ops:
+                        self._record_ops(cpass, emb_ops_i)
+                        for l_ops in lay_ops_i:
                             self._record_ops(cpass, l_ops)
                         cpass.end()
                 else:
                     cpass_pre = enc.begin_compute_pass()
-                    self._record_ops(cpass_pre, self.embed_ops)
+                    self._record_ops(cpass_pre, emb_ops_i)
                     for l_i in range(split_idx + 1):
-                        self._record_ops(cpass_pre, self.layer_ops[l_i])
+                        self._record_ops(cpass_pre, lay_ops_i[l_i])
                     cpass_pre.end()
                     if prefill_xin_buf is not None and q_start <= t_idx < eff_q_end:
                         u_slot = t_idx - q_start
@@ -2102,17 +2106,14 @@ class NativeWebGPUMoSEngine:
         for batch_start in range(0, n, PREFILL_BATCH_TOKENS):
             batch_end = min(n, batch_start + PREFILL_BATCH_TOKENS)
             batch_len = batch_end - batch_start
-            steps_arr = np.zeros((batch_len, 4), dtype=np.uint32)
             for i in range(batch_len):
-                steps_arr[i, 0] = int(closing_ids[batch_start + i])
-                steps_arr[i, 1] = int(start_pos + batch_start + i)
-            self.device.queue.write_buffer(self.prefill_steps_buf, 0, steps_arr.tobytes())
+                slot_bytes = struct.pack("<4I", int(closing_ids[batch_start + i]), int(start_pos + batch_start + i), 0, 0)
+                self.device.queue.write_buffer(self.step_state_bufs[i], 0, slot_bytes)
             enc = self.device.create_command_encoder()
             for i in range(batch_len):
-                enc.copy_buffer_to_buffer(self.prefill_steps_buf, i * 16, self.step_state_buf, 0, 16)
                 cpass = enc.begin_compute_pass()
-                self._record_ops(cpass, self.embed_ops)
-                for l_ops in self.layer_ops:
+                self._record_ops(cpass, self.embed_ops_slots[i])
+                for l_ops in self.layer_ops_slots[i]:
                     self._record_ops(cpass, l_ops)
                 cpass.end()
             self.device.queue.submit([enc.finish()])
@@ -2272,6 +2273,7 @@ class NativeWebGPUMoSEngine:
                         self.scache_salience_buf, 0, self.scache_sal_snap_buf, 0, self.scache_salience_buf.size
                     )
                     self.device.queue.submit([enc_snap_q.finish()])
+                    _ = self.device.queue.read_buffer(self.top2_out_buf)
                     guarded_rollback_pos = q_end_probe
                     guarded_clean_prefix_ids = list(clean_probe_ids[q_end_probe:])
 
@@ -2334,6 +2336,7 @@ class NativeWebGPUMoSEngine:
                     self.scache_salience_buf, 0, self.scache_sal_snap_buf, 0, self.scache_salience_buf.size
                 )
                 self.device.queue.submit([enc_save.finish()])
+                _ = self.device.queue.read_buffer(self.top2_out_buf)
 
                 self.device.queue.write_buffer(self.scache_kv_buf, 0, bytes(self.scache_kv_buf.size))
                 self.device.queue.write_buffer(self.scache_w_scar_buf, 0, bytes(self.scache_w_scar_buf.size))
@@ -2453,7 +2456,14 @@ class NativeWebGPUMoSEngine:
             rep_start = _find_repeated_ngram_start(gen_ids)
             if rep_start >= 0:
                 del gen_ids[rep_start:]
-                last_decoded = tok.decode(gen_ids, skip_special_tokens=True).rstrip()
+                last_gen_fed = True
+                trimmed_txt = tok.decode(gen_ids, skip_special_tokens=True).rstrip()
+                last_bnd = max(trimmed_txt.rfind("."), trimmed_txt.rfind("!"), trimmed_txt.rfind("?"))
+                last_decoded = (
+                    trimmed_txt[: last_bnd + 1]
+                    if last_bnd >= 24
+                    else re.sub(r"[,;:\-\s]+$", ".", trimmed_txt)
+                )
                 break
             preview_txt = tok.decode(gen_ids, skip_special_tokens=True)
             if (
@@ -2483,6 +2493,7 @@ class NativeWebGPUMoSEngine:
                 self.scache_sal_snap_buf, 0, self.scache_salience_buf, 0, self.scache_salience_buf.size
             )
             self.device.queue.submit([enc_clean_rest.finish()])
+            _ = self.device.queue.read_buffer(self.top2_out_buf)
             clean_gen_ids = [t for t in gen_ids if t not in self.eos_token_ids]
             clean_flush_ids = list(guarded_clean_prefix_ids) + clean_gen_ids + turn_suffix_ids
             self.session_pos = self._flush_closing_tokens_to_scache(clean_flush_ids, guarded_rollback_pos)
@@ -2497,7 +2508,7 @@ class NativeWebGPUMoSEngine:
         decode_ms = (time.perf_counter() - t_dec0) * 1000.0
         scache_b_end = self.scache_gpu_bytes
         clean_ids = [t for t in gen_ids if t not in self.eos_token_ids]
-        answer = tok.decode(clean_ids, skip_special_tokens=True).strip()
+        answer = (last_decoded or tok.decode(clean_ids, skip_special_tokens=True)).strip()
         dec_steps = max(1, len(gen_ids) - 1)
         tok_s = (dec_steps / (decode_ms / 1000.0)) if decode_ms > 0.0 and len(gen_ids) > 1 else 0.0
 
