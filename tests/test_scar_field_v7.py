@@ -294,3 +294,93 @@ def test_aura_ghost_jump_zero_copy_and_tabula_rasa_muon_convergence() -> None:
     assert final_loss < init_loss * 0.15, f"Expected strong loss drop: {init_loss:.4f} -> {final_loss:.4f}"
     assert acc >= 0.92, f"Expected >= 92% raw UTF-8 next-byte accuracy without ReLU/Softmax/AdamW, got {acc:.3f}"
     assert cross_lang_cos >= 0.88, f"Expected native S_world PT<->EN alignment >= 0.88 without Procrustes, got {cross_lang_cos:.3f}"
+
+
+def test_causal_transition_1hop_unseen_passkey_and_streaming_parity() -> None:
+    torch.manual_seed(202608)
+    cfg = ScarFieldConfig(
+        vocab_size=256,
+        d_form=64,
+        d_world=64,
+        d_bus=64,
+        d_key=64,
+        num_subspaces=8,
+        ring_len=10,  # Strictly shorter than the ~36-byte `PIN=XYZ ... => PIN=XYZ` distance!
+        s1_steps=1,
+        s2_steps=3,
+        shock_write_theta=0.48,
+    )
+    model = ScarFieldEngine(cfg)
+    model.eval()
+
+    # 1. Verify exact chunked / byte-by-byte streaming parity (`Delta = +0 B`) vs `forward_sequence`
+    sample_str = "[GEOMETRIA_E8] PIN=742 | vacuo 0x00 => PIN=742."
+    seq = torch.tensor([[b for b in sample_str.encode("utf-8")]], dtype=torch.long)
+    with torch.no_grad():
+        out_full = model.forward_sequence(seq, adaptive_depth=True)
+        st = model.init_state(batch_size=1)
+        b0 = st.total_state_bytes
+        chunk1 = model.forward_sequence(seq[:, :19], state=st, adaptive_depth=True)
+        chunk2 = model.forward_sequence(seq[:, 19:], state=chunk1["state"], adaptive_depth=True)
+        cat_scores = torch.cat((chunk1["scores"], chunk2["scores"]), dim=1)
+        assert chunk2["state"].total_state_bytes - b0 == 0
+        cos_stream = float(F.cosine_similarity(out_full["scores"].flatten(), cat_scores.flatten(), dim=0).item())
+        assert cos_stream > 0.999999, f"Expected > 0.999999 chunked O(1) parity, got {cos_stream}"
+
+    # 2. Train Causal Transition Scar on random 3-digit PINs `[100..799]` and test strictly unseen `[800..849]`!
+    model.train()
+    opt = RiemannianMuon(model.parameters(), lr=2.4e-2, scalar_lr=8e-3)
+    rng_g = torch.Generator().manual_seed(202608)
+    seq_len = 52
+    for step in range(1, 131):
+        codes = torch.randint(100, 800, (16,), generator=rng_g).tolist()
+        rows = []
+        for idx, c in enumerate(codes):
+            tag = "PT_MODO_A" if idx % 2 == 0 else "EN_MODE_B"
+            s = f"[{tag}] PIN={c:03d} | vacuo puro => PIN={c:03d}."
+            b = list(s.encode("utf-8"))[:seq_len]
+            b += [32] * (seq_len - len(b))
+            rows.append(b)
+        batch = torch.tensor(rows, dtype=torch.long)
+        opt.zero_grad()
+        model.compute_loss(batch)["loss"].backward()
+        opt.step()
+        if step % 45 == 0:
+            heal_all_e8_scars(model)
+
+    model.eval()
+    unseen_rows = []
+    unseen_strs = []
+    for i, c in enumerate(range(800, 850)):
+        tag = "PT_MODO_A" if i % 2 == 0 else "EN_MODE_B"
+        s = f"[{tag}] PIN={c:03d} | vacuo puro => PIN={c:03d}."
+        unseen_strs.append(s)
+        b = list(s.encode("utf-8"))[:seq_len] + [32] * max(0, seq_len - len(s))
+        unseen_rows.append(b[:seq_len])
+    unseen_b = torch.tensor(unseen_rows, dtype=torch.long)
+
+    with torch.no_grad():
+        preds = model.forward_sequence(unseen_b)["scores"][:, :-1, :].argmax(dim=-1)
+        exact_hits = 0
+        for i, s in enumerate(unseen_strs):
+            p0 = s.find("=> PIN=") + 6
+            got = preds[i, p0 : p0 + 3].tolist()
+            exp = [ord(ch) for ch in s[p0 + 1 : p0 + 4]]
+            if got == exp:
+                exact_hits += 1
+        recall = exact_hits / len(unseen_strs)
+
+        # Ablation check: disabling `Kalman-Scar W_fast` (`ring_len=10 < 31-byte span`) collapses recall!
+        model.bus.enable_kalman_fast = False
+        preds_ablate = model.forward_sequence(unseen_b)["scores"][:, :-1, :].argmax(dim=-1)
+        ablate_hits = sum(
+            1
+            for i, s in enumerate(unseen_strs)
+            if preds_ablate[i, s.find("=> PIN=") + 6 : s.find("=> PIN=") + 9].tolist()
+            == [ord(ch) for ch in s[s.find("=> PIN=") + 7 : s.find("=> PIN=") + 10]]
+        )
+        model.bus.enable_kalman_fast = True
+
+    assert recall >= 0.94, f"Expected >= 94% unseen 3-digit PIN recall via 1-hop Causal Transition Scar, got {recall:.2%}"
+    assert ablate_hits <= 3, f"Expected <= 3/50 hits when Kalman-Scar disabled (ring_len=10), got {ablate_hits}/50"
+

@@ -75,6 +75,10 @@ class KalmanBusState:
     """Strictly constant-size `O(1)` central workspace state (`Delta = +0 B` as `T -> inf`)."""
 
     w_fast: torch.Tensor         # [B, G, d_sub, d_key]
+    k_prev: torch.Tensor         # [B, d_key] (`Prefix_{t-1}` for 1-hop Causal Transition Scars!)
+    has_prev_key: torch.Tensor   # [B] bool
+    recent_bytes: torch.Tensor   # [B, 4] uint8 (`O(1)` 4-byte causal wave register)
+    recent_len: int
     ring_keys: torch.Tensor      # [B, R_ring, d_key]
     ring_vals: torch.Tensor      # [B, R_ring, d_val]
     ring_valid: torch.Tensor     # [B, R_ring] bool
@@ -90,6 +94,9 @@ class KalmanBusState:
     def total_state_bytes(self) -> int:
         tensors = (
             self.w_fast,
+            self.k_prev,
+            self.has_prev_key,
+            self.recent_bytes,
             self.ring_keys,
             self.ring_vals,
             self.ring_valid,
@@ -295,6 +302,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         ring_len: int = 16,
         repulsive_len: int = 8,
         shock_write_theta: float = 0.18,
+        enable_kalman_fast: bool = True,
     ) -> None:
         super().__init__()
         if d_bus % num_subspaces != 0:
@@ -308,6 +316,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         self.ring_len = ring_len
         self.repulsive_len = repulsive_len
         self.shock_write_theta = shock_write_theta
+        self.enable_kalman_fast = enable_kalman_fast
 
         joint_dim = d_form + d_world
         if joint_dim % 64 != 0:
@@ -331,12 +340,17 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         )
 
         self.register_buffer("inv_freq", build_proper_time_frequencies(d_form), persistent=False)
-        self.ring_kappa = nn.Parameter(torch.tensor(0.25, dtype=torch.float32))
+        self.ring_kappa = nn.Parameter(torch.tensor(0.35, dtype=torch.float32))
+        self.tier_mix = nn.Parameter(torch.tensor([1.35, 0.45, 1.0, 0.30], dtype=torch.float32))
         self.uscar_store = UniversalScarCartridgeStore(d_world=d_world, d_bus=d_bus)
 
     def init_state(self, batch_size: int, device: torch.device | str = "cpu") -> KalmanBusState:
         return KalmanBusState(
             w_fast=torch.zeros(batch_size, self.num_subspaces, self.d_sub, self.d_key, device=device),
+            k_prev=torch.zeros(batch_size, self.d_key, device=device),
+            has_prev_key=torch.zeros(batch_size, dtype=torch.bool, device=device),
+            recent_bytes=torch.zeros(batch_size, 4, dtype=torch.uint8, device=device),
+            recent_len=0,
             ring_keys=torch.zeros(batch_size, self.ring_len, self.d_key, device=device),
             ring_vals=torch.zeros(batch_size, self.ring_len, self.d_bus, device=device),
             ring_valid=torch.zeros(batch_size, self.ring_len, dtype=torch.bool, device=device),
@@ -351,27 +365,39 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
 
     def _extract_qkv_beta(
         self,
-        h_form_phased: torch.Tensor,
+        h_form_unphased: torch.Tensor,
         h_world: torch.Tensor,
         surprise: torch.Tensor,
+        v_shock_hint: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        joint = project_rows_to_unit_sphere(torch.cat((h_form_phased, h_world), dim=-1))
+        """Extracts Pre-Phase content-addressed `(q, k_ctx)` + arriving innovation `v` + selective `beta`."""
+        joint = project_rows_to_unit_sphere(torch.cat((h_form_unphased, h_world), dim=-1))
         proj = self.qkv_e8(joint)
         dk = self.d_key
         db = self.d_bus
         q = project_rows_to_unit_sphere(proj[..., :dk])
-        k = project_rows_to_unit_sphere(proj[..., dk : 2 * dk])
-        v = project_rows_to_unit_sphere(proj[..., 2 * dk : 2 * dk + db]).reshape(
-            *h_world.shape[:-1], self.num_subspaces, self.d_sub
-        )
+        # Blend symmetric prefix key `(0.65 * q + 0.35 * k_raw)` so repeated stems (`"PIN="`) resonate from step 0!
+        k_raw = project_rows_to_unit_sphere(proj[..., dk : 2 * dk])
+        k = project_rows_to_unit_sphere(0.65 * q + 0.35 * k_raw)
+        v_base = proj[..., 2 * dk : 2 * dk + db]
+        if v_shock_hint is not None:
+            if v_shock_hint.shape[-1] >= db:
+                v_base = v_base + 0.85 * v_shock_hint[..., :db]
+            else:
+                pad_v = torch.zeros(
+                    *v_shock_hint.shape[:-1], db - v_shock_hint.shape[-1], dtype=v_base.dtype, device=v_base.device
+                )
+                v_base = v_base + 0.85 * torch.cat((v_shock_hint, pad_v), dim=-1)
+        v = project_rows_to_unit_sphere(v_base).reshape(*h_world.shape[:-1], self.num_subspaces, self.d_sub)
         raw_g = proj[..., 2 * dk + db :]  # [..., G]
-        # Smooth algebraic channel gate in (0, 1) without exp(): `0.5 * (1 + x / sqrt(1 + x^2))`
-        chan_gate = 0.5 * (1.0 + raw_g / torch.sqrt(1.0 + raw_g * raw_g))
-        # Exact `0.0` write on predictable vacuum (`surprise <= shock_write_theta`)!
-        shock_open = c1_spherical_cap_resonance(
-            surprise.unsqueeze(-1),
-            surprise.new_tensor(self.shock_write_theta),
-        )
+        chan_gate = 0.65 + 0.35 * (raw_g / torch.sqrt(1.0 + raw_g * raw_g))
+        shock_open = (
+            2.0
+            * c1_spherical_cap_resonance(
+                surprise.unsqueeze(-1),
+                surprise.new_tensor(self.shock_write_theta),
+            )
+        ).clamp(0.0, 1.0)
         beta = (shock_open * chan_gate).clamp(0.0, 0.98)
         return q, k, v, beta
 
@@ -398,6 +424,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         surprise: torch.Tensor,
         state: Optional[KalmanBusState] = None,
         chunk_size: int = 32,
+        v_shock_hint: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, KalmanBusState]:
         """Parallel sequence forward returning `(h_form_phased, bus_ctx, uscar_res, new_state)`."""
         bsz, seq_len, _ = h_world.shape
@@ -408,40 +435,59 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         prop_t = st.proper_time.unsqueeze(-1) + torch.cumsum(ds, dim=-1)  # [B, T]
         hf_phased = apply_relativistic_proper_time_phase(h_form, prop_t, self.inv_freq)
 
-        q, k, v, beta = self._extract_qkv_beta(hf_phased, h_world, surprise)
+        # Pre-Phase content-addressed `(q, k_ctx)` so `"PIN="` matches `"PIN="` at ANY distance `T -> inf`!
+        q, k_ctx, v, beta = self._extract_qkv_beta(h_form, h_world, surprise, v_shock_hint=v_shock_hint)
+
+        # Causal Transition Binding (`Prefix_{t-1} -> Shock_t`): native 1-hop Induction Scar!
+        k_first = torch.where(st.has_prev_key.unsqueeze(-1), st.k_prev, torch.zeros_like(k_ctx[:, 0, :]))
+        b_first = torch.where(st.has_prev_key.unsqueeze(-1), beta[:, 0, :], torch.zeros_like(beta[:, 0, :]))
+        if seq_len > 1:
+            k_bind = torch.cat((k_first.unsqueeze(1), k_ctx[:, :-1, :]), dim=1)
+            beta_bind = torch.cat((b_first.unsqueeze(1), beta[:, 1:, :]), dim=1)
+        else:
+            k_bind = k_first.unsqueeze(1)
+            beta_bind = b_first.unsqueeze(1)
 
         # 1. Fast Episodic Tier A: Parallel Chunkwise WY Channel-Selective Kalman-Scar (`O(1)`)
-        kalman_out, w_final = chunkwise_wy_channel_selective_scan(
-            q=q, k=k, v=v, beta=beta, w0=st.w_fast, chunk_size=chunk_size
-        )
-        kalman_flat = kalman_out.reshape(bsz, seq_len, self.d_bus)
+        if self.enable_kalman_fast:
+            kalman_out, w_final = chunkwise_wy_channel_selective_scan(
+                q=q, k=k_bind, v=v, beta=beta_bind, w0=st.w_fast, chunk_size=chunk_size
+            )
+            kalman_flat = kalman_out.reshape(bsz, seq_len, self.d_bus)
+        else:
+            w_final = st.w_fast
+            kalman_flat = torch.zeros(bsz, seq_len, self.d_bus, dtype=v.dtype, device=dev)
 
-        # 2. Fast Sensory Ring Tier B: Causal local window `[t - ring_len .. t - 1]` via C^1 cap resonance (zero Softmax!)
+        # 2. Fast Sensory Ring Tier B: Proper-time phased local window `[t - ring_len .. t - 1]`
+        q_ring = apply_relativistic_proper_time_phase(q, prop_t, build_proper_time_frequencies(self.d_key, device=dev))
+        k_ring = apply_relativistic_proper_time_phase(
+            k_ctx, prop_t, build_proper_time_frequencies(self.d_key, device=dev)
+        )
         v_flat = v.reshape(bsz, seq_len, self.d_bus)
         if st.ring_valid.any():
-            # Prepend valid ring history from `st`
-            k_cat = torch.cat((st.ring_keys, k), dim=1)  # [B, R + T, d_k]
+            k_cat = torch.cat((st.ring_keys, k_ring), dim=1)
             v_cat = torch.cat((st.ring_vals, v_flat), dim=1)
             valid_cat = torch.cat(
                 (st.ring_valid, torch.ones(bsz, seq_len, dtype=torch.bool, device=dev)), dim=1
             )
             r_off = self.ring_len
         else:
-            k_cat = k
+            k_cat = k_ring
             v_cat = v_flat
             valid_cat = torch.ones(bsz, seq_len, dtype=torch.bool, device=dev)
             r_off = 0
 
-        sim_all = torch.matmul(q, k_cat.transpose(-2, -1))  # [B, T, R_off + T]
+        sim_all = torch.matmul(q_ring, k_cat.transpose(-2, -1))  # [B, T, R_off + T]
         t_idx = torch.arange(seq_len, device=dev).unsqueeze(1) + r_off
         j_idx = torch.arange(k_cat.shape[1], device=dev).unsqueeze(0)
         win_mask = (j_idx < t_idx) & (j_idx >= (t_idx - self.ring_len))
         full_mask = win_mask.unsqueeze(0) & valid_cat.unsqueeze(1)
 
         kap = self.ring_kappa.clamp(-0.1, 0.85)
-        ring_w = c1_spherical_cap_resonance(sim_all, kap) * full_mask.float()
+        ring_w = (2.0 * c1_spherical_cap_resonance(sim_all, kap)).clamp(0.0, 1.0) * full_mask.float()
         ring_sum = ring_w.sum(dim=-1, keepdim=True)
-        ring_norm_w = ring_w / ring_sum.clamp(min=1e-6)
+        # Vacuum-safe denominator (`0.5 + ring_sum`): local ring stays quiet when nothing in window resonates!
+        ring_norm_w = ring_w / (0.5 + ring_sum)
         ring_out = torch.matmul(ring_norm_w, v_cat)
 
         # 3. Medium Tier: Detached `.uscar` Universal Poles on `S^{D_w-1}`
@@ -468,7 +514,16 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             goal_w = goal_dir
 
         tri_out = self._compute_tri_compass(h_world, h_prev_seq, h_orig.unsqueeze(1), goal_w)
-        bus_ctx = project_rows_to_unit_sphere(kalman_flat + ring_out + uscar_out + 0.35 * tri_out)
+        tm = self.tier_mix
+        # Keep `bus_ctx` physically zero-preserving (`tanh`-like bounded `x / sqrt(1 + ||x||^2)` instead of `x / ||x||`!)
+        # so empty memory (`W_fast @ q == 0` at 1st `PIN=`) emits `0.0` vacuum instead of unit-norm noise!
+        raw_bus = (
+            tm[0] * (kalman_flat / math.sqrt(float(self.num_subspaces)))
+            + tm[1] * ring_out
+            + tm[2] * uscar_out
+            + 0.10 * tm[3] * tri_out
+        )
+        bus_ctx = raw_bus * torch.rsqrt(1.0 + (raw_bus * raw_bus).sum(dim=-1, keepdim=True))
 
         # Update constant-size `O(1)` state (`Delta = +0 B`!)
         new_ring_k = k_cat[:, -self.ring_len :, :].detach().clone()
@@ -480,6 +535,10 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
 
         new_state = KalmanBusState(
             w_fast=w_final.detach(),
+            k_prev=k_ctx[:, -1, :].detach(),
+            has_prev_key=torch.ones(bsz, dtype=torch.bool, device=dev),
+            recent_bytes=st.recent_bytes.clone(),
+            recent_len=st.recent_len,
             ring_keys=new_ring_k,
             ring_vals=new_ring_v,
             ring_valid=new_ring_val,
@@ -502,26 +561,36 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         state: KalmanBusState,
         virtual_delta: Optional[VirtualGhostJumpDelta] = None,
         mutate_state: bool = True,
+        v_shock_hint_t: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         """Single-pulse `O(1)` inference step (`mutate_state=False` enables 0-copy Ghost-Jump Scouts!)."""
+        dev = h_world_t.device
         ds = 0.02 + 0.98 * surprise_t.clamp(0.0, 1.0)
         prop_t = state.proper_time + ds  # [B]
         hf_phased = apply_relativistic_proper_time_phase(h_form_t, prop_t, self.inv_freq)
 
-        q, k, v, beta = self._extract_qkv_beta(hf_phased, h_world_t, surprise_t)
-        # Causal pre-write readout from `state.w_fast` (+ optional virtual Ghost-Jump deltas!)
-        kalman_g = torch.matmul(state.w_fast, q.unsqueeze(1).unsqueeze(-1)).squeeze(-1)  # [B, G, d_sub]
-        if virtual_delta is not None and virtual_delta.keys.shape[1] > 0:
-            # Add virtual rank-1 deltas `sum_s delta_v_s * <k_s, q>` WITHOUT cloning `w_fast`!
-            vk_q = torch.matmul(virtual_delta.keys, q.unsqueeze(-1))  # [B, S, 1]
-            kalman_g = kalman_g + (virtual_delta.delta_vals * vk_q.unsqueeze(-1)).sum(dim=1)
-        kalman_flat = kalman_g.reshape(h_world_t.shape[0], self.d_bus)
+        q, k_ctx, v, beta = self._extract_qkv_beta(h_form_t, h_world_t, surprise_t, v_shock_hint=v_shock_hint_t)
+        k_bind = torch.where(state.has_prev_key.unsqueeze(-1), state.k_prev, torch.zeros_like(k_ctx))
+        beta_bind = torch.where(state.has_prev_key.unsqueeze(-1), beta, torch.zeros_like(beta))
 
-        # Ring readout
-        sim_r = torch.matmul(state.ring_keys, q.unsqueeze(-1)).squeeze(-1)  # [B, R]
+        # Causal pre-write readout from `state.w_fast` (+ optional virtual Ghost-Jump deltas!)
+        if self.enable_kalman_fast:
+            kalman_g = torch.matmul(state.w_fast, q.unsqueeze(1).unsqueeze(-1)).squeeze(-1)  # [B, G, d_sub]
+            if virtual_delta is not None and virtual_delta.keys.shape[1] > 0:
+                vk_q = torch.matmul(virtual_delta.keys, q.unsqueeze(-1))  # [B, S, 1]
+                kalman_g = kalman_g + (virtual_delta.delta_vals * vk_q.unsqueeze(-1)).sum(dim=1)
+            kalman_flat = kalman_g.reshape(h_world_t.shape[0], self.d_bus)
+        else:
+            kalman_flat = torch.zeros(h_world_t.shape[0], self.d_bus, dtype=v.dtype, device=dev)
+
+        # Proper-time phased local ring readout
+        key_freq = build_proper_time_frequencies(self.d_key, device=dev)
+        q_ring = apply_relativistic_proper_time_phase(q, prop_t, key_freq)
+        k_ring = apply_relativistic_proper_time_phase(k_ctx, prop_t, key_freq)
+        sim_r = torch.matmul(state.ring_keys, q_ring.unsqueeze(-1)).squeeze(-1)  # [B, R]
         kap = self.ring_kappa.clamp(-0.1, 0.85)
-        rw = c1_spherical_cap_resonance(sim_r, kap) * state.ring_valid.float()
-        rw_norm = rw / rw.sum(dim=-1, keepdim=True).clamp(min=1e-6)
+        rw = (2.0 * c1_spherical_cap_resonance(sim_r, kap)).clamp(0.0, 1.0) * state.ring_valid.float()
+        rw_norm = rw / (0.5 + rw.sum(dim=-1, keepdim=True))
         ring_out = torch.matmul(rw_norm.unsqueeze(1), state.ring_vals).squeeze(1)
 
         uscar_out, uscar_res = self.uscar_store.query(h_world_t)
@@ -532,28 +601,37 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         if goal_dir.shape[-1] > self.d_world:
             goal_w = project_rows_to_unit_sphere(goal_dir[..., : self.d_world])
         elif goal_dir.shape[-1] < self.d_world:
-            pad_g = torch.zeros(h_world_t.shape[0], self.d_world - goal_dir.shape[-1], device=h_world_t.device)
+            pad_g = torch.zeros(h_world_t.shape[0], self.d_world - goal_dir.shape[-1], device=dev)
             goal_w = project_rows_to_unit_sphere(torch.cat((goal_dir, pad_g), dim=-1))
         else:
             goal_w = goal_dir
 
         tri_out = self._compute_tri_compass(h_world_t, h_prev, h_orig, goal_w)
-        bus_ctx = project_rows_to_unit_sphere(kalman_flat + ring_out + uscar_out + 0.35 * tri_out)
+        tm = self.tier_mix
+        raw_bus = (
+            tm[0] * (kalman_flat / math.sqrt(float(self.num_subspaces)))
+            + tm[1] * ring_out
+            + tm[2] * uscar_out
+            + 0.10 * tm[3] * tri_out
+        )
+        bus_ctx = raw_bus * torch.rsqrt(1.0 + (raw_bus * raw_bus).sum(dim=-1, keepdim=True))
 
-        # Compute rank-1 innovation `delta_v = beta * (v - W k)`
-        wk = torch.matmul(state.w_fast, k.unsqueeze(1).unsqueeze(-1)).squeeze(-1)  # [B, G, d_sub]
+        # Compute Causal Transition rank-1 innovation `delta_v = beta_bind * (v - W k_bind)`
+        wk = torch.matmul(state.w_fast, k_bind.unsqueeze(1).unsqueeze(-1)).squeeze(-1)  # [B, G, d_sub]
         if virtual_delta is not None and virtual_delta.keys.shape[1] > 0:
-            vk_k = torch.matmul(virtual_delta.keys, k.unsqueeze(-1))
+            vk_k = torch.matmul(virtual_delta.keys, k_bind.unsqueeze(-1))
             wk = wk + (virtual_delta.delta_vals * vk_k.unsqueeze(-1)).sum(dim=1)
-        delta_v = beta.unsqueeze(-1) * (v - wk)  # [B, G, d_sub]
+        delta_v = beta_bind.unsqueeze(-1) * (v - wk)  # [B, G, d_sub]
 
         if mutate_state:
-            state.w_fast.add_(torch.matmul(delta_v.unsqueeze(-1), k.unsqueeze(1).unsqueeze(-2)))
-            # Shift FIFO ring in-place (`Delta = +0 B`!)
+            if self.enable_kalman_fast:
+                state.w_fast.add_(torch.matmul(delta_v.unsqueeze(-1), k_bind.unsqueeze(1).unsqueeze(-2)))
+            state.k_prev.copy_(k_ctx)
+            state.has_prev_key.fill_(True)
             state.ring_keys[:, :-1, :] = state.ring_keys[:, 1:, :].clone()
             state.ring_vals[:, :-1, :] = state.ring_vals[:, 1:, :].clone()
             state.ring_valid[:, :-1] = state.ring_valid[:, 1:].clone()
-            state.ring_keys[:, -1, :] = k
+            state.ring_keys[:, -1, :] = k_ring
             state.ring_vals[:, -1, :] = v.reshape(h_world_t.shape[0], self.d_bus)
             state.ring_valid[:, -1] = True
             state.proper_time.copy_(prop_t)
@@ -564,7 +642,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             state.repulsive_ptr = (state.repulsive_ptr + 1) % self.repulsive_len
             return hf_phased, bus_ctx, uscar_res, None
 
-        return hf_phased, bus_ctx, uscar_res, (k, delta_v)
+        return hf_phased, bus_ctx, uscar_res, (k_bind, delta_v)
 
     def repulsive_loop_penalty(self, h_world_cand: torch.Tensor, repulsive_ring: torch.Tensor) -> torch.Tensor:
         """Computes `AURA` smooth repulsive negative scar energy against recently visited poles."""

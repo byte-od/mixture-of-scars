@@ -51,13 +51,14 @@ class ScarFieldConfig:
     num_scars: int = 16
     s1_steps: int = 1
     s2_steps: int = 4
-    s2_surprise_theta: float = 0.25
-    shock_write_theta: float = 0.16
+    s2_surprise_theta: float = 0.45
+    shock_write_theta: float = 0.50
     vacuum_kappa: float = 0.18
     uncertainty_margin_thresh: float = 0.24
     ghost_jump_candidates: int = 3
     ghost_jump_gamma: float = 0.35
     wy_chunk_size: int = 32
+    enable_kalman_fast: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -76,6 +77,15 @@ class ScarFieldEngine(nn.Module):
             d_world=c.d_world,
             vocab_size=c.vocab_size,
         )
+        # Stage 1: Perceptual Cayley Geodesic Flow (refines raw byte wave into sharp semantic queries)
+        self.flow_percept = ReversibleSymplecticCayleyFlow(
+            d_form=c.d_form,
+            d_world=c.d_world,
+            d_bus=c.d_form,
+            base_rank=c.base_rank,
+            num_scars=max(8, c.num_scars // 2),
+        )
+        # Central Single O(1) Workspace (`Delta = +0 B` shared across entire engine!)
         self.bus = ChannelSelectiveKalmanScarBus(
             d_form=c.d_form,
             d_world=c.d_world,
@@ -85,7 +95,9 @@ class ScarFieldEngine(nn.Module):
             ring_len=c.ring_len,
             repulsive_len=c.repulsive_len,
             shock_write_theta=c.shock_write_theta,
+            enable_kalman_fast=c.enable_kalman_fast,
         )
+        # Stage 2: Reasoning/Synthesis Cayley Geodesic Flow (`S1` K=1 <-> `S2` K=s2_steps)
         self.flow = ReversibleSymplecticCayleyFlow(
             d_form=c.d_form,
             d_world=c.d_world,
@@ -96,6 +108,7 @@ class ScarFieldEngine(nn.Module):
         self.head = SphericalCapSimplexHead(
             d_form=c.d_form,
             d_world=c.d_world,
+            d_bus=c.d_bus,
             vocab_size=c.vocab_size,
             vacuum_kappa=c.vacuum_kappa,
         )
@@ -139,10 +152,27 @@ class ScarFieldEngine(nn.Module):
         state: Optional[KalmanBusState] = None,
         adaptive_depth: bool = True,
     ) -> Dict[str, Any]:
-        hf0, hw0, surprise = self.frontend(byte_ids)
+        if state is not None and state.recent_len > 0:
+            hist = state.recent_bytes[:, -state.recent_len :].long()
+            full_ids = torch.cat((hist, byte_ids.long()), dim=1)
+            hf_all, hw_all, surp_all, loss_reflex = self.frontend(full_ids, return_reflex_loss=True)  # type: ignore[misc]
+            seq_len = byte_ids.shape[1]
+            hf_raw = hf_all[:, -seq_len:]
+            hw_raw = hw_all[:, -seq_len:]
+            surprise = surp_all[:, -seq_len:]
+        else:
+            full_ids = byte_ids.long()
+            hf_raw, hw_raw, surprise, loss_reflex = self.frontend(full_ids, return_reflex_loss=True)  # type: ignore[misc]
+
+        hf0, hw0 = self.flow_percept(hf_raw, hw_raw, hf_raw, num_steps=2)
+        v_sym = project_rows_to_unit_sphere(self.head.out_bus_anchors)[byte_ids.long().clamp(0, self.cfg.vocab_size - 1)]
         hf_phased, bus_ctx, uscar_res, next_state = self.bus.forward_sequence(
-            hf0, hw0, surprise, state=state, chunk_size=self.cfg.wy_chunk_size
+            hf0, hw0, surprise, state=state, chunk_size=self.cfg.wy_chunk_size, v_shock_hint=v_sym
         )
+        tail_n = min(4, full_ids.shape[1])
+        next_state.recent_bytes.zero_()
+        next_state.recent_bytes[:, -tail_n:] = full_ids[:, -tail_n:].clamp(0, 255).to(torch.uint8)
+        next_state.recent_len = int(tail_n)
         step_mask = self._build_adaptive_step_mask(surprise) if adaptive_depth else None
         hf_out, hw_out = self.flow(
             hf_phased,
@@ -151,7 +181,7 @@ class ScarFieldEngine(nn.Module):
             num_steps=self.cfg.s2_steps,
             step_mask=step_mask,
         )
-        scores, max_w_cos = self.head.forward_scores(hf_out, hw_out)
+        scores, max_w_cos = self.head.forward_scores(hf_out, hw_out, bus_ctx=bus_ctx)
         v_pred = self.head.value_judge(hw_out)
         return {
             "scores": scores,
@@ -163,6 +193,7 @@ class ScarFieldEngine(nn.Module):
             "uscar_resonance": uscar_res,
             "max_world_cosine": max_w_cos,
             "value_pred": v_pred,
+            "loss_reflex": loss_reflex,
             "state": next_state,
         }
 
@@ -181,8 +212,11 @@ class ScarFieldEngine(nn.Module):
         v_pred = out["value_pred"]
         max_w_cos = out["max_world_cosine"]
 
-        # 1. Primary Zero-Softmax Tsallis-1.5 Spherical Cap Loss on next byte (`t -> t+1`)
-        loss_cap = tsallis15_fenchel_young_loss(scores[:, :-1, :], byte_ids[:, 1:]).mean()
+        # 1. Primary Zero-Softmax Tsallis-1.5 Spherical Cap Loss weighted by intrinsic local surprise `(1 + 3*s_{t+1})`
+        per_tok_cap = tsallis15_fenchel_young_loss(scores[:, :-1, :], byte_ids[:, 1:])
+        surp_w = 1.0 + 3.0 * surprise[:, 1:].detach()
+        loss_cap = (per_tok_cap * surp_w).sum() / surp_w.sum().clamp(min=1.0)
+        loss_reflex = out["loss_reflex"]
 
         # 2. `System One` Ghost-Jump Multi-Shock Geodesic Lookahead (`t -> t+2`) + `Juiz` Critic calibration
         if byte_ids.shape[1] > 2:
@@ -218,10 +252,18 @@ class ScarFieldEngine(nn.Module):
             excess = (max_w_cos[out_of_cone_mask] - (self.cfg.vacuum_kappa - 0.05)).clamp(min=0.0)
             loss_vac = (excess * excess).mean()
 
-        total = loss_cap + 0.20 * loss_ghost_jump + 0.15 * loss_judge + 0.50 * loss_align + 0.50 * loss_vac
+        total = (
+            loss_cap
+            + 0.30 * loss_reflex
+            + 0.20 * loss_ghost_jump
+            + 0.15 * loss_judge
+            + 0.50 * loss_align
+            + 0.50 * loss_vac
+        )
         return {
             "loss": total,
             "loss_cap": loss_cap.detach(),
+            "loss_reflex": loss_reflex.detach(),
             "loss_ghost_jump": loss_ghost_jump.detach(),
             "loss_judge": loss_judge.detach(),
             "loss_align": loss_align.detach(),
@@ -240,24 +282,33 @@ class ScarFieldEngine(nn.Module):
     ) -> ScarFieldReflexDecision:
         """Single-byte interactive inference with `S1/S2` adaptive depth + Zero-Copy Ghost-Jump Scouts."""
         dev = state.w_fast.device
-        if prev_byte_id is not None:
-            pair = torch.tensor([[prev_byte_id, byte_id]], dtype=torch.long, device=dev)
-            hf_seq, hw_seq, s_seq = self.frontend(pair)
-            hf_t, hw_t, s_t = hf_seq[:, 1], hw_seq[:, 1], s_seq[:, 1]
+        cur_t = torch.tensor([[byte_id]], dtype=torch.long, device=dev).clamp(0, self.cfg.vocab_size - 1)
+        if state.recent_len > 0:
+            hist = state.recent_bytes[:, -state.recent_len :].long()
+            win = torch.cat((hist, cur_t), dim=1)
+        elif prev_byte_id is not None:
+            win = torch.tensor([[prev_byte_id, byte_id]], dtype=torch.long, device=dev).clamp(0, self.cfg.vocab_size - 1)
         else:
-            single = torch.tensor([[byte_id]], dtype=torch.long, device=dev)
-            hf_seq, hw_seq, s_seq = self.frontend(single)
-            hf_t, hw_t, s_t = hf_seq[:, 0], hw_seq[:, 0], s_seq[:, 0]
+            win = cur_t
+        hf_seq, hw_seq, s_seq = self.frontend(win)
+        hf_t, hw_t, s_t = hf_seq[:, -1], hw_seq[:, -1], s_seq[:, -1]
 
+        hf_t, hw_t = self.flow_percept(hf_t, hw_t, hf_t, num_steps=2)
+        bus_anch = project_rows_to_unit_sphere(self.head.out_bus_anchors)
+        v_sym_t = bus_anch[cur_t.squeeze(0)]
         hf_phased, bus_ctx, uscar_res, _ = self.bus.step_pulse(
-            hf_t, hw_t, s_t, state=state, mutate_state=True
+            hf_t, hw_t, s_t, state=state, mutate_state=True, v_shock_hint_t=v_sym_t
         )
+        tail_n = min(4, win.shape[1])
+        state.recent_bytes.zero_()
+        state.recent_bytes[:, -tail_n:] = win[:, -tail_n:].to(torch.uint8)
+        state.recent_len = int(tail_n)
 
         use_s2 = bool(float(s_t[0].item()) >= self.cfg.s2_surprise_theta)
         k_steps = self.cfg.s2_steps if use_s2 else self.cfg.s1_steps
         hf_out, hw_out = self.flow(hf_phased, hw_t, bus_ctx, num_steps=k_steps)
 
-        scores, max_w_cos_t = self.head.forward_scores(hf_out, hw_out)
+        scores, max_w_cos_t = self.head.forward_scores(hf_out, hw_out, bus_ctx=bus_ctx)
         if apply_repulsive_anti_loop:
             # Penalize candidates whose world anchors collide with recently visited poles (`AURA` anti-loop)
             ww = project_rows_to_unit_sphere(self.head.out_world_anchors)  # [V, d_world]
@@ -300,13 +351,19 @@ class ScarFieldEngine(nn.Module):
             if n_b >= 2:
                 gj_used = True
                 # Batch-evaluate all `n_b` Scout branches in parallel with ZERO cloning of `state.w_fast`!
-                pair_b = torch.stack((torch.full_like(cand_ids, byte_id), cand_ids), dim=-1)  # [n_b, 2]
-                hf_b_all, hw_b_all, s_b_all = self.frontend(pair_b)
-                hf_b1, hw_b1, s_b1 = hf_b_all[:, 1], hw_b_all[:, 1], s_b_all[:, 1]
+                hist_b = state.recent_bytes[:, -state.recent_len :].long().expand(n_b, -1)
+                win_b1 = torch.cat((hist_b, cand_ids.unsqueeze(-1)), dim=1)  # [n_b, <=5]
+                hf_b_all, hw_b_all, s_b_all = self.frontend(win_b1)
+                hf_b1, hw_b1, s_b1 = hf_b_all[:, -1], hw_b_all[:, -1], s_b_all[:, -1]
+                hf_b1, hw_b1 = self.flow_percept(hf_b1, hw_b1, hf_b1, num_steps=2)
 
                 # Shallow view/broadcast of `state` tensors across `n_b` branches (`expand`, 0-byte copy!)
                 virt_st = KalmanBusState(
                     w_fast=state.w_fast.expand(n_b, -1, -1, -1),
+                    k_prev=state.k_prev.expand(n_b, -1),
+                    has_prev_key=state.has_prev_key.expand(n_b),
+                    recent_bytes=state.recent_bytes.expand(n_b, -1),
+                    recent_len=state.recent_len,
                     ring_keys=state.ring_keys.expand(n_b, -1, -1),
                     ring_vals=state.ring_vals.expand(n_b, -1, -1),
                     ring_valid=state.ring_valid.expand(n_b, -1),
@@ -318,30 +375,51 @@ class ScarFieldEngine(nn.Module):
                     repulsive_ring=state.repulsive_ring.expand(n_b, -1, -1),
                     repulsive_ptr=state.repulsive_ptr,
                 )
+                v_sym_b1 = bus_anch[cand_ids.clamp(0, self.cfg.vocab_size - 1)]
                 hf_p1, bus_1, _, delta_1 = self.bus.step_pulse(
-                    hf_b1, hw_b1, s_b1, state=virt_st, mutate_state=False
+                    hf_b1, hw_b1, s_b1, state=virt_st, mutate_state=False, v_shock_hint_t=v_sym_b1
                 )
                 hf_o1, hw_o1 = self.flow(hf_p1, hw_b1, bus_1, num_steps=self.cfg.s1_steps)
 
                 # Step 2 Ghost-Jump lookahead using `VirtualGhostJumpDelta` (`0 B` W_fast copy!)
-                sc_1, _ = self.head.forward_scores(hf_o1, hw_o1)
+                sc_1, _ = self.head.forward_scores(hf_o1, hw_o1, bus_ctx=bus_1)
                 next_top1 = sc_1.argmax(dim=-1)
-                pair_b2 = torch.stack((cand_ids, next_top1), dim=-1)
-                hf_b2_all, hw_b2_all, s_b2_all = self.frontend(pair_b2)
+                win_b2 = torch.cat((win_b1[:, -min(4, win_b1.shape[1]) :], next_top1.unsqueeze(-1)), dim=1)
+                hf_b2_all, hw_b2_all, s_b2_all = self.frontend(win_b2)
+                hf_b2, hw_b2 = self.flow_percept(hf_b2_all[:, -1], hw_b2_all[:, -1], hf_b2_all[:, -1], num_steps=2)
                 assert delta_1 is not None
                 v_delta = VirtualGhostJumpDelta(
                     keys=delta_1[0].unsqueeze(1),
                     delta_vals=delta_1[1].unsqueeze(1),
                 )
+                virt_st_2 = KalmanBusState(
+                    w_fast=virt_st.w_fast,
+                    k_prev=hf_b1[:, : self.cfg.d_key] if self.cfg.d_key <= hf_b1.shape[-1] else virt_st.k_prev,
+                    has_prev_key=virt_st.has_prev_key,
+                    recent_bytes=virt_st.recent_bytes,
+                    recent_len=virt_st.recent_len,
+                    ring_keys=virt_st.ring_keys,
+                    ring_vals=virt_st.ring_vals,
+                    ring_valid=virt_st.ring_valid,
+                    ring_ptr=virt_st.ring_ptr,
+                    proper_time=virt_st.proper_time,
+                    h_origin=virt_st.h_origin,
+                    has_origin=virt_st.has_origin,
+                    h_prev=hw_b1,
+                    repulsive_ring=virt_st.repulsive_ring,
+                    repulsive_ptr=virt_st.repulsive_ptr,
+                )
+                v_sym_b2 = bus_anch[next_top1.clamp(0, self.cfg.vocab_size - 1)]
                 hf_p2, bus_2, _, _ = self.bus.step_pulse(
-                    hf_b2_all[:, 1],
-                    hw_b2_all[:, 1],
+                    hf_b2,
+                    hw_b2,
                     s_b2_all[:, 1],
-                    state=virt_st,
+                    state=virt_st_2,
                     virtual_delta=v_delta,
                     mutate_state=False,
+                    v_shock_hint_t=v_sym_b2,
                 )
-                _, hw_o2 = self.flow(hf_p2, hw_b2_all[:, 1], bus_2, num_steps=self.cfg.s1_steps)
+                _, hw_o2 = self.flow(hf_p2, hw_b2, bus_2, num_steps=self.cfg.s1_steps)
 
                 v_j1 = self.head.value_judge(hw_o1)
                 v_j2 = self.head.value_judge(hw_o2)

@@ -121,8 +121,10 @@ class HorizonCulledSymplecticGenerator(nn.Module):
         self.scar_v = nn.Parameter(project_rows_to_unit_sphere(torch.randn(num_scars, target_dim)))
         self.scar_strength = nn.Parameter(torch.full((num_scars,), 0.45))
 
-        # Compress active scar contributions cleanly into `2` symplectic slots (`total_rank = base_rank + 2`)
-        self.total_rank = base_rank + 2
+        # Top-`m` (`m = 4`) active scars form independent symplectic planes `(sqrt(g_e) u_e, sqrt(g_e) v_e)`
+        # with zero cross-talk between distinct scars!
+        self.active_scar_slots = min(4, num_scars)
+        self.total_rank = base_rank + self.active_scar_slots
         self.last_active_scar_fraction: float = 0.0
 
     def forward(
@@ -145,11 +147,9 @@ class HorizonCulledSymplecticGenerator(nn.Module):
         if self.padded_in > raw.shape[-1]:
             pad = torch.zeros(flat_n, self.padded_in - raw.shape[-1], dtype=raw.dtype, device=raw.device)
             raw = torch.cat((raw, pad), dim=-1)
-        # Unit-sphere input normalization (parameter-free!)
         raw_unit = project_rows_to_unit_sphere(raw)
 
         uv_base = self.base_e8(raw_unit).reshape(flat_n, 2, self.target_dim, self.base_rank)
-        # Bound per-factor spectral scale smoothly via `x / sqrt(1 + ||x||^2)` (zero ReLU/tanh!)
         uv_norm = torch.linalg.vector_norm(uv_base, ord=2, dim=2, keepdim=True)
         uv_base = uv_base / torch.sqrt(1.0 + uv_norm * uv_norm)
         u_base = uv_base[:, 0]  # [N, D_t, r_b]
@@ -165,41 +165,17 @@ class HorizonCulledSymplecticGenerator(nn.Module):
 
         su = project_rows_to_unit_sphere(self.scar_u)  # [E, D_t]
         sv = project_rows_to_unit_sphere(self.scar_v)  # [E, D_t]
-        w_gates = gates * self.scar_strength.unsqueeze(0)  # [N, E]
+        eff = gates * self.scar_strength.abs().unsqueeze(0)  # [N, E] >= 0 (`0.0` outside horizon!)
 
-        # Hardware Horizon Culling fast-path when sparse during inference
-        if not torch.is_grad_enabled():
-            active_any = torch.nonzero(w_gates.abs().amax(dim=0) > 0.0, as_tuple=False).squeeze(-1)
-            if active_any.numel() == 0:
-                z2 = torch.zeros(flat_n, self.target_dim, 2, dtype=hc.dtype, device=hc.device)
-                u_all = torch.cat((u_base, z2), dim=-1).reshape(*lead_shape, self.target_dim, self.total_rank)
-                v_all = torch.cat((v_base, z2), dim=-1).reshape(*lead_shape, self.target_dim, self.total_rank)
-                return u_all, v_all
-            wg_sub = w_gates[:, active_any]
-            su_sub = su[active_any]
-            sv_sub = sv[active_any]
-        else:
-            wg_sub = w_gates
-            su_sub = su
-            sv_sub = sv
+        # Gather only top `active_scar_slots` horizon-resonant scars per state (`0.0` if outside horizon!)
+        top_g, top_idx = torch.topk(eff, k=self.active_scar_slots, dim=-1)  # [N, M]
+        amp = torch.sqrt(top_g.clamp(min=0.0) + 1e-12) * (top_g > 0.0).float()  # [N, M]
+        sgn = torch.sign(self.scar_strength[top_idx])
+        sgn = torch.where(sgn == 0.0, torch.ones_like(sgn), sgn)
 
-        # Split even/odd scars into 2 orthogonalized symplectic channels for richer rank-4 curvature
-        u_s0 = wg_sub[:, 0::2] @ su_sub[0::2]
-        v_s0 = sv_sub[0::2].mean(dim=0, keepdim=True).expand(flat_n, -1) if su_sub[0::2].shape[0] > 0 else torch.zeros_like(u_s0)
-        if wg_sub[:, 0::2].shape[1] > 0:
-            v_s0 = (wg_sub[:, 0::2].abs() + 1e-6) @ sv_sub[0::2]
-            v_s0 = v_s0 / torch.sqrt(1.0 + torch.sum(v_s0 * v_s0, dim=-1, keepdim=True))
-
-        if wg_sub[:, 1::2].shape[1] > 0:
-            u_s1 = wg_sub[:, 1::2] @ su_sub[1::2]
-            v_s1 = (wg_sub[:, 1::2].abs() + 1e-6) @ sv_sub[1::2]
-            v_s1 = v_s1 / torch.sqrt(1.0 + torch.sum(v_s1 * v_s1, dim=-1, keepdim=True))
-        else:
-            u_s1 = torch.zeros_like(u_s0)
-            v_s1 = torch.zeros_like(u_s0)
-
-        u_scar = torch.stack((u_s0, u_s1), dim=-1)
-        v_scar = torch.stack((v_s0, v_s1), dim=-1)
+        # `[N, M, D_t]` -> `[N, D_t, M]`: `Omega_scars = sum_m sgn_m * top_g_m * (u_m v_m^T - v_m u_m^T)`!
+        u_scar = (su[top_idx] * (amp * sgn).unsqueeze(-1)).transpose(1, 2)
+        v_scar = (sv[top_idx] * amp.unsqueeze(-1)).transpose(1, 2)
 
         u_all = torch.cat((u_base, u_scar), dim=-1).reshape(*lead_shape, self.target_dim, self.total_rank)
         v_all = torch.cat((v_base, v_scar), dim=-1).reshape(*lead_shape, self.target_dim, self.total_rank)

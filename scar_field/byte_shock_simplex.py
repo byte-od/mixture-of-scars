@@ -132,28 +132,61 @@ class ByteShockFrontEnd(nn.Module):
 
         self.byte_form_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_form)))
         self.byte_world_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_world)))
-        # Fast causal 2-byte reflex predictor on `S^{D_f-1}` to measure physical byte surprise `s_t in [0,1]`
-        self.reflex_shift = nn.Parameter(torch.eye(d_form) * 0.65 + 0.05 * torch.randn(d_form, d_form))
+        # Causal 4-byte perceptual wave mixer on `S^{D_f-1}` & `S^{D_w-1}` (distinguishes n-gram stems cleanly!)
+        self.ngram_weights = nn.Parameter(torch.tensor([1.0, 0.55, 0.30, 0.16], dtype=torch.float32))
+        # Zero-Softmax Tsallis-1.5 local 4-byte cap observer (`s_t = 1 - p_cap(b_t | b_{t-4..t-1})` in `[0, 1]`)
+        self.reflex_cap_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_form)))
+        self.reflex_temp = nn.Parameter(torch.tensor(8.0, dtype=torch.float32))
 
-    def forward(self, byte_ids: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self, byte_ids: torch.Tensor, return_reflex_loss: bool = False
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Maps `byte_ids [B, T]` -> `(h_form [B, T, D_f], h_world [B, T, D_w], surprise [B, T])`."""
         ids = byte_ids.long().clamp(0, self.vocab_size - 1)
         f_poles = project_rows_to_unit_sphere(self.byte_form_poles)
         w_poles = project_rows_to_unit_sphere(self.byte_world_poles)
 
-        hf = f_poles[ids]  # [B, T, D_f] (`||hf||_2 == 1`)
-        hw = w_poles[ids]  # [B, T, D_w] (`||hw||_2 == 1`)
+        hf_raw = f_poles[ids]  # [B, T, D_f]
+        hw_raw = w_poles[ids]  # [B, T, D_w]
 
-        # Measure instantaneous causal byte surprise `s_t = 0.5 * (1 - cos(pred_{t-1}, hf_t))`
-        if hf.shape[1] > 1:
-            pred_next = project_rows_to_unit_sphere(torch.matmul(hf[:, :-1, :], self.reflex_shift.T))
-            cos_hit = (pred_next * hf[:, 1:, :]).sum(dim=-1).clamp(-1.0, 1.0)
-            s_tail = (0.5 * (1.0 - cos_hit)).clamp(0.0, 1.0)
-            s_head = torch.ones(hf.shape[0], 1, dtype=hf.dtype, device=hf.device)
-            surprise = torch.cat((s_head, s_tail), dim=1)
+        # Causal 4-byte spherical wave superposition (`t, t-1, t-2, t-3`) with cyclic channel shifts
+        bsz, seq_len, _ = hf_raw.shape
+        nw = self.ngram_weights
+        hf_acc = nw[0] * hf_raw
+        hw_acc = nw[0] * hw_raw
+        for lag in (1, 2, 3):
+            if seq_len > lag:
+                pad_f = torch.zeros(bsz, lag, self.d_form, dtype=hf_raw.dtype, device=hf_raw.device)
+                pad_w = torch.zeros(bsz, lag, self.d_world, dtype=hw_raw.dtype, device=hw_raw.device)
+                shifted_f = torch.roll(torch.cat((pad_f, hf_raw[:, :-lag, :]), dim=1), shifts=lag * 2, dims=-1)
+                shifted_w = torch.roll(torch.cat((pad_w, hw_raw[:, :-lag, :]), dim=1), shifts=lag * 2, dims=-1)
+                hf_acc = hf_acc + nw[lag] * shifted_f
+                hw_acc = hw_acc + nw[lag] * shifted_w
+
+        hf = project_rows_to_unit_sphere(hf_acc)
+        hw = project_rows_to_unit_sphere(hw_acc)
+
+        # Measure true epistemic cap surprise `s_t = 1 - p_cap(b_t | stem_{t-1})` (ZERO `exp`/`log`/`Softmax`!):
+        #   - Deterministic filler (`p_cap -> 1.0`): `s_t -> 0.0` (exact `0.0` `W_fast` write, zero forgetting!)
+        #   - Uniform 10-digit PIN shock (`p_cap = 0.10`): `s_t = 0.90` (sharp `W_fast` write,immune to pole clustering!)
+        if seq_len > 1:
+            r_poles = project_rows_to_unit_sphere(self.reflex_cap_poles)
+            r_temp = self.reflex_temp.clamp(2.0, 24.0)
+            r_scores = r_temp * torch.matmul(hf[:, :-1, :].detach(), r_poles.T)  # [B, T-1, V]
+            next_ids = ids[:, 1:]
+            loss_reflex = tsallis15_fenchel_young_loss(r_scores, next_ids).mean()
+            with torch.no_grad():
+                p_local, _ = tsallis15_spherical_cap_probs(r_scores.detach())
+                p_hit = p_local.gather(dim=-1, index=next_ids.unsqueeze(-1)).squeeze(-1)
+                s_tail = (1.0 - p_hit).clamp(0.0, 1.0)
+            s_head = torch.ones(bsz, 1, dtype=hf.dtype, device=hf.device)
+            surprise = torch.cat((s_head, s_tail.to(hf.dtype)), dim=1)
         else:
-            surprise = torch.ones(hf.shape[0], hf.shape[1], dtype=hf.dtype, device=hf.device)
+            loss_reflex = hf.new_zeros(())
+            surprise = torch.ones(bsz, seq_len, dtype=hf.dtype, device=hf.device)
 
+        if return_reflex_loss:
+            return hf, hw, surprise, loss_reflex
         return hf, hw, surprise
 
     @torch.no_grad()
@@ -188,6 +221,7 @@ class SphericalCapSimplexHead(nn.Module):
         self,
         d_form: int,
         d_world: int,
+        d_bus: int = 64,
         vocab_size: int = 256,
         init_temp: float = 6.0,
         vacuum_kappa: float = 0.15,
@@ -195,11 +229,14 @@ class SphericalCapSimplexHead(nn.Module):
         super().__init__()
         self.d_form = d_form
         self.d_world = d_world
+        self.d_bus = d_bus
         self.vocab_size = vocab_size
         self.vacuum_kappa = vacuum_kappa
 
         self.out_form_anchors = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_form)))
         self.out_world_anchors = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_world)))
+        self.out_bus_anchors = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_bus)))
+        self.mix_weights = nn.Parameter(torch.tensor([0.38, 0.38, 0.95], dtype=torch.float32))
         self.temp_scale = nn.Parameter(torch.tensor(float(init_temp), dtype=torch.float32))
 
         # `AURA` Epistemic Coherence Judge `V(h_world) in (-1, +1)` for Ghost-Jump Scout scoring!
@@ -209,6 +246,7 @@ class SphericalCapSimplexHead(nn.Module):
         self,
         h_form: torch.Tensor,
         h_world: torch.Tensor,
+        bus_ctx: torch.Tensor | None = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Returns `(cap_scores [..., V], max_world_cosine [...])`."""
         wf = project_rows_to_unit_sphere(self.out_form_anchors)
@@ -218,8 +256,15 @@ class SphericalCapSimplexHead(nn.Module):
         cos_w = torch.matmul(h_world, ww.T)  # [..., V]
         max_w_cos = cos_w.amax(dim=-1)       # [...]
 
-        temp = self.temp_scale.clamp(1.0, 24.0)
-        scores = temp * (0.45 * cos_f + 0.55 * cos_w)
+        mw = self.mix_weights
+        comb = mw[0] * cos_f + mw[1] * cos_w
+        if bus_ctx is not None:
+            wb = project_rows_to_unit_sphere(self.out_bus_anchors)
+            cos_b = torch.matmul(bus_ctx, wb.T)
+            comb = comb + mw[2] * cos_b
+
+        temp = self.temp_scale.clamp(1.0, 28.0)
+        scores = temp * comb
         return scores, max_w_cos
 
     def value_judge(self, h_world: torch.Tensor) -> torch.Tensor:
@@ -232,13 +277,15 @@ class SphericalCapSimplexHead(nn.Module):
         self,
         h_form_1d: torch.Tensor,
         h_world_1d: torch.Tensor,
+        bus_ctx_1d: torch.Tensor | None = None,
         uscar_resonance: float = 0.0,
         require_world_support: bool = False,
         uncertainty_margin_thresh: float = 0.22,
         steps_executed: int = 1,
         ghost_jump_used: bool = False,
     ) -> ScarFieldReflexDecision:
-        scores, max_w_cos_t = self.forward_scores(h_form_1d.unsqueeze(0), h_world_1d.unsqueeze(0))
+        b_in = bus_ctx_1d.unsqueeze(0) if bus_ctx_1d is not None else None
+        scores, max_w_cos_t = self.forward_scores(h_form_1d.unsqueeze(0), h_world_1d.unsqueeze(0), bus_ctx=b_in)
         probs, _ = tsallis15_spherical_cap_probs(scores)
         p = probs[0]
         max_w_cos = max(float(max_w_cos_t[0].item()), float(uscar_resonance))
