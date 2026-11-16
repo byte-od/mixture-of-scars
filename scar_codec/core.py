@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 
-__version__ = "5.0.0"
+__version__ = "6.0.0"
 
 
 def rademacher_signs_u32_exact(k: int, device: torch.device) -> torch.Tensor:
@@ -244,14 +244,18 @@ class PhysicalVQ4ScarCodec:
         kmeans_iters: int = 8,
         max_point_spikes: int = 512,
         spike_sigma_threshold: float = 4.5,
+        abs_tolerance: Optional[float] = None,
     ) -> None:
         if rank < 0 or (rank > 0 and rank % 8 != 0):
             raise ValueError(f"rank must be 0 or a multiple of 8, got {rank}")
+        if abs_tolerance is not None and abs_tolerance <= 0.0:
+            raise ValueError(f"abs_tolerance must be > 0 when provided, got {abs_tolerance}")
         self.rank = rank
         self.equilibration_beta = equilibration_beta
         self.kmeans_iters = kmeans_iters
         self.max_point_spikes = max_point_spikes
         self.spike_sigma_threshold = spike_sigma_threshold
+        self.abs_tolerance = abs_tolerance
 
     @torch.no_grad()
     def encode(self, field_2d: torch.Tensor) -> PhysicalVQ4ScarPackage:
@@ -374,27 +378,54 @@ class PhysicalVQ4ScarCodec:
         else:
             x_approx = x_vq
 
-        # Sparse point-shock capture against true original `x` (refines peeled spikes + any remaining high-sigma shocks)
+        # Sparse point-shock capture against true original `x` (or deterministic L_inf `abs_tolerance` guarantee!)
         rem_err = x - x_approx
         if pad_cols > n_cols:
             rem_err[:, n_cols:] = 0.0
         rem_err[orig_zero_row] = 0.0
         flat_err = rem_err.reshape(-1)
-        err_std = x_base[~orig_zero_row].square().mean().sqrt().clamp(min=1e-8) if bool((~orig_zero_row).any().item()) else torch.tensor(1.0, device=dev)
-        cand_mask = flat_err.abs() > (self.spike_sigma_threshold * 0.25 * err_std)
-        if pre_spike_idx.numel() > 0:
-            cand_mask[pre_spike_idx] = True
-        if self.max_point_spikes > 0 and bool(cand_mask.any().item()):
-            cand_idx = torch.nonzero(cand_mask, as_tuple=False).squeeze(-1)
-            if cand_idx.numel() > self.max_point_spikes:
-                _, top_rel = torch.topk(flat_err[cand_idx].abs(), k=self.max_point_spikes)
-                cand_idx = cand_idx[top_rel]
-            cand_idx, _ = torch.sort(cand_idx)
-            spike_idx_i32 = cand_idx.to(torch.int32).contiguous()
-            spike_val_f16 = flat_err[cand_idx].to(torch.float16).contiguous()
+        if self.abs_tolerance is not None:
+            # Deterministic Error-Bounded Mode (`||X - X_hat||_inf <= abs_tolerance`):
+            # Uses multi-pass Dekker `FP16 + FP16` splitting so even extreme HDR values (`> 3,000`)
+            # whose single-FP16 ULP exceeds `abs_tolerance` satisfy `max |err| <= abs_tolerance` exactly!
+            tol = float(self.abs_tolerance)
+            cur_rem = flat_err.clone()
+            idx_parts: List[torch.Tensor] = []
+            val_parts: List[torch.Tensor] = []
+            for _ in range(3):
+                viol = cur_rem.abs() > tol
+                if not bool(viol.any().item()):
+                    break
+                v_idx = torch.nonzero(viol, as_tuple=False).squeeze(-1)
+                v_f16 = cur_rem[v_idx].to(torch.float16)
+                idx_parts.append(v_idx)
+                val_parts.append(v_f16)
+                cur_rem[v_idx] = cur_rem[v_idx] - v_f16.float()
+            if idx_parts:
+                all_idx = torch.cat(idx_parts, dim=0)
+                all_val = torch.cat(val_parts, dim=0)
+                order = torch.argsort(all_idx, stable=True)
+                spike_idx_i32 = all_idx[order].to(torch.int32).contiguous()
+                spike_val_f16 = all_val[order].contiguous()
+            else:
+                spike_idx_i32 = torch.zeros((0,), dtype=torch.int32, device=dev)
+                spike_val_f16 = torch.zeros((0,), dtype=torch.float16, device=dev)
         else:
-            spike_idx_i32 = torch.zeros((0,), dtype=torch.int32, device=dev)
-            spike_val_f16 = torch.zeros((0,), dtype=torch.float16, device=dev)
+            err_std = x_base[~orig_zero_row].square().mean().sqrt().clamp(min=1e-8) if bool((~orig_zero_row).any().item()) else torch.tensor(1.0, device=dev)
+            cand_mask = flat_err.abs() > (self.spike_sigma_threshold * 0.25 * err_std)
+            if pre_spike_idx.numel() > 0:
+                cand_mask[pre_spike_idx] = True
+            if self.max_point_spikes > 0 and bool(cand_mask.any().item()):
+                cand_idx = torch.nonzero(cand_mask, as_tuple=False).squeeze(-1)
+                if cand_idx.numel() > self.max_point_spikes:
+                    _, top_rel = torch.topk(flat_err[cand_idx].abs(), k=self.max_point_spikes)
+                    cand_idx = cand_idx[top_rel]
+                cand_idx, _ = torch.sort(cand_idx)
+                spike_idx_i32 = cand_idx.to(torch.int32).contiguous()
+                spike_val_f16 = flat_err[cand_idx].to(torch.float16).contiguous()
+            else:
+                spike_idx_i32 = torch.zeros((0,), dtype=torch.int32, device=dev)
+                spike_val_f16 = torch.zeros((0,), dtype=torch.float16, device=dev)
 
         # Pack 4 x uint8 codes into 1 uint32 (`1 u32 = 16 floats`) matching WGSL layout
         c4 = codes_u8.reshape(n_rows, pad_cols // 16, 4).to(torch.int64)

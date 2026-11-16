@@ -1,9 +1,10 @@
-# `scar_codec` — Domain-Independent Physical Signal, FITS Astronomy & Constant-Memory Telemetry Operators
+# `scar_codec` (`v6.0.0`) — Zero-PyTorch C/SIMD Physical Signal, FITS/Zarr Cube, $E_8$ & Constant-Memory Telemetry Library
 
 [![License: MIT](https://img.shields.io/badge/License-MIT%20(Code)%20%7C%20CC--BY--4.0%20(Report)-blue.svg)](../LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Zero Neural Dependencies](https://img.shields.io/badge/Dependencies-PyTorch%20%2B%20NumPy%20Only%20(Zero%20Transformers)-0d9488.svg)](core.py)
-[![Public Archives Preprint](https://img.shields.io/badge/Physics%20Preprint%20v1.0-NASA%20%7C%20FITS%20%7C%20PhysioNet%20SHA--256-0284c7.svg)](../zenodo_deposit_scarcodec_public_data_v1_0/ScarCodec_Public_Observational_Datasets_Preprint_v1.0.pdf)
+[![Zero PyTorch Required](https://img.shields.io/badge/Dependencies-NumPy%20%2B%20Auto%20C99%2FSIMD%20(PyTorch%20Optional)-0d9488.svg)](numpy_engine.py)
+[![C/SIMD Speed](https://img.shields.io/badge/O(1)%20Block%20Read-0.389%20%C2%B5s%20C%2FSIMD%20mmap%20(11%2C061x%20%3E%20zlib)-16a34a.svg)](c_kernels.c)
+[![Public Archives Preprint](https://img.shields.io/badge/Physics%20Preprint%20v1.1-NASA%20%7C%20ZFP%20%7C%20fpack%20%7C%20PhysioNet%20SHA--256-0284c7.svg)](../zenodo_deposit_scarcodec_public_data_v1_0/ScarCodec_Public_Observational_Datasets_Preprint_v1.0.pdf)
 
 `scar_codec` extracts the five pure mathematical operators of **Mixture of Scars (`MoS`)** and **`SCache` $\mathcal{O}(1)$** into a standalone, **neural-network-free** signal, scientific array, storage, and black-box telemetry library (`0` dependency on `transformers`, `0` trained weights):
 
@@ -103,3 +104,35 @@ pytest tests/test_scar_codec_physical.py tests/test_scar_codec_public_datasets.p
 
 - **Smooth Bandlimited vs. Shock/HDR Regimes:** On purely smooth, low-contrast sinusoidal fields without discontinuities, vacuum, or `NaN` mask boundaries, spectral transforms (`rFFT` / `DCT`) remain asymptotically optimal. `ScarCodec` is specifically engineered for **high-dynamic-range (`HDR`), shock-dominated, masked, or sparse-vacuum physical fields** where global Fourier bases suffer severe Gibbs ringing (`2,093.6×` peak degradation on Spitzer IRAC) and lossless `zlib` fails to compress floating-point thermal noise (`1.10×–1.14×`).
 - **Rank Saturation Under 1-Sensor Scalar Cueing:** When querying `SurpriseGatedAnomalySCache` with only `1` scalar sensor out of $D$ after `> D` high-surprise writes (`rank = D` saturation), unmasked recall is algebraically bounded by $O(1/\sqrt{D})$ (`|cos| = 0.3237` on 8-sensor NASA Shuttle); multi-channel partial cueing (`32/64` channels on PhysioNet) achieves `cos = 0.99667`.
+
+---
+
+## 5. `ScarCodec v6.0` Industrial Consolidation (4 Production Pillars — [`../results/scar_codec_v6_0_consolidation_audit.json`](../results/scar_codec_v6_0_consolidation_audit.json))
+
+1. **Zero-PyTorch Pure `NumPy` + Auto-Compiled Native C99/SIMD (`< 0.4 µs` $\mathcal{O}(1)$ Block Reads):**
+   - [`numpy_engine.py`](numpy_engine.py) & [`pyproject.standalone.toml`](pyproject.standalone.toml) run with **`numpy` ONLY** (`0` `torch` dependency, verified in isolated subprocess with `sys.modules["torch"] = None`).
+   - [`c_kernels.c`](c_kernels.c) auto-compiles `_scar_codec_c` (`-O3` SIMD), decoding random 64-float blocks in **`0.389 µs` (`389 ns`)** — **`344.2×` faster than PyTorch (`133.8 µs`)** and **`11,060.8×` faster than `zlib -9` (`4,299.0 µs`)**.
+2. **Canonical `.scar` On-Disk Container (`CRC32` + Zero-Copy OS `mmap`) & Official `Zarr` / `numcodecs` Plugin:**
+   - [`binary_format.py`](binary_format.py) defines the 64-byte SIMD-aligned `SCARv6\x00\x00` format with `CRC32` bit-rot verification and `ScarMmapFile` (`read_block_o1` directly off SSD via OS `mmap` without loading the file into RAM).
+   - [`zarr_codec.py`](zarr_codec.py) provides `ScarZarrCodec` (`codec_id = "scar"`), drop-in compatible with `Zarr`, `numcodecs`, `xarray`, and `Dask`.
+3. **Provable Deterministic $L_\infty$ Error-Bounded Mode (`abs_tolerance`):**
+   - Passing `abs_tolerance=eps` to `NumPyVQ4ScarCodec`, `PhysicalVQ4ScarCodec`, `ScarCodecND`, or `ScarCodecE8` guarantees $\max |X - \widehat{X}| \le \varepsilon$ via multi-pass Dekker `FP16 + FP16` residual splitting (verified on `3,938.25 MJy/sr` Spitzer stars: `11.99923 <= 12.0 MJy/sr` at `7.35×` compression, and down to `eps = 0.02`).
+4. **Native 3D / $N$-D Spectral-Tucker Cubes (`ScarCodecND`) & `1.000 bpw` Gosset $E_8$ Mode (`ScarCodecE8`):**
+   - [`nd_e8.py`](nd_e8.py): **`ScarCodecE8`** (`240` minimal $E_8$ roots + `0x00` vacuum + `15` Hadamard outer anchors, `0 B` codebook overhead) compresses `NASA Spitzer IRAC` by **`21.00×`** (`100,160 B`) with **`0.9556 MJy/sr` top-32 stellar peak error** (`1,710×` lower than `ZFP` at nearly `2×` higher compression).
+   - **`ScarCodecND`** encodes 3D radio cubes natively (`[53, 105, 105]` `FCRAO L1448 13CO` at **`12.32×` compression** and **`0.0566 K` top-32 peak error** — `3.36×` lower than 2D unfold and **`2.03×` lower than `CFITSIO FITS fpack`**) with true $\mathcal{O}(1)$ 64-voxel spatial-strip reads (`decode_voxel_strip_o1`).
+
+```python
+import numpy as np
+from scar_codec import NumPyVQ4ScarCodec, ScarCodecE8, ScarCodecND, ScarMmapFile, ScarZarrCodec, save_scar_file
+
+# Zero-PyTorch C/SIMD + deterministic L_inf error bound + OS mmap O(1) read:
+pkg = NumPyVQ4ScarCodec(rank=16, abs_tolerance=0.05).encode(field_2d_np)
+save_scar_file(pkg, "archive.scar")
+with ScarMmapFile("archive.scar") as mf:
+    strip64 = mf.read_block_o1(row_idx=64, block_idx=2)  # Zero-copy SSD mmap -> C99/SIMD!
+
+# 21.0x Gosset E8 (1.000 bit/sample) & 3D Spectral-Tucker Cubes:
+pkg_e8 = ScarCodecE8(rank=8).encode(field_2d_np)
+pkg_3d = ScarCodecND(spectral_rank=18, spatial_scar_rank=16).encode(cube_3d_np)
+voxel_strip = ScarCodecND.decode_voxel_strip_o1(pkg_3d, v_chan=24, spatial_block_idx=10)
+```

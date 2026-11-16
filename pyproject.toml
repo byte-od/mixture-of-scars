@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mixture-of-scars"
-version = "5.0.0"
-description = "Mixture of Scars (MoS) v5.0, Pure Scar-Native Foundation Engine, SCache O(1) & ScarCodec: Tabula-Rasa D4-Lattice VQ4-STE Pretraining, End-to-End O(1) Widrow-Hoff Fast-Weights, 100% Detached Language-Nullspace Cartridges, 22-Shader WebGPU WGSL 1.0 & Physical Signal/Telemetry/CFD Operators"
+version = "6.0.0"
+description = "Scar Architecture Ecosystem (v6.0 / ScarField v7.0): ScarNativeLM v6.0, PointScarFlow 3D, ScarField v7.0 (1.000 bpw E8 Post-Transformer), Mixture of Scars (MoS up to 72.71B), SCache O(1) & ScarCodec v6.0 (Zero-PyTorch C/SIMD + Zarr + E8 + 3D)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -67,6 +67,8 @@ include = ["scar_cache*", "mixture_of_scars*", "scar_codec*", "scar_native*", "s
 
 [tool.setuptools.package-data]
 scar_cache = ["webgpu/*.wgsl", "webgpu/app/*"]
+scar_codec = ["c_kernels.c", "pyproject.standalone.toml"]
+scar_native = ["*.wgsl"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

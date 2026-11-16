@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+*.dylib
 
 # Distribution / packaging
 .Python
@@ -78,6 +79,7 @@ data/public_physical_benchmarks/*
 !artifacts/scarnative_v6/*.bin
 !artifacts/scarnative_v6/*.scarstore
 artifacts/*.tar.gz
+artifacts/scarfield_v7*/
 webgpu_dist/
 
 # macOS

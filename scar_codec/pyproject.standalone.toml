@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scar-codec"
+version = "6.0.0"
+description = "Zero-PyTorch Domain-Independent Physical Signal, FITS Astronomy, Zarr & Constant-Memory Telemetry Scar Operators (NumPy + Native C/SIMD < 1 us O(1) Block Read)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "Julio Cesar Reis Filho" }
+]
+dependencies = [
+    "numpy>=1.22.0",
+]
+
+[project.optional-dependencies]
+zarr = ["numcodecs>=0.12.0", "zarr>=2.16.0"]
+torch = ["torch>=2.0.0"]
+
+[project.scripts]
+scar-codec = "scar_codec.cli:main_cli"
