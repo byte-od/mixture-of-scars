@@ -178,10 +178,10 @@ def build_pdf_v4_0(pdf_path: Path, hero_png: Path):
         "<b>(3) Closed-Form 140 KB <code>HeadExpandedScarStore</code> &amp; Language-Nullspace <code>GoldenSliceScarStore v4.0</code></b> achieve 98.61% unseen 72.7B parity (0 SGD), "
         "18 &mu;s RAM / 7.64 ms <code>0x00</code> SSD GDPR unlearning, and <b>164/164 (100.0%)</b> cross-lingual HTTP 206 routing across PT/EN/ES/FR via <i>P</i><sub>&perp;lang</sub> = <b>I</b> &minus; <b>U</b><sub>lang</sub><b>U</b><sub>lang</sub><sup>T</sup> (<i>k</i><sub>lang</sub>=14 at Layer 23/36); "
         "<b>(4) Sinkhorn Monomial–Procrustes Re-Basin</b> cuts shared-base KL by <b>56.36x</b> on specialists and <b>14.68x</b> across 12 layers at 0 extra FLOPs; and "
-        "<b>(5) Domain-Independent Physical <code>ScarCodec</code> (<code>mos-scar-codec</code>)</b> spans 12 hardware, storage, aerospace, and scientific domains with 3 audited proofs: "
-        "&minus;60 dB (1,000x) radio-telescope RFI recovery (<b>cos=0.9752</b> vs 0.0249 VLBI 2-bit at 8.67x compression), <b>34.8 KB (34,816 B, &Delta;=0 B)</b> avionics black-box SCache "
-        "(<b>100% 5/5</b> early fault recall vs 0% circular buffer), and [512,512] supersonic CFD/500x-HDR compression (<b>12.05x</b>, <b>75.0x lower RMSE</b> &amp; <b>3,858x lower spike error</b> "
-        "than 2D FFT, exact 0.0 vacuum error, 9.2x faster O(1) block read than <code>zlib -9</code>). All <b>114/114 pytest checks</b> across 29 suites pass with <b>0.00 B</b> storage discrepancy.",
+        "<b>(5) Domain-Independent Physical <code>ScarCodec</code> (<code>mos-scar-codec</code>)</b> spans 12 hardware, storage, aerospace, and scientific domains across 3 controlled benchmark-phantom proofs: "
+        "blind noisy-covariance &minus;60 dB (1,000x) radio-telescope RFI recovery (<b>cos=0.9753</b> vs 0.0252 VLBI 2-bit at 8.67x compression, zero oracle steering), <b>34.8 KB (34,816 B, &Delta;=0 B)</b> avionics black-box SCache "
+        "(<b>100% 5/5</b> early fault recall vs 0% circular buffer, reconstructing 4 unseen masked channels from a 2-channel cue at <b>cos=0.9999</b>), and [512,512] conservative Rusanov 2D Burgers shockwave PDE/500x-HDR compression (<b>12.05x</b>, <b>188.2x lower RMSE</b> &amp; <b>3,445x lower spike error</b> "
+        "than byte-matched FP16 2D <code>rFFT</code>, exact 0.0 vacuum error, 10.2x faster O(1) block read than <code>zlib -9</code>). All <b>114/114 pytest checks</b> across 29 suites pass with <b>0.00 B</b> storage discrepancy.",
         s_abs_box,
     ))
     story.append(HRFlowable(width="100%", thickness=0.8, color=colors.HexColor("#CBD5E1"), spaceAfter=3.6))
@@ -195,7 +195,7 @@ def build_pdf_v4_0(pdf_path: Path, hero_png: Path):
             "<b>(C)</b> Unified Native + 20-Shader WebGPU 3B polyglot Pareto (PT/EN/ES/FR): VQ4-Scar breaks &lt;1.00 GiB (0.992 GiB) while ProtectedInt4Scar + P_&perp;CJK reaches KL=0.6938 (0% CJK leak, cos=1.00000012, ~21 tok/s). "
             "<b>(D)</b> 140 KB HTTP 206 cartridges slash 72.7B&rarr;3B KL up to 98x (0 SGD) and hit 164/164 (100%) polyglot routing via P_&perp;lang. "
             "<b>(E)</b> Sinkhorn Re-Basin cuts shared-base KL by 56.4x (specialists), 3.4x (3B pair), and 14.7x (12 layers). "
-            "<b>(F)</b> Standalone ScarCodec physical proofs: &minus;60 dB RFI recovery (97.5% cos), 34.8 KB black-box SCache (5/5 recall), and [512,512] CFD/HDR (75x lower RMSE than FFT, 0.0 vacuum error).",
+            "<b>(F)</b> Standalone ScarCodec controlled benchmark proofs: blind &minus;60 dB RFI recovery (97.5% cos), 34.8 KB partial-cue black-box SCache (5/5 recall, masked cos=0.9999), and [512,512] Rusanov Burgers PDE/HDR (188.2x lower RMSE than byte-matched FP16 2D rFFT, 0.0 vacuum error).",
             s_caption,
         ),
     ]))
@@ -324,9 +324,9 @@ def build_pdf_v4_0(pdf_path: Path, hero_png: Path):
 
     t6 = [
         ["Physical Benchmark & Geometry", "Conventional Baseline", "Baseline Failure Mode", "ScarCodec v4.0 Stack", "Compressed Size", "Audited Physical Result"],
-        ["1. Radio Telescope [64, 4096] (-60 dB SIR, 1,000x RFI)", "Raw Beam / 2-Bit VLBI + Null", "cos=0.0044 / 0.0249 (0.0 dB: clipped RFI aliases)", "P_perp_RFI (r=2) + VQ4-Scar (FWHT-64 + 2-Pass INT4)", "120,960 B (8.67x vs 1.00 MiB)", "cos=0.97516 (+13.09 dB SNR) · Out-of-cone err 1.86e-8!"],
-        ["2. Avionics / CubeSat Black-Box (50,000 x 64, 12.8 MB)", "Equal-Byte Circular Ring O(T) (256 frames)", "0/5 (0.0% recall: overwritten 195x by cruise)", "SurpriseGatedAnomalySCache (32 slots + W_scar)", "34,816 B (34.8 KB, Delta=0 B!)", "5/5 (100.0% fault recall) · cos=0.99883 · 38,573 FPS!"],
-        ["3. Supersonic CFD + 40% Vacuum + 500x HDR [512, 512]", "zlib -9 (1.84x, no O(1)) / Matched 2D FFT (86.5 KB)", "FFT RMSE=6.152, vac ring 3.38, HDR err 480.01", "MAD Spike Peel + VQ4-Scar (Block-64 O(1) Layout)", "87,040 B (12.05x vs 1.00 MiB)", "RMSE=0.0820 (75.0x down), vac=0.0, HDR 3,858x down, 9.2x Rd!"],
+        ["1. Radio Telescope [64, 4096] (-60 dB SIR, 1,000x RFI)", "Raw Beam / 2-Bit VLBI + Null", "cos=0.0044 / 0.0252 (0.0 dB: clipped RFI aliases)", "Blind P_perp_RFI (r=2) + VQ4-Scar (FWHT-64 + 2-Pass INT4)", "120,960 B (8.67x vs 1.00 MiB)", "cos=0.97527 (+13.11 dB SNR) · Out-of-cone err 2.75e-4!"],
+        ["2. Avionics / CubeSat Black-Box (50,000 x 64, 12.8 MB)", "Equal-Byte Circular Ring O(T) (256 frames)", "0/5 (0.0% recall: overwritten 195x by cruise)", "SurpriseGatedAnomalySCache (32 slots + W_scar)", "34,816 B (34.8 KB, Delta=0 B!)", "5/5 (100.0% recall) · Masked 4-ch cos=0.9999 · 37,501 FPS!"],
+        ["3. Rusanov 2D Burgers PDE + 40% Vac + 500x HDR [512,512]", "zlib -9 (1.87x, no O(1)) / Byte-Matched FP16 2D rFFT", "rFFT RMSE=5.742, vac ring 5.44, HDR err 418.34", "MAD Spike Peel + VQ4-Scar (Block-64 O(1) Layout)", "87,040 B (12.05x vs 1.00 MiB)", "RMSE=0.0305 (188.2x down), vac=0.0, HDR 3,445x down, 10.2x Rd!"],
     ]
     story.append(KeepTogether([
         styled_table(t6, [1.26 * inch, 1.06 * inch, 1.18 * inch, 1.24 * inch, 0.96 * inch, 1.78 * inch], s_th, s_td, bold_rows=(1, 2, 3)),
@@ -393,9 +393,10 @@ def sync_huggingface_space():
 
 
 def audit_latex_and_pack(zip_out: Path):
-    tex = (LATEX_DIR / "main.tex").read_text(encoding="utf-8")
-    bib = (LATEX_DIR / "references.bib").read_text(encoding="utf-8")
-    bbl = (LATEX_DIR / "main.bbl").read_text(encoding="utf-8")
+    v4_dir = LATEX_DIR / "revisions" / "v4_0"
+    tex = (v4_dir / "main.tex").read_text(encoding="utf-8")
+    bib = (v4_dir / "references.bib").read_text(encoding="utf-8")
+    bbl = (v4_dir / "main.bbl").read_text(encoding="utf-8")
 
     # Enforce strict v4.0 scope boundary (zero mention of v5.0 Pure Scar-Native)
     for name_check, content_check in (("main.tex", tex), ("references.bib", bib), ("main.bbl", bbl)):
@@ -431,26 +432,23 @@ def audit_latex_and_pack(zip_out: Path):
     bbl_keys = set(re.findall(r"\\bibitem(?:\[[^\]]*\])?\{([^}]+)\}", bbl))
     cited = {k.strip() for m in re.finditer(r"\\cite\w*\{([^}]+)\}", clean_tex) for k in m.group(1).split(",")}
     assert not (cited - bib_keys), f"Missing cites in .bib: {cited - bib_keys}"
-    assert not (cited - bbl_keys), f"Missing cites in .bbl (arXiv required): {cited - bbl_keys}"
+    assert not (cited - bbl_keys), f"Missing cites in .bbl: {cited - bbl_keys}"
     assert bib_keys == bbl_keys, f".bib / .bbl mismatch: {bib_keys ^ bbl_keys}"
 
     labels = set(re.findall(r"\\label\{([^}]+)\}", clean_tex))
     refs = set(re.findall(r"\\(?:eq)?ref\{([^}]+)\}", clean_tex))
     assert not (refs - labels), f"Missing refs: {refs - labels}"
 
-    with zipfile.ZipFile(zip_out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for p in sorted(LATEX_DIR.rglob("*")):
-            if p.is_file() and not p.name.startswith(".") and p.suffix != ".png" and "v3_audit" not in p.name:
-                zf.write(p, arcname=str(p.relative_to(LATEX_DIR)))
+    fig_pdf = LATEX_DIR / "figures" / "fig1_mos_scache_v4_audit.pdf"
+    (v4_dir / "figures").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(fig_pdf, v4_dir / "figures" / "fig1_mos_scache_v4_audit.pdf")
 
-    arxiv_clean_zip = OUT_DIR / "arXiv_Direct_Upload_v4.0.zip"
-    with zipfile.ZipFile(arxiv_clean_zip, "w", compression=zipfile.ZIP_DEFLATED) as azf:
-        for rel_name in ("main.tex", "main.bbl", "figures/fig1_mos_scache_v4_audit.pdf"):
-            azf.write(LATEX_DIR / rel_name, arcname=rel_name)
-    print(
-        f"[LATEX v4.0 AUDIT PASS] {len(cited)}/{len(bbl_keys)} bbl cites | "
-        f"{len(labels)} labels | {arxiv_clean_zip.name} ({arxiv_clean_zip.stat().st_size} B)"
-    )
+    with zipfile.ZipFile(zip_out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for rel_name in ("Makefile", "main.tex", "references.bib", "main.bbl", "figures/fig1_mos_scache_v4_audit.pdf"):
+            fp = v4_dir / rel_name
+            if fp.exists():
+                zf.write(fp, arcname=rel_name)
+    print(f"[ZENODO v4.0 LATEX AUDIT PASS] {len(cited)}/{len(bbl_keys)} bbl cites | {len(labels)} labels | {zip_out.name}")
 
 
 def build_replication_zip_v4_0(zip_path: Path):
@@ -525,14 +523,37 @@ def main():
     hero_png = OUT_DIR / "mos_scache_v4_0_hero.png"
     shutil.copy2(src_png, hero_png)
 
+    for stale_f in ("arXiv_Direct_Upload_v4.0.zip", "MoS_SCache_LaTeX_arXiv_TMLR_v4.0.zip"):
+        if (OUT_DIR / stale_f).exists():
+            (OUT_DIR / stale_f).unlink()
+
     pdf_v40 = OUT_DIR / "Mixture_of_Scars_and_SCache_Preprint_v4.0.pdf"
     rep_v40 = OUT_DIR / "MoS_SCache_Adversarial_Replication_v4.0.zip"
-    tex_v40 = OUT_DIR / "MoS_SCache_LaTeX_arXiv_TMLR_v4.0.zip"
+    tex_v40 = OUT_DIR / "MoS_SCache_LaTeX_Source_v4.0.zip"
 
     build_pdf_v40_ok = build_pdf_v4_0(pdf_v40, hero_png)
     _ = build_pdf_v40_ok
     build_replication_zip_v4_0(rep_v40)
     audit_latex_and_pack(tex_v40)
+    import json as _json
+    (OUT_DIR / "ZENODO_METADATA_v4.0.json").write_text(
+        _json.dumps(
+            {
+                "upload_type": "publication",
+                "publication_type": "preprint",
+                "version": "4.0.0",
+                "publication_date": "2026-11-16",
+                "title": "Mixture of Scars (MoS) v4.0, SCache O(1), and Domain-Independent ScarCodec: Unified Native & 20-Shader WebGPU Scar Operators, <24 GB 72.7B Compression, Language-Invariant 140 KB HTTP 206 Cartridges, and Forensic Signal/PDE Proofs",
+                "creators": [{"name": "Reis Filho, Julio Cesar da Costa", "affiliation": "Byte-OD Research & System One Architecture Lab"}],
+                "license": "cc-by-4.0",
+                "keywords": ["Mixture of Scars", "SCache O(1)", "VQ4-Scar", "WebGPU WGSL", "ScarCodec", "Widrow-Hoff Fast Weights", "Nullspace Projection"],
+                "related_identifiers": [{"identifier": "https://github.com/byte-od/mixture-of-scars", "relation": "isSupplementTo", "scheme": "url"}],
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
     print(f"✓ Built {pdf_v40} ({pdf_v40.stat().st_size / 1024:.1f} KB)")
     print(f"✓ Built {rep_v40} ({rep_v40.stat().st_size / 1024:.1f} KB)")
 

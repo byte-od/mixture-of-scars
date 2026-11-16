@@ -1,0 +1,36 @@
+{
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "version": "1.0.0",
+  "publication_date": "2026-11-16",
+  "title": "Empirical Evaluation of Domain-Independent ScarCodec Operators on Public Observational Astronomy, Spacecraft Telemetry, and 64-Channel Biomedical Sensor Archives",
+  "creators": [
+    {
+      "name": "Reis Filho, Julio Cesar da Costa",
+      "affiliation": "Byte-OD Research & System One Architecture Lab"
+    }
+  ],
+  "license": "cc-by-4.0",
+  "keywords": [
+    "ScarCodec",
+    "Scientific Data Compression",
+    "FITS Astronomy",
+    "NASA Spitzer IRAC",
+    "NASA Space Shuttle Telemetry",
+    "PhysioNet EEG",
+    "D4 Lattice Quantization",
+    "Constant-Memory Anomaly Detection"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.24172784",
+      "relation": "isSupplementedBy",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "https://github.com/byte-od/mixture-of-scars",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

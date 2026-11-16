@@ -1,0 +1,153 @@
+\pdfoutput=1
+% ==============================================================================
+% Dedicated Standalone Empirical Preprint — ScarCodec on Real Public Archives
+% Zenodo Preprint (Applied Physics, Signal Processing & Observational Astronomy)
+% ==============================================================================
+\documentclass[10pt,twocolumn]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=0.64in,columnsep=0.22in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!65!black]{hyperref}
+
+\newtheorem{proposition}{Proposition}
+
+\title{\textbf{Empirical Evaluation of Domain-Independent \texttt{ScarCodec} Operators on Public Observational Astronomy, Spacecraft Telemetry, and 64-Channel Biomedical Sensor Archives}}
+
+\author{
+  \textbf{Julio Cesar Reis Filho}\\
+  Byte-OD Research \& System One Architecture Lab\\
+  \texttt{Companion Software Archive: \href{https://github.com/byte-od/mixture-of-scars}{github.com/byte-od/mixture-of-scars}} \quad|\quad
+  \texttt{Framework DOI: \href{https://doi.org/10.5281/zenodo.24172784}{10.5281/zenodo.24172784}}
+}
+
+\date{November 16, 2026 \quad (Dedicated Zenodo Empirical Report \texttt{v1.0} --- Zero Synthetic Signals, Zero Oracle Steering, SHA-256 Verified Public Archives)}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Earlier controlled evaluations of \texttt{ScarCodec}~\citep{reisfilho2026mos_zenodo} relied on synthetic PDE and antenna-array phantoms to isolate individual failure modes of conventional compressors and circular flight recorders. In this dedicated empirical study, we evaluate the \textbf{unmodified}, neural-network-free \texttt{scar\_codec} operators (\texttt{PhysicalVQ4ScarCodec}, \texttt{OrthogonalSubspaceProjector}, and \texttt{SurpriseGatedAnomalySCache}) directly on \textbf{five SHA-256-verified public observational and experimental datasets} spanning four physical sciences, with zero synthetic noise injection and zero oracle steering:
+(1) \textbf{64-Channel Biopotential Sensor Array (\texttt{PhysioNet EEGMMIDB v1.0.0}~\citep{schalk2004bci2000,goldberger2000physionet})}: calibrating $\mathbf{P}_\perp$ ($r=4$) strictly on a separate eyes-open baseline run (\texttt{S001R01.edf}, where ocular/common-mode artifacts carry $92.26\%$ of raw variance) and compressing the held-out motor-imagery run (\texttt{S001R04.edf}, $[64, 19968]$ FP32 $= 5.11$~MB) at $\mathbf{10.47\times}$ ($488{,}192$~B vs.\ $3.17\times$ \texttt{zlib -9}) achieves $\mathbf{+14.63}$~\textbf{dB} cortical array SNR ($\cos=0.98267$, $+2.69$~dB over unshielded VQ4 and $+13.54$~dB over $2$-bit scalar ADC) and $\mathbf{+8.40}$~\textbf{dB} on the model-free Hjorth surface Laplacian~\citep{hjorth1975onlinesource} over primary motor cortex \texttt{C3} (vs.\ $-4.85$~dB for $2$-bit ADC);
+(2) \textbf{Constant-Memory $\mathcal{O}(1)$ Anomaly Telemetry}: on chronological $64$-channel \texttt{PhysioNet} monitoring ($39{,}520\times 64 = 10.12$~MB FP32), exact $\mathbf{34{,}816}$~\textbf{B} ($\Delta=0$~B) \texttt{SCache} retains $3/3$ early baseline paroxysms across $20{,}000$ subsequent task frames ($0/3$ in an equal-byte $256$-frame circular ring) and reconstructs $32$ masked odd electrodes from $32$ even electrodes at $\cos=\mathbf{0.99667}$; on \textbf{\texttt{NASA Space Shuttle} radiator telemetry} (\texttt{Statlog Shuttle}~\citep{michie1994statlog}, $14{,}500\times 8$ sensors), default \texttt{SCache} ($\Delta=0$~B) retains $\mathbf{6/6}$ ($\mathbf{100.0\%}$) of ultra-rare critical Bypass Valve Open/Close faults ($0.0414\%$ prevalence) vs.\ $0/6$ ($0.0\%$) in an equal-byte ring buffer, while revealing predictable rank-$8$ saturation ($\cos=0.3237$) when $99$ secondary excursions co-write into an $8\times 8$ fast-weight matrix; and
+(3) \textbf{Space Infrared, Submillimeter \& Radio FITS Archives (\texttt{NASA Spitzer IRAC}~\citep{fazio2004irac}, \texttt{CSO Bolocam Sgr A*}~\citep{ginsburg2013bolocam}, and \texttt{FCRAO 14-m L1448 $^{13}$CO}~\citep{ridge2006complete})}: whereas \texttt{zlib -9} stalls at $1.10\times$--$1.14\times$ on real IEEE-754 FITS~\citep{pence2010fits} floats, \texttt{ScarCodec} achieves $\mathbf{11.77\times\text{--}12.27\times}$ compression with $\mathbf{23.2\times\text{--}34.7\times}$ faster $\mathcal{O}(1)$ random $64$-sample block reads ($\Delta\text{block}=0.0$) and exhibits a monotonic high-dynamic-range (HDR) scaling law over strictly byte-matched IEEE-754 FP16 2D \texttt{rFFT}, reducing top-$32$ source photometry errors by $\mathbf{4.6\times}$ ($11.7\times$ HDR in \texttt{FCRAO}), $\mathbf{45.9\times}$ ($217\times$ HDR in \texttt{Bolocam}), and $\mathbf{2{,}093.6\times}$ ($968.9\times$ HDR in \texttt{Spitzer}).
+\end{abstract}
+
+\section{Introduction \& Scientific Scope}
+Real-world scientific sensors---from cryogenic space infrared detectors~\citep{fazio2004irac} and submillimeter bolometer arrays~\citep{ginsburg2013bolocam} to spacecraft radiator loops~\citep{michie1994statlog} and multi-electrode biopotential helmets~\citep{schalk2004bci2000}---produce continuous IEEE-754 floating-point streams combining smooth correlated backgrounds, unmapped sky or masked channels, and localized extreme-amplitude transients. Standard lossless compressors (\texttt{zlib/DEFLATE}) fail to compress noisy floating-point mantissas ($1.1\times$) and require full-stream decompression, global Fourier truncation smears point sources via Gibbs ringing, scalar $2$-bit ADCs clip strong interference into in-band aliases~\citep{leshem2000multichannel}, and fixed-byte circular black-box buffers overwrite early anomalies during nominal cruise.
+
+To test whether the neural-network-free operators of \texttt{ScarCodec}~\citep{reisfilho2026mos_zenodo} overcome these trade-offs outside synthetic laboratory phantoms, we enforce four strict forensic rules:
+\begin{enumerate}
+    \item \textbf{Unmodified Core Code:} All experiments call \texttt{scar\_codec/core.py} verbatim without dataset-specific patches.
+    \item \textbf{Zero Synthetic Signals or Noise:} Every sample, interference artifact, sky mask, stellar point source, and valve fault originates unaltered from publicly archived physical measurements (Table~\ref{tab:provenance}).
+    \item \textbf{Zero Oracle Calibration:} Subspace projection $\mathbf{P}_\perp$ is fit exclusively on a separate baseline recording (\texttt{S001R01.edf}) and evaluated on a distinct held-out task recording (\texttt{S001R04.edf}); telemetry scaling uses only causal warmup frames; associative recall queries strictly masked sensor subsets.
+    \item \textbf{Byte-Matched Baselines:} Spectral baselines quantize retained 2D \texttt{rFFT} modes to IEEE-754 \texttt{FP16} ($4$~B per complex mode) matching \texttt{ScarCodec} byte budgets within $<1\%$, and circular ring buffers receive the exact byte budget of \texttt{SCache}.
+\end{enumerate}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.995\textwidth]{figures/fig1_scarcodec_public_data.pdf}
+    \caption{\textbf{Empirical Evaluation of Unmodified \texttt{ScarCodec} Across Five Real Public Scientific Datasets.} \textbf{(A)} Cross-run blind $\mathbf{P}_\perp$ (\texttt{S001R01}) + \texttt{VQ4-Scar} on held-out $64$-channel \texttt{PhysioNet S001R04} ($10.47\times$ compression) vs.\ $2$-bit ADC and unshielded VQ4 on cortical array and model-free raw \texttt{C3} Hjorth Laplacian. \textbf{(B)} Constant-memory $\mathcal{O}(1)$ \texttt{SurpriseGatedAnomalySCache} ($\Delta=0$~B) retaining $6/6$ ($100\%$) critical Bypass Valve faults in \texttt{NASA Space Shuttle} telemetry and $0.9967$ blind $32\to 32$ odd-electrode recall in $34{,}816$~B on chronological \texttt{PhysioNet} streams. \textbf{(C)} Compression factor vs.\ raw IEEE-754 FP32 across four archives (\texttt{ScarCodec} $10.47\times$--$12.27\times$ vs.\ \texttt{zlib -9} $1.10\times$--$3.17\times$). \textbf{(D)} Horizontal detector cut across the brightest protostar in \texttt{NASA Spitzer IRAC} ($3{,}938.25$~MJy/sr): \texttt{ScarCodec} ($11.77\times$) eliminates the severe peak loss and Gibbs oscillation of byte-matched FP16 2D \texttt{rFFT}. \textbf{(E)} Empirical HDR scaling law across three observatories (\texttt{FCRAO 14-m}, \texttt{CSO Bolocam}, \texttt{NASA Spitzer}). \textbf{(F)} $\mathcal{O}(1)$ single-block ($64$-float) random-access decode latency ($\mu$s) vs.\ \texttt{zlib -9}.}
+    \label{fig:public_audit}
+\end{figure*}
+
+\section{Operator Summary \& Archival Provenance}
+\texttt{ScarCodec} composes three pure linear-algebraic and lattice operators~\citep{conway1982fast,walsh1923closed,widrow1960adaptive,leshem2000multichannel}:
+\begin{align}
+    \widehat{\mathbf{X}}_{\text{VQ4}} &= \mathrm{FWHT}_{64}^{-1}\!\big(\mathbf{Q}_{D_4}(\mathrm{FWHT}_{64}(\mathbf{X}_{\text{base}} \oslash \mathbf{d}_{\text{eq}}))\big) \odot \mathbf{d}_{\text{eq}} \nonumber\\
+    &\quad + Q_4(\mathbf{B}_{\text{scar}})Q_4(\mathbf{A}_{\text{scar}}) + \mathbf{S}_{\text{MAD}}, \label{eq:scarcodec_ops}\\
+    \mathbf{W}_{\text{scar}}^{(t)} &= \mathbf{W}_{\text{scar}}^{(t-1)} + \mathbb{I}[z_t > \tau_{\text{surp}}]\,\eta\big(\boldsymbol{\delta}_t - \mathbf{W}_{\text{scar}}^{(t-1)}\hat{\mathbf{k}}_t\big)\hat{\mathbf{k}}_t^\top, \nonumber
+\end{align}
+where $\mathbf{Q}_{D_4}$ indexes a $2{,}048$~B \texttt{LUT256} table hard-pinning code $0 \mapsto (0,0,0,0)$ alongside Conway--Sloane $D_4$ root shells~\citep{conway1982fast}, $\mathrm{FWHT}_{64}$ applies multiplier-free $64$-point Walsh--Hadamard rotations~\citep{walsh1923closed}, $\mathbf{S}_{\text{MAD}}$ peels $>4.2\sigma_{\text{MAD}}$ point shocks prior to rotation, $\mathbf{P}_\perp = \mathbf{I}_C - \mathbf{U}_{\text{cal}}\mathbf{U}_{\text{cal}}^\top$ projects out dominant baseline interference~\citep{leshem2000multichannel}, and $\mathbf{W}_{\text{scar}} \in \mathbb{R}^{C \times C}$ updates via Widrow--Hoff Delta rules~\citep{widrow1960adaptive} only when RMS channel surprise $z_t$ exceeds $\tau_{\text{surp}}$. Table~\ref{tab:provenance} lists the seven archival files verified by SHA-256 checksums~\citep{astropy2022project,pence2010fits,kemp1992edf}.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Provenance, Licensing, Dimensions \& SHA-256 Checksums of Public Scientific Archives} (\texttt{data/public\_physical\_benchmarks/manifest\_sha256.json}).}
+\label{tab:provenance}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllccl}
+\toprule
+\textbf{Public Archive / Instrument} & \textbf{Primary Reference} & \textbf{File(s) \& Format} & \textbf{Raw Bytes} & \textbf{License} & \textbf{SHA-256 Prefix (First 20 Hex)} \\
+\midrule
+\texttt{PhysioNet EEGMMIDB} ($64$-Ch Ag/AgCl, $160$~Hz) & Schalk et al.~\citep{schalk2004bci2000}; Goldberger et al.~\citep{goldberger2000physionet} & \texttt{S001R01/R02/R04.edf}~\citep{kemp1992edf} & $5{,}148{,}768$ B & ODC-By-1.0 & \texttt{4743b73613...} / \texttt{3d161f88e1...} \\
+\texttt{NASA Space Shuttle} Radiator Control (\texttt{Statlog}) & Michie, Spiegelhalter \& Taylor~\citep{michie1994statlog} & \texttt{nasa\_shuttle.zip} (\texttt{shuttle.tst}) & $430{,}418$ B & CC-BY-4.0 & \texttt{a03e1f23755093eff5b8} \\
+\texttt{NASA Spitzer Space Telescope} (\texttt{IRAC} Mosaic) & Fazio et al.~\citep{fazio2004irac}; Astropy~\citep{astropy2022project} & \texttt{spitzer\_irac.fits} ($[513, 1025]$) & $2{,}113{,}920$ B & Public / BSD-3 & \texttt{4b9cf15419de311fc683} \\
+\texttt{CSO Bolocam} Galactic Center $1.1$~mm (\texttt{Sgr A*}) & Ginsburg et al.~\citep{ginsburg2013bolocam} & \texttt{gc\_bolocam\_gps.fits} ($[638, 640]$) & $1{,}644{,}480$ B & Public / BSD-3 & \texttt{f442e8a6499c461048f8} \\
+\texttt{FCRAO 14-m Radio Telescope} (\texttt{L1448} $^{13}$CO Cube) & Ridge et al.~\citep{ridge2006complete} (\texttt{COMPLETE}) & \texttt{l1448\_13co.fits} ($[53, 105, 105]$) & $2{,}341{,}440$ B & Public / BSD-3 & \texttt{de4d44cd2841d34cfe98} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\section{Empirical Results \& Forensic Analysis}
+
+\subsection{Experiment 1: Cross-Run 64-Channel Array Interference Cancellation (\texttt{PhysioNet})}
+In \texttt{S001R01.edf} ($61$~s eyes-open baseline), the top-$4$ singular vectors (dominated by frontopolar ocular blinks and common-mode pickup) carry $\mathbf{92.26\%}$ of total array energy. Fitting $\mathbf{P}_\perp$ ($r=4$) exclusively on \texttt{S001R01.edf} and compressing the separate held-out motor-imagery run \texttt{S001R04.edf} ($[64, 19968] = 5{,}111{,}808$~B FP32) at $\mathbf{10.47\times}$ ($488{,}192$~B, vs.\ $3.17\times$ for \texttt{zlib -9}) yields:
+(i) on the full $64$-channel clean cortical array, $\mathbf{+14.63}$~\textbf{dB} SNR ($\cos=\mathbf{0.98267}$), outperforming unshielded \texttt{VQ4-Scar} encoded prior to $\mathbf{P}_\perp$ ($+11.94$~dB, $\cos=0.96761$) by $+2.69$~dB and $2$-bit scalar telemetry ADC ($+1.09$~dB, $\cos=0.70430$) by $+13.54$~dB; and
+(ii) on the **model-free physical Hjorth surface Laplacian**~\citep{hjorth1975onlinesource} over left primary motor cortex \texttt{C3} ($V_{\text{C3}} - \tfrac{1}{4}(V_{\text{FC3}}+V_{\text{CP3}}+V_{\text{C1}}+V_{\text{C5}})$ evaluated directly against raw unprojected FP32 microvolts), $\mathbf{+8.40}$~\textbf{dB} SNR ($\cos=\mathbf{0.92696}$; $+9.67$~dB / $\cos=0.94592$ vs.\ projected \texttt{C3}), whereas $2$-bit scalar ADC collapses to $\mathbf{-4.85}$~\textbf{dB} ($\cos=0.45185$) due to blink clipping aliasing into adjacent electrodes.
+
+\subsection{Experiment 2: Constant-Space $\mathcal{O}(1)$ Anomaly \& Partial-Sensor Recall}
+Table~\ref{tab:telemetry} contrasts \texttt{SurpriseGatedAnomalySCache} against equal-byte \texttt{CircularRingBufferOT} across two chronological streams:
+(1) Streaming \texttt{S001R01} $\to$ \texttt{S001R02} $\to$ \texttt{S001R04} ($39{,}520 \times 64 = 10.12$~MB FP32 at $40{,}026$~FPS) inside exact $\mathbf{34{,}816}$~\textbf{B} ($\Delta=0$~B) retains all $3$ baseline paroxysmal bursts ($>3.58\sigma_{\text{RMS}}$) across $20{,}000$ subsequent motor-task frames ($0$ retained by the $256$-frame equal-byte circular ring). Querying $\mathbf{W}_{\text{scar}} \in \mathbb{R}^{64 \times 64}$ with only the $32$ even-indexed scalp electrodes reconstructs the **$32$ completely masked odd electrodes at $\cos=\mathbf{0.99667}$** (full $64$-ch $\cos=0.99618$).
+(2) Streaming \texttt{NASA Space Shuttle} radiator test telemetry ($14{,}500 \times 8$ physical sensors A2--A9, causal warmup standardization on frames $0..255$, untouched default $\tau_{\text{surp}}=4.2$, fixed $3{,}120$~B, $\Delta=0$~B) captures and retains $\mathbf{6/6}$ ($\mathbf{100.0\%}$) of all ultra-rare critical Bypass Valve faults (\texttt{Class 6 Bpv Close} at frames $6815, 7964, 9230, 11394$ and \texttt{Class 7 Bpv Open} at frames $2981, 5164$; combined prevalence $0.0414\%$), whereas the equal-byte $130$-frame circular ring retains $\mathbf{0/6}$ ($\mathbf{0.0\%}$). Crucially, we also report a transparent physical limitation: because $99$ secondary \texttt{Class 4/5} excursions also exceed $4.2\sigma$ and overwrite an $8\times 8$ matrix ($\mathrm{rank}(\mathbf{W}_{\text{scar}}) \le 8$), single-sensor associative querying on $C=8$ drops to $|\cos|=0.3237$ (whereas explicit slot snapshots \texttt{slot\_vals\_f16} remain intact and $C=64$ achieves $0.99667$), empirically confirming the $\mathcal{O}(C)$ associative capacity bound.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Constant-Memory $\mathcal{O}(1)$ Telemetry Audit on Real \texttt{PhysioNet} ($64$-Ch) \& \texttt{NASA Space Shuttle} ($8$-Ch) Streams} (\texttt{results/scar\_codec\_public\_datasets\_v1\_0\_audit.json}).}
+\label{tab:telemetry}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Public Telemetry Stream} & \textbf{Dimensions (Raw FP32)} & \textbf{Fixed Memory ($\Delta$~B)} & \textbf{Equal-Byte Ring Recall} & \textbf{\texttt{SCache} $\mathcal{O}(1)$ Recall} & \textbf{Blind Masked-Sensor Recall} & \textbf{Throughput} \\
+\midrule
+\texttt{PhysioNet S001} (\texttt{R01$\to$R02$\to$R04}) & $39{,}520 \times 64$ ($10.12$ MB) & $\mathbf{34{,}816}$ \textbf{B ($\Delta=0$ B)} & $0$ early bursts ($256$ cap) & $\mathbf{3/3}$ \textbf{early bursts kept} & $\mathbf{\cos = 0.99667}$ ($32\to 32$ odd ch!) & $40{,}026$ FPS \\
+\texttt{NASA Space Shuttle} (\texttt{shuttle.tst}) & $14{,}500 \times 8$ ($464.0$ KB) & $\mathbf{3{,}120}$ \textbf{B ($\Delta=0$ B)} & $\mathbf{0/6}$ ($\mathbf{0.0\%}$, $130$ cap) & $\mathbf{6/6}$ ($\mathbf{100.0\%}$ \textbf{Bpv Open/Close}) & $|\cos|=0.3237$ ($8\times 8$ rank sat.; slots exact) & $39{,}324$ FPS \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\subsection{Experiment 3: Space Infrared, Submillimeter \& Radio FITS Archives}
+Table~\ref{tab:fits} compares \texttt{PhysicalVQ4ScarCodec} (`rank=16`, `max_point_spikes=512`) against lossless \texttt{zlib -9} and strictly byte-matched IEEE-754 FP16 2D \texttt{rFFT} across three observatories:
+\begin{itemize}
+    \item \textbf{Failure of \texttt{zlib} on Real Astronomical Floats:} Across all three FITS archives, IEEE-754 mantissa entropy restricts \texttt{zlib -9} to $\mathbf{1.10\times\text{--}1.14\times}$ compression with zero random block access ($3{,}300$--$4{,}878~\mu$s full-stream inflate vs.\ $\mathbf{140.8\text{--}142.1~\mu\textbf{s}}$ $\mathcal{O}(1)$ $64$-float block read in \texttt{ScarCodec}, a $\mathbf{23.2\times\text{--}34.7\times}$ speedup with exact $0.0$ block-vs-full parity).
+    \item \textbf{Empirical HDR Contrast Scaling Law:} At $\sim 12\times$ compression, \texttt{ScarCodec}'s advantage over byte-matched FP16 2D \texttt{rFFT} scales monotonically with the instrument's physical peak-to-median dynamic range: from $\mathbf{4.6\times}$ lower peak error ($3.83\times$ lower RMSE) on diffuse \texttt{FCRAO} $^{13}$CO molecular gas ($11.7\times$ HDR), to $\mathbf{45.9\times}$ lower Sgr B2/A* core error ($1.64\times$ lower RMSE) on \texttt{CSO Bolocam} ($217.0\times$ HDR), up to $\mathbf{2{,}093.6\times}$ \textbf{lower stellar photometry error} ($0.9988$ vs.\ $2{,}091.00$~MJy/sr; $6.00\times$ lower global RMSE) on \texttt{NASA Spitzer IRAC} ($968.9\times$ HDR).
+    \item \textbf{Pure Zero-Row vs.\ Partial-Row Mask Boundaries:} On \texttt{CSO Bolocam} ($5.0\%$ off-scan \texttt{NaN} sky mask), pure unmapped sky rows reconstruct at **exact $0.0000$~Jy/Beam** in \texttt{ScarCodec} (vs.\ $0.1460$~Jy/Beam Gibbs ringing in \texttt{rFFT}), while partial-row boundary \texttt{NaN} pixels exhibit $6.06\times$ lower leakage ($0.3345$ vs.\ $2.0262$~Jy/Beam) due to row-level low-rank scar support.
+\end{itemize}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Observational Astronomy FITS Compression \& $\mathcal{O}(1)$ Random-Access Audit} vs.\ Lossless \texttt{zlib -9} and Strictly Byte-Matched IEEE-754 FP16 2D \texttt{rFFT}.}
+\label{tab:fits}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Observatory \& FITS Archive} & \textbf{Shape (HDR Contrast)} & \textbf{\texttt{zlib -9}} & \textbf{\texttt{ScarCodec} Bytes} & \textbf{FP16 \texttt{rFFT} Bytes} & \textbf{Global RMSE (\texttt{Scar} vs.\ \texttt{rFFT})} & \textbf{Top-32 Peak Error (\texttt{Scar} vs.\ \texttt{rFFT})} & \textbf{$\mathcal{O}(1)$ Block Read vs.\ \texttt{zlib}} \\
+\midrule
+\textbf{\texttt{NASA Spitzer IRAC}} (\texttt{MJy/sr}) & $513\times 1025$ ($\mathbf{968.9\times}$) & $1.14\times$ & $\mathbf{178{,}652}$ \textbf{B ($\mathbf{11.77\times}$)} & $177{,}608$ B ($11.84\times$) & $\mathbf{5.135}$ vs.\ $30.799$ ($\mathbf{6.00\times\downarrow}$) & $\mathbf{0.999}$ vs.\ $2{,}091.0$ ($\mathbf{2{,}093.6\times\downarrow}$!) & $\mathbf{141.2~\mu\textbf{s}}$ ($\mathbf{30.90\times\uparrow}$, $\Delta=0$) \\
+\textbf{\texttt{CSO Bolocam Sgr A*}} (\texttt{Jy/Beam}) & $638\times 640$ ($\mathbf{217.0\times}$) & $1.12\times$ & $\mathbf{133{,}060}$ \textbf{B ($\mathbf{12.27\times}$)} & $132{,}096$ B ($12.36\times$) & $\mathbf{0.0365}$ vs.\ $0.0599$ ($\mathbf{1.64\times\downarrow}$) & $\mathbf{0.0039}$ vs.\ $0.1791$ ($\mathbf{45.9\times\downarrow}$!) & $\mathbf{142.1~\mu\textbf{s}}$ ($\mathbf{23.23\times\uparrow}$, $\Delta=0$) \\
+\textbf{\texttt{FCRAO 14-m L1448 $^{13}$CO}} (\texttt{K}) & $371\times 1575$ ($\mathbf{11.7\times}$) & $1.10\times$ & $\mathbf{192{,}580}$ \textbf{B ($\mathbf{12.14\times}$)} & $192{,}200$ B ($12.16\times$) & $\mathbf{0.0652}$ vs.\ $0.2498$ ($\mathbf{3.83\times\downarrow}$) & $\mathbf{0.1902}$ vs.\ $0.8707$ ($\mathbf{4.6\times\downarrow}$) & $\mathbf{140.8~\mu\textbf{s}}$ ($\mathbf{34.65\times\uparrow}$, $\Delta=0$) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\section{Conclusion \& Reproducibility}
+Evaluated without modification across five public scientific datasets, \texttt{ScarCodec} delivers $10.47\times$--$12.27\times$ IEEE-754 compression, $+13.25$~dB motor-cortex Laplacian SNR gain over $2$-bit scalar telemetry via cross-run $\mathbf{P}_\perp$, $100\%$ retention of $0.041\%$ \texttt{NASA Space Shuttle} bypass-valve faults in $\mathcal{O}(1)$ RAM, $0.99667$ half-array associative electrode interpolation in $34.8$~KB, up to $2{,}093.6\times$ lower stellar peak photometry error than byte-matched FP16 2D \texttt{rFFT}, and $23\times$--$35\times$ faster $\mathcal{O}(1)$ random block reads than \texttt{zlib -9}. Automatic SHA-256 downloaders, \texttt{pytest} suites, and raw JSON audits are archived in the Zenodo replication package.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

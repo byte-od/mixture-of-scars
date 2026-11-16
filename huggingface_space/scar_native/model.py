@@ -54,6 +54,8 @@ class NativeVQ4ScarPackedMatrix:
     b_scar_u8: torch.Tensor
     b_row_scales_f16: torch.Tensor
     bias_f16: Optional[torch.Tensor] = None
+    _cached_dev: Optional[torch.device] = None
+    _cached_tensors: Optional[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]] = None
 
     def physical_bytes(self) -> int:
         return unique_tensor_storage_bytes(
@@ -74,25 +76,30 @@ class NativeVQ4ScarPackedMatrix:
         dev = x.device
         xf = x.float()
         with torch.no_grad():
-            signs = rademacher_signs_u32_exact(self.in_features, dev)
-            d_eq = self.d_eq_f16.to(dev).float()
-            c_i64 = self.codes_u32.to(dev).to(torch.int64)
-            b0 = c_i64 & 0xFF
-            b1 = (c_i64 >> 8) & 0xFF
-            b2 = (c_i64 >> 16) & 0xFF
-            b3 = (c_i64 >> 24) & 0xFF
-            codes_flat = torch.stack([b0, b1, b2, b3], dim=-1).reshape(-1)
-            lut = self.lut256_f16.to(dev).float()
-            u_q = (
-                lut[codes_flat].reshape(self.out_features, self.in_features // 64, 64)
-                * self.scales_f16.to(dev).float().unsqueeze(-1)
-            ).reshape(self.out_features, self.in_features)
-            if self.rank > 0:
-                a_f = dequant_block64_int4(self.a_scar_u8.to(dev), self.a_scales_f16.to(dev))
-                b_f = dequant_rowwise_int4(self.b_scar_u8.to(dev), self.b_row_scales_f16.to(dev))
+            if self._cached_tensors is not None and self._cached_dev == dev:
+                signs, d_eq, u_q, a_f, b_f = self._cached_tensors
             else:
-                a_f = None
-                b_f = None
+                signs = rademacher_signs_u32_exact(self.in_features, dev)
+                d_eq = self.d_eq_f16.to(dev).float()
+                c_i64 = self.codes_u32.to(dev).to(torch.int64)
+                b0 = c_i64 & 0xFF
+                b1 = (c_i64 >> 8) & 0xFF
+                b2 = (c_i64 >> 16) & 0xFF
+                b3 = (c_i64 >> 24) & 0xFF
+                codes_flat = torch.stack([b0, b1, b2, b3], dim=-1).reshape(-1)
+                lut = self.lut256_f16.to(dev).float()
+                u_q = (
+                    lut[codes_flat].reshape(self.out_features, self.in_features // 64, 64)
+                    * self.scales_f16.to(dev).float().unsqueeze(-1)
+                ).reshape(self.out_features, self.in_features)
+                if self.rank > 0:
+                    a_f = dequant_block64_int4(self.a_scar_u8.to(dev), self.a_scales_f16.to(dev))
+                    b_f = dequant_rowwise_int4(self.b_scar_u8.to(dev), self.b_row_scales_f16.to(dev))
+                else:
+                    a_f = None
+                    b_f = None
+                self._cached_dev = dev
+                self._cached_tensors = (signs, d_eq, u_q, a_f, b_f)
         x_rot = fwht_block64_orthonormal(xf / d_eq, signs, inverse=False)
         y = x_rot @ u_q.T
 
@@ -181,14 +188,14 @@ def _ste_fp16(x: torch.Tensor) -> torch.Tensor:
 def _ste_block64_int4(w: torch.Tensor) -> torch.Tensor:
     rows, cols = w.shape
     blks = w.reshape(rows, cols // 64, 64)
-    sc = torch.maximum((-blks.amin(dim=-1)) / 8.0, blks.amax(dim=-1) / 7.0).clamp(min=1e-6).to(torch.float16).to(w.dtype)
+    sc = torch.maximum((-blks.amin(dim=-1)) / 8.0, blks.amax(dim=-1) / 7.0).clamp(min=1e-7).to(torch.float16).to(w.dtype)
     q = torch.clamp(torch.round(blks / sc.unsqueeze(-1)), -8.0, 7.0)
     wq = (q * sc.unsqueeze(-1)).reshape(rows, cols)
     return w + (wq - w).detach()
 
 
 def _ste_rowwise_int4(b: torch.Tensor) -> torch.Tensor:
-    sc = torch.maximum((-b.amin(dim=-1)) / 8.0, b.amax(dim=-1) / 7.0).clamp(min=1e-6).to(torch.float16).to(b.dtype)
+    sc = torch.maximum((-b.amin(dim=-1)) / 8.0, b.amax(dim=-1) / 7.0).clamp(min=1e-7).to(torch.float16).to(b.dtype)
     q = torch.clamp(torch.round(b / sc.unsqueeze(-1)), -8.0, 7.0)
     bq = q * sc.unsqueeze(-1)
     return b + (bq - b).detach()
@@ -285,9 +292,7 @@ class ScarNativeLinear(nn.Module):
         return self
 
     def _fast_fwht64(self, x: torch.Tensor) -> torch.Tensor:
-        orig_shape = x.shape
-        y = (x * self.signs_f32).reshape(-1, 64) @ self.h64_t
-        return y.reshape(orig_shape)
+        return fwht_block64_orthonormal(x, self.signs_f32, inverse=False)
 
     def _quantize_rotated_ste(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Returns `(u_q_ste, codes_i64, sc_f16, d_eq_f16, d_eq_ste)` matching `NativeVQ4ScarPackedMatrix` bit-for-bit."""
@@ -756,19 +761,23 @@ class EpistemicTelemetry:
 
 @dataclass
 class DetachedScarCartridge:
-    """`4 KB`-Page-Aligned Zero-SGD Knowledge Cartridge (`A_scar` + `B_scar` INT4 + `z_anchor` on `P_perp_lang`)."""
+    """`4 KB`-Page-Aligned Zero-SGD Knowledge Cartridge (`A_scar` + `B_scar` INT4 + `z_anchor` + optional `z_dual`)."""
 
     cartridge_id: str
-    z_anchor_f16: torch.Tensor      # [D] unit-norm in P_perp_lang
+    z_anchor_f16: torch.Tensor      # [D] unit-norm in P_perp_lang (Gate 1: <fact> cone check)
     a_scar_u8: torch.Tensor         # [rank, D // 2] uint8 Block-64 INT4
     a_scales_f16: torch.Tensor      # [rank, D // 64] float16
     b_scar_u8: torch.Tensor         # [D, rank // 2] uint8 rowwise INT4
     b_row_scales_f16: torch.Tensor  # [D] float16
     tau_cos: float = 0.80
     wiped: bool = False
+    z_dual_f16: Optional[torch.Tensor] = None  # [D] Ridge-dual key in P_perp_lang (Gate 2: 0 GDPR fallback!)
+    tau_dual: float = 0.58
 
     def to_page_aligned_bytes(self) -> bytes:
         """Serializes cartridge into exact `4,096 B` OS page multiples (`8,192 B` or `12,288 B`)."""
+        import struct as _struct
+
         parts = [
             b"SNV5",
             self.z_anchor_f16.detach().cpu().numpy().tobytes(),
@@ -777,6 +786,10 @@ class DetachedScarCartridge:
             self.b_scar_u8.detach().cpu().numpy().tobytes(),
             self.b_row_scales_f16.detach().cpu().numpy().tobytes(),
         ]
+        if self.z_dual_f16 is not None:
+            parts.append(b"DUAL")
+            parts.append(_struct.pack("<f", float(self.tau_dual)))
+            parts.append(self.z_dual_f16.detach().cpu().to(torch.float16).numpy().tobytes())
         raw = b"".join(parts)
         padded_len = ((len(raw) + 4095) // 4096) * 4096
         return raw + (b"\x00" * (padded_len - len(raw)))
@@ -799,6 +812,8 @@ class DetachedScarCartridge:
         self.a_scales_f16.zero_()
         self.b_scar_u8.zero_()
         self.b_row_scales_f16.zero_()
+        if self.z_dual_f16 is not None:
+            self.z_dual_f16.zero_()
         self.wiped = True
 
 
@@ -819,21 +834,37 @@ class DetachedScarStore:
 
     @torch.no_grad()
     def route(self, z_query_null: torch.Tensor) -> Tuple[Optional[DetachedScarCartridge], float]:
-        """Routes last-prompt-token `P_perp_lang` vector (`[D]`) with exact `0.0` out-of-cone silence."""
+        """Routes last-prompt-token `P_perp_lang` vector (`[D]`) via 2-gate Cone + Dual Orthogonal verification."""
         best_c: Optional[DetachedScarCartridge] = None
-        best_sim: float = -1.0
+        best_score: float = -1e30
+        best_cone_sim: float = -1.0
         zq = F.normalize(z_query_null.detach().float().reshape(-1), dim=-1, eps=1e-6)
+        use_dual = any((not c.wiped) and (c.z_dual_f16 is not None) for c in self.cartridges.values())
+
         for c in self.cartridges.values():
             if c.wiped:
                 continue
             za = c.z_anchor_f16.to(zq.device).float()
-            sim = float(torch.dot(zq, za).item())
-            if sim > best_sim:
-                best_sim = sim
-                best_c = c
-        if best_c is not None and best_sim >= best_c.tau_cos:
-            return best_c, best_sim
-        return None, best_sim
+            cone_sim = float(torch.dot(zq, za).item())
+            if cone_sim < c.tau_cos:
+                if not use_dual and cone_sim > best_cone_sim:
+                    best_cone_sim = cone_sim
+                continue
+            if use_dual and c.z_dual_f16 is not None:
+                zd = c.z_dual_f16.to(zq.device).float()
+                dual_sim = float(torch.dot(zq, zd).item())
+                if dual_sim >= c.tau_dual and dual_sim > best_score:
+                    best_score = dual_sim
+                    best_cone_sim = cone_sim
+                    best_c = c
+            else:
+                if cone_sim > best_score:
+                    best_score = cone_sim
+                    best_cone_sim = cone_sim
+                    best_c = c
+        if best_c is not None:
+            return best_c, best_cone_sim
+        return None, best_cone_sim
 
 
 class ScarNativeLM(nn.Module):

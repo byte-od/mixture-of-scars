@@ -1,0 +1,30 @@
+{
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "version": "4.0.0",
+  "publication_date": "2026-11-16",
+  "title": "Mixture of Scars (MoS) v4.0, SCache O(1), and Domain-Independent ScarCodec: Unified Native & 20-Shader WebGPU Scar Operators, <24 GB 72.7B Compression, Language-Invariant 140 KB HTTP 206 Cartridges, and Forensic Signal/PDE Proofs",
+  "creators": [
+    {
+      "name": "Reis Filho, Julio Cesar da Costa",
+      "affiliation": "Byte-OD Research & System One Architecture Lab"
+    }
+  ],
+  "license": "cc-by-4.0",
+  "keywords": [
+    "Mixture of Scars",
+    "SCache O(1)",
+    "VQ4-Scar",
+    "WebGPU WGSL",
+    "ScarCodec",
+    "Widrow-Hoff Fast Weights",
+    "Nullspace Projection"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/byte-od/mixture-of-scars",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

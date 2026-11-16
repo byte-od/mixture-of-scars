@@ -1,0 +1,77 @@
+{
+  "suite": "scar_codec_public_datasets_v1_0",
+  "total_files": 7,
+  "total_raw_archive_bytes": 11679026,
+  "files": [
+    {
+      "id": "physionet_s001r01_eyes_open",
+      "filename": "physionet_s001r01_eyes_open.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S001/S001R01.edf",
+      "domain": "Biomedical 64-Channel Biopotential Array (Baseline Eyes-Open)",
+      "citation": "Schalk et al. (2004), IEEE Trans. Biomed. Eng. 51(6), 1034-1043; Goldberger et al. (2000), Circulation 101(23), e215-e220.",
+      "license": "ODC-By-1.0 (PhysioNet Open Data)",
+      "bytes": 1275936,
+      "sha256": "4743b736131a7e147c150e8b37711029b6cda5e356c4b3e8261a03cdcaaf8b0c"
+    },
+    {
+      "id": "physionet_s001r02_eyes_closed",
+      "filename": "physionet_s001r02_eyes_closed.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S001/S001R02.edf",
+      "domain": "Biomedical 64-Channel Biopotential Array (Resting Eyes-Closed)",
+      "citation": "Schalk et al. (2004), IEEE Trans. Biomed. Eng. 51(6), 1034-1043.",
+      "license": "ODC-By-1.0 (PhysioNet Open Data)",
+      "bytes": 1275936,
+      "sha256": "31a95e0a880e6c3d89960d9d62c144f24cc4e9f5d7e93c7f864ef61cd49e847e"
+    },
+    {
+      "id": "physionet_s001r04_motor_task",
+      "filename": "physionet_s001r04_motor_task.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S001/S001R04.edf",
+      "domain": "Biomedical 64-Channel Biopotential Array (Held-Out Motor Imagery Task)",
+      "citation": "Schalk et al. (2004), IEEE Trans. Biomed. Eng. 51(6), 1034-1043.",
+      "license": "ODC-By-1.0 (PhysioNet Open Data)",
+      "bytes": 2596896,
+      "sha256": "3d161f88e1c00632585287d2ce584c2bc0f08862438eb255ea8723e00fac693d"
+    },
+    {
+      "id": "nasa_shuttle_statlog",
+      "filename": "nasa_shuttle.zip",
+      "url": "https://archive.ics.uci.edu/static/public/148/statlog+shuttle.zip",
+      "domain": "Aerospace Multi-Sensor Telemetry (NASA Space Shuttle Radiator Control)",
+      "citation": "Catlett, J. (1992) / Michie, Spiegelhalter & Taylor (1994), NASA Space Shuttle Statlog Dataset, UCI ML Repository ID 148.",
+      "license": "CC-BY-4.0 (UCI Machine Learning Repository)",
+      "bytes": 430418,
+      "sha256": "a03e1f23755093eff5b8d9656f944ae3240a376065cf4360d090f5fe0aff9bef"
+    },
+    {
+      "id": "nasa_spitzer_irac",
+      "filename": "spitzer_irac.fits",
+      "url": "https://raw.githubusercontent.com/astropy/astropy-data/gh-pages/photometry/spitzer_example_image.fits",
+      "domain": "Space Infrared Astrophysics (NASA Spitzer Space Telescope IRAC)",
+      "citation": "Fazio et al. (2004), Astrophys. J. Suppl. Ser. 154(1), 10-17; Astropy Collaboration (2022), Astrophys. J. 935, 167.",
+      "license": "BSD-3-Clause / NASA Public Archival Data",
+      "bytes": 2113920,
+      "sha256": "4b9cf15419de311fc683a9c378327a0b28bfee29d01e4fdbb9dc5780417f7ebc"
+    },
+    {
+      "id": "cso_bolocam_galactic_center",
+      "filename": "gc_bolocam_gps.fits",
+      "url": "https://raw.githubusercontent.com/astropy/astropy-data/gh-pages/galactic_center/gc_bolocam_gps.fits",
+      "domain": "Submillimeter Galactic Center Continuum (CSO Bolocam 1.1 mm Sgr A* / Sgr B2)",
+      "citation": "Ginsburg et al. (2013), Astrophys. J. Suppl. Ser. 208(2), 14; Aguirre et al. (2011), ApJS 192, 4.",
+      "license": "BSD-3-Clause / Public Astronomical Survey Archive",
+      "bytes": 1644480,
+      "sha256": "f442e8a6499c461048f8e74fa780dd2098e6e6c9522e8571fffcc8063d0708a9"
+    },
+    {
+      "id": "fcrao_l1448_13co_cube",
+      "filename": "l1448_13co.fits",
+      "url": "https://raw.githubusercontent.com/astropy/astropy-data/gh-pages/l1448/l1448_13co.fits",
+      "domain": "Radio Astronomy Spectral Line Cube (FCRAO 14-m L1448 13CO J=1->0 Outflow)",
+      "citation": "Ridge et al. (2006), Astron. J. 131(6), 2921-2933 (COMPLETE Survey of Star-Forming Regions).",
+      "license": "BSD-3-Clause / Public Radio Astronomy Survey Archive",
+      "bytes": 2341440,
+      "sha256": "de4d44cd2841d34cfe98915ab322f83e302f13b9599ef8629079249e53ad6d49"
+    }
+  ]
+}

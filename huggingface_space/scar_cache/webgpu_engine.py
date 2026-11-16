@@ -36,6 +36,220 @@ from scar_cache.webgpu import WEBGPU_APP_DIR, WGSL_KERNELS_PATH
 
 DEFAULT_MAX_SHARD_BYTES = 80 * 1024 * 1024  # 80 MiB (< 128 MiB universal WebGPU binding limit)
 DEFAULT_MAX_VOCAB_CHUNK_ROWS = 75968        # <= 78.9 MiB even at d=2048 (3B); 151936 fits in 1 shard at d=896 (0.5B)
+PREFILL_BATCH_TOKENS = 4                    # 4 tokens per GPUCommandBuffer prevents Metal/Dawn 5s GPU watchdog timeouts
+
+OUT_OF_CONE_EPISTEMIC_GATES: Dict[str, str] = {
+    "pt": (
+        "[MANDATORY JARVIS SCOPE RULE — Reply in Portuguese (the visitor is NOT Julio Reis; refer to Julio Reis in "
+        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
+        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
+        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
+        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
+        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
+        "Engineering on Julio Reis's portfolio.]"
+    ),
+    "en": (
+        "[MANDATORY JARVIS SCOPE RULE — Reply in English (the visitor is NOT Julio Reis; refer to Julio Reis in "
+        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
+        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
+        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
+        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
+        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
+        "Engineering on Julio Reis's portfolio.]"
+    ),
+    "es": (
+        "[MANDATORY JARVIS SCOPE RULE — Reply in Spanish (the visitor is NOT Julio Reis; refer to Julio Reis in "
+        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
+        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
+        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
+        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
+        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
+        "Engineering on Julio Reis's portfolio.]"
+    ),
+    "fr": (
+        "[MANDATORY JARVIS SCOPE RULE — Reply in French (the visitor is NOT Julio Reis; refer to Julio Reis in "
+        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
+        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
+        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
+        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
+        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
+        "Engineering on Julio Reis's portfolio.]"
+    ),
+}
+
+OUT_OF_CONE_GREETING_GATES: Dict[str, str] = {
+    "pt": (
+        "[JARVIS GREETING RULE — Reply in Portuguese (the visitor is NOT Julio Reis; never address the visitor as "
+        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
+        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+    ),
+    "en": (
+        "[JARVIS GREETING RULE — Reply in English (the visitor is NOT Julio Reis; never address the visitor as "
+        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
+        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+    ),
+    "es": (
+        "[JARVIS GREETING RULE — Reply in Spanish (the visitor is NOT Julio Reis; never address the visitor as "
+        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
+        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+    ),
+    "fr": (
+        "[JARVIS GREETING RULE — Reply in French (the visitor is NOT Julio Reis; never address the visitor as "
+        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
+        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+    ),
+}
+
+_PURE_CONVERSATIONAL_GREETING_RE = re.compile(
+    r"^(?:oi|olá|ola|opa|e aí|e ai|fala|bom dia|boa tarde|boa noite|hello|hi|hey|good morning|good afternoon|"
+    r"good evening|hola|buenos días|buenos dias|buenas tardes|buenas noches|buenas|bonjour|salut|bonsoir)"
+    r"(?:\s+(?:jarvis|tudo bem|tudo bom|tudo certo|como vai|como está|como esta|beleza|how are you|"
+    r"how's it going|how is it going|there|qué tal|que tal|cómo estás|como estas|cómo va|como va|"
+    r"comment allez-vous|comment allez vous|comment ça va|comment ca va|ça va|ca va))*$",
+    re.IGNORECASE,
+)
+
+
+def is_pure_conversational_greeting(raw_text: str) -> bool:
+    norm = re.sub(r"\s+", " ", re.sub(r"[¡¿,!.?;:]+", " ", (raw_text or "").lower())).strip()
+    if not norm or len(norm.split(" ")) > 8:
+        return False
+    return bool(_PURE_CONVERSATIONAL_GREETING_RE.match(norm))
+
+
+def _find_repeated_ngram_start(ids: Sequence[int]) -> int:
+    k = 8
+    n = len(ids)
+    if n >= k * 2:
+        tail_start = n - k
+        tail = list(ids[tail_start:])
+        for i in range(0, tail_start - k + 1):
+            if list(ids[i : i + k]) == tail:
+                return tail_start
+    k_short = 4
+    if n >= k_short * 4:
+        tail_start = n - k_short
+        tail_s = list(ids[tail_start:])
+        hits = 0
+        for i in range(max(0, n - 40), tail_start - k_short + 1):
+            if list(ids[i : i + k_short]) == tail_s:
+                hits += 1
+        if hits >= 2:
+            return tail_start
+    return -1
+
+
+def _ends_with_complete_sentence(text: str) -> bool:
+    t = (text or "").rstrip()
+    if len(t) < 24:
+        return False
+    return bool(re.search(r"[.!?][\"'”)]?$", t)) and not bool(
+        re.search(r"\b(?:Dr|Sr|Sra|Mr|Ms|Prof|etc|ex|vs|v\d)\.$", t)
+    )
+
+
+def _starts_new_sentence_or_paragraph(piece: str) -> bool:
+    return bool(re.match(r"^(?:\s*\n|\s+[\"'“([¡¿]*[A-ZÀ-ÖØ-Þ])", piece or ""))
+
+
+def _should_stop_at_sentence_boundary(
+    epistemic_mode: str,
+    generated_count: int,
+    dec_step_idx: int,
+    seed_horizon: int,
+    max_new_tokens: int,
+) -> bool:
+    if epistemic_mode == "scar_grounded":
+        return dec_step_idx >= max(25, seed_horizon - 10)
+    if epistemic_mode == "out_of_cone_guarded":
+        return generated_count >= 48
+    return generated_count >= max(96, max_new_tokens - 48)
+
+
+def detect_polyglot_query_lang(raw_text: str, fallback: str = "en") -> str:
+    """Deterministic 4-language detector (`pt`, `en`, `es`, `fr`) matching `scarstoreHttp206Browser.ts`."""
+    txt = (raw_text or "").strip()
+    fb = fallback if fallback in OUT_OF_CONE_EPISTEMIC_GATES else "en"
+    if not txt:
+        return fb
+
+    lower = txt.lower()
+    scores: Dict[str, float] = {"pt": 0.0, "en": 0.0, "es": 0.0, "fr": 0.0}
+
+    if re.search(r"[¿¡ñ]", lower):
+        scores["es"] += 6.0
+    if re.search(r"[ãõ]", lower):
+        scores["pt"] += 6.0
+    if "ç" in lower:
+        scores["pt"] += 3.5
+        scores["fr"] += 2.5
+    if re.search(r"[œæ]", lower) or re.search(r"\b(?:qu'|d'|l'|j'|n'|s'|c')\w+", lower):
+        scores["fr"] += 6.0
+    if re.search(r"\s[?!:]", txt):
+        scores["fr"] += 2.5
+    if re.search(r"[àèùâêîôûëï]", lower):
+        scores["fr"] += 2.5
+        if re.search(r"[âêô]", lower):
+            scores["pt"] += 1.5
+
+    pt_hits = re.findall(
+        r"\b(oi|opa|ola|olá|tudo bem|beleza|valeu|obrigado|obrigada|arquitetura|quem|qual|quais|como|voce|você|"
+        r"fale|sobre|portfolio|portfólio|experiencia|experiência|trajetoria|trajetória|contratar|principio|princípio|"
+        r"nao-deterministico|não-determinístico|memoria|memória|cartuchos|navegador|baixa|projeto|criou|conhecimentos|"
+        r"entrar|contato|bom dia|boa tarde|boa noite|porém|enquanto|estabelece|provam|prova|segundo|direito|dados|"
+        r"usado|prática|cerca|quanto|vezes|não|já|posso|recomenda)\b",
+        lower,
+    )
+    en_hits = re.findall(
+        r"\b(who|what|how|why|where|when|explain|tell|state|does|your|role|this|background|career|slash|stream|"
+        r"hire|about|principle|theorem|space|classes|thermal|under|tools|built|cutoff|general|knowledge|hello|"
+        r"thanks|however|while|establish|prove|applied|used|practice|best|should)\b",
+        lower,
+    )
+    es_hits = re.findall(
+        r"\b(quien|quién|cual|cuál|cuales|cuáles|como|cómo|que|qué|explica|explicame|explícame|hablame|háblame|"
+        r"portafolio|experiencia|trayectoria|correo|contratar|principio|teorema|complejidad|no determinista|conteo|"
+        r"interactua|interactúa|navegador|herramientas|creo|creó|aprendizaje|refuerzo|hola|buenos|gracias|mientras|"
+        r"mediante|establece|establecen|demuestra|demuestran|segun|según|donde|dónde|debo)\b",
+        lower,
+    )
+    fr_hits = re.findall(
+        r"\b(qui|quel|quelle|quels|quelles|comment|expliquez|parlez|votre|nom|sur|parcours|recruter|principe|"
+        r"theoreme|théorème|theoremes|théorèmes|demontre|démontre|demontrent|démontrent|etablit|établit|etablissent|"
+        r"établissent|selon|classes|réutilisation|reutilisation|navigateur|cartouches|connaissances|outils|crees|"
+        r"créés|systeme|système|bonjour|merci|tandis|dans|avec|pour|est|sont|etes|êtes|recommandez)\b",
+        lower,
+    )
+
+    scores["pt"] += len(pt_hits) * 2.2
+    scores["en"] += len(en_hits) * 2.2
+    scores["es"] += len(es_hits) * 2.2
+    scores["fr"] += len(fr_hits) * 2.2
+
+    if re.search(r"\b(o|os|um|uma|do|da|dos|das|no|na|pelo|pela|dele|neste|são|então)\b", lower):
+        scores["pt"] += 2.6
+    if re.search(r"\b(el|los|las|un|una|del|en el|en la|este|cuáles|están|también)\b", lower):
+        scores["es"] += 2.6
+    if re.search(r"\b(le|les|des|du|une|dans|ce|cette|ces|aux)\b", lower):
+        scores["fr"] += 2.4
+    if re.search(r"\b(the|and|for|with|from|into|is|are)\b", lower):
+        scores["en"] += 2.2
+
+    best_lang = fb
+    best_score = 0.0
+    for cand in ("pt", "en", "es", "fr"):
+        if scores[cand] > best_score:
+            best_score = scores[cand]
+            best_lang = cand
+    return best_lang if best_score > 0.0 else fb
+
+
+def select_out_of_cone_epistemic_gate(user_query: str, fallback_lang: str = "en") -> str:
+    """Selects the localized out-of-cone epistemic guard prompt (`pt`, `en`, `es`, `fr`)."""
+    lang = detect_polyglot_query_lang(user_query, fallback=fallback_lang)
+    if is_pure_conversational_greeting(user_query):
+        return OUT_OF_CONE_GREETING_GATES[lang]
+    return OUT_OF_CONE_EPISTEMIC_GATES[lang]
 
 
 def _align16(n: int) -> int:
@@ -90,6 +304,7 @@ class WebGPUGenerationResult:
     mean_confidence_p1: float = 0.0
     mean_margin_p1_p2: float = 0.0
     max_inter_head_spread: float = 0.0
+    epistemic_mode: str = "base_trunk"
 
 
 class _ShardBuilder:
@@ -1023,6 +1238,10 @@ class NativeWebGPUMoSEngine:
         q_dim = self.num_q_heads * self.head_dim
         kv_dim = self.num_kv_heads * self.head_dim
         self.step_state_buf = self.device.create_buffer(size=16, usage=U.STORAGE | U.COPY_DST)
+        self.prefill_steps_buf = self.device.create_buffer(
+            size=PREFILL_BATCH_TOKENS * 16,
+            usage=U.COPY_SRC | U.COPY_DST,
+        )
         self.inv_freq_buf = self.device.create_buffer_with_data(
             data=np.asarray(arch["rope_inv_freq"], dtype=np.float32).tobytes(),
             usage=U.STORAGE,
@@ -1414,6 +1633,11 @@ class NativeWebGPUMoSEngine:
             atten = max(0.0, 1.0 - g_vals[b_idx])
             for p in caps[b_idx].get("parent_capsules") or []:
                 g_vals[id_to_idx[p]] = pre_gates[id_to_idx[p]] * atten
+
+        if self.is_golden_slice_v4 and not active_bridges:
+            active_idxs = [i for i in range(len(caps)) if g_vals[i] > 1e-6]
+            if len(active_idxs) == 1:
+                g_vals[active_idxs[0]] = 1.0
 
         active_out: List[Tuple[str, float, Any]] = []
         for i, c in enumerate(caps):
@@ -1814,73 +2038,85 @@ class NativeWebGPUMoSEngine:
         q_start: int,
         prefill_xin_buf: Optional[Any] = None,
         q_end: Optional[int] = None,
+        run_full_on_last: bool = False,
     ) -> None:
-        U = self.wgpu.BufferUsage
         lp = len(token_ids)
+        if lp == 0:
+            return
         eff_q_end = lp if q_end is None else min(lp, max(q_start + 1, int(q_end)))
         split_idx = self.mid_layer_idx if self.is_golden_slice_v4 else (self.num_layers - 2)
-        steps_arr = np.zeros((lp, 4), dtype=np.uint32)
-        for i, tid in enumerate(token_ids):
-            steps_arr[i, 0] = int(tid)
-            steps_arr[i, 1] = int(base_pos + i)
-        prefill_steps_buf = self.device.create_buffer_with_data(data=steps_arr.tobytes(), usage=U.COPY_SRC)
 
-        enc = self.device.create_command_encoder()
-        for t_idx in range(lp):
-            enc.copy_buffer_to_buffer(prefill_steps_buf, t_idx * 16, self.step_state_buf, 0, 16)
-            if t_idx < lp - 1:
-                if prefill_xin_buf is not None and q_start <= t_idx < eff_q_end:
+        for batch_start in range(0, lp, PREFILL_BATCH_TOKENS):
+            batch_end = min(lp, batch_start + PREFILL_BATCH_TOKENS)
+            batch_len = batch_end - batch_start
+            steps_arr = np.zeros((batch_len, 4), dtype=np.uint32)
+            for i in range(batch_len):
+                rel_pos = batch_start + i
+                steps_arr[i, 0] = int(token_ids[rel_pos])
+                steps_arr[i, 1] = int(base_pos + rel_pos)
+            self.device.queue.write_buffer(self.prefill_steps_buf, 0, steps_arr.tobytes())
+
+            enc = self.device.create_command_encoder()
+            for i in range(batch_len):
+                t_idx = batch_start + i
+                enc.copy_buffer_to_buffer(self.prefill_steps_buf, i * 16, self.step_state_buf, 0, 16)
+                if t_idx < lp - 1 or run_full_on_last:
+                    if prefill_xin_buf is not None and q_start <= t_idx < eff_q_end:
+                        cpass_pre = enc.begin_compute_pass()
+                        self._record_ops(cpass_pre, self.embed_ops)
+                        for l_i in range(split_idx + 1):
+                            self._record_ops(cpass_pre, self.layer_ops[l_i])
+                        cpass_pre.end()
+                        u_slot = t_idx - q_start
+                        enc.copy_buffer_to_buffer(
+                            self.h_cur_buf, 0, prefill_xin_buf, u_slot * self.hidden_dim * 4, self.hidden_dim * 4
+                        )
+                        cpass_last = enc.begin_compute_pass()
+                        for l_i in range(split_idx + 1, self.num_layers):
+                            self._record_ops(cpass_last, self.layer_ops[l_i])
+                        cpass_last.end()
+                    else:
+                        cpass = enc.begin_compute_pass()
+                        self._record_ops(cpass, self.embed_ops)
+                        for l_ops in self.layer_ops:
+                            self._record_ops(cpass, l_ops)
+                        cpass.end()
+                else:
                     cpass_pre = enc.begin_compute_pass()
                     self._record_ops(cpass_pre, self.embed_ops)
                     for l_i in range(split_idx + 1):
                         self._record_ops(cpass_pre, self.layer_ops[l_i])
                     cpass_pre.end()
-                    u_slot = t_idx - q_start
-                    enc.copy_buffer_to_buffer(
-                        self.h_cur_buf, 0, prefill_xin_buf, u_slot * self.hidden_dim * 4, self.hidden_dim * 4
-                    )
-                    cpass_last = enc.begin_compute_pass()
-                    for l_i in range(split_idx + 1, self.num_layers):
-                        self._record_ops(cpass_last, self.layer_ops[l_i])
-                    cpass_last.end()
-                else:
-                    cpass = enc.begin_compute_pass()
-                    self._record_ops(cpass, self.embed_ops)
-                    for l_ops in self.layer_ops:
-                        self._record_ops(cpass, l_ops)
-                    cpass.end()
-            else:
-                cpass_pre = enc.begin_compute_pass()
-                self._record_ops(cpass_pre, self.embed_ops)
-                for l_i in range(split_idx + 1):
-                    self._record_ops(cpass_pre, self.layer_ops[l_i])
-                cpass_pre.end()
-                if prefill_xin_buf is not None and q_start <= t_idx < eff_q_end:
-                    u_slot = t_idx - q_start
-                    enc.copy_buffer_to_buffer(
-                        self.h_cur_buf, 0, prefill_xin_buf, u_slot * self.hidden_dim * 4, self.hidden_dim * 4
-                    )
-        self.device.queue.submit([enc.finish()])
+                    if prefill_xin_buf is not None and q_start <= t_idx < eff_q_end:
+                        u_slot = t_idx - q_start
+                        enc.copy_buffer_to_buffer(
+                            self.h_cur_buf, 0, prefill_xin_buf, u_slot * self.hidden_dim * 4, self.hidden_dim * 4
+                        )
+            self.device.queue.submit([enc.finish()])
+            _ = self.device.queue.read_buffer(self.top2_out_buf)
 
     def _flush_closing_tokens_to_scache(self, closing_ids: Sequence[int], start_pos: int) -> int:
         if not closing_ids:
             return start_pos
-        U = self.wgpu.BufferUsage
         n = len(closing_ids)
-        steps_arr = np.zeros((n, 4), dtype=np.uint32)
-        for i, tid in enumerate(closing_ids):
-            steps_arr[i, 0] = int(tid)
-            steps_arr[i, 1] = int(start_pos + i)
-        steps_buf = self.device.create_buffer_with_data(data=steps_arr.tobytes(), usage=U.COPY_SRC)
-        enc = self.device.create_command_encoder()
-        for i in range(n):
-            enc.copy_buffer_to_buffer(steps_buf, i * 16, self.step_state_buf, 0, 16)
-            cpass = enc.begin_compute_pass()
-            self._record_ops(cpass, self.embed_ops)
-            for l_ops in self.layer_ops:
-                self._record_ops(cpass, l_ops)
-            cpass.end()
-        self.device.queue.submit([enc.finish()])
+        for batch_start in range(0, n, PREFILL_BATCH_TOKENS):
+            batch_end = min(n, batch_start + PREFILL_BATCH_TOKENS)
+            batch_len = batch_end - batch_start
+            steps_arr = np.zeros((batch_len, 4), dtype=np.uint32)
+            for i in range(batch_len):
+                steps_arr[i, 0] = int(closing_ids[batch_start + i])
+                steps_arr[i, 1] = int(start_pos + batch_start + i)
+            self.device.queue.write_buffer(self.prefill_steps_buf, 0, steps_arr.tobytes())
+            enc = self.device.create_command_encoder()
+            for i in range(batch_len):
+                enc.copy_buffer_to_buffer(self.prefill_steps_buf, i * 16, self.step_state_buf, 0, 16)
+                cpass = enc.begin_compute_pass()
+                self._record_ops(cpass, self.embed_ops)
+                for l_ops in self.layer_ops:
+                    self._record_ops(cpass, l_ops)
+                cpass.end()
+            self.device.queue.submit([enc.finish()])
+            _ = self.device.queue.read_buffer(self.top2_out_buf)
         return start_pos + n
 
     def forward_token(
@@ -1930,6 +2166,7 @@ class NativeWebGPUMoSEngine:
         enable_scarstore: bool = True,
         system_prompt: Optional[str] = None,
         reset_cache: bool = True,
+        enable_epistemic_guard: bool = False,
     ) -> WebGPUGenerationResult:
         """End-to-end batched GPU prefill + `Span-Max` `HTTP 206` routing + `SCache O(1)` WGSL generation."""
         from transformers import AutoTokenizer
@@ -1977,28 +2214,111 @@ class NativeWebGPUMoSEngine:
             prompt_ids = list(
                 tok.encode(f"<|im_start|>user\n{user_query}<|im_end|>\n<|im_start|>assistant\n", add_special_tokens=False)
             )
-        lp = len(prompt_ids)
+        effective_lp = len(prompt_ids)
         scache_b0 = self.scache_gpu_bytes
+        use_guard = bool(enable_epistemic_guard and enable_scarstore and self.router_meta is not None)
+        epistemic_mode = "base_trunk"
+        guarded_rollback_pos: Optional[int] = None
+        guarded_clean_prefix_ids: Optional[List[int]] = None
 
         U = self.wgpu.BufferUsage
         t0 = time.perf_counter()
 
         if base_pos == 0:
-            prefill_xin_buf = (
-                self.device.create_buffer(size=lu_probe * self.hidden_dim * 4, usage=U.COPY_DST | U.COPY_SRC)
-                if (enable_scarstore and self.router_meta is not None)
-                else None
-            )
-            self._submit_prefill_sequence(prompt_ids, 0, q_start_probe, prefill_xin_buf, q_end=q_end_probe)
-            if prefill_xin_buf is not None:
+            if (
+                enable_scarstore
+                and self.router_meta is not None
+                and self.is_golden_slice_v4
+                and 0 < q_end_probe < lp_probe
+            ):
+                prefill_xin_buf = self.device.create_buffer(
+                    size=lu_probe * self.hidden_dim * 4, usage=U.COPY_DST | U.COPY_SRC
+                )
+                self._submit_prefill_sequence(
+                    clean_probe_ids[:q_end_probe],
+                    0,
+                    q_start_probe,
+                    prefill_xin_buf,
+                    q_end=q_end_probe,
+                    run_full_on_last=True,
+                )
                 xin_np = np.frombuffer(self.device.queue.read_buffer(prefill_xin_buf), dtype=np.float32).reshape(
                     lu_probe, self.hidden_dim
                 )
                 active = self.route_prompt_states(xin_np)
                 self._set_active_capsules_gpu(active, horizon_scale=1.0)
+                if len(active) > 0 or not use_guard:
+                    epistemic_mode = "scar_grounded" if len(active) > 0 else "base_trunk"
+                    tail_ids = clean_probe_ids[q_end_probe:]
+                    self._submit_prefill_sequence(
+                        tail_ids,
+                        q_end_probe,
+                        0,
+                        None,
+                        q_end=None,
+                        run_full_on_last=False,
+                    )
+                    effective_lp = q_end_probe + len(tail_ids)
+                else:
+                    epistemic_mode = "out_of_cone_guarded"
+                    enc_snap_q = self.device.create_command_encoder()
+                    enc_snap_q.copy_buffer_to_buffer(
+                        self.scache_kv_buf, 0, self.scache_kv_snap_buf, 0, self.scache_kv_buf.size
+                    )
+                    enc_snap_q.copy_buffer_to_buffer(
+                        self.scache_w_scar_buf, 0, self.scache_w_scar_snap_buf, 0, self.scache_w_scar_buf.size
+                    )
+                    enc_snap_q.copy_buffer_to_buffer(
+                        self.scache_salience_buf, 0, self.scache_sal_snap_buf, 0, self.scache_salience_buf.size
+                    )
+                    self.device.queue.submit([enc_snap_q.finish()])
+                    guarded_rollback_pos = q_end_probe
+                    guarded_clean_prefix_ids = list(clean_probe_ids[q_end_probe:])
+
+                    gate_txt = select_out_of_cone_epistemic_gate(user_query)
+                    guarded_msgs = [
+                        {"role": "system", "content": sys_txt},
+                        {"role": "user", "content": f"{user_query}\n\n{gate_txt}"},
+                    ]
+                    raw_g_enc: Any = tok.apply_chat_template(
+                        guarded_msgs, tokenize=True, add_generation_prompt=True
+                    )
+                    guarded_full_ids: List[int] = list(
+                        raw_g_enc["input_ids"] if hasattr(raw_g_enc, "keys") else raw_g_enc
+                    )
+                    self.device.queue.write_buffer(self.scache_kv_buf, 0, bytes(self.scache_kv_buf.size))
+                    self.device.queue.write_buffer(self.scache_w_scar_buf, 0, bytes(self.scache_w_scar_buf.size))
+                    self.device.queue.write_buffer(
+                        self.scache_salience_buf, 0, bytes(self.scache_salience_buf.size)
+                    )
+                    self._submit_prefill_sequence(
+                        guarded_full_ids,
+                        0,
+                        0,
+                        None,
+                        q_end=None,
+                        run_full_on_last=False,
+                    )
+                    effective_lp = len(guarded_full_ids)
             else:
-                self._set_active_capsules_gpu([])
+                prefill_xin_buf = (
+                    self.device.create_buffer(size=lu_probe * self.hidden_dim * 4, usage=U.COPY_DST | U.COPY_SRC)
+                    if (enable_scarstore and self.router_meta is not None)
+                    else None
+                )
+                self._submit_prefill_sequence(prompt_ids, 0, q_start_probe, prefill_xin_buf, q_end=q_end_probe)
+                if prefill_xin_buf is not None:
+                    xin_np = np.frombuffer(self.device.queue.read_buffer(prefill_xin_buf), dtype=np.float32).reshape(
+                        lu_probe, self.hidden_dim
+                    )
+                    active = self.route_prompt_states(xin_np)
+                    self._set_active_capsules_gpu(active, horizon_scale=1.0)
+                    epistemic_mode = "scar_grounded" if len(active) > 0 else "base_trunk"
+                else:
+                    self._set_active_capsules_gpu([])
+                    epistemic_mode = "base_trunk"
         else:
+            active_turn: List[Tuple[str, float, np.ndarray]] = []
             if enable_scarstore and self.router_meta is not None:
                 prefill_xin_buf = self.device.create_buffer(
                     size=lu_probe * self.hidden_dim * 4, usage=U.COPY_DST | U.COPY_SRC
@@ -2019,7 +2339,12 @@ class NativeWebGPUMoSEngine:
                 self.device.queue.write_buffer(self.scache_w_scar_buf, 0, bytes(self.scache_w_scar_buf.size))
                 self.device.queue.write_buffer(self.scache_salience_buf, 0, bytes(self.scache_salience_buf.size))
 
-                self._submit_prefill_sequence(clean_probe_ids, 0, q_start_probe, prefill_xin_buf, q_end=q_end_probe)
+                probe_seq = (
+                    clean_probe_ids[:q_end_probe]
+                    if (self.is_golden_slice_v4 and 0 < q_end_probe < lp_probe)
+                    else clean_probe_ids
+                )
+                self._submit_prefill_sequence(probe_seq, 0, q_start_probe, prefill_xin_buf, q_end=q_end_probe)
 
                 enc_restore = self.device.create_command_encoder()
                 enc_restore.copy_buffer_to_buffer(
@@ -2036,14 +2361,33 @@ class NativeWebGPUMoSEngine:
                 xin_np = np.frombuffer(self.device.queue.read_buffer(prefill_xin_buf), dtype=np.float32).reshape(
                     lu_probe, self.hidden_dim
                 )
-                active = self.route_prompt_states(xin_np)
-                self._set_active_capsules_gpu(active, horizon_scale=1.0)
+                active_turn = self.route_prompt_states(xin_np)
+                self._set_active_capsules_gpu(active_turn, horizon_scale=1.0)
             else:
                 self._set_active_capsules_gpu([])
 
-            self._submit_prefill_sequence(prompt_ids, base_pos, 0, None)
+            if enable_scarstore and self.router_meta is not None and len(active_turn) == 0 and use_guard:
+                epistemic_mode = "out_of_cone_guarded"
+                guarded_rollback_pos = base_pos
+                guarded_clean_prefix_ids = list(prompt_ids)
+                gate_txt = select_out_of_cone_epistemic_gate(user_query)
+                turn_ids = list(
+                    tok.encode(
+                        f"<|im_start|>user\n{user_query}\n\n{gate_txt}<|im_end|>\n<|im_start|>assistant\n",
+                        add_special_tokens=False,
+                    )
+                )
+            else:
+                epistemic_mode = (
+                    "scar_grounded"
+                    if (enable_scarstore and self.router_meta is not None and len(active_turn) > 0)
+                    else "base_trunk"
+                )
+                turn_ids = prompt_ids
+            self._submit_prefill_sequence(turn_ids, base_pos, 0, None)
+            effective_lp = len(turn_ids)
 
-        # Complete upper layers -> final_norm -> scar_inject -> lm_head -> top2 for `lp - 1`
+        # Complete upper layers -> final_norm -> scar_inject -> lm_head -> top2 for `effective_lp - 1`
         split_idx = self.mid_layer_idx if self.is_golden_slice_v4 else (self.num_layers - 2)
         enc_tail = self.device.create_command_encoder()
         cpass_tail = enc_tail.begin_compute_pass()
@@ -2070,9 +2414,11 @@ class NativeWebGPUMoSEngine:
         confs: List[float] = [1.0 / sexp]
         margins: List[float] = [(1.0 - math.exp(max(-80.0, v2 - v1))) / sexp]
         last_gen_fed = True
+        last_decoded = ""
         if int(top1_id) not in self.eos_token_ids:
             gen_ids.append(int(top1_id))
             last_gen_fed = False
+            last_decoded = tok.decode(gen_ids, skip_special_tokens=True)
 
         max_spread = 0.0
         if not self.is_golden_slice_v4 and self._current_m_active >= 2:
@@ -2080,7 +2426,7 @@ class NativeWebGPUMoSEngine:
             max_spread = max(max_spread, float(tel[8]))
 
         t_dec0 = time.perf_counter()
-        cur_pos = base_pos + lp
+        cur_pos = base_pos + effective_lp
         dec_step_idx = 0
         while len(gen_ids) > 0 and len(gen_ids) < max_new_tokens and gen_ids[-1] not in self.eos_token_ids:
             dec_step_idx += 1
@@ -2094,16 +2440,58 @@ class NativeWebGPUMoSEngine:
                 max_spread = max(max_spread, float(tel[8]))
             if nxt_id in self.eos_token_ids:
                 break
+            if _should_stop_at_sentence_boundary(
+                epistemic_mode, len(gen_ids), dec_step_idx, self.seed_horizon, max_new_tokens
+            ) and _ends_with_complete_sentence(last_decoded):
+                nxt_piece = tok.decode([nxt_id], skip_special_tokens=True)
+                if _starts_new_sentence_or_paragraph(nxt_piece):
+                    break
             gen_ids.append(nxt_id)
             last_gen_fed = False
             confs.append(p1)
             margins.append(marg)
+            rep_start = _find_repeated_ngram_start(gen_ids)
+            if rep_start >= 0:
+                del gen_ids[rep_start:]
+                last_decoded = tok.decode(gen_ids, skip_special_tokens=True).rstrip()
+                break
+            preview_txt = tok.decode(gen_ids, skip_special_tokens=True)
+            if (
+                _should_stop_at_sentence_boundary(
+                    epistemic_mode, len(gen_ids), dec_step_idx, self.seed_horizon, max_new_tokens
+                )
+                and bool(re.search(r"\n\s*$", preview_txt))
+                and _ends_with_complete_sentence(preview_txt)
+            ):
+                last_decoded = preview_txt.rstrip()
+                break
+            last_decoded = preview_txt
 
-        closing_ids: List[int] = []
-        if gen_ids and not last_gen_fed:
-            closing_ids.append(gen_ids[-1])
-        closing_ids.extend(tok.encode("<|im_end|>\n", add_special_tokens=False))
-        self.session_pos = self._flush_closing_tokens_to_scache(closing_ids, cur_pos)
+        turn_active_cids = list(self._current_active_cids)
+        turn_active_gates = dict(self._current_active_gates)
+        self._set_active_capsules_gpu([])
+        turn_suffix_ids = list(tok.encode("<|im_end|>\n", add_special_tokens=False))
+        if guarded_rollback_pos is not None and guarded_clean_prefix_ids is not None:
+            enc_clean_rest = self.device.create_command_encoder()
+            enc_clean_rest.copy_buffer_to_buffer(
+                self.scache_kv_snap_buf, 0, self.scache_kv_buf, 0, self.scache_kv_buf.size
+            )
+            enc_clean_rest.copy_buffer_to_buffer(
+                self.scache_w_scar_snap_buf, 0, self.scache_w_scar_buf, 0, self.scache_w_scar_buf.size
+            )
+            enc_clean_rest.copy_buffer_to_buffer(
+                self.scache_sal_snap_buf, 0, self.scache_salience_buf, 0, self.scache_salience_buf.size
+            )
+            self.device.queue.submit([enc_clean_rest.finish()])
+            clean_gen_ids = [t for t in gen_ids if t not in self.eos_token_ids]
+            clean_flush_ids = list(guarded_clean_prefix_ids) + clean_gen_ids + turn_suffix_ids
+            self.session_pos = self._flush_closing_tokens_to_scache(clean_flush_ids, guarded_rollback_pos)
+        else:
+            closing_ids: List[int] = []
+            if gen_ids and not last_gen_fed:
+                closing_ids.append(gen_ids[-1])
+            closing_ids.extend(turn_suffix_ids)
+            self.session_pos = self._flush_closing_tokens_to_scache(closing_ids, cur_pos)
         self.turn_count += 1
 
         decode_ms = (time.perf_counter() - t_dec0) * 1000.0
@@ -2117,7 +2505,7 @@ class NativeWebGPUMoSEngine:
             prompt=user_query,
             answer=answer,
             generated_token_ids=clean_ids,
-            prefill_tokens=lp,
+            prefill_tokens=effective_lp,
             generated_tokens=len(clean_ids),
             prefill_ms=round(prefill_ms, 3),
             decode_ms=round(decode_ms, 3),
@@ -2129,12 +2517,13 @@ class NativeWebGPUMoSEngine:
             scache_bytes_after_decode=scache_b_end,
             scache_delta_bytes=scache_b_end - scache_b0,
             vram_weights_mib=round(self.total_weight_gpu_bytes / (1024.0 * 1024.0), 3),
-            active_capsules=list(self._current_active_cids),
-            active_gates=dict(self._current_active_gates),
+            active_capsules=turn_active_cids,
+            active_gates=turn_active_gates,
             http206_bytes_fetched=int(self.http206_bytes_fetched),
             mean_confidence_p1=round(sum(confs) / len(confs), 4),
             mean_margin_p1_p2=round(sum(margins) / len(margins), 4),
             max_inter_head_spread=round(max_spread, 4),
+            epistemic_mode=epistemic_mode,
         )
 
 

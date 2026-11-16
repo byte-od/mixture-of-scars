@@ -1,0 +1,30 @@
+{
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "version": "6.0.0",
+  "publication_date": "2026-11-16",
+  "title": "Shared-Stage Scar-Native Neural Architecture (ScarNativeLM v6.0) and PointScarFlow v1.0: Chunkwise WY Widrow-Hoff Pretraining, Dual-Tier SCache O(1), Procrustes mos-digest Cartridges with 0x00 Document GDPR Unlearning, and Continuous 3D Optimal-Transport Flow",
+  "creators": [
+    {
+      "name": "Reis Filho, Julio Cesar da Costa",
+      "affiliation": "Byte-OD Research & System One Architecture Lab"
+    }
+  ],
+  "license": "cc-by-4.0",
+  "keywords": [
+    "ScarNativeLM v6.0",
+    "Chunkwise WY Widrow-Hoff",
+    "Dual-Tier SCache O(1)",
+    "Shared-Stage Mixture of Scars",
+    "mos-digest GDPR Unlearning",
+    "PointScarFlow 3D Rectified Flow",
+    "WebGPU WGSL"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/byte-od/mixture-of-scars",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

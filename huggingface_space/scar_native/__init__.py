@@ -1,5 +1,10 @@
-"""Pure Scar-Native Foundation Neural Architecture (`scar_native` v5.0.0)."""
+"""Pure Scar-Native Foundation Neural Architecture (`scar_native` v6.0.0)."""
 
+from scar_native.chunkwise_wy import (
+    chunkwise_wy_widrow_hoff_forward,
+    invert_unit_lower_triangular_pow2,
+    sequential_widrow_hoff_reference,
+)
 from scar_native.data import (
     DETACHED_ENTITIES_16,
     LANGUAGES,
@@ -10,6 +15,20 @@ from scar_native.data import (
     build_overflow_passkey_sample,
     build_pretraining_tensors,
     format_detached_entity_prompt,
+)
+from scar_native.data_v6 import (
+    DUMMY_TRAIN_MODULES_16,
+    HELDOUT_EPISTEMIC_ABSTAIN_BENCHMARK_16,
+    MOS_DIGEST_CLAIMS_24,
+    MOS_DIGEST_MARKDOWN_DOCS_4,
+    V6_PARALLEL_CONCEPT_QUADS,
+    build_v6_code_sample,
+    build_v6_grounded_inline_sample,
+    build_v6_overflow_passkey_sample,
+    build_v6_pretraining_tensors,
+    build_v6_procrustes_calibration_batch,
+    build_v6_tokenizer_corpus,
+    build_v6_ungrounded_advisory_sample,
 )
 from scar_native.model import (
     DenseTransformerBaseline,
@@ -28,13 +47,51 @@ from scar_native.model import (
     build_canonical_d4_lut256,
     compute_excess_kurtosis,
 )
+from scar_native.model_v6 import (
+    V6_LANGS,
+    HierarchicalSCacheAttentionV6,
+    ProcrustesLanguageNullspace,
+    ScarMoSExpertBank,
+    ScarNativeFactorizedEmbedding,
+    ScarNativeLMV6,
+    ScarNativeV6Block,
+    ScarNativeV6Config,
+    ScarNativeV6MLP,
+    ScarNativeV6O1State,
+    ScarUniversalStageModule,
+    SharedStageScarNativeLinear,
+    SharedStageUniversalBase,
+    compute_v6_architectural_byte_budget,
+)
+from scar_native.mos_digest import (
+    DigestFactClaim,
+    MoSDigestCompiler,
+    format_v6_fact_abstain_answer,
+    format_v6_fact_answer,
+    format_v6_fact_prompt,
+    parse_markdown_knowledge_doc,
+)
 from scar_native.tokenizer import ScarNativeTokenizer
+from scar_native.v6_bpe_tokenizer import (
+    CANONICAL_ABSTENTION_REPLIES,
+    V6_SPECIAL_TOKENS,
+    EpistemicAbstentionFilter,
+    ScarNativeBPETokenizer,
+)
 from scar_native.webgpu_v5 import ScarNativeWebGPUEngine, export_scar_native_webgpu_bundle
+from scar_native.webgpu_v6 import (
+    ScarNativeV6WebGPUEngine,
+    export_scar_native_v6_webgpu_bundle,
+    unpack_scarstore_record_bytes,
+)
 
-__version__ = "5.0.0"
+__version__ = "6.0.0"
 
 __all__ = [
     "__version__",
+    "chunkwise_wy_widrow_hoff_forward",
+    "invert_unit_lower_triangular_pow2",
+    "sequential_widrow_hoff_reference",
     "DETACHED_ENTITIES_16",
     "LANGUAGES",
     "PARALLEL_CONCEPT_QUADS",
@@ -44,6 +101,18 @@ __all__ = [
     "build_overflow_passkey_sample",
     "build_pretraining_tensors",
     "format_detached_entity_prompt",
+    "DUMMY_TRAIN_MODULES_16",
+    "HELDOUT_EPISTEMIC_ABSTAIN_BENCHMARK_16",
+    "MOS_DIGEST_CLAIMS_24",
+    "MOS_DIGEST_MARKDOWN_DOCS_4",
+    "V6_PARALLEL_CONCEPT_QUADS",
+    "build_v6_code_sample",
+    "build_v6_grounded_inline_sample",
+    "build_v6_overflow_passkey_sample",
+    "build_v6_pretraining_tensors",
+    "build_v6_procrustes_calibration_batch",
+    "build_v6_tokenizer_corpus",
+    "build_v6_ungrounded_advisory_sample",
     "DenseTransformerBaseline",
     "DetachedScarCartridge",
     "DetachedScarStore",
@@ -59,7 +128,34 @@ __all__ = [
     "ScarNativeO1State",
     "build_canonical_d4_lut256",
     "compute_excess_kurtosis",
+    "V6_LANGS",
+    "HierarchicalSCacheAttentionV6",
+    "ProcrustesLanguageNullspace",
+    "ScarMoSExpertBank",
+    "ScarNativeFactorizedEmbedding",
+    "ScarNativeLMV6",
+    "ScarNativeV6Block",
+    "ScarNativeV6Config",
+    "ScarNativeV6MLP",
+    "ScarNativeV6O1State",
+    "ScarUniversalStageModule",
+    "SharedStageScarNativeLinear",
+    "SharedStageUniversalBase",
+    "compute_v6_architectural_byte_budget",
+    "DigestFactClaim",
+    "MoSDigestCompiler",
+    "format_v6_fact_abstain_answer",
+    "format_v6_fact_answer",
+    "format_v6_fact_prompt",
+    "parse_markdown_knowledge_doc",
     "ScarNativeTokenizer",
+    "CANONICAL_ABSTENTION_REPLIES",
+    "V6_SPECIAL_TOKENS",
+    "EpistemicAbstentionFilter",
+    "ScarNativeBPETokenizer",
     "ScarNativeWebGPUEngine",
     "export_scar_native_webgpu_bundle",
+    "ScarNativeV6WebGPUEngine",
+    "export_scar_native_v6_webgpu_bundle",
+    "unpack_scarstore_record_bytes",
 ]

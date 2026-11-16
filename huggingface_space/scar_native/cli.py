@@ -1,4 +1,4 @@
-"""CLI Entry Point `mos-scar-native` for the Pure Scar-Native Foundation Engine (`v5.0.0`)."""
+"""CLI Entry Point `mos-scar-native` for the Pure Scar-Native Foundation Engine (`v6.0.0`)."""
 
 from __future__ import annotations
 
@@ -10,19 +10,39 @@ from typing import List, Optional
 import torch
 
 from scar_native.model import ScarNativeConfig, ScarNativeLM
+from scar_native.model_v6 import ScarNativeLMV6, ScarNativeV6Config, compute_v6_architectural_byte_budget
+from scar_native.mos_digest import MoSDigestCompiler, parse_markdown_knowledge_doc
 from scar_native.tokenizer import ScarNativeTokenizer
+from scar_native.v6_bpe_tokenizer import ScarNativeBPETokenizer
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="mos-scar-native",
-        description="Pure Scar-Native Foundation Architecture (v5.0.0) — Tabula-Rasa D4-VQ4 + O(1) Widrow-Hoff + P_perp_lang ScarStore",
+        description="Pure Scar-Native Foundation Architecture (v6.0.0) — Shared-Stage MoS + Chunkwise WY + Dual-Tier O(1) SCache + mos-digest",
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    sp_info = sub.add_parser("inspect", help="Inspect Scar-Native model configuration, byte budget, and O(1) SCache layout")
+    sp_info = sub.add_parser("inspect", help="Inspect Scar-Native v5.0 model configuration and O(1) SCache layout")
     sp_info.add_argument("--hidden-size", type=int, default=256)
     sp_info.add_argument("--num-layers", type=int, default=6)
+
+    sp_v6 = sub.add_parser("inspect-v6", help="Inspect Scar-Native v6.0 Shared-Stage MoS + Dual-Tier O(1) SCache byte budget")
+    sp_v6.add_argument("--hidden-size", type=int, default=512)
+    sp_v6.add_argument("--intermediate-size", type=int, default=1024)
+    sp_v6.add_argument("--num-layers", type=int, default=12)
+    sp_v6.add_argument("--num-stages", type=int, default=3)
+
+    sub.add_parser(
+        "inspect-frontier",
+        help="Compute exact first-principles byte budget for ScarNative v6-Frontier (96L, d=8192, 128k context)",
+    )
+
+    sp_dig = sub.add_parser("digest", help="Compile Markdown document claims into 4 KB-aligned .scarstore cartridges")
+    sp_dig.add_argument("--bundle-dir", type=Path, required=True, help="Path to exported ScarNative v6 bundle")
+    sp_dig.add_argument("--doc", type=Path, required=True, help="Input Markdown knowledge document")
+    sp_dig.add_argument("--doc-id", type=str, default="doc_cli")
+    sp_dig.add_argument("--out", type=Path, required=True, help="Output .scarstore path")
 
     sp_ver = sub.add_parser("verify-parity", help="Verify Native PyTorch <-> WebGPU WGSL 1.0 parity (cos > 0.99999) and O(1) SCache")
     sp_ver.add_argument("--bundle-dir", type=Path, default=None, help="Optional existing WebGPU bundle directory")
@@ -56,6 +76,62 @@ def main_cli(argv: Optional[List[str]] = None) -> None:
         print(json.dumps(summary, indent=2))
         return
 
+    if args.cmd == "inspect-v6":
+        cfg6 = ScarNativeV6Config(
+            hidden_size=args.hidden_size,
+            intermediate_size=args.intermediate_size,
+            num_layers=args.num_layers,
+            num_stages=args.num_stages,
+        )
+        budget = compute_v6_architectural_byte_budget(cfg6)
+        print(json.dumps({"version": "6.0.0", "config": cfg6.to_dict(), "budget": budget}, indent=2))
+        return
+
+    if args.cmd == "inspect-frontier":
+        frontier_cfg = ScarNativeV6Config(
+            vocab_size=131072,
+            embed_rank=256,
+            hidden_size=8192,
+            intermediate_size=28672,
+            num_layers=96,
+            num_stages=12,
+            num_q_heads=64,
+            num_kv_heads=8,
+            head_dim=128,
+            id_scar_rank=64,
+            head_scar_rank=64,
+            num_mos_experts=16,
+            mos_top_k=2,
+            mos_expert_rank=128,
+            num_sink=16,
+            slide_len=240,
+            num_micro_pages=64,
+            golden_layer=72,
+            k_lang_null=64,
+            cartridge_rank=64,
+        )
+        budget = compute_v6_architectural_byte_budget(
+            frontier_cfg, active_cartridges=8, mos_lru_hot_per_layer=4, ref_context_tokens=131072, tie_lm_head_in_frontier=True
+        )
+        print(json.dumps({"version": "6.0.0-frontier-blueprint", "budget": budget}, indent=2))
+        return
+
+    if args.cmd == "digest":
+        ckpt_path = args.bundle_dir / "scarnative_v6_checkpoint.pt"
+        if not ckpt_path.exists():
+            raise FileNotFoundError(f"Expected {ckpt_path} for mos-digest compilation")
+        ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+        cfg6 = ScarNativeV6Config(**ckpt["config"])
+        tok6 = ScarNativeBPETokenizer.load(args.bundle_dir / "tokenizer.json")
+        model6 = ScarNativeLMV6(cfg6)
+        model6.load_state_dict(ckpt["state_dict"], strict=False)
+        model6.eval()
+        claims = parse_markdown_knowledge_doc(args.doc.read_text(encoding="utf-8"), doc_id=args.doc_id)
+        comp = MoSDigestCompiler(model6, tok6)
+        res = comp.digest_claims_batch(claims, out_scarstore_path=args.out)
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return
+
     if args.cmd == "verify-parity":
         import tempfile
         from scar_native.tokenizer import has_cjk_script
@@ -75,7 +151,6 @@ def main_cli(argv: Optional[List[str]] = None) -> None:
             prompt = "<lang:pt> <user> chave secreta <passkey> alpha = 583 </passkey> . o sistema analisa o fluxo de telemetria com memória constante e zero ruído no vácuo . qual é a chave alpha ? <assistant>"
             pids = tok.encode(prompt, add_bos=True)
             suppress = not has_cjk_script(prompt)
-            cjk_mask_t = torch.from_numpy(tok.build_cjk_bitmask_u32().astype(np.int64)).to(torch.int64) if False else None
 
             from scar_native.model import ScarNativeO1State
             import torch.nn.functional as F

@@ -353,9 +353,9 @@ def build_pdf_v5_0(pdf_path: Path, hero_png: Path, r_v5: dict):
 
     t4 = [
         ["Physical Benchmark & Geometry", "Conventional Baseline", "Baseline Failure Mode", "ScarCodec Operator Stack", "Compressed Size", "Audited Physical Result"],
-        ["1. Radio Telescope [64, 4096] (-60 dB SIR, 1,000x RFI)", "Raw Beam / 2-Bit VLBI + Null", "cos=0.0044 / 0.0249 (clipped RFI aliases)", "P_perp_RFI (r=2) + VQ4-Scar (FWHT-64 + 2-Pass INT4)", "120,960 B (8.67x vs 1.00 MiB)", "cos=0.97516 (+13.09 dB SNR) · Out-of-cone err 1.86e-8!"],
-        ["2. Avionics / CubeSat Black-Box (50,000 x 64, 12.8 MB)", "Equal-Byte Circular Ring O(T) (256 frames)", "0/5 (0.0% recall: overwritten 195x)", "SurpriseGatedAnomalySCache (32 slots + W_scar)", "34,816 B (34.8 KB, Delta=0 B!)", "5/5 (100.0% fault recall) · cos=0.99883 · 38,573 FPS!"],
-        ["3. Supersonic CFD + 40% Vacuum + 500x HDR [512, 512]", "zlib -9 (1.84x, no O(1)) / Matched 2D FFT", "FFT RMSE=6.152, vac ring 3.38, HDR 480.0", "MAD Spike Peel + VQ4-Scar (Block-64 O(1) Layout)", "87,040 B (12.05x vs 1.00 MiB)", "RMSE=0.0820 (75.0x↓), vac=0.0, HDR 3,858x↓, 9.2x Rd!"],
+        ["1. Radio Telescope [64, 4096] (-60 dB SIR, 1,000x RFI)", "Raw Beam / 2-Bit VLBI + Null", "cos=0.0044 / 0.0252 (clipped RFI aliases)", "Blind P_perp_RFI (r=2) + VQ4-Scar (FWHT-64 + 2-Pass INT4)", "120,960 B (8.67x vs 1.00 MiB)", "cos=0.97527 (+13.11 dB SNR) · Out-of-cone err 2.75e-4!"],
+        ["2. Avionics / CubeSat Black-Box (50,000 x 64, 12.8 MB)", "Equal-Byte Circular Ring O(T) (256 frames)", "0/5 (0.0% recall: overwritten 195x)", "SurpriseGatedAnomalySCache (32 slots + W_scar)", "34,816 B (34.8 KB, Delta=0 B!)", "5/5 (100.0% recall) · Masked 4-ch cos=0.9999 · 37,501 FPS!"],
+        ["3. Rusanov 2D Burgers PDE + 40% Vac + 500x HDR [512,512]", "zlib -9 (1.87x, no O(1)) / Byte-Matched FP16 2D rFFT", "rFFT RMSE=5.742, vac ring 5.44, HDR 418.3", "MAD Spike Peel + VQ4-Scar (Block-64 O(1) Layout)", "87,040 B (12.05x vs 1.00 MiB)", "RMSE=0.0305 (188.2x↓), vac=0.0, HDR 3,445x↓, 10.2x Rd!"],
     ]
     story.append(KeepTogether([
         styled_table(t4, [1.26 * inch, 1.06 * inch, 1.18 * inch, 1.24 * inch, 0.96 * inch, 1.80 * inch], s_th, s_td, bold_rows=(1, 2, 3)),
@@ -428,11 +428,12 @@ def sync_huggingface_space():
 
 
 def audit_latex_and_pack(zip_out: Path):
-    tex = (LATEX_DIR / "main.tex").read_text(encoding="utf-8")
-    bib = (LATEX_DIR / "references.bib").read_text(encoding="utf-8")
-    bbl = (LATEX_DIR / "main.bbl").read_text(encoding="utf-8")
+    v5_dir = LATEX_DIR / "revisions" / "v5_0"
+    tex = (v5_dir / "main.tex").read_text(encoding="utf-8")
+    bib = (v5_dir / "references.bib").read_text(encoding="utf-8")
+    bbl = (v5_dir / "main.bbl").read_text(encoding="utf-8")
 
-    assert "Revision v5.0" in tex and "ScarNativeLM" in tex, "main.tex not yet updated to Revision v5.0"
+    assert "Revision v5.0" in tex and "ScarNativeLM" in tex, "v5_0/main.tex missing Revision v5.0"
 
     clean_tex = "\n".join(re.split(r"(?<!\\)%", ln)[0] for ln in tex.splitlines())
 
@@ -462,32 +463,25 @@ def audit_latex_and_pack(zip_out: Path):
     bbl_keys = set(re.findall(r"\\bibitem(?:\[[^\]]*\])?\{([^}]+)\}", bbl))
     cited = {k.strip() for m in re.finditer(r"\\cite\w*\{([^}]+)\}", clean_tex) for k in m.group(1).split(",")}
     assert not (cited - bib_keys), f"Missing cites in .bib: {cited - bib_keys}"
-    assert not (cited - bbl_keys), f"Missing cites in .bbl (arXiv required): {cited - bbl_keys}"
+    assert not (cited - bbl_keys), f"Missing cites in .bbl: {cited - bbl_keys}"
     assert bib_keys == bbl_keys, f".bib / .bbl mismatch: {bib_keys ^ bbl_keys}"
 
     labels = set(re.findall(r"\\label\{([^}]+)\}", clean_tex))
     refs = set(re.findall(r"\\(?:eq)?ref\{([^}]+)\}", clean_tex))
     assert not (refs - labels), f"Missing refs: {refs - labels}"
 
-    with zipfile.ZipFile(zip_out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for p in sorted(LATEX_DIR.rglob("*")):
-            if (
-                p.is_file()
-                and not p.name.startswith(".")
-                and p.suffix != ".png"
-                and "v3_audit" not in p.name
-                and "v4_audit" not in p.name
-            ):
-                zf.write(p, arcname=str(p.relative_to(LATEX_DIR)))
+    fig_pdf = LATEX_DIR / "figures" / "fig1_scar_native_v5_audit.pdf"
+    (v5_dir / "figures").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(fig_pdf, v5_dir / "figures" / "fig1_scar_native_v5_audit.pdf")
+    if (LATEX_DIR / "Makefile").exists():
+        shutil.copy2(LATEX_DIR / "Makefile", v5_dir / "Makefile")
 
-    arxiv_clean_zip = OUT_DIR / "arXiv_Direct_Upload_v5.0.zip"
-    with zipfile.ZipFile(arxiv_clean_zip, "w", compression=zipfile.ZIP_DEFLATED) as azf:
-        for rel_name in ("main.tex", "main.bbl", "figures/fig1_scar_native_v5_audit.pdf"):
-            azf.write(LATEX_DIR / rel_name, arcname=rel_name)
-    print(
-        f"[LATEX v5.0 AUDIT PASS] {len(cited)}/{len(bbl_keys)} bbl cites | "
-        f"{len(labels)} labels | {arxiv_clean_zip.name} ({arxiv_clean_zip.stat().st_size} B)"
-    )
+    with zipfile.ZipFile(zip_out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for rel_name in ("Makefile", "main.tex", "references.bib", "main.bbl", "figures/fig1_scar_native_v5_audit.pdf"):
+            fp = v5_dir / rel_name
+            if fp.exists():
+                zf.write(fp, arcname=rel_name)
+    print(f"[ZENODO v5.0 LATEX AUDIT PASS] {len(cited)}/{len(bbl_keys)} bbl cites | {len(labels)} labels | {zip_out.name}")
 
 
 def build_replication_zip_v5_0(zip_path: Path):
@@ -556,13 +550,35 @@ def main():
     hero_png = OUT_DIR / "mos_scarnative_v5_0_hero.png"
     shutil.copy2(src_png, hero_png)
 
+    for stale_f in ("arXiv_Direct_Upload_v5.0.zip", "MoS_ScarNative_LaTeX_arXiv_TMLR_v5.0.zip"):
+        if (OUT_DIR / stale_f).exists():
+            (OUT_DIR / stale_f).unlink()
+
     pdf_v50 = OUT_DIR / "Pure_Scar_Native_and_MoS_Preprint_v5.0.pdf"
     rep_v50 = OUT_DIR / "MoS_ScarNative_Adversarial_Replication_v5.0.zip"
-    tex_v50 = OUT_DIR / "MoS_ScarNative_LaTeX_arXiv_TMLR_v5.0.zip"
+    tex_v50 = OUT_DIR / "MoS_ScarNative_LaTeX_Source_v5.0.zip"
 
     build_pdf_v5_0(pdf_v50, hero_png, r_v5)
     build_replication_zip_v5_0(rep_v50)
     audit_latex_and_pack(tex_v50)
+    (OUT_DIR / "ZENODO_METADATA_v5.0.json").write_text(
+        json.dumps(
+            {
+                "upload_type": "publication",
+                "publication_type": "preprint",
+                "version": "5.0.0",
+                "publication_date": "2026-11-16",
+                "title": "Pure Scar-Native Neural Architecture (ScarNativeLM v5.0), Mixture of Scars (MoS), SCache O(1), and Domain-Independent ScarCodec: Tabula-Rasa Pretraining on D4 Lattice Bases, Differentiable Widrow-Hoff Fast-Weights, and Detached P_perp_lang Cartridges",
+                "creators": [{"name": "Reis Filho, Julio Cesar da Costa", "affiliation": "Byte-OD Research & System One Architecture Lab"}],
+                "license": "cc-by-4.0",
+                "keywords": ["ScarNativeLM", "Tabula Rasa Pretraining", "Mixture of Scars", "SCache O(1)", "D4 Lattice VQ4", "WebGPU WGSL", "GDPR Unlearning"],
+                "related_identifiers": [{"identifier": "https://github.com/byte-od/mixture-of-scars", "relation": "isSupplementTo", "scheme": "url"}],
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
     print(f"✓ Built {pdf_v50} ({pdf_v50.stat().st_size / 1024:.1f} KB)")
     print(f"✓ Built {rep_v50} ({rep_v50.stat().st_size / 1024:.1f} KB)")
 

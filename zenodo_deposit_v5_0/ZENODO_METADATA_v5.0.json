@@ -1,0 +1,30 @@
+{
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "version": "5.0.0",
+  "publication_date": "2026-11-16",
+  "title": "Pure Scar-Native Neural Architecture (ScarNativeLM v5.0), Mixture of Scars (MoS), SCache O(1), and Domain-Independent ScarCodec: Tabula-Rasa Pretraining on D4 Lattice Bases, Differentiable Widrow-Hoff Fast-Weights, and Detached P_perp_lang Cartridges",
+  "creators": [
+    {
+      "name": "Reis Filho, Julio Cesar da Costa",
+      "affiliation": "Byte-OD Research & System One Architecture Lab"
+    }
+  ],
+  "license": "cc-by-4.0",
+  "keywords": [
+    "ScarNativeLM",
+    "Tabula Rasa Pretraining",
+    "Mixture of Scars",
+    "SCache O(1)",
+    "D4 Lattice VQ4",
+    "WebGPU WGSL",
+    "GDPR Unlearning"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/byte-od/mixture-of-scars",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}
