@@ -63,7 +63,7 @@ webgpu = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["scar_cache*", "mixture_of_scars*", "scar_codec*", "scar_native*"]
+include = ["scar_cache*", "mixture_of_scars*", "scar_codec*", "scar_native*", "scar_field*"]
 
 [tool.setuptools.package-data]
 scar_cache = ["webgpu/*.wgsl", "webgpu/app/*"]

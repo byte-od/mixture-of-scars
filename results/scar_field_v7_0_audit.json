@@ -1,0 +1,51 @@
+{
+  "suite": "scar_field_v7_0_post_transformer_audit",
+  "version": "7.0.0",
+  "elapsed_seconds": 199.05,
+  "zero_legacy_guarantees": {
+    "nn_linear_layers": 0,
+    "rmsnorm_layers": 0,
+    "relu_gelu_silu_calls": 0,
+    "softmax_exp_log_calls": 0,
+    "integer_rope_used": false,
+    "static_bpe_used": false,
+    "adamw_used": false
+  },
+  "scar_field_v7": {
+    "packed_weight_bytes": 187540,
+    "e8_substrate_bits_per_weight": 1.0,
+    "central_kalman_scache_bytes_t0": 27157,
+    "central_kalman_scache_bytes_t512": 27157,
+    "scache_delta_bytes": 0,
+    "polyglot_utf8_byte_accuracy": 0.91186,
+    "simplex_exact_zero_sparsity_pct": 99.1,
+    "native_cross_lingual_s_world_cosine_zero_procrustes": {
+      "pt_en": 0.99655,
+      "es_en": 0.99598,
+      "fr_en": 0.99655
+    },
+    "out_of_cone_0x00_vacuum_abstention_rate": "4/4"
+  },
+  "baseline_fp16_dense_transformer": {
+    "fp16_weight_bytes": 1968384,
+    "kv_cache_bytes_t64": 131072,
+    "kv_cache_bytes_t512": 1048576,
+    "kv_cache_bytes_t2048": 4194304,
+    "polyglot_utf8_byte_accuracy": 0.98397,
+    "softmax_exact_zero_sparsity_pct": 0.0,
+    "entangled_cross_lingual_cosine": {
+      "pt_en": 0.9663,
+      "es_en": 0.96421,
+      "fr_en": 0.98227
+    },
+    "out_of_cone_native_abstention_rate": "0/4"
+  },
+  "head_to_head_gains": {
+    "model_weight_compression_vs_fp16_x": 10.5,
+    "state_memory_reduction_at_t2048_x": 154.45,
+    "optimizer_state_buffers_per_param": {
+      "scar_field_muon": 1,
+      "dense_adamw": 2
+    }
+  }
+}
