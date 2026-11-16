@@ -681,6 +681,28 @@ class SurpriseGatedAnomalySCache:
         q_hat = query_direction.float() / query_direction.float().norm().clamp(min=1e-8)
         return self.w_scar_f32 @ q_hat
 
+    @torch.no_grad()
+    def recall_from_partial_cue(
+        self,
+        partial_frame: torch.Tensor,
+        observed_mask: torch.Tensor,
+        input_is_deviation: bool = False,
+    ) -> torch.Tensor:
+        """Reconstructs a full `C`-channel frame (or deviation) from a subset of observed channels (`+0 B` alloc).
+
+        Args:
+            partial_frame: `[C]` tensor containing sensor readings (or shock deviations if `input_is_deviation=True`).
+            observed_mask: `[C]` boolean mask (`True` for known/intact sensors, `False` for missing/failed sensors).
+            input_is_deviation: If `True`, treats `partial_frame` as already baseline-centered (`x - ema_mean`)
+                and returns the recalled `C`-channel shock deviation directly.
+        """
+        mask = observed_mask.to(dtype=torch.bool, device=self.w_scar_f32.device)
+        pf = partial_frame.to(dtype=torch.float32, device=self.w_scar_f32.device)
+        dev_obs = pf if input_is_deviation else (pf - self.ema_mean_f32)
+        cue = torch.where(mask, dev_obs, torch.zeros_like(dev_obs))
+        recalled_dev = self.query_associative(cue)
+        return recalled_dev if input_is_deviation else (self.ema_mean_f32 + recalled_dev)
+
     def recorded_timestamps(self) -> List[int]:
         valid = self.slot_ts_i64[self.slot_ts_i64 >= 0].tolist()
         return sorted(int(t) for t in valid)

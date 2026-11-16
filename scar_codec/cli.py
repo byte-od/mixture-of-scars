@@ -52,7 +52,7 @@ def run_quick_demo() -> dict:
 def main_cli() -> None:
     parser = argparse.ArgumentParser(
         prog="mos-scar-codec",
-        description="ScarCodec v4.0.0 — Domain-Independent Physical Signal, Storage & Telemetry Scar Operators",
+        description=f"ScarCodec v{__version__} — Domain-Independent Physical Signal, Storage & Telemetry Scar Operators",
     )
     parser.add_argument("--version", action="version", version=f"scar-codec {__version__}")
     parser.add_argument(

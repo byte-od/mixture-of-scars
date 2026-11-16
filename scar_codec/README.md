@@ -1,6 +1,6 @@
 # `scar_codec` — Domain-Independent Physical Signal, FITS Astronomy & Constant-Memory Telemetry Operators
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT%20(Code)%20%7C%20CC--BY--4.0%20(Report)-blue.svg)](../LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Zero Neural Dependencies](https://img.shields.io/badge/Dependencies-PyTorch%20%2B%20NumPy%20Only%20(Zero%20Transformers)-0d9488.svg)](core.py)
 [![Public Archives Preprint](https://img.shields.io/badge/Physics%20Preprint%20v1.0-NASA%20%7C%20FITS%20%7C%20PhysioNet%20SHA--256-0284c7.svg)](../zenodo_deposit_scarcodec_public_data_v1_0/ScarCodec_Public_Observational_Datasets_Preprint_v1.0.pdf)
@@ -8,8 +8,8 @@
 `scar_codec` extracts the five pure mathematical operators of **Mixture of Scars (`MoS`)** and **`SCache` $\mathcal{O}(1)$** into a standalone, **neural-network-free** signal, scientific array, storage, and black-box telemetry library (`0` dependency on `transformers`, `0` trained weights):
 
 1. **Multiplierless Orthonormal `FWHT-64` + Channel Equilibration (`d_eq_f16`):** Spreads localized shock energy isotropically across 64-element blocks using addition/subtraction butterflies only.
-2. **`2 KB` SRAM $D_4$-Lattice `LUT256` with Hard-Locked Exact Vacuum (`0x00`):** Entry `0` is pinned to `(0.0, 0.0, 0.0, 0.0)`, guaranteeing **exact `0.0` reconstruction error** on quiet sky/vacuum blocks without spectral Gibbs ringing.
-3. **`2-Pass INT4 Residual Scar Healing` + Sparse Point-Shock Capture ($\mathcal{O}(1)$ Block Read):** Absorbs correlated coherent structures via low-rank `INT4` factors plus top-$K$ point shocks, supporting random single-block reads in $\sim 130\;\mu\text{s}$ (`24×–36×` faster than streaming `zlib -9`, with `0.0` full-vs-block discrepancy).
+2. **`2 KB` SRAM $D_4/D_4^*$-Seeded `LUT256` Vector Quantizer with Hard-Pinned Exact Vacuum (`0x00`):** Seeded with `121` algebraic shells (`1` origin + `16` $\mathbb{Z}^4$ axes + `72` $D_4$ roots + `32` $D_4^*$ dual vertices) plus `135` data-adapted vectors refined via weighted Lloyd-Max while hard-pinning entry `0` to `(0.0, 0.0, 0.0, 0.0)`, guaranteeing **exact `0.0` reconstruction error** on quiet sky/vacuum blocks without spectral Gibbs ringing.
+3. **`2-Pass INT4 Residual Scar Healing` + Sparse Point-Shock Capture ($\mathcal{O}(1)$ Block Read):** Absorbs correlated coherent structures via low-rank `INT4` factors plus top-$K$ point shocks, supporting random single-block reads in `130.2–133.8 µs` (`24.2×–36.8×` faster than streaming `zlib -9`, with `0.0` full-vs-block discrepancy).
 4. **Blind Covariance `OrthogonalSubspaceProjector` ($P_\perp = \mathbf{I} - \mathbf{U}\mathbf{U}^\top$):** Cancels narrowband/spatial interference calibrated solely from noisy baseline runs (`0` clean-signal oracle).
 5. **Constant-Memory `SurpriseGatedAnomalySCache` (`34,816 B` = `34.8 KB`, $\Delta = 0\text{ B}$):** Fixed-footprint Widrow-Hoff associative black-box recorder (`> 40,000 frames/s`) that ignores stationary background and retains ultra-rare mission faults across arbitrarily long streams, with masked partial-cue hetero-associative sensor reconstruction.
 
@@ -57,8 +57,8 @@ from scar_codec import (
 
 # 1. Compress a 2D scientific field (vacuum + sharp HDR cores) with O(1) random block access
 codec = PhysicalVQ4ScarCodec(rank=16, max_point_spikes=64)
-pkg = codec.encode(field_2d_fp32)                    # ~12x smaller than FP32
-block_64 = codec.decode_block_o1(pkg, row=128, block_idx=2)  # ~130 us O(1) random read!
+pkg = codec.encode(field_2d_fp32)                                # ~12x smaller than FP32
+block_64 = codec.decode_block_o1(pkg, row_idx=128, block_idx=2)  # ~130 us O(1) random read!
 recon_full = codec.decode_full(pkg)
 
 # 2. Blind Interference Nulling (calibrated ONLY from noisy baseline samples — zero oracle)
@@ -66,12 +66,14 @@ proj = OrthogonalSubspaceProjector.fit_from_interference_calibration(noisy_basel
 clean_signal = proj.project_clean(heldout_recording)
 
 # 3. Constant-Space O(1) Black-Box Telemetry Recorder (34,816 B fixed forever, Delta = 0 B)
-scache = SurpriseGatedAnomalySCache(dim=64, surprise_threshold=0.25)
+#    `surprise_threshold` gates RMS channel z-score (~1.0 on nominal Gaussian noise, > 4.2 on physical shocks)
+scache = SurpriseGatedAnomalySCache(channels=64, surprise_threshold=4.2)
 for t, sensor_frame in enumerate(mission_stream):
-    scache.ingest(sensor_frame, timestamp=t)         # Physical RAM never grows by a single byte
+    scache.ingest(sensor_frame, timestamp=t)                     # Physical RAM never grows by a single byte
 
-# Reconstruct 32 missing/failed sensors from 32 observed sensors:
+# Reconstruct missing/failed sensors from observed sensors (or probe raw unit cue via `query_associative`):
 reconstructed = scache.recall_from_partial_cue(partial_frame, observed_mask=known_channels_bool)
+delta_shock = scache.query_associative(masked_deviation_cue)
 ```
 
 ### Command-Line & Full SHA-256 Public Dataset Reproduction

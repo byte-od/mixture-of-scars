@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
+import re
 import sys
 import pytest
 import torch
@@ -13,6 +15,7 @@ from scar_codec import (
     OrthogonalSubspaceProjector,
     PhysicalVQ4ScarCodec,
     SurpriseGatedAnomalySCache,
+    __version__,
 )
 from scar_codec.cli import main_cli as scar_codec_cli_main
 
@@ -103,9 +106,53 @@ def test_scar_codec_cli_help_and_demo(capsys: pytest.CaptureFixture[str], monkey
     with pytest.raises(SystemExit) as exc:
         scar_codec_cli_main()
     assert exc.value.code == 0
-    assert "usage:" in capsys.readouterr().out.lower()
+    help_txt = capsys.readouterr().out
+    assert "usage:" in help_txt.lower()
+    assert f"ScarCodec v{__version__}" in help_txt
 
     monkeypatch.setattr(sys, "argv", ["mos-scar-codec", "--demo"])
     scar_codec_cli_main()
     out = capsys.readouterr().out
     assert '"scache_delta_bytes": 0' in out
+
+
+def test_scar_codec_readme_quickstart_executes_verbatim() -> None:
+    """Extracts the Python Quick Start snippet from `scar_codec/README.md` and executes it verbatim."""
+    readme_path = Path(__file__).resolve().parents[1] / "scar_codec" / "README.md"
+    readme_txt = readme_path.read_text(encoding="utf-8")
+    m = re.search(r"```python\n(.*?)```", readme_txt, flags=re.DOTALL)
+    assert m is not None, "Missing ```python Quick Start block in scar_codec/README.md"
+    snippet = m.group(1)
+
+    torch.manual_seed(4005)
+    field_2d_fp32 = torch.randn(256, 256)
+    field_2d_fp32[:32, :] = 0.0
+    noisy_baseline = torch.randn(64, 512)
+    heldout_recording = torch.randn(64, 256)
+
+    fault = torch.zeros(64)
+    fault[:8] = 12.0
+    mission_stream = [0.1 * torch.randn(64) + (fault if t == 60 else 0.0) for t in range(120)]
+    known_channels_bool = torch.arange(64) % 2 == 0
+    partial_frame = torch.where(known_channels_bool, fault, torch.zeros(64))
+    masked_deviation_cue = partial_frame.clone()
+
+    ns = {
+        "field_2d_fp32": field_2d_fp32,
+        "noisy_baseline": noisy_baseline,
+        "heldout_recording": heldout_recording,
+        "mission_stream": mission_stream,
+        "partial_frame": partial_frame,
+        "known_channels_bool": known_channels_bool,
+        "masked_deviation_cue": masked_deviation_cue,
+    }
+    exec(snippet, ns)
+
+    assert ns["block_64"].shape == (64,)
+    assert ns["recon_full"].shape == (256, 256)
+    assert ns["scache"].physical_bytes() == 34816
+    assert 60 in ns["scache"].recorded_timestamps()
+    assert ns["reconstructed"].shape == (64,)
+    cos_odd = float(F.cosine_similarity(ns["reconstructed"][1::2].unsqueeze(0), fault[1::2].unsqueeze(0)).item())
+    assert cos_odd > 0.99, f"Expected > 0.99 masked partial-cue recall cosine, got {cos_odd}"
+

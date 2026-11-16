@@ -277,14 +277,18 @@ def build_pdf_public_data(pdf_path: Path, hero_png: Path, rep: dict):
     ]))
 
     story.append(Paragraph("3. Observational Astronomy FITS Archives &amp; Empirical HDR Contrast Scaling Law", s_h1))
+    min_o1_us = min(sp["o1_single_block_decode_us"], bo["o1_single_block_decode_us"], fc["o1_single_block_decode_us"])
+    max_o1_us = max(sp["o1_single_block_decode_us"], bo["o1_single_block_decode_us"], fc["o1_single_block_decode_us"])
+    min_sp_x = min(sp["o1_random_read_speedup_vs_zlib_x"], bo["o1_random_read_speedup_vs_zlib_x"], fc["o1_random_read_speedup_vs_zlib_x"])
+    max_sp_x = max(sp["o1_random_read_speedup_vs_zlib_x"], bo["o1_random_read_speedup_vs_zlib_x"], fc["o1_random_read_speedup_vs_zlib_x"])
     story.append(Paragraph(
-        "Across three astronomical observatories—infrared space imaging (NASA Spitzer IRAC), submillimeter galactic-center bolometry (CSO Bolocam Sgr A*), "
-        "and millimeter spectral-line mapping (FCRAO 14-m L1448 <sup>13</sup>CO)—lossless <code>zlib -9</code> achieves only 1.10x–1.14x compression on IEEE-754 floats "
-        "while blocking random block access. At ~12x compression, <code>PhysicalVQ4ScarCodec</code> combines MAD point-shock peeling, equilibrated <code>FWHT-64</code>, "
-        "<i>D</i><sub>4</sub> <code>LUT256</code> (<code>0 &rarr; (0,0,0,0)</code>), and 2-pass INT4 scars to outperform strictly byte-matched FP16 2D <code>rFFT</code> "
-        "monotonically with observational dynamic range (Table 3): from 4.6x peak gain at 11.7x HDR (FCRAO), to 45.9x at 217.0x HDR (Bolocam, with exact 0.0000 error on "
-        "pure unmapped sky rows and 6.06x lower partial-row NaN leakage), up to <b>2,093.6x lower stellar peak photometry error</b> at 968.9x HDR (NASA Spitzer IRAC), "
-        "while decoding arbitrary 64-float blocks in ~141 &mu;s (23.2x–34.7x faster than <code>zlib -9</code> with exact 0.0 block-vs-full parity).",
+        f"Across three astronomical observatories—infrared space imaging (NASA Spitzer IRAC), submillimeter galactic-center bolometry (CSO Bolocam Sgr A*), "
+        f"and millimeter spectral-line mapping (FCRAO 14-m L1448 <sup>13</sup>CO)—lossless <code>zlib -9</code> achieves only 1.10x–1.14x compression on IEEE-754 floats "
+        f"while blocking random block access. At ~12x compression, <code>PhysicalVQ4ScarCodec</code> combines MAD point-shock peeling, equilibrated <code>FWHT-64</code>, "
+        f"<i>D</i><sub>4</sub>/<i>D</i><sub>4</sub><sup>*</sup>-seeded <code>LUT256</code> (<code>0 &rarr; (0,0,0,0)</code>), and 2-pass INT4 scars to outperform strictly byte-matched FP16 2D <code>rFFT</code> "
+        f"monotonically with observational dynamic range (Table 3): from 4.6x peak gain at 11.7x HDR (FCRAO), to 45.9x at 217.0x HDR (Bolocam, with exact 0.0000 error on "
+        f"pure unmapped sky rows and 6.06x lower partial-row NaN leakage), up to <b>2,093.6x lower stellar peak photometry error</b> at 968.9x HDR (NASA Spitzer IRAC), "
+        f"while decoding arbitrary 64-float blocks in {min_o1_us:.1f}–{max_o1_us:.1f} &mu;s ({min_sp_x:.1f}x–{max_sp_x:.1f}x faster than <code>zlib -9</code> with exact 0.0 block-vs-full parity).",
         s_body,
     ))
 
@@ -401,6 +405,7 @@ def build_replication_zip(zip_path: Path):
     files = [
         REPO_ROOT / "CITATION.cff",
         REPO_ROOT / "README.md",
+        REPO_ROOT / "scar_codec" / "README.md",
         REPO_ROOT / "pyproject.toml",
         REPO_ROOT / "data" / "public_physical_benchmarks" / "manifest_sha256.json",
         REPO_ROOT / "results" / "scar_codec_public_datasets_v1_0_audit.json",
@@ -442,7 +447,7 @@ def main():
                 "version": "1.0.0",
                 "publication_date": "2026-11-16",
                 "title": "Empirical Evaluation of Domain-Independent ScarCodec Operators on Public Observational Astronomy, Spacecraft Telemetry, and 64-Channel Biomedical Sensor Archives",
-                "creators": [{"name": "Reis Filho, Julio Cesar da Costa", "affiliation": "Byte-OD Research & System One Architecture Lab"}],
+                "creators": [{"name": "Reis Filho, Julio Cesar", "affiliation": "Byte-OD Research & System One Architecture Lab"}],
                 "license": "cc-by-4.0",
                 "keywords": [
                     "ScarCodec",
