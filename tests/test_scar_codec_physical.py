@@ -27,7 +27,7 @@ def test_scache_34p8kb_exact_byte_budget_and_zero_drift() -> None:
     assert b0 == 34816, f"Expected exact 34,816 B (34.8 KB), got {b0}"
 
     fault_sig = torch.zeros(64)
-    fault_sig[10:18] = 10.0
+    fault_sig[10:16] = torch.tensor([10.0, 8.2, -7.4, 11.5, -6.8, 9.1])
 
     for ts in range(4000):
         x = 0.1 * torch.randn(64)
@@ -43,9 +43,14 @@ def test_scache_34p8kb_exact_byte_budget_and_zero_drift() -> None:
     ring_ts = set(ring.timestamps_i64[ring.timestamps_i64 >= 0].tolist())
     assert 150 not in ring_ts and 320 not in ring_ts
 
-    recalled = scache.query_associative(fault_sig)
-    cos = float(F.cosine_similarity(recalled.unsqueeze(0), fault_sig.unsqueeze(0)).item())
-    assert cos > 0.995, f"Expected associative recall cosine > 0.995, got {cos}"
+    # Partial-cue hetero-associative recall: query ONLY channels 10..12 (`4` of `6` fault channels masked to `0.0`!)
+    partial_cue = torch.zeros(64)
+    partial_cue[10:12] = fault_sig[10:12]
+    recalled = scache.query_associative(partial_cue)
+    cos_all = float(F.cosine_similarity(recalled.unsqueeze(0), fault_sig.unsqueeze(0)).item())
+    cos_masked = float(F.cosine_similarity(recalled[12:16].unsqueeze(0), fault_sig[12:16].unsqueeze(0)).item())
+    assert cos_all > 0.995, f"Expected partial-cue associative recall cosine > 0.995, got {cos_all}"
+    assert cos_masked > 0.995, f"Expected unseen masked-channel cosine > 0.995, got {cos_masked}"
 
 
 def test_vq4_scar_exact_vacuum_zero_and_o1_block_decode_parity() -> None:

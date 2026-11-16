@@ -40,39 +40,130 @@ PREFILL_BATCH_TOKENS = 4                    # 4 tokens per GPUCommandBuffer prev
 
 OUT_OF_CONE_EPISTEMIC_GATES: Dict[str, str] = {
     "pt": (
-        "TELEMETRIA DO ROTEADOR (0 cartuchos ScarStore ativos): Responda diretamente ao visitante "
-        "(NÃO diga \"Entendido\"). Se a pergunta for sobre estética, beleza, procedimentos cosméticos, "
-        "saúde, medicina, direito ou cotidiano, recuse educadamente em 2 frases completas explicando que, "
-        "como assistente focado em IA e Engenharia, você não possui cartucho ScarStore verificado para "
-        "recomendar procedimentos ou orientações desse domínio. Responda normalmente APENAS a saudações "
-        "e temas de IA, Computação, Matemática, Física, Engenharia ou Julio Reis."
+        "[MANDATORY JARVIS SCOPE RULE — Reply in Portuguese (the visitor is NOT Julio Reis; refer to Julio Reis in "
+        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
+        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
+        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
+        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
+        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
+        "Engineering on Julio Reis's portfolio.]"
     ),
     "en": (
-        "ROUTER TELEMETRY (0 active ScarStore cartridges): Reply directly to the visitor (do NOT say "
-        "\"You are correct\" or \"Understood\"). If the question concerns aesthetics, beauty, cosmetic "
-        "treatments, health, medicine, law, or everyday life, politely decline in 2 complete sentences "
-        "stating that as JARVIS (an AI & Engineering assistant) you have no verified ScarStore cartridge to "
-        "recommend treatments or advice in that domain. Answer normally ONLY for greetings and AI, Computer "
-        "Science, Math, Physics, Engineering, or Julio Reis."
+        "[MANDATORY JARVIS SCOPE RULE — Reply in English (the visitor is NOT Julio Reis; refer to Julio Reis in "
+        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
+        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
+        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
+        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
+        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
+        "Engineering on Julio Reis's portfolio.]"
     ),
     "es": (
-        "TELEMETRÍA DEL ENRUTADOR (0 cartuchos ScarStore activos): Responde directamente al visitante "
-        "(NO digas \"Entendido\"). Si la pregunta trata sobre estética, belleza, tratamientos cosméticos, "
-        "salud, medicina, derecho o vida cotidiana, declina cortésmente en 2 oraciones completas explicando "
-        "que como JARVIS (asistente de IA e Ingeniería) no tienes ningún cartucho ScarStore verificado para "
-        "recomendar tratamientos de ese dominio. Responde normalmente SOLO a saludos y temas de IA, "
-        "Computación, Matemáticas, Física, Ingeniería o Julio Reis."
+        "[MANDATORY JARVIS SCOPE RULE — Reply in Spanish (the visitor is NOT Julio Reis; refer to Julio Reis in "
+        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
+        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
+        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
+        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
+        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
+        "Engineering on Julio Reis's portfolio.]"
     ),
     "fr": (
-        "TÉLÉMÉTRIE DU ROUTEUR (0 cartouche ScarStore active) : Répondez directement au visiteur "
-        "(ne dites PAS \"Compris\"). Si la question porte sur l'esthétique, la beauté, les soins "
-        "cosmétiques, la santé, la médecine, le droit ou la vie quotidienne, déclinez poliment en 2 phrases "
-        "complètes en expliquant qu'en tant que JARVIS (assistant d'IA et d'Ingénierie), vous n'avez "
-        "aucune cartouche ScarStore vérifiée pour recommander des soins dans ce domaine. Ne répondez "
-        "normalement qu'aux salutations et aux sujets d'IA, Informatique, Mathématiques, Physique, "
-        "Ingénierie ou Julio Reis."
+        "[MANDATORY JARVIS SCOPE RULE — Reply in French (the visitor is NOT Julio Reis; refer to Julio Reis in "
+        "the third person): Answer ONLY technical questions about Artificial Intelligence, Software & Systems "
+        "Engineering, Computer Science, Mathematics, Physics, or Julio Reis. For ANY personal care, aesthetic, "
+        "cosmetic, beauty, medical/health, culinary, legal, or consumer treatment/product request (even if it "
+        "mentions chemical or biological terms), DO NOT suggest products, ingredients, procedures, or tips — "
+        "politely decline in 2 sentences stating that as JARVIS your scope is strictly limited to AI & Systems "
+        "Engineering on Julio Reis's portfolio.]"
     ),
 }
+
+OUT_OF_CONE_GREETING_GATES: Dict[str, str] = {
+    "pt": (
+        "[JARVIS GREETING RULE — Reply in Portuguese (the visitor is NOT Julio Reis; never address the visitor as "
+        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
+        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+    ),
+    "en": (
+        "[JARVIS GREETING RULE — Reply in English (the visitor is NOT Julio Reis; never address the visitor as "
+        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
+        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+    ),
+    "es": (
+        "[JARVIS GREETING RULE — Reply in Spanish (the visitor is NOT Julio Reis; never address the visitor as "
+        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
+        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+    ),
+    "fr": (
+        "[JARVIS GREETING RULE — Reply in French (the visitor is NOT Julio Reis; never address the visitor as "
+        "Julio and refer to Julio Reis in the third person): Greet the visitor warmly in 1 to 2 short sentences as "
+        "JARVIS and offer help exploring Julio Reis's AI & Scar Architecture portfolio.]"
+    ),
+}
+
+_PURE_CONVERSATIONAL_GREETING_RE = re.compile(
+    r"^(?:oi|olá|ola|opa|e aí|e ai|fala|bom dia|boa tarde|boa noite|hello|hi|hey|good morning|good afternoon|"
+    r"good evening|hola|buenos días|buenos dias|buenas tardes|buenas noches|buenas|bonjour|salut|bonsoir)"
+    r"(?:\s+(?:jarvis|tudo bem|tudo bom|tudo certo|como vai|como está|como esta|beleza|how are you|"
+    r"how's it going|how is it going|there|qué tal|que tal|cómo estás|como estas|cómo va|como va|"
+    r"comment allez-vous|comment allez vous|comment ça va|comment ca va|ça va|ca va))*$",
+    re.IGNORECASE,
+)
+
+
+def is_pure_conversational_greeting(raw_text: str) -> bool:
+    norm = re.sub(r"\s+", " ", re.sub(r"[¡¿,!.?;:]+", " ", (raw_text or "").lower())).strip()
+    if not norm or len(norm.split(" ")) > 8:
+        return False
+    return bool(_PURE_CONVERSATIONAL_GREETING_RE.match(norm))
+
+
+def _find_repeated_ngram_start(ids: Sequence[int]) -> int:
+    k = 8
+    n = len(ids)
+    if n >= k * 2:
+        tail_start = n - k
+        tail = list(ids[tail_start:])
+        for i in range(0, tail_start - k + 1):
+            if list(ids[i : i + k]) == tail:
+                return tail_start
+    k_short = 4
+    if n >= k_short * 4:
+        tail_start = n - k_short
+        tail_s = list(ids[tail_start:])
+        hits = 0
+        for i in range(max(0, n - 40), tail_start - k_short + 1):
+            if list(ids[i : i + k_short]) == tail_s:
+                hits += 1
+        if hits >= 2:
+            return tail_start
+    return -1
+
+
+def _ends_with_complete_sentence(text: str) -> bool:
+    t = (text or "").rstrip()
+    if len(t) < 24:
+        return False
+    return bool(re.search(r"[.!?][\"'”)]?$", t)) and not bool(
+        re.search(r"\b(?:Dr|Sr|Sra|Mr|Ms|Prof|etc|ex|vs|v\d)\.$", t)
+    )
+
+
+def _starts_new_sentence_or_paragraph(piece: str) -> bool:
+    return bool(re.match(r"^(?:\s*\n|\s+[\"'“([¡¿]*[A-ZÀ-ÖØ-Þ])", piece or ""))
+
+
+def _should_stop_at_sentence_boundary(
+    epistemic_mode: str,
+    generated_count: int,
+    dec_step_idx: int,
+    seed_horizon: int,
+    max_new_tokens: int,
+) -> bool:
+    if epistemic_mode == "scar_grounded":
+        return dec_step_idx >= max(25, seed_horizon - 10)
+    if epistemic_mode == "out_of_cone_guarded":
+        return generated_count >= 48
+    return generated_count >= max(96, max_new_tokens - 48)
 
 
 def detect_polyglot_query_lang(raw_text: str, fallback: str = "en") -> str:
@@ -156,6 +247,8 @@ def detect_polyglot_query_lang(raw_text: str, fallback: str = "en") -> str:
 def select_out_of_cone_epistemic_gate(user_query: str, fallback_lang: str = "en") -> str:
     """Selects the localized out-of-cone epistemic guard prompt (`pt`, `en`, `es`, `fr`)."""
     lang = detect_polyglot_query_lang(user_query, fallback=fallback_lang)
+    if is_pure_conversational_greeting(user_query):
+        return OUT_OF_CONE_GREETING_GATES[lang]
     return OUT_OF_CONE_EPISTEMIC_GATES[lang]
 
 
@@ -1541,6 +1634,11 @@ class NativeWebGPUMoSEngine:
             for p in caps[b_idx].get("parent_capsules") or []:
                 g_vals[id_to_idx[p]] = pre_gates[id_to_idx[p]] * atten
 
+        if self.is_golden_slice_v4 and not active_bridges:
+            active_idxs = [i for i in range(len(caps)) if g_vals[i] > 1e-6]
+            if len(active_idxs) == 1:
+                g_vals[active_idxs[0]] = 1.0
+
         active_out: List[Tuple[str, float, Any]] = []
         for i, c in enumerate(caps):
             if g_vals[i] > 1e-6:
@@ -2120,6 +2218,8 @@ class NativeWebGPUMoSEngine:
         scache_b0 = self.scache_gpu_bytes
         use_guard = bool(enable_epistemic_guard and enable_scarstore and self.router_meta is not None)
         epistemic_mode = "base_trunk"
+        guarded_rollback_pos: Optional[int] = None
+        guarded_clean_prefix_ids: Optional[List[int]] = None
 
         U = self.wgpu.BufferUsage
         t0 = time.perf_counter()
@@ -2150,24 +2250,56 @@ class NativeWebGPUMoSEngine:
                 if len(active) > 0 or not use_guard:
                     epistemic_mode = "scar_grounded" if len(active) > 0 else "base_trunk"
                     tail_ids = clean_probe_ids[q_end_probe:]
+                    self._submit_prefill_sequence(
+                        tail_ids,
+                        q_end_probe,
+                        0,
+                        None,
+                        q_end=None,
+                        run_full_on_last=False,
+                    )
+                    effective_lp = q_end_probe + len(tail_ids)
                 else:
                     epistemic_mode = "out_of_cone_guarded"
-                    gate_txt = select_out_of_cone_epistemic_gate(user_query)
-                    tail_ids = list(
-                        tok.encode(
-                            f"<|im_end|>\n<|im_start|>system\n{gate_txt}<|im_end|>\n<|im_start|>assistant\n",
-                            add_special_tokens=False,
-                        )
+                    enc_snap_q = self.device.create_command_encoder()
+                    enc_snap_q.copy_buffer_to_buffer(
+                        self.scache_kv_buf, 0, self.scache_kv_snap_buf, 0, self.scache_kv_buf.size
                     )
-                self._submit_prefill_sequence(
-                    tail_ids,
-                    q_end_probe,
-                    0,
-                    None,
-                    q_end=None,
-                    run_full_on_last=False,
-                )
-                effective_lp = q_end_probe + len(tail_ids)
+                    enc_snap_q.copy_buffer_to_buffer(
+                        self.scache_w_scar_buf, 0, self.scache_w_scar_snap_buf, 0, self.scache_w_scar_buf.size
+                    )
+                    enc_snap_q.copy_buffer_to_buffer(
+                        self.scache_salience_buf, 0, self.scache_sal_snap_buf, 0, self.scache_salience_buf.size
+                    )
+                    self.device.queue.submit([enc_snap_q.finish()])
+                    guarded_rollback_pos = q_end_probe
+                    guarded_clean_prefix_ids = list(clean_probe_ids[q_end_probe:])
+
+                    gate_txt = select_out_of_cone_epistemic_gate(user_query)
+                    guarded_msgs = [
+                        {"role": "system", "content": sys_txt},
+                        {"role": "user", "content": f"{user_query}\n\n{gate_txt}"},
+                    ]
+                    raw_g_enc: Any = tok.apply_chat_template(
+                        guarded_msgs, tokenize=True, add_generation_prompt=True
+                    )
+                    guarded_full_ids: List[int] = list(
+                        raw_g_enc["input_ids"] if hasattr(raw_g_enc, "keys") else raw_g_enc
+                    )
+                    self.device.queue.write_buffer(self.scache_kv_buf, 0, bytes(self.scache_kv_buf.size))
+                    self.device.queue.write_buffer(self.scache_w_scar_buf, 0, bytes(self.scache_w_scar_buf.size))
+                    self.device.queue.write_buffer(
+                        self.scache_salience_buf, 0, bytes(self.scache_salience_buf.size)
+                    )
+                    self._submit_prefill_sequence(
+                        guarded_full_ids,
+                        0,
+                        0,
+                        None,
+                        q_end=None,
+                        run_full_on_last=False,
+                    )
+                    effective_lp = len(guarded_full_ids)
             else:
                 prefill_xin_buf = (
                     self.device.create_buffer(size=lu_probe * self.hidden_dim * 4, usage=U.COPY_DST | U.COPY_SRC)
@@ -2236,11 +2368,12 @@ class NativeWebGPUMoSEngine:
 
             if enable_scarstore and self.router_meta is not None and len(active_turn) == 0 and use_guard:
                 epistemic_mode = "out_of_cone_guarded"
+                guarded_rollback_pos = base_pos
+                guarded_clean_prefix_ids = list(prompt_ids)
                 gate_txt = select_out_of_cone_epistemic_gate(user_query)
                 turn_ids = list(
                     tok.encode(
-                        f"<|im_start|>user\n{user_query}<|im_end|>\n"
-                        f"<|im_start|>system\n{gate_txt}<|im_end|>\n<|im_start|>assistant\n",
+                        f"<|im_start|>user\n{user_query}\n\n{gate_txt}<|im_end|>\n<|im_start|>assistant\n",
                         add_special_tokens=False,
                     )
                 )
@@ -2281,9 +2414,11 @@ class NativeWebGPUMoSEngine:
         confs: List[float] = [1.0 / sexp]
         margins: List[float] = [(1.0 - math.exp(max(-80.0, v2 - v1))) / sexp]
         last_gen_fed = True
+        last_decoded = ""
         if int(top1_id) not in self.eos_token_ids:
             gen_ids.append(int(top1_id))
             last_gen_fed = False
+            last_decoded = tok.decode(gen_ids, skip_special_tokens=True)
 
         max_spread = 0.0
         if not self.is_golden_slice_v4 and self._current_m_active >= 2:
@@ -2305,16 +2440,58 @@ class NativeWebGPUMoSEngine:
                 max_spread = max(max_spread, float(tel[8]))
             if nxt_id in self.eos_token_ids:
                 break
+            if _should_stop_at_sentence_boundary(
+                epistemic_mode, len(gen_ids), dec_step_idx, self.seed_horizon, max_new_tokens
+            ) and _ends_with_complete_sentence(last_decoded):
+                nxt_piece = tok.decode([nxt_id], skip_special_tokens=True)
+                if _starts_new_sentence_or_paragraph(nxt_piece):
+                    break
             gen_ids.append(nxt_id)
             last_gen_fed = False
             confs.append(p1)
             margins.append(marg)
+            rep_start = _find_repeated_ngram_start(gen_ids)
+            if rep_start >= 0:
+                del gen_ids[rep_start:]
+                last_decoded = tok.decode(gen_ids, skip_special_tokens=True).rstrip()
+                break
+            preview_txt = tok.decode(gen_ids, skip_special_tokens=True)
+            if (
+                _should_stop_at_sentence_boundary(
+                    epistemic_mode, len(gen_ids), dec_step_idx, self.seed_horizon, max_new_tokens
+                )
+                and bool(re.search(r"\n\s*$", preview_txt))
+                and _ends_with_complete_sentence(preview_txt)
+            ):
+                last_decoded = preview_txt.rstrip()
+                break
+            last_decoded = preview_txt
 
-        closing_ids: List[int] = []
-        if gen_ids and not last_gen_fed:
-            closing_ids.append(gen_ids[-1])
-        closing_ids.extend(tok.encode("<|im_end|>\n", add_special_tokens=False))
-        self.session_pos = self._flush_closing_tokens_to_scache(closing_ids, cur_pos)
+        turn_active_cids = list(self._current_active_cids)
+        turn_active_gates = dict(self._current_active_gates)
+        self._set_active_capsules_gpu([])
+        turn_suffix_ids = list(tok.encode("<|im_end|>\n", add_special_tokens=False))
+        if guarded_rollback_pos is not None and guarded_clean_prefix_ids is not None:
+            enc_clean_rest = self.device.create_command_encoder()
+            enc_clean_rest.copy_buffer_to_buffer(
+                self.scache_kv_snap_buf, 0, self.scache_kv_buf, 0, self.scache_kv_buf.size
+            )
+            enc_clean_rest.copy_buffer_to_buffer(
+                self.scache_w_scar_snap_buf, 0, self.scache_w_scar_buf, 0, self.scache_w_scar_buf.size
+            )
+            enc_clean_rest.copy_buffer_to_buffer(
+                self.scache_sal_snap_buf, 0, self.scache_salience_buf, 0, self.scache_salience_buf.size
+            )
+            self.device.queue.submit([enc_clean_rest.finish()])
+            clean_gen_ids = [t for t in gen_ids if t not in self.eos_token_ids]
+            clean_flush_ids = list(guarded_clean_prefix_ids) + clean_gen_ids + turn_suffix_ids
+            self.session_pos = self._flush_closing_tokens_to_scache(clean_flush_ids, guarded_rollback_pos)
+        else:
+            closing_ids: List[int] = []
+            if gen_ids and not last_gen_fed:
+                closing_ids.append(gen_ids[-1])
+            closing_ids.extend(turn_suffix_ids)
+            self.session_pos = self._flush_closing_tokens_to_scache(closing_ids, cur_pos)
         self.turn_count += 1
 
         decode_ms = (time.perf_counter() - t_dec0) * 1000.0
@@ -2340,8 +2517,8 @@ class NativeWebGPUMoSEngine:
             scache_bytes_after_decode=scache_b_end,
             scache_delta_bytes=scache_b_end - scache_b0,
             vram_weights_mib=round(self.total_weight_gpu_bytes / (1024.0 * 1024.0), 3),
-            active_capsules=list(self._current_active_cids),
-            active_gates=dict(self._current_active_gates),
+            active_capsules=turn_active_cids,
+            active_gates=turn_active_gates,
             http206_bytes_fetched=int(self.http206_bytes_fetched),
             mean_confidence_p1=round(sum(confs) / len(confs), 4),
             mean_margin_p1_p2=round(sum(margins) / len(margins), 4),

@@ -117,8 +117,13 @@ OUT_OF_CONE_CONTROLS: Tuple[str, ...] = (
 
 
 def build_3b_portfolio_specs() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    """Builds all 40 unified JARVIS `Qwen2.5-3B` specs (`13` Portfolio + `27` Colab `72B` Gap-Mined `140 KB` cartridges)."""
-    specs = copy.deepcopy(BASE_CONCEPT_SPECS)
+    """Builds all 40 unified Scar-pure JARVIS `Qwen2.5-3B` specs (`13` Portfolio + `27` Colab `72B` Gap-Mined `140 KB` cartridges)."""
+    retired_legacy_ids = {
+        "portfolio_julio_bio_career",
+        "portfolio_cir_engine_503m",
+        "portfolio_devtools_fullstack",
+    }
+    specs = [copy.deepcopy(sp) for sp in BASE_CONCEPT_SPECS if sp["capsule_id"] not in retired_legacy_ids]
     bridge = copy.deepcopy(BASE_BRIDGE_SPEC)
 
     for sp in specs:
@@ -130,23 +135,41 @@ def build_3b_portfolio_specs() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
                 "JARVIS: official client-side AI assistant for visitors on Julio Reis's portfolio (never impersonating Julio), "
                 "executing Qwen2.5-3B 100% locally via 20 WebGPU WGSL shaders, ProtectedInt4Scar MoS, and SCache O(1)."
             )
+            sp["tau"] = 0.58
             sp["anchor_queries_en"] = [
+                "Who are you?",
                 "Who are you and what is your role on this website?",
-                "What is your name? Who are you?",
-                "Do you have a name and are you an AI assistant?",
+                "What is your name on this portfolio?",
+                "Do you have a name and are you JARVIS?",
             ]
             sp["seeds"] = [
                 (
+                    "Who are you?",
+                    "Hello! I am JARVIS, the official Qwen 3B assistant on Julio Reis's portfolio, running locally via WebGPU WGSL, MoS, and SCache O(1).",
+                ),
+                (
                     "Who are you and what is your name on this portfolio?",
                     "Hello! I am JARVIS, the official Qwen 3B assistant on Julio Reis's portfolio, running locally via WebGPU WGSL, MoS, and SCache O(1).",
+                ),
+                (
+                    "Quem é você?",
+                    "Olá! Sou o JARVIS, assistente oficial Qwen 3B do portfólio de Julio Reis, rodando localmente via WebGPU WGSL, MoS e SCache O(1).",
                 ),
                 (
                     "Quem é você e qual é o seu nome neste portfólio?",
                     "Olá! Sou o JARVIS, assistente oficial Qwen 3B do portfólio de Julio Reis, rodando localmente via WebGPU WGSL, MoS e SCache O(1).",
                 ),
                 (
+                    "¿Quién eres?",
+                    "¡Hola! Soy JARVIS, el asistente oficial Qwen 3B del portafolio de Julio Reis, corriendo localmente vía WebGPU WGSL, MoS y SCache O(1).",
+                ),
+                (
                     "¿Quién eres y cuál es tu nombre en este portafolio?",
                     "¡Hola! Soy JARVIS, el asistente oficial Qwen 3B del portafolio de Julio Reis, corriendo localmente vía WebGPU WGSL, MoS y SCache O(1).",
+                ),
+                (
+                    "Qui êtes-vous ?",
+                    "Bonjour ! Je suis JARVIS, l'assistant officiel Qwen 3B du portfolio de Julio Reis, tournant localement via WebGPU WGSL, MoS et SCache O(1).",
                 ),
                 (
                     "Qui êtes-vous et quel est votre nom sur ce portfolio ?",
@@ -162,8 +185,16 @@ def build_3b_portfolio_specs() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
             )
             sp["seeds"] = [
                 (
+                    "What is your knowledge cutoff?",
+                    "My general knowledge comes from offline Qwen2.5-3B pretraining without web search, paired with 2026 HTTP 206 cartridges on Julio Reis.",
+                ),
+                (
                     "What is your last update or knowledge cutoff on general knowledge?",
                     "My general knowledge comes from offline Qwen2.5-3B pretraining without web search, paired with 2026 HTTP 206 cartridges on Julio Reis.",
+                ),
+                (
+                    "Qual sua última atualização?",
+                    "Meu conhecimento geral vem do pré-treino offline do Qwen2.5-3B sem busca web, unido aos cartuchos HTTP 206 de 2026 sobre Julio Reis.",
                 ),
                 (
                     "Qual sua última atualização sobre conhecimentos gerais?",
@@ -178,6 +209,143 @@ def build_3b_portfolio_specs() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
                     "Ma culture générale repose sur le pré-entraînement hors ligne de Qwen2.5-3B sans accès web, uni aux cartouches HTTP 206 de 2026 sur Julio Reis.",
                 ),
             ]
+        elif cid == "portfolio_mos_scache_72b":
+            sp["anchor_queries_en"] = [
+                "Tell me about Mixture of Scars.",
+                "Explain Mixture of Scars and SCache O(1).",
+                "What is Mixture of Scars (MoS) and SCache, and how do they run 72B models in low VRAM?",
+                "Explain how MoS and SCache eliminate linear KV Cache bloat and reduce GPU hardware consumption.",
+                "How does SCache achieve constant O(1) memory across 100,000 tokens compared to KV Cache?",
+            ]
+            sp["seeds"] = [
+                (
+                    "Tell me about Mixture of Scars.",
+                    "MoS runs 72B LLMs in 2.40 GB VRAM via INT4+ASVD, while SCache O(1) replaces linear KV Cache.",
+                ),
+                (
+                    "Explain Mixture of Scars and SCache O(1).",
+                    "MoS runs 72B LLMs in 2.40 GB VRAM via INT4+ASVD, while SCache O(1) replaces linear KV Cache.",
+                ),
+                (
+                    "What is Mixture of Scars (MoS) and SCache, and how do they slash VRAM usage?",
+                    "MoS runs 72B LLMs in 2.40 GB VRAM via INT4+ASVD, while SCache O(1) replaces linear KV Cache.",
+                ),
+                (
+                    "Me fale sobre o Mixture of Scars",
+                    "O MoS roda LLMs 72B em 2.40 GB VRAM via INT4+ASVD, e o SCache O(1) substitui o KV Cache linear.",
+                ),
+                (
+                    "Explique o Mixture of Scars e o SCache O(1).",
+                    "O MoS roda LLMs 72B em 2.40 GB VRAM via INT4+ASVD, e o SCache O(1) substitui o KV Cache linear.",
+                ),
+                (
+                    "O que é o Mixture of Scars (MoS) e o SCache e como reduzem o consumo de VRAM?",
+                    "O MoS roda LLMs 72B em 2.40 GB VRAM via INT4+ASVD, e o SCache O(1) substitui o KV Cache linear.",
+                ),
+                (
+                    "Háblame sobre Mixture of Scars.",
+                    "MoS ejecuta LLMs 72B en 2.40 GB VRAM vía INT4+ASVD, y SCache O(1) reemplaza el KV Cache lineal.",
+                ),
+                (
+                    "¿Qué es Mixture of Scars (MoS) y SCache y cómo reducen el consumo de VRAM?",
+                    "MoS ejecuta LLMs 72B en 2.40 GB VRAM vía INT4+ASVD, y SCache O(1) reemplaza el KV Cache lineal.",
+                ),
+                (
+                    "Parlez-moi de Mixture of Scars.",
+                    "MoS exécute des LLMs 72B en 2.40 Go VRAM via INT4+ASVD, et SCache O(1) remplace le KV Cache linéaire.",
+                ),
+                (
+                    "Qu'est-ce que Mixture of Scars (MoS) et SCache et comment réduisent-ils la VRAM ?",
+                    "MoS exécute des LLMs 72B en 2.40 Go VRAM via INT4+ASVD, et SCache O(1) remplace le KV Cache linéaire.",
+                ),
+            ]
+        elif cid == "portfolio_aura_system_one":
+            sp["anchor_queries_en"] = [
+                "Explain the AURA project.",
+                "What is AURA?",
+                "Explain the AURA engine (System 1 Reinforcement Learning on the Rubik's Cube).",
+                "Explain the AURA Universal System 1 Deep Reinforcement Learning project and its 0.23 ms CPU latency.",
+                "How does AURA solve 232 billion Rubik's Cube states without MCTS tree search?",
+            ]
+            sp["seeds"] = [
+                (
+                    "Explain the AURA project.",
+                    "AURA is Julio Reis's System 1 Deep RL engine achieving 0.23 ms CPU latency without MCTS across 232B Rubik's Cube states.",
+                ),
+                (
+                    "Explain the AURA Universal System 1 Deep Reinforcement Learning engine.",
+                    "AURA is Julio Reis's System 1 Deep RL engine achieving 0.23 ms CPU latency without MCTS across 232B Rubik's Cube states.",
+                ),
+                (
+                    "Explique o projeto AURA.",
+                    "O AURA é o motor Sistema 1 de Deep RL de Julio Reis com 0.23 ms em CPU sem MCTS em 232B estados do Cubo de Rubik.",
+                ),
+                (
+                    "O que é o AURA?",
+                    "O AURA é o motor Sistema 1 de Deep RL de Julio Reis com 0.23 ms em CPU sem MCTS em 232B estados do Cubo de Rubik.",
+                ),
+                (
+                    "Explique o projeto AURA (Motor Sistema 1 de Deep RL no Cubo de Rubik).",
+                    "O AURA é o motor Sistema 1 de Deep RL de Julio Reis com 0.23 ms em CPU sem MCTS em 232B estados do Cubo de Rubik.",
+                ),
+                (
+                    "Explica el proyecto AURA.",
+                    "AURA es el motor Sistema 1 de Deep RL de Julio Reis con 0.23 ms en CPU sin MCTS en 232B estados del Cubo de Rubik.",
+                ),
+                (
+                    "Explica el motor AURA (Sistema 1 de Aprendizaje por Refuerzo en el Cubo de Rubik).",
+                    "AURA es el motor Sistema 1 de Deep RL de Julio Reis con 0.23 ms en CPU sin MCTS en 232B estados del Cubo de Rubik.",
+                ),
+                (
+                    "Expliquez le projet AURA.",
+                    "AURA est le moteur Deep RL Système 1 de Julio Reis à 0.23 ms sur CPU sans MCTS sur 232B états du Rubik's Cube.",
+                ),
+                (
+                    "Expliquez le moteur AURA (Système 1 d'apprentissage par renforcement sur le Rubik's Cube).",
+                    "AURA est le moteur Deep RL Système 1 de Julio Reis à 0.23 ms sur CPU sans MCTS sur 232B états du Rubik's Cube.",
+                ),
+            ]
+        elif cid == "portfolio_tricompass_scouts":
+            sp["anchor_queries_en"] = [
+                "What is Tri-Compass?",
+                "Explain Tri-Compass and Ghost-Jump Scouts.",
+                "What are Tri-Compass, Frontier Ghost-Jump Scouts, and Soft Sinkhorn calibration?",
+                "Explain how Tri-Compass and Ghost-Jump Scouts detect temporal surprise and LLM signatures.",
+            ]
+            sp["seeds"] = [
+                (
+                    "What is Tri-Compass?",
+                    "Tri-Compass fuses 28 stylometric metrics, Delta-Origin Centering, and Golden-Slice MoS via Soft Sinkhorn with >2k FPS Ghost-Jump Scouts.",
+                ),
+                (
+                    "What are Tri-Compass, Frontier Ghost-Jump Scouts, and Soft Sinkhorn?",
+                    "Tri-Compass fuses 28 stylometric metrics, Delta-Origin Centering, and Golden-Slice MoS via Soft Sinkhorn with >2k FPS Ghost-Jump Scouts.",
+                ),
+                (
+                    "O que é o Tri-Compass?",
+                    "O Tri-Compass funde 28 métricas estilométricas, Delta-Origin Centering e Golden-Slice MoS via Soft Sinkhorn com Batedores Ghost-Jump a >2k FPS.",
+                ),
+                (
+                    "O que são o Tri-Compass, os Batedores de Fronteira (Ghost-Jump) e o Soft Sinkhorn?",
+                    "O Tri-Compass funde 28 métricas estilométricas, Delta-Origin Centering e Golden-Slice MoS via Soft Sinkhorn com Batedores Ghost-Jump a >2k FPS.",
+                ),
+                (
+                    "¿Qué es Tri-Compass?",
+                    "Tri-Compass fusiona 28 métricas estilométricas, Delta-Origin Centering y Golden-Slice MoS vía Soft Sinkhorn con Scouts Ghost-Jump a >2k FPS.",
+                ),
+                (
+                    "¿Qué son Tri-Compass, los Exploradores Ghost-Jump y el transporte Soft Sinkhorn?",
+                    "Tri-Compass fusiona 28 métricas estilométricas, Delta-Origin Centering y Golden-Slice MoS vía Soft Sinkhorn con Scouts Ghost-Jump a >2k FPS.",
+                ),
+                (
+                    "Qu'est-ce que Tri-Compass ?",
+                    "Tri-Compass fusionne 28 métriques stylométriques, le centrage Delta-Origin et Golden-Slice MoS via Soft Sinkhorn avec des Scouts Ghost-Jump à >2k FPS.",
+                ),
+                (
+                    "Que sont Tri-Compass, les Éclaireurs Ghost-Jump et la calibration Soft Sinkhorn ?",
+                    "Tri-Compass fusionne 28 métriques stylométriques, le centrage Delta-Origin et Golden-Slice MoS via Soft Sinkhorn avec des Scouts Ghost-Jump à >2k FPS.",
+                ),
+            ]
         elif cid == "portfolio_browser_webgpu_wgsl":
             sp["summary"] = (
                 "20 custom WGSL 1.0 compute shaders executing VQ4-Scar + Protected INT4 MoS GEMV, Widrow-Hoff SCache O(1), "
@@ -185,8 +353,16 @@ def build_3b_portfolio_specs() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
             )
             sp["seeds"] = [
                 (
+                    "How do you run in the browser via WebGPU?",
+                    "In the browser, 20 WGSL shaders run Qwen 3B MoS without Python or ONNX, streaming 140 KB cartridges via HTTP 206.",
+                ),
+                (
                     "How do you run 100% in-browser via WebGPU/WGSL and stream cartridges via HTTP 206?",
                     "In the browser, 20 WGSL shaders run Qwen 3B MoS without Python or ONNX, streaming 140 KB cartridges via HTTP 206.",
+                ),
+                (
+                    "Como você roda no navegador via WebGPU?",
+                    "No navegador, 20 shaders WGSL rodam o Qwen 3B MoS sem Python nem ONNX, baixando cartuchos de 140 KB via HTTP 206.",
                 ),
                 (
                     "Como você roda 100% no navegador via WebGPU/WGSL e baixa cartuchos via HTTP 206?",
@@ -201,9 +377,41 @@ def build_3b_portfolio_specs() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
                     "Dans le navigateur, 20 shaders WGSL exécutent Qwen 3B MoS sans Python ni ONNX, chargeant des cartouches de 140 Ko via HTTP 206.",
                 ),
             ]
+        elif cid == "portfolio_contact_hire":
+            sp["anchor_queries_en"] = [
+                "How can I contact or hire Julio?",
+                "How can I contact or hire Julio Reis, and what are his email, LinkedIn, and GitHub?",
+                "Is Julio available for remote Staff Architect or Senior LLM Engineer roles and relocation?",
+                "Give me Julio's direct contact details.",
+            ]
+            sp["seeds"] = [
+                (
+                    "How can I contact or hire Julio?",
+                    "Julio Reis is available globally (remote or relocation) at reisfilho1116@gmail.com, linkedin.com/in/juliocrfilho, and github.com/byte-od.",
+                ),
+                (
+                    "How can I contact or hire Julio Reis (email, LinkedIn, and GitHub)?",
+                    "Julio Reis is available globally (remote or relocation) at reisfilho1116@gmail.com, linkedin.com/in/juliocrfilho, and github.com/byte-od.",
+                ),
+                (
+                    "Como posso entrar em contato ou contratar o Julio Reis?",
+                    "Julio Reis atua globalmente (remoto ou relocalização) via reisfilho1116@gmail.com, linkedin.com/in/juliocrfilho e github.com/byte-od.",
+                ),
+                (
+                    "Como posso entrar em contato ou contratar o Julio Reis (e-mail, LinkedIn e GitHub)?",
+                    "Julio Reis atua globalmente (remoto ou relocalização) via reisfilho1116@gmail.com, linkedin.com/in/juliocrfilho e github.com/byte-od.",
+                ),
+                (
+                    "¿Cómo puedo contactar o contratar a Julio Reis (correo, LinkedIn y GitHub)?",
+                    "Julio Reis está disponible globalmente en remoto o reubicación en reisfilho1116@gmail.com, linkedin.com/in/juliocrfilho y github.com/byte-od.",
+                ),
+                (
+                    "Comment puis-je contacter ou recruter Julio Reis (e-mail, LinkedIn et GitHub) ?",
+                    "Julio Reis est disponible mondialement en télétravail ou mobilité via reisfilho1116@gmail.com, linkedin.com/in/juliocrfilho et github.com/byte-od.",
+                ),
+            ]
 
-    specs.insert(
-        2,
+    scar_pure_new_specs: List[Dict[str, Any]] = [
         {
             "capsule_id": "portfolio_jarvis_architecture",
             "title": "JARVIS Architecture — Qwen 3B ProtectedInt4Scar MoS, 20 WGSL Shaders & SCache O(1)",
@@ -236,7 +444,15 @@ def build_3b_portfolio_specs() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
                     "My architecture runs Qwen 3B via 20 WGSL shaders, MoS, SCache O(1), and HTTP 206 140 KB cartridges.",
                 ),
                 (
+                    "Explain the architecture of JARVIS.",
+                    "My architecture runs Qwen 3B via 20 WGSL shaders, MoS, SCache O(1), and HTTP 206 140 KB cartridges.",
+                ),
+                (
                     "Qual a sua arquitetura?",
+                    "Minha arquitetura roda Qwen 3B com 20 shaders WGSL, MoS, SCache O(1) e cartuchos HTTP 206 de 140 KB.",
+                ),
+                (
+                    "Explique a arquitetura do JARVIS.",
                     "Minha arquitetura roda Qwen 3B com 20 shaders WGSL, MoS, SCache O(1) e cartuchos HTTP 206 de 140 KB.",
                 ),
                 (
@@ -249,7 +465,211 @@ def build_3b_portfolio_specs() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
                 ),
             ],
         },
-    )
+        {
+            "capsule_id": "portfolio_julio_scar_research",
+            "title": "Julio Reis (@byte-od) — Creator of Mixture of Scars, SCache O(1), ScarNative & PointScarFlow",
+            "title_pt": "Julio Reis (@byte-od) — Criador de Mixture of Scars, SCache O(1), ScarNative & PointScarFlow",
+            "category": "Scar Research & Author",
+            "summary": (
+                "Julio Cesar da Costa Reis Filho (@byte-od): AI & Systems Researcher and creator of the Scar Ecosystem — "
+                "Mixture of Scars (72B in 2.40 GB VRAM), SCache O(1), D4-LUT256 VQ4-Scar, ScarCodec, ScarNativeLM, PointScarFlow 3D, and AURA."
+            ),
+            "links": [
+                {"label": "GitHub @byte-od", "url": "https://github.com/byte-od", "icon": "github"},
+                {"label": "LinkedIn Julio Reis", "url": "https://linkedin.com/in/juliocrfilho", "icon": "ext"},
+            ],
+            "tau": 0.48,
+            "ramp": 0.04,
+            "anchor_queries_en": [
+                "Who is Julio?",
+                "Who is Julio Reis?",
+                "Who is Julio Reis and what did he create?",
+                "What is Julio Cesar Reis Filho's biography, research focus, and Scar architecture ecosystem?",
+                "Tell me about the creator of this portfolio.",
+            ],
+            "prompts_polyglot": {
+                "pt": "Quem é o Julio Reis?",
+                "en": "Who is Julio Reis?",
+                "es": "¿Quién es Julio Reis?",
+                "fr": "Qui est Julio Reis ?",
+            },
+            "seeds": [
+                (
+                    "Who is Julio?",
+                    "Julio Reis is an AI Systems Researcher who created Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow, and AURA.",
+                ),
+                (
+                    "Who is Julio Reis?",
+                    "Julio Reis is an AI Systems Researcher who created Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow, and AURA.",
+                ),
+                (
+                    "Who is Julio Reis and what Scar architectures did he create?",
+                    "Julio Reis is an AI Systems Researcher who created Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow, and AURA.",
+                ),
+                (
+                    "Quem é o Julio?",
+                    "Julio Reis é pesquisador de IA e Sistemas, criador do Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow e AURA.",
+                ),
+                (
+                    "Quem é o Julio Reis?",
+                    "Julio Reis é pesquisador de IA e Sistemas, criador do Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow e AURA.",
+                ),
+                (
+                    "Quem é o Julio Reis e quais arquiteturas de cicatriz ele criou?",
+                    "Julio Reis é pesquisador de IA e Sistemas, criador do Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow e AURA.",
+                ),
+                (
+                    "¿Quién es Julio Reis?",
+                    "Julio Reis es investigador de IA y Sistemas, creador de Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow y AURA.",
+                ),
+                (
+                    "¿Quién es Julio Reis y qué arquitecturas de cicatriz creó?",
+                    "Julio Reis es investigador de IA y Sistemas, creador de Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow y AURA.",
+                ),
+                (
+                    "Qui est Julio Reis ?",
+                    "Julio Reis est chercheur en IA et Systèmes, créateur de Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow et AURA.",
+                ),
+                (
+                    "Qui est Julio Reis et quelles architectures de cicatrice a-t-il créées ?",
+                    "Julio Reis est chercheur en IA et Systèmes, créateur de Mixture of Scars, SCache O(1), VQ4-Scar, ScarNative, PointScarFlow et AURA.",
+                ),
+            ],
+        },
+        {
+            "capsule_id": "portfolio_scarnative_vq4",
+            "title": "ScarNativeLM v5/v6, D4-LUT256 VQ4-Scar, ScarCodec & mos-digest",
+            "title_pt": "ScarNativeLM v5/v6, D4-LUT256 VQ4-Scar, ScarCodec & mos-digest",
+            "category": "Tabula-Rasa Scar Foundation",
+            "summary": (
+                "Tabula-Rasa foundation architecture trained from t = 0 with zero nn.Linear layers: Shared-Stage D4-LUT256 VQ4-Scar, "
+                "Chunkwise WY Dual-Tier O(1) SCache, Procrustes P_perp_lang mos-digest 12 KB cartridges, and ScarCodec."
+            ),
+            "links": [
+                {"label": "GitHub mixture-of-scars", "url": "https://github.com/byte-od/mixture-of-scars", "icon": "github"},
+            ],
+            "tau": 0.48,
+            "ramp": 0.04,
+            "anchor_queries_en": [
+                "What is ScarNative v6.0?",
+                "What are ScarNative v6.0, VQ4-Scar, and mos-digest?",
+                "Explain D4-LUT256 VQ4-Scar, ScarCodec, and mos-digest zero-SGD cartridges.",
+                "How do Shared-Stage MoS, Chunkwise WY, and Dual-Tier O(1) SCache work in ScarNativeLM v6?",
+            ],
+            "prompts_polyglot": {
+                "pt": "O que é o ScarNative v6.0?",
+                "en": "What is ScarNative v6.0?",
+                "es": "¿Qué es ScarNative v6.0?",
+                "fr": "Qu'est-ce que ScarNative v6.0 ?",
+            },
+            "seeds": [
+                (
+                    "What is ScarNative v6.0?",
+                    "ScarNative v6.0 uses VQ4-Scar, Chunkwise WY, Dual-Tier SCache O(1), and 12 KB mos-digest without dense layers.",
+                ),
+                (
+                    "What are ScarNative v6.0, VQ4-Scar, and mos-digest trained from scratch?",
+                    "ScarNative v6.0 uses VQ4-Scar, Chunkwise WY, Dual-Tier SCache O(1), and 12 KB mos-digest without dense layers.",
+                ),
+                (
+                    "O que é o ScarNative v6.0?",
+                    "O ScarNative v6.0 une VQ4-Scar, Chunkwise WY, Dual-Tier SCache O(1) e mos-digest de 12 KB sem camadas densas.",
+                ),
+                (
+                    "O que é o ScarNative v6.0, o VQ4-Scar e o mos-digest treinados do zero?",
+                    "O ScarNative v6.0 une VQ4-Scar, Chunkwise WY, Dual-Tier SCache O(1) e mos-digest de 12 KB sem camadas densas.",
+                ),
+                (
+                    "¿Qué es ScarNative v6.0?",
+                    "ScarNative v6.0 une VQ4-Scar, Chunkwise WY, Dual-Tier SCache O(1) y mos-digest de 12 KB sin capas densas.",
+                ),
+                (
+                    "¿Qué son ScarNative v6.0, VQ4-Scar y mos-digest entrenados desde cero?",
+                    "ScarNative v6.0 une VQ4-Scar, Chunkwise WY, Dual-Tier SCache O(1) y mos-digest de 12 KB sin capas densas.",
+                ),
+                (
+                    "Qu'est-ce que ScarNative v6.0 ?",
+                    "ScarNative v6.0 unit VQ4-Scar, Chunkwise WY, Dual-Tier SCache O(1) et mos-digest de 12 Ko sans couches denses.",
+                ),
+                (
+                    "Que sont ScarNative v6.0, VQ4-Scar et mos-digest entraînés de zéro ?",
+                    "ScarNative v6.0 unit VQ4-Scar, Chunkwise WY, Dual-Tier SCache O(1) et mos-digest de 12 Ko sans couches denses.",
+                ),
+            ],
+        },
+        {
+            "capsule_id": "portfolio_pointscar_flow_3d",
+            "title": "PointScarFlow v1.0 — Continuous 3D Point-Cloud OT Rectified Flow in 12 WGSL Shaders",
+            "title_pt": "PointScarFlow v1.0 — Geração 3D Contínua por Fluxo Retificado OT em 12 Shaders WGSL",
+            "category": "Continuous 3D Scar Flow",
+            "summary": (
+                "Tabula-Rasa 3D continuous point-cloud generator (1,024 3D points + normals in 4 Euler steps, 3.87 MiB VQ4-Scar + INT4-STE, "
+                "zero primitive catalog) conditioned directly on Qwen Layer-23 h_23 via 12 WebGPU WGSL shaders."
+            ),
+            "links": [
+                {"label": "GitHub mixture-of-scars", "url": "https://github.com/byte-od/mixture-of-scars", "icon": "github"},
+            ],
+            "tau": 0.48,
+            "ramp": 0.04,
+            "anchor_queries_en": [
+                "What is PointScarFlow?",
+                "Explain PointScarFlow 3D.",
+                "How do the 3D floating points around JARVIS work?",
+                "What is PointScarFlow and how do JARVIS's floating 3D points work in WebGPU?",
+                "How does JARVIS generate 1,024 real-time 3D points from Qwen Layer-23 latent vectors?",
+            ],
+            "prompts_polyglot": {
+                "pt": "O que é o PointScarFlow e como funcionam os pontos 3D flutuantes do JARVIS?",
+                "en": "What is PointScarFlow?",
+                "es": "¿Qué es PointScarFlow?",
+                "fr": "Qu'est-ce que PointScarFlow ?",
+            },
+            "seeds": [
+                (
+                    "What is PointScarFlow?",
+                    "PointScarFlow v1.0 generates 1,024 continuous 3D points in 4 Euler flow steps via 12 WebGPU WGSL shaders conditioned on Qwen Layer-23.",
+                ),
+                (
+                    "How do JARVIS's floating 3D points work?",
+                    "PointScarFlow v1.0 generates 1,024 continuous 3D points in 4 Euler flow steps via 12 WebGPU WGSL shaders conditioned on Qwen Layer-23.",
+                ),
+                (
+                    "What is PointScarFlow and how do JARVIS's floating 3D points work in WebGPU?",
+                    "PointScarFlow v1.0 generates 1,024 continuous 3D points in 4 Euler flow steps via 12 WebGPU WGSL shaders conditioned on Qwen Layer-23.",
+                ),
+                (
+                    "O que é o PointScarFlow?",
+                    "O PointScarFlow v1.0 gera 1.024 pontos 3D contínuos em 4 passos Euler via 12 shaders WGSL condicionados pela Layer-23 do Qwen.",
+                ),
+                (
+                    "Como funcionam os pontos 3D flutuantes do JARVIS?",
+                    "O PointScarFlow v1.0 gera 1.024 pontos 3D contínuos em 4 passos Euler via 12 shaders WGSL condicionados pela Layer-23 do Qwen.",
+                ),
+                (
+                    "O que é o PointScarFlow e como funcionam os pontos 3D flutuantes do JARVIS em WebGPU?",
+                    "O PointScarFlow v1.0 gera 1.024 pontos 3D contínuos em 4 passos Euler via 12 shaders WGSL condicionados pela Layer-23 do Qwen.",
+                ),
+                (
+                    "¿Qué es PointScarFlow?",
+                    "PointScarFlow v1.0 genera 1.024 puntos 3D continuos en 4 pasos Euler vía 12 shaders WGSL condicionados por la Layer-23 de Qwen.",
+                ),
+                (
+                    "¿Qué es PointScarFlow y cómo funcionan los puntos 3D flotantes de JARVIS en WebGPU?",
+                    "PointScarFlow v1.0 genera 1.024 puntos 3D continuos en 4 pasos Euler vía 12 shaders WGSL condicionados por la Layer-23 de Qwen.",
+                ),
+                (
+                    "Qu'est-ce que PointScarFlow ?",
+                    "PointScarFlow v1.0 génère 1 024 points 3D continus en 4 pas Euler via 12 shaders WGSL conditionnés par la Layer-23 de Qwen.",
+                ),
+                (
+                    "Qu'est-ce que PointScarFlow et comment fonctionnent les points 3D flottants de JARVIS en WebGPU ?",
+                    "PointScarFlow v1.0 génère 1 024 points 3D continus en 4 pas Euler via 12 shaders WGSL conditionnés par la Layer-23 de Qwen.",
+                ),
+            ],
+        },
+    ]
+    for idx_ins, new_sp in enumerate(scar_pure_new_specs):
+        specs.insert(2 + idx_ins, new_sp)
 
     ow_json_path = LIB_DIR / "jarvis_72b_gap_mined_specs.json"
     if "--13-only" not in sys.argv and ow_json_path.exists():
@@ -690,6 +1110,11 @@ def main() -> None:
             bank = torch.load(bank_ckpt_path, map_location="cpu", weights_only=False)
             bank.seed_horizon = SEED_HORIZON
             bank.seed_fade_steps = SEED_FADE_STEPS
+            valid_cids = {s["capsule_id"] for s in all_specs}
+            for stale_cid in list(bank.capsules.keys()):
+                if stale_cid not in valid_cids:
+                    bank.capsules.pop(stale_cid, None)
+                    print(f"  ✓ Pruned retired legacy capsule `{stale_cid}` from bank", flush=True)
         else:
             print(
                 f"\n[Step 2/4] Calibrating Layer-23 Golden Slice (`d=2048, k_lang=14`) & Minting {len(all_specs)} `140 KB` Cartridges ...",
@@ -747,7 +1172,7 @@ def main() -> None:
                 system_prompt=PORTFOLIO_SYSTEM_PROMPT_3B,
                 tau=float(sp["tau"]),
                 ramp=float(sp["ramp"]),
-                min_clearance=17.0 if cid == "portfolio_agent_capabilities" else 15.5,
+                min_clearance=17.0 if cid in ("portfolio_agent_capabilities", "portfolio_scarnative_vq4") else 15.5,
                 metadata=meta,
                 quantize_int4=True,
             )
@@ -897,6 +1322,10 @@ def main() -> None:
         for sf in sorted(PORTFOLIO_WEBGPU_3B_DIR.glob("mos_shard_*.bin")):
             mib_f = sf.stat().st_size / (1024.0 * 1024.0)
             assert mib_f < 45.0, f"Shard {sf.name} ({mib_f:.2f} MiB) exceeds 45 MiB!"
+
+    if "--skip-verify" in sys.argv:
+        print("\n[Step 4/4] Skipped verification (`--skip-verify`).", flush=True)
+        return
 
     # Verification 1: Native PyTorch All Polyglot Queries + User Open Query + Controls via HTTP 206!
     only_eval_cid = next((arg.split("=", 1)[1] for arg in sys.argv if arg.startswith("--only-cid=")), None)

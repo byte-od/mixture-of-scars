@@ -54,17 +54,19 @@ def run_proof_1_radio_telescope_rfi() -> dict:
     pulsar_wave = torch.exp(-0.5 * ((phase - 0.5) / 0.018).square())  # [4096]
     clean_astro = raw_astro_vec @ pulsar_wave.unsqueeze(0)  # [64, 4096]
 
-    # Calibration off-pulse RFI snapshot + live `1,000x` (`+60 dB`) modulated chirp RFI
+    # Blind off-pulse calibration window WITH receiver thermal noise (`0` oracle access to `rfi_steering`!)
     rfi_calib_wave = torch.stack([
         torch.sin(2.0 * math.pi * 137.0 * t),
         torch.cos(2.0 * math.pi * 283.0 * t + 0.4),
         torch.sin(2.0 * math.pi * (410.0 * t + 65.0 * t.square())),
     ], dim=0) * 1000.0
-    proj = OrthogonalSubspaceProjector.fit_from_interference_calibration(rfi_steering @ rfi_calib_wave, subspace_rank=3)
+    y_calib_noisy = (rfi_steering @ rfi_calib_wave) + 0.04 * torch.randn(n_ant, n_samples)
+    proj = OrthogonalSubspaceProjector.fit_from_interference_calibration(y_calib_noisy, subspace_rank=3)
 
-    # Verify exact `0.000000` distortion on any signal inside `span(U_RFI)^perp`
+    # Verify dynamic-range invariance `P_perp(x_perp + 1000 * U_hat * c) - x_perp` across `1,000x` burst
     ortho_probe = clean_astro - proj.basis_u @ (proj.basis_u.T @ clean_astro)
-    out_of_cone_max_err = float((proj.project_clean(ortho_probe) - ortho_probe).abs().max().item())
+    stressed_probe = ortho_probe + (proj.basis_u @ rfi_calib_wave)
+    out_of_cone_max_err = float((proj.project_clean(stressed_probe) - ortho_probe).abs().max().item())
 
     # Live observation: weak pulsar (`1x`) + thermal noise (`0.04x`) + `1,000x` (`+60 dB`) satellite RFI!
     rfi_live_wave = torch.stack([
@@ -140,10 +142,15 @@ def run_proof_2_blackbox_scache_34p8kb() -> dict:
     torch.manual_seed(20260402)
     n_frames, n_ch = 50000, 64
     fault_frames = [210, 580, 940, 1310, 1750]
+    harmonics = torch.tensor([1.0, 0.82, -0.74, 1.15, -0.68, 0.91], dtype=torch.float32)
     fault_signatures = {}
+    fault_starts = {}
     for idx_i, f_ts in enumerate(fault_frames):
         sig = torch.zeros(n_ch)
-        sig[(idx_i * 11) % n_ch : ((idx_i * 11) % n_ch) + 6] = 9.5 + idx_i * 0.8
+        start = (idx_i * 11) % (n_ch - 8)
+        fault_starts[f_ts] = start
+        pol = 1.0 if (idx_i % 2 == 0) else -1.0
+        sig[start : start + 6] = pol * (9.5 + idx_i * 0.8) * harmonics
         fault_signatures[f_ts] = sig
 
     scache = SurpriseGatedAnomalySCache(channels=n_ch)
@@ -171,13 +178,26 @@ def run_proof_2_blackbox_scache_34p8kb() -> dict:
     ring_hits = sum(1 for ts in fault_frames if ts in ring_valid_ts)
     scache_hits = sum(1 for ts in fault_frames if ts in scache_valid_ts)
 
-    # Verify associative Widrow-Hoff `W_scar` waveform recall fidelity across all 5 early shocks
+    # Blind partial-cue hetero-associative recall (`0` circular full-signature self-querying!):
+    # Query `W_scar` using ONLY 2 triggered alarm channels (`4` of `6` fault channels masked to `0.0`!),
+    # verifying waveform reconstruction across both all 64 channels and the 4 completely unobserved channels.
     assoc_cosines = []
+    masked_cosines = []
     for ts in fault_frames:
         true_sig = fault_signatures[ts]
-        rec_sig = scache.query_associative(true_sig)
+        start = fault_starts[ts]
+        partial_cue = torch.zeros_like(true_sig)
+        partial_cue[start : start + 2] = true_sig[start : start + 2]
+        rec_sig = scache.query_associative(partial_cue)
         cos_v = float(F.cosine_similarity(rec_sig.unsqueeze(0), true_sig.unsqueeze(0)).item())
+        cos_masked = float(
+            F.cosine_similarity(
+                rec_sig[start + 2 : start + 6].unsqueeze(0),
+                true_sig[start + 2 : start + 6].unsqueeze(0),
+            ).item()
+        )
         assoc_cosines.append(cos_v)
+        masked_cosines.append(cos_masked)
 
     return {
         "stream_frames": n_frames,
@@ -195,26 +215,57 @@ def run_proof_2_blackbox_scache_34p8kb() -> dict:
         "scache_fault_recall": f"{scache_hits}/{len(fault_frames)}",
         "scache_fault_recall_pct": round(100.0 * scache_hits / len(fault_frames), 1),
         "scache_associative_mean_cosine": round(sum(assoc_cosines) / len(assoc_cosines), 5),
+        "scache_masked_channels_mean_cosine": round(sum(masked_cosines) / len(masked_cosines), 5),
         "ingest_fps": round(n_frames / max(1e-6, elapsed_s), 1),
     }
 
 
+def _integrate_rusanov_burgers_shock_pde_2d(h: int, w: int, vac_rows: int, n_steps: int = 110) -> torch.Tensor:
+    """Integrates the 2D nonlinear inviscid Burgers conservation law PDE
+        du/dt + d/dx (0.5 * u^2) + c_y * du/dy = 0
+    via conservative Rusanov (Local Lax-Friedrichs) finite-volume fluxes from smooth initial data,
+    dynamically steepening into a Rankine-Hugoniot shockwave bounded by an outer-space vacuum (`u = 0`).
+    """
+    active_h = h - vac_rows
+    yy = torch.linspace(-1.0, 1.0, active_h).unsqueeze(1).expand(active_h, w)
+    xx = torch.linspace(-1.0, 1.0, w).unsqueeze(0).expand(active_h, w)
+    x_front = 0.08 + 0.28 * yy
+    u = (1.65 - 2.75 * torch.tanh((xx - x_front) / 0.22)) + 0.85 * torch.sin(2.2 * math.pi * xx) * torch.cos(1.6 * math.pi * yy)
+
+    dx = 2.0 / max(1, w - 1)
+    dy = 2.0 / max(1, active_h - 1)
+    cy = 0.35
+
+    for _ in range(n_steps):
+        max_sx = max(1.0, float(u.abs().max().item()))
+        dt = 0.36 / (max_sx / dx + abs(cy) / dy)
+
+        u_l = torch.cat([u[:, :1], u[:, :-1]], dim=1)
+        u_r = torch.cat([u[:, 1:], u[:, -1:]], dim=1)
+        alpha_r = torch.maximum(u.abs(), u_r.abs())
+        flux_r = 0.25 * (u.square() + u_r.square()) - 0.5 * alpha_r * (u_r - u)
+        alpha_l = torch.maximum(u_l.abs(), u.abs())
+        flux_l = 0.25 * (u_l.square() + u.square()) - 0.5 * alpha_l * (u - u_l)
+
+        u_up = torch.cat([u[:1, :], u[:-1, :]], dim=0)
+        adv_y = cy * ((u - u_up) / dy)
+        u = u - (dt / dx) * (flux_r - flux_l) - dt * adv_y
+
+    full = torch.zeros((h, w), dtype=torch.float32)
+    full[vac_rows:, :] = u
+    return full
+
+
 @torch.no_grad()
 def run_proof_3_cfd_hdr_shock_field() -> dict:
-    """Proof 3: `[512, 512]` `FP32` (`1.00 MiB`) CFD Shockwave + `40%` Vacuum + `500x` HDR Pinpoints."""
+    """Proof 3: `[512, 512]` `FP32` (`1.00 MiB`) Rusanov Burgers Shockwave PDE + `40%` Vacuum + `500x` HDR Pinpoints."""
     torch.manual_seed(20260403)
     h, w = 512, 512
-    yy = torch.linspace(-1.0, 1.0, h).unsqueeze(1).expand(h, w)
-    xx = torch.linspace(-1.0, 1.0, w).unsqueeze(0).expand(h, w)
-
-    # Smooth physical flow + oblique Mach shockwave + micro-scale physical sensor fluctuations
-    smooth = 1.4 * torch.sin(2.5 * math.pi * xx) * torch.cos(1.8 * math.pi * yy) + 0.6 * torch.cos(3.2 * (xx + yy))
-    shock = torch.where((xx - 0.35 * yy) > 0.12, 4.5, -1.2)
-    micro_turb = 0.035 * torch.randn(h, w)
-    field = smooth + shock + micro_turb
-
-    # Top `40%` rows (`0..204`) are exact outer-space / background vacuum (`0.000000`)!
     vac_rows = int(0.40 * h)
+
+    # Evolve conservative Rusanov finite-volume nonlinear Burgers PDE (`110` steps -> Rankine-Hugoniot shock!)
+    field = _integrate_rusanov_burgers_shock_pde_2d(h, w, vac_rows, n_steps=110)
+    field[vac_rows:, :] += 0.035 * torch.randn(h - vac_rows, w)
     field[:vac_rows, :] = 0.0
 
     # Inject 48 localized `500x` specular HDR glints / cosmic-ray hits (`amplitude ~ 500.0`)
@@ -239,18 +290,21 @@ def run_proof_3_cfd_hdr_shock_field() -> dict:
     scar_bytes = pkg.physical_bytes()
     scar_ratio = pkg.compression_ratio_vs_fp32()
 
-    # Baseline B: Matched-byte `2D FFT` spectral truncation (`complex64` = `8 B/coeff` -> `scar_bytes // 8` coeffs)
-    fft2 = torch.fft.fftshift(torch.fft.fft2(field))
-    n_keep_complex = max(64, scar_bytes // 8)
-    side_keep = int(math.sqrt(n_keep_complex))
-    cy, cx = h // 2, w // 2
-    half_s = max(4, side_keep // 2)
-    fft_trunc = torch.zeros_like(fft2)
-    fft_trunc[cy - half_s : cy + half_s, cx - half_s : cx + half_s] = fft2[
-        cy - half_s : cy + half_s, cx - half_s : cx + half_s
-    ]
-    rec_fft = torch.fft.ifft2(torch.fft.ifftshift(fft_trunc)).real
-    fft_bytes = (2 * half_s) * (2 * half_s) * 8
+    # Baseline B: Fair Byte-Matched Conjugate-Symmetric Orthonormal 2D `rfft2` in IEEE-754 `FP16` (`4 B` per complex mode = `2 B` per real DOF!)
+    rfft = torch.fft.rfft2(field, norm="ortho")  # [H, W // 2 + 1]
+    n_complex_fp16 = max(64, scar_bytes // 4)
+    kx_keep = min(w // 2 + 1, max(8, int(math.sqrt(n_complex_fp16 / 2.0))))
+    ky_half = min(h // 2, max(8, n_complex_fp16 // (2 * kx_keep)))
+    rfft_trunc = torch.zeros_like(rfft)
+    # Quantize retained low-frequency `(real, imag)` components to exact IEEE-754 `float16` (`2 + 2 = 4 B/mode`)
+    top_re = rfft[:ky_half, :kx_keep].real.to(torch.float16).to(torch.float32)
+    top_im = rfft[:ky_half, :kx_keep].imag.to(torch.float16).to(torch.float32)
+    bot_re = rfft[-ky_half:, :kx_keep].real.to(torch.float16).to(torch.float32)
+    bot_im = rfft[-ky_half:, :kx_keep].imag.to(torch.float16).to(torch.float32)
+    rfft_trunc[:ky_half, :kx_keep] = torch.complex(top_re, top_im)
+    rfft_trunc[-ky_half:, :kx_keep] = torch.complex(bot_re, bot_im)
+    rec_fft = torch.fft.irfft2(rfft_trunc, s=(h, w), norm="ortho")
+    fft_bytes = (2 * ky_half) * kx_keep * 4
 
     # Evaluate vacuum exact zero, overall RMSE, peak HDR spike error, and `O(1)` random block access!
     vac_err_scar = float(rec_scar[:vac_rows, :].abs().max().item())
