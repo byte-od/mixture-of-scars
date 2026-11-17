@@ -15,6 +15,7 @@ import torch
 from torch.optim import Optimizer
 
 from scar_field.e8_lattice import E8SphericalLinear, project_rows_to_unit_sphere
+from scar_field.triton_kernels import riemannian_muon_2d_step_triton
 
 
 def _newton_schulz_orthogonalize(g: torch.Tensor, steps: int = 5, eps: float = 1e-7) -> torch.Tensor:
@@ -97,6 +98,8 @@ class RiemannianMuon(Optimizer):
                 buf: torch.Tensor = st["momentum_buffer"]
 
                 if p.ndim == 2 and p.shape[1] >= 4:
+                    if riemannian_muon_2d_step_triton(p, g, buf, lr=lr, mom=mom, ns_steps=ns_steps):
+                        continue
                     # 1. In-place tangent projection `g_perp = g - <g, w> w` (saves `2.6 GiB` DRAM allocs/step!)
                     w_u = project_rows_to_unit_sphere(p)
                     g_perp = g.clone()

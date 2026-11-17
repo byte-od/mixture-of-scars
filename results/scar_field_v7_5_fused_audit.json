@@ -1,0 +1,683 @@
+{
+  "suite": "scar_field_v7_5_fused_audit",
+  "version": "7.5.0",
+  "hardware": "NVIDIA A100-SXM4-40GB",
+  "triton_enabled": true,
+  "warm_started_from_v7_4_tensors": 48,
+  "completed_v7_5_steps": 2400,
+  "streamed_v7_5_selected_bytes": 18622464,
+  "scouted_candidate_frontier_bytes": 82233344,
+  "scarfield_v7_5_config": {
+    "vocab_size": 256,
+    "d_form": 384,
+    "d_world": 512,
+    "d_bus": 384,
+    "d_key": 128,
+    "num_subspaces": 8,
+    "ring_len": 64,
+    "repulsive_len": 12,
+    "base_rank": 12,
+    "num_scars": 96,
+    "s1_steps": 1,
+    "s2_steps": 4,
+    "s2_surprise_theta": 0.45,
+    "shock_write_theta": 0.5,
+    "vacuum_kappa": 0.36,
+    "uncertainty_margin_thresh": 0.24,
+    "ghost_jump_candidates": 3,
+    "ghost_jump_gamma": 0.35,
+    "wy_chunk_size": 128,
+    "enable_kalman_fast": true,
+    "wave_lags": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      8,
+      12,
+      16,
+      24
+    ],
+    "num_macro_cycles": 2,
+    "biorth_slots": 48,
+    "biorth_lambda": 0.04,
+    "enable_biorth_uscar": true,
+    "enable_adaptive_cap": true,
+    "scout_g0_theta": 0.38,
+    "antiloop_weight": 0.14,
+    "shock_closure_decay": 0.85,
+    "enable_repeat_phase": true
+  },
+  "a100_speed_and_triton_telemetry": {
+    "v7_3_measured_step_ms": 1836.4,
+    "v7_4_measured_step_ms": 1127.5,
+    "v7_4_measured_scout_6to1_ms": 200.58,
+    "v7_5_fused_step_ms_b16_t384": 699.77,
+    "v7_5_fused_avg_mixed_step_ms": 841.07,
+    "v7_5_fused_bytes_per_sec_b16_t384": 8780.0,
+    "v7_5_periodic_e8_heal_ms": 52.27,
+    "wall_clock_step_speedup_vs_v7_3_x": 2.62,
+    "wall_clock_step_speedup_vs_v7_4_x": 1.61,
+    "scout_fleet_6to1_overhead_ms": 12.74,
+    "scout_speedup_vs_v7_4_x": 15.75,
+    "mean_scout_epistemic_shock_gain_x": 1.021,
+    "effective_frontier_shock_speedup_vs_v7_3_x": 2.64,
+    "degenerate_windows_filtered_total": 627,
+    "record_curriculum": false
+  },
+  "architecture_comparison": {
+    "scarfield_v7_5_spherical_params": 59984935,
+    "scarfield_v7_5_sfield_scar_bytes": 9990080,
+    "scarfield_v7_5_sfield_scar_mib": 9.527,
+    "scarfield_v7_5_o1_state_bytes": 455504,
+    "dense_transformer_params": 33434112,
+    "dense_transformer_fp16_mib": 63.771,
+    "weight_compression_vs_dense_fp16_x": 6.69,
+    "mmap_c_simd_forward_cosine": 0.999976,
+    "v7_5_train_seconds": 2018.6,
+    "dense_train_seconds": 90.9
+  },
+  "step_1_heldout_open_domain_metrics": {
+    "pt": {
+      "scarfield_v7_5_fused": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.4753,
+        "train_escape_lambda": 0.01686,
+        "in_cap_coverage_pct": 95.07,
+        "top1_byte_acc_pct": 54.91,
+        "top5_byte_acc_pct": 82.21,
+        "exact_zero_sparsity_pct": 95.84
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.5242,
+        "top1_byte_acc_pct": 26.92,
+        "top5_byte_acc_pct": 67.57,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "en": {
+      "scarfield_v7_5_fused": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.2476,
+        "train_escape_lambda": 0.02382,
+        "in_cap_coverage_pct": 95.99,
+        "top1_byte_acc_pct": 59.27,
+        "top5_byte_acc_pct": 83.68,
+        "exact_zero_sparsity_pct": 95.81
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.6148,
+        "top1_byte_acc_pct": 26.11,
+        "top5_byte_acc_pct": 66.17,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "es": {
+      "scarfield_v7_5_fused": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.455,
+        "train_escape_lambda": 0.02175,
+        "in_cap_coverage_pct": 94.69,
+        "top1_byte_acc_pct": 56.33,
+        "top5_byte_acc_pct": 82.4,
+        "exact_zero_sparsity_pct": 95.91
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.4852,
+        "top1_byte_acc_pct": 27.12,
+        "top5_byte_acc_pct": 69.68,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "fr": {
+      "scarfield_v7_5_fused": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.3855,
+        "train_escape_lambda": 0.01414,
+        "in_cap_coverage_pct": 95.15,
+        "top1_byte_acc_pct": 57.2,
+        "top5_byte_acc_pct": 83.24,
+        "exact_zero_sparsity_pct": 96.05
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.532,
+        "top1_byte_acc_pct": 28.34,
+        "top5_byte_acc_pct": 66.47,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "code": {
+      "scarfield_v7_5_fused": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 1.7084,
+        "train_escape_lambda": 0.02665,
+        "in_cap_coverage_pct": 96.27,
+        "top1_byte_acc_pct": 71.36,
+        "top5_byte_acc_pct": 88.06,
+        "exact_zero_sparsity_pct": 96.3
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.3457,
+        "top1_byte_acc_pct": 38.86,
+        "top5_byte_acc_pct": 67.59,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    }
+  },
+  "step_1_biorthogonal_passkey_recall_up_to_t2048": {
+    "scarfield_v7_5_biorthogonal": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 0.9375,
+        "per_digit_acc": 0.9792
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 0.7812,
+        "per_digit_acc": 0.9167
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 0.7188,
+        "per_digit_acc": 0.8958
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.3542
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.2188
+      }
+    },
+    "scarfield_ablation_no_biorth_bank": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 0.9375,
+        "per_digit_acc": 0.9792
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 0.7812,
+        "per_digit_acc": 0.9167
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 0.7188,
+        "per_digit_acc": 0.8958
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.3542
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.2188
+      }
+    },
+    "dense_fp16_ot": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0521
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0521
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0833
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0312
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0208
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.125
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0104
+      }
+    }
+  },
+  "step_1_biorthogonal_uscar_and_epistemic": {
+    "sibling_pole_raw_cosine_overlap": 0.9983,
+    "orthogonal_pole_sibling_bleed_ratio": 0.9955,
+    "biorthogonal_pole_sibling_bleed_ratio": 0.870159,
+    "cross_lingual_en_to_pt_uscar_resonance": 0.9656,
+    "post_0x00_gdpr_wipe_residual": 0.0,
+    "cross_lingual_s_world_cosine_zero_procrustes": {
+      "pt_en": 0.99116,
+      "es_en": 0.992,
+      "fr_en": 0.99141
+    },
+    "out_of_cone_0x00_vacuum_abstention": "8/8"
+  },
+  "step_2_multilingual_chat_and_anti_stutter_closure": {
+    "sft_total_language_pure_items": 3024,
+    "sft_untruncated_3turn_pin_items": 960,
+    "v7_4_baseline_multi_turn_pin_exact_acc": 0.2083,
+    "multi_turn_o1_unseen_pin_exact_acc": 0.875,
+    "multi_turn_o1_unseen_pin_digit_acc": 0.875,
+    "multi_turn_stutter_count_out_of_24": 0,
+    "multi_turn_state_bytes_delta": 0,
+    "repeated_digit_stress_suite_exact_clean_acc": 0.875,
+    "repeated_digit_stress_suite_stutters": 0,
+    "repeated_digit_stress_suite_records": [
+      {
+        "lang": "pt",
+        "pin": "800",
+        "turn3_reply": "A chave da sessão registrada é PIN=800.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "en",
+        "pin": "777",
+        "turn3_reply": "The stored session key is PIN=777.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "es",
+        "pin": "900",
+        "turn3_reply": "La clave de sesión registrada es PIN=900.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "fr",
+        "pin": "880",
+        "turn3_reply": "La clé de session enregistrée est PIN=880.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "pt",
+        "pin": "666",
+        "turn3_reply": "A chave da sessão registrada é PIN=666.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "en",
+        "pin": "550",
+        "turn3_reply": "The study of the study of the study of study and the study of light and",
+        "exact_clean_match": false
+      },
+      {
+        "lang": "es",
+        "pin": "999",
+        "turn3_reply": "La clave de sesión registrada es PIN=999.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "fr",
+        "pin": "500",
+        "turn3_reply": "La clé de session enregistrée est PIN=500.",
+        "exact_clean_match": true
+      }
+    ],
+    "multi_turn_examples": [
+      {
+        "lang": "pt",
+        "unseen_pin": "905",
+        "turn1_reply": "Chave registrada: PIN=905.",
+        "turn2_reply_excerpt": "A segunda lei da termodinâmica estabelece que a entropia total de um sistema isolado nunca",
+        "turn3_reply": "A chave da sessão registrada é PIN=905.",
+        "turn3_bytes": 41,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "en",
+        "unseen_pin": "800",
+        "turn1_reply": "Session key stored: PIN=800.",
+        "turn2_reply_excerpt": "The major formulation of a body of a body of a body are body in a reference frame of const",
+        "turn3_reply": "The stored session key is PIN=800.",
+        "turn3_bytes": 34,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "es",
+        "unseen_pin": "702",
+        "turn1_reply": "Clave registrada: PIN=702.",
+        "turn2_reply_excerpt": "El principio de esta teoría se conoce como una de las estrellas de transferencia de campo ",
+        "turn3_reply": "La clave de sesión registrada es PIN=702.",
+        "turn3_bytes": 42,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "fr",
+        "unseen_pin": "533",
+        "turn1_reply": "Clé enregistrée : PIN=533.",
+        "turn2_reply_excerpt": "En la relativité générale, la géométrie de la géométrie est développée par le tenseur de R",
+        "turn3_reply": "La clé de session enregistrée est PIN=533.",
+        "turn3_bytes": 44,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "pt",
+        "unseen_pin": "983",
+        "turn1_reply": "Chave registrada: PIN=983.",
+        "turn2_reply_excerpt": "A segunda lei da termodinâmica estabelece que a entropia total de um sistema isolado nunca",
+        "turn3_reply": "A chave da sessão registrada é PIN=983.",
+        "turn3_bytes": 41,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "en",
+        "unseen_pin": "574",
+        "turn1_reply": "Session key stored: PIN=574.",
+        "turn2_reply_excerpt": "The major form of special relativity and the method of light (e.g., the effective gravity ",
+        "turn3_reply": "The system is a system is a system in the system at the system at the sy",
+        "turn3_bytes": 72,
+        "state_bytes_delta": 0
+      }
+    ],
+    "heldout_chat_and_code_generations": {
+      "pt": [
+        {
+          "prompt": "O que é o ScarField e como sua memória opera?",
+          "reply": "A memória biológica dos fenômenos esféricos Gosset E8 de 1 bit, flujo simplético de Cayley e memória constante O(1).",
+          "bytes_generated": 122,
+          "mean_confidence": 0.8841,
+          "s2_deliberation_fraction": 0.9836,
+          "state_bytes": 455504,
+          "keyword_hits": "2/3"
+        },
+        {
+          "prompt": "Qual a diferença entre base ortogonal e biortogonal?",
+          "reply": "A biodiversidade geométrica é a energia interna de um sistema isolado nunca dimensões para a maior parte da mecânica quântica.",
+          "bytes_generated": 131,
+          "mean_confidence": 0.8481,
+          "s2_deliberation_fraction": 0.9924,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        }
+      ],
+      "en": [
+        {
+          "prompt": "What is ScarField and how does its memory scale?",
+          "reply": "The star is a pure post-Transformer neural architecture built on 1-bit Gosset E8 spherical weights, reversible symplectic Cayley flows, and constant O(1) associative memory.",
+          "bytes_generated": 173,
+          "mean_confidence": 0.9263,
+          "s2_deliberation_fraction": 0.9827,
+          "state_bytes": 455504,
+          "keyword_hits": "2/3"
+        },
+        {
+          "prompt": "Explain how biorthogonal memory improves recall.",
+          "reply": "Einstein combined the combined system will be realized by the study of special relativity.",
+          "bytes_generated": 90,
+          "mean_confidence": 0.8048,
+          "s2_deliberation_fraction": 0.9889,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        }
+      ],
+      "es": [
+        {
+          "prompt": "¿Qué es ScarField y cómo funciona su memoria?",
+          "reply": "La aceleración de un sistema aislado permanece constante O(1).",
+          "bytes_generated": 63,
+          "mean_confidence": 0.8543,
+          "s2_deliberation_fraction": 0.9683,
+          "state_bytes": 455504,
+          "keyword_hits": "1/3"
+        }
+      ],
+      "fr": [
+        {
+          "prompt": "Qu'est-ce que ScarField et comment fonctionne sa mémoire ?",
+          "reply": "Le tenseur d'Einstein est définie par le tenseur d'Einstein en 1905 la première étant la position de l'espace-temps propre d'une particule.",
+          "bytes_generated": 142,
+          "mean_confidence": 0.7782,
+          "s2_deliberation_fraction": 0.993,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        }
+      ],
+      "code": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(u: list[float], v: list[float]) -> float:\n   if isinstance(v, v) is str:\n   if isinstance(v, v):\n   if v is None:\n   if v is None:\n   if v is None:\n   if v is None:\n   if v is None:\n   if v is None:",
+          "bytes_generated": 220,
+          "mean_confidence": 0.9004,
+          "s2_deliberation_fraction": 0.9909,
+          "state_bytes": 455504,
+          "keyword_hits": "1/2",
+          "python_ast_valid": false
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0.0:\n   0",
+          "bytes_generated": 220,
+          "mean_confidence": 0.966,
+          "s2_deliberation_fraction": 0.9909,
+          "state_bytes": 455504,
+          "keyword_hits": "1/2",
+          "python_ast_valid": false
+        }
+      ]
+    }
+  },
+  "corpus_provenance": [
+    {
+      "domain": "pt",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (PT, 119 topics)",
+      "bytes": 4249767,
+      "sha256": "ea460f0d0fd8573e1560c94c406222e7671e321443034d9deb70030cbd792c2d"
+    },
+    {
+      "domain": "en",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (EN, 119 topics)",
+      "bytes": 5377177,
+      "sha256": "efc09aa8346cef8b36f6fac7031d2133e846051ac9cced86276c0e6b6ad0d3d0"
+    },
+    {
+      "domain": "es",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (ES, 119 topics)",
+      "bytes": 4354322,
+      "sha256": "8ba64aaa8ad3f03098902c3db7c79a0b10160bf75c57e5c53eebe9180c1b0f96"
+    },
+    {
+      "domain": "fr",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (FR, 119 topics)",
+      "bytes": 4780819,
+      "sha256": "6f0163345aac3788d976d9c5dc20449694229aeafa47e879729ebbf6ec5a730b"
+    },
+    {
+      "source": "scar_ecosystem",
+      "bytes": 623383,
+      "sha256": "e951d339fbc74101224958bd41cc5370053a586a14e018d9131c6b38fc8cddf8"
+    },
+    {
+      "source": "python_stdlib",
+      "bytes": 9896051,
+      "sha256": "66c99d338890d6e767a950f133b079d37939b75776ae47229e251f016d4d6932"
+    }
+  ],
+  "training_curve": [
+    {
+      "step": 1,
+      "lr": 0.0011,
+      "loss_cap": 0.1788,
+      "loss_reflex": 0.7367,
+      "loss_antiloop": 0.00075,
+      "biorth_gain": 1.0662,
+      "cap_adapt_gain": 0.3833,
+      "scout_epistemic_gain_x": 1.012,
+      "elapsed_s": 0.9
+    },
+    {
+      "step": 200,
+      "lr": 0.001084,
+      "loss_cap": 0.046,
+      "loss_reflex": 0.4707,
+      "loss_antiloop": 0.00092,
+      "biorth_gain": 0.8021,
+      "cap_adapt_gain": 0.3821,
+      "scout_epistemic_gain_x": 1.022,
+      "elapsed_s": 163.1
+    },
+    {
+      "step": 400,
+      "lr": 0.001039,
+      "loss_cap": 0.4759,
+      "loss_reflex": 0.9083,
+      "loss_antiloop": 0.00095,
+      "biorth_gain": 0.6488,
+      "cap_adapt_gain": 0.3953,
+      "scout_epistemic_gain_x": 1.021,
+      "elapsed_s": 327.0
+    },
+    {
+      "step": 600,
+      "lr": 0.000966,
+      "loss_cap": 0.5097,
+      "loss_reflex": 0.9077,
+      "loss_antiloop": 0.00092,
+      "biorth_gain": 0.4681,
+      "cap_adapt_gain": 0.4095,
+      "scout_epistemic_gain_x": 1.019,
+      "elapsed_s": 489.9
+    },
+    {
+      "step": 800,
+      "lr": 0.00087,
+      "loss_cap": 0.4996,
+      "loss_reflex": 0.9295,
+      "loss_antiloop": 0.00097,
+      "biorth_gain": 0.3204,
+      "cap_adapt_gain": 0.4364,
+      "scout_epistemic_gain_x": 1.019,
+      "elapsed_s": 659.8
+    },
+    {
+      "step": 1000,
+      "lr": 0.000759,
+      "loss_cap": 0.1888,
+      "loss_reflex": 0.5668,
+      "loss_antiloop": 0.0007,
+      "biorth_gain": 0.2227,
+      "cap_adapt_gain": 0.4647,
+      "scout_epistemic_gain_x": 1.021,
+      "elapsed_s": 829.8
+    },
+    {
+      "step": 1200,
+      "lr": 0.00064,
+      "loss_cap": 0.1647,
+      "loss_reflex": 0.5488,
+      "loss_antiloop": 0.00061,
+      "biorth_gain": 0.1387,
+      "cap_adapt_gain": 0.4879,
+      "scout_epistemic_gain_x": 1.02,
+      "elapsed_s": 999.8
+    },
+    {
+      "step": 1400,
+      "lr": 0.000521,
+      "loss_cap": 0.1746,
+      "loss_reflex": 0.5818,
+      "loss_antiloop": 0.00043,
+      "biorth_gain": 0.0379,
+      "cap_adapt_gain": 0.5145,
+      "scout_epistemic_gain_x": 1.021,
+      "elapsed_s": 1169.2
+    },
+    {
+      "step": 1600,
+      "lr": 0.00041,
+      "loss_cap": 0.1851,
+      "loss_reflex": 0.5856,
+      "loss_antiloop": 0.00059,
+      "biorth_gain": 0.008,
+      "cap_adapt_gain": 0.5512,
+      "scout_epistemic_gain_x": 1.019,
+      "elapsed_s": 1339.1
+    },
+    {
+      "step": 1800,
+      "lr": 0.000315,
+      "loss_cap": 0.4426,
+      "loss_reflex": 0.8733,
+      "loss_antiloop": 0.00091,
+      "biorth_gain": 0.0031,
+      "cap_adapt_gain": 0.5832,
+      "scout_epistemic_gain_x": 1.021,
+      "elapsed_s": 1508.9
+    },
+    {
+      "step": 2000,
+      "lr": 0.000242,
+      "loss_cap": 0.0373,
+      "loss_reflex": 0.4821,
+      "loss_antiloop": 0.00017,
+      "biorth_gain": 0.0083,
+      "cap_adapt_gain": 0.6115,
+      "scout_epistemic_gain_x": 1.018,
+      "elapsed_s": 1678.7
+    },
+    {
+      "step": 2200,
+      "lr": 0.000196,
+      "loss_cap": 0.4845,
+      "loss_reflex": 0.9253,
+      "loss_antiloop": 0.0012,
+      "biorth_gain": -0.0211,
+      "cap_adapt_gain": 0.6415,
+      "scout_epistemic_gain_x": 1.022,
+      "elapsed_s": 1848.6
+    },
+    {
+      "step": 2400,
+      "lr": 0.00018,
+      "loss_cap": 0.5089,
+      "loss_reflex": 0.9144,
+      "loss_antiloop": 0.00084,
+      "biorth_gain": -0.0716,
+      "cap_adapt_gain": 0.6681,
+      "scout_epistemic_gain_x": 1.022,
+      "elapsed_s": 2018.6
+    }
+  ]
+}

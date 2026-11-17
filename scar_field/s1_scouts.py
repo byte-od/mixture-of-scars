@@ -112,16 +112,15 @@ class System1CorpusScoutFleet:
         self.record_curriculum: bool = False  # Canonical System 1 Scout Curriculum Isolation!
 
     @torch.no_grad()
-    def score_candidates(
+    def _score_candidates_tensors(
         self,
         engine: torch.nn.Module,
         candidate_byte_ids: torch.Tensor,
         candidate_loss_mask: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, int]:
-        """Scores `[N_cand, T]` windows using ONLY `System 1` `frontend` + `Juiz` (`< 1%` cost!)."""
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Scores `[N_cand, T]` windows on-device (`0` GPU->CPU syncs!)."""
         _, hw_raw, surprise = engine.frontend(candidate_byte_ids)  # type: ignore[operator]
         v_pred = engine.head.value_judge(hw_raw)  # type: ignore[operator]
-        # Epistemic disagreement / uncertainty of the `Juiz`: `1 - |V(h)|` peaks near `V == 0` bifurcations!
         v_uncert = (1.0 - v_pred.abs()).clamp(0.0, 1.0)
 
         s_tok = surprise[:, 1:]
@@ -140,13 +139,26 @@ class System1CorpusScoutFleet:
         k_top = max(1, masked_s.shape[1] // 8)
         top_s = torch.topk(masked_s, k=k_top, dim=-1).values.mean(dim=-1)
 
-        # Filter degenerate constant/repetitive byte windows (`b_t == b_{t-1}` > 75% of window)
-        same_adj = (candidate_byte_ids[:, 1:] == candidate_byte_ids[:, :-1]).float().mean(dim=-1)
-        is_degen = same_adj > 0.75
-        degen_cnt = int(is_degen.sum().item())
-
+        # Filter degenerate constant/repetitive byte windows while ignoring `0x00` tail padding!
+        non_pad = ((candidate_byte_ids[:, 1:] != 0) | (candidate_byte_ids[:, :-1] != 0)).float()
+        non_pad_cnt = non_pad.sum(dim=-1)
+        same_adj = ((candidate_byte_ids[:, 1:] == candidate_byte_ids[:, :-1]).float() * non_pad).sum(
+            dim=-1
+        ) / non_pad_cnt.clamp(min=1.0)
+        is_degen = (non_pad_cnt < 4.0) | (same_adj > 0.75)
         scores = mean_s + 0.45 * top_s + 0.15 * mean_u - 2.0 * is_degen.float()
-        return scores, degen_cnt
+        return scores, is_degen.float().sum()
+
+    @torch.no_grad()
+    def score_candidates(
+        self,
+        engine: torch.nn.Module,
+        candidate_byte_ids: torch.Tensor,
+        candidate_loss_mask: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, int]:
+        """Scores `[N_cand, T]` windows using ONLY `System 1` `frontend` + `Juiz` (`< 1%` cost!)."""
+        scores, degen_sum = self._score_candidates_tensors(engine, candidate_byte_ids, candidate_loss_mask)
+        return scores, int(degen_sum.item())
 
     @torch.no_grad()
     def select_frontier_batch(
@@ -169,7 +181,7 @@ class System1CorpusScoutFleet:
             )
             return candidate_byte_ids, candidate_loss_mask, tel
 
-        scores, degen_cnt = self.score_candidates(engine, candidate_byte_ids, candidate_loss_mask)
+        scores, degen_sum_t = self._score_candidates_tensors(engine, candidate_byte_ids, candidate_loss_mask)
         n_anchors = min(batch_size - 1, max(0, int(round(batch_size * self.anchor_fraction))))
         n_frontier = batch_size - n_anchors
 
@@ -186,8 +198,13 @@ class System1CorpusScoutFleet:
         sel_bytes = candidate_byte_ids[chosen_idx]
         sel_mask = candidate_loss_mask[chosen_idx] if candidate_loss_mask is not None else None
 
-        cand_mean = float(scores.clamp(min=0.0).mean().item())
-        sel_mean = float(scores[chosen_idx].clamp(min=0.0).mean().item())
+        # Single coalesced 3-float host transfer instead of 3 sequential `.item()` stalls!
+        stats_cpu = torch.stack(
+            (degen_sum_t, scores.clamp(min=0.0).mean(), scores[chosen_idx].clamp(min=0.0).mean())
+        ).cpu().tolist()
+        degen_cnt = int(round(stats_cpu[0]))
+        cand_mean = float(stats_cpu[1])
+        sel_mean = float(stats_cpu[2])
         tel = ScoutBatchTelemetry(
             candidates_scanned=n_cand,
             selected_batch_size=int(sel_bytes.shape[0]),

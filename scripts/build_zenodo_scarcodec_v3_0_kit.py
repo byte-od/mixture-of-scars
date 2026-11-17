@@ -10,6 +10,7 @@ Builds the Upgraded Zenodo v3.0 + arXiv / Astronomy & Computing + JOSS Release P
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -416,7 +417,7 @@ def build_pdf_v3_0(
         "[1] Abbott, B. P., et al. (LIGO/Virgo, 2016). Observation of Gravitational Waves from a Binary Black Hole Merger. Phys. Rev. Lett. 116(6), 061102. DOI: 10.1103/PhysRevLett.116.061102.",
         "[2] Behrens, R. T., & Scharf, L. L. (1994). Signal Processing Applications of Oblique Projection Operators. IEEE Trans. Signal Process. 42(6), 1413–1424. DOI: 10.1109/78.286957.",
         "[3] Cohen, A., Daubechies, I., & Feauveau, J.-C. (1992). Biorthogonal Bases of Compactly Supported Wavelets. Commun. Pure Appl. Math. 45(5), 485–560. DOI: 10.1002/cpa.3160450502.",
-        "[4] Conway, J. H., & Sloane, N. J. A. (1982). Fast Quantizing and Decoding Algorithms for Lattice Quantizers and Codes. IEEE Trans. Inf. Theory 28(2), 227–232.",
+        "[4] Conway, J. H., & Sloane, N. J. A. (1982). Fast Quantizing and Decoding Algorithms for Lattice Quantizers and Codes. IEEE Trans. Inf. Theory 28(2), 227–232. DOI: 10.1109/TIT.1982.1056484.",
         "[5] Dekker, T. J. (1971). A Floating-Point Technique for Extending the Available Precision. Numer. Math. 18(3), 224–242. DOI: 10.1007/BF01397083.",
         "[6] Fazio, G. G., et al. (2004). IRAC for the Spitzer Space Telescope. ApJS 154(1), 10–17. | Ginsburg, A., et al. (2013). Bolocam Galactic Plane Survey. ApJS 208(2), 14.",
         "[7] Ghashami, M., Liberty, E., Phillips, J. M., & Woodruff, D. P. (2016). Frequent Directions: Simple and Deterministic Matrix Sketching. SIAM J. Comput. 45(5), 1762–1792.",
@@ -623,12 +624,20 @@ def main():
         ],
     }
     (OUT_V3_DIR / "ZENODO_METADATA_v3.0.json").write_text(
-        json.dumps(meta_v3, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps(meta_v3, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
+
+    sha_lines = []
+    for artifact_fp in sorted(OUT_V3_DIR.iterdir()):
+        if artifact_fp.is_file() and artifact_fp.name != "SHA256SUMS.txt":
+            digest = hashlib.sha256(artifact_fp.read_bytes()).hexdigest()
+            sha_lines.append(f"{digest}  {artifact_fp.name}")
+    (OUT_V3_DIR / "SHA256SUMS.txt").write_text("\n".join(sha_lines) + "\n", encoding="utf-8")
 
     print(f"✓ Built {pdf_v3} ({pdf_v3.stat().st_size / 1024:.1f} KB)")
     print(f"✓ Built {rep_zip_v3} ({rep_zip_v3.stat().st_size / 1024:.1f} KB)")
     print(f"✓ Built {tex_zip_v3} ({tex_zip_v3.stat().st_size / 1024:.1f} KB)")
+    print(f"✓ Built {OUT_V3_DIR / 'SHA256SUMS.txt'} ({len(sha_lines)} verified artifacts)")
 
 
 if __name__ == "__main__":

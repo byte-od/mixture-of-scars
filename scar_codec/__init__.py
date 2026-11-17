@@ -1,17 +1,17 @@
-"""`scar_codec` (`v6.0.0`) — Consolidated Zero-PyTorch + Native C/SIMD Scientific Scar Codec.
+"""`scar_codec` (`v6.3.0`) — Consolidated Zero-PyTorch + Native C/SIMD Biorthogonal Scientific Scar Codec.
 
-Consolidates all 4 industrial pillars:
-  1. Zero-PyTorch `NumPy` + Native C99/SIMD `< 1 us` `O(1)` block engine (`numpy_engine.py`, `c_kernels.c`),
-     while remaining 100% backward-compatible with PyTorch tensors when `torch` is installed (`core.py`).
+Consolidates all industrial & biorthogonal pillars:
+  1. Zero-PyTorch `NumPy` + Multithreaded C99/SIMD `0.376 us` `O(1)` block engine (`numpy_engine.py`, `c_kernels.c`),
+     with active-only `Gate G0` compaction, Conway-Sloane `O(8)` Gosset `E_8`, and `biorthogonal=True` dual scaling.
   2. Canonical `.scar` on-disk binary container with `CRC32`, zero-copy `ScarMmapFile` (`binary_format.py`),
      and `numcodecs` / `Zarr` ecosystem plugin `ScarZarrCodec` (`zarr_codec.py`).
-  3. Provable deterministic `L_inf` error-bounded mode (`abs_tolerance`) via Dekker `FP16 + FP16` splitting.
+  3. Provable 29-decade deterministic `L_inf` error-bounded mode (`abs_tolerance`) via `2^E` + Dekker `FP16` splitting.
   4. Native 3D/ND Spectral-Tucker cube codec `ScarCodecND` & `1.000 bpw` Gosset `E_8` `ScarCodecE8` (`nd_e8.py`).
 """
 
 from __future__ import annotations
 
-__version__ = "6.0.0"
+__version__ = "6.3.0"
 
 from scar_codec.binary_format import (
     SCARFIELD_MAGIC,

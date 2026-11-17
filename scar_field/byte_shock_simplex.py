@@ -30,6 +30,7 @@ import torch
 import torch.nn as nn
 
 from scar_field.e8_lattice import project_rows_to_unit_sphere
+from scar_field.triton_kernels import multiscale_wave_superpose_fast, tsallis15_spherical_cap_probs_fast
 
 
 @dataclass(frozen=True)
@@ -53,10 +54,17 @@ def tsallis15_spherical_cap_probs(scores: torch.Tensor) -> Tuple[torch.Tensor, t
 
     Solves `sum_{i=1}^V [0.5 * (z_i - lambda)]_+^2 == 1` analytically via the quadratic root:
       `lambda_k = mean_{1..k}(z) - sqrt(max(0, 4/k - Var_{1..k}(z)))`.
+    Uses single-CTA Triton (`CUDA V=256`) / zero-sort convex Newton (`O(N*V)`) when no autograd graph
+    is required directly on `probs`.
     Returns `(probs [..., V], lambda_star [..., 1])`.
     """
+    if not (torch.is_grad_enabled() and scores.requires_grad):
+        return tsallis15_spherical_cap_probs_fast(scores)
+
     orig_dtype = scores.dtype
-    z = scores.float()
+    z_raw = scores.float()
+    z_shift = z_raw.amax(dim=-1, keepdim=True).detach()
+    z = z_raw - z_shift
     v_dim = z.shape[-1]
 
     z_sorted, _ = torch.sort(z, dim=-1, descending=True)  # [..., V]
@@ -83,7 +91,7 @@ def tsallis15_spherical_cap_probs(scores: torch.Tensor) -> Tuple[torch.Tensor, t
     probs = u * u
     # Exact renormalization guard against float32 rounding (`sum == 1.000000`)
     probs = probs / probs.sum(dim=-1, keepdim=True).clamp(min=1e-12)
-    return probs.to(orig_dtype), lam_star.to(orig_dtype)
+    return probs.to(orig_dtype), (lam_star + z_shift).to(orig_dtype)
 
 
 class _Tsallis15LossAutograd(torch.autograd.Function):
@@ -92,7 +100,7 @@ class _Tsallis15LossAutograd(torch.autograd.Function):
     @staticmethod
     def forward(ctx, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         z = scores.float()
-        probs, lam = tsallis15_spherical_cap_probs(z)
+        probs, lam = tsallis15_spherical_cap_probs_fast(z.detach())
         u = torch.sqrt(probs.clamp(min=0.0))
         omega_conj = lam.squeeze(-1) + (2.0 / 3.0) * (u * probs).sum(dim=-1)
         z_true = z.gather(dim=-1, index=targets.long().unsqueeze(-1)).squeeze(-1)
@@ -130,12 +138,16 @@ class ByteShockFrontEnd(nn.Module):
         d_world: int,
         vocab_size: int = 256,
         wave_lags: Tuple[int, ...] = (1, 2, 3),
+        shock_closure_decay: float = 0.0,
+        enable_repeat_phase: bool = False,
     ) -> None:
         super().__init__()
         self.d_form = d_form
         self.d_world = d_world
         self.vocab_size = vocab_size
         self.wave_lags: Tuple[int, ...] = tuple(int(x) for x in wave_lags)
+        self.shock_closure_decay: float = float(shock_closure_decay)
+        self.enable_repeat_phase: bool = bool(enable_repeat_phase)
 
         self.byte_form_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_form)))
         self.byte_world_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_world)))
@@ -154,37 +166,51 @@ class ByteShockFrontEnd(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Maps `byte_ids [B, T]` -> `(h_form [B, T, D_f], h_world [B, T, D_w], surprise [B, T])`."""
         ids = byte_ids.long().clamp(0, self.vocab_size - 1)
+        bsz, seq_len = ids.shape
         f_poles = project_rows_to_unit_sphere(self.byte_form_poles)
         w_poles = project_rows_to_unit_sphere(self.byte_world_poles)
 
-        hf_raw = f_poles[ids]  # [B, T, D_f]
-        hw_raw = w_poles[ids]  # [B, T, D_w]
-
-        # Causal multi-scale spherical wave superposition (`t` + `wave_lags`) with cyclic channel shifts
-        bsz, seq_len, _ = hf_raw.shape
+        # Causal multi-scale spherical wave superposition via fast `[256, D]` rotated pole gathers (`0` `cat`/`roll`!)
         nw = self.ngram_weights
-        hf_acc = nw[0] * hf_raw
-        hw_acc = nw[0] * hw_raw
-        for idx, lag in enumerate(self.wave_lags, start=1):
-            if seq_len > lag:
-                pad_f = torch.zeros(bsz, lag, self.d_form, dtype=hf_raw.dtype, device=hf_raw.device)
-                pad_w = torch.zeros(bsz, lag, self.d_world, dtype=hw_raw.dtype, device=hw_raw.device)
-                shift_ch = (idx * 2) if self.wave_lags == (1, 2, 3) else (lag * 2)
-                shifted_f = torch.roll(torch.cat((pad_f, hf_raw[:, :-lag, :]), dim=1), shifts=shift_ch, dims=-1)
-                shifted_w = torch.roll(torch.cat((pad_w, hw_raw[:, :-lag, :]), dim=1), shifts=shift_ch, dims=-1)
-                hf_acc = hf_acc + nw[idx] * shifted_f
-                hw_acc = hw_acc + nw[idx] * shifted_w
+        hf_acc = multiscale_wave_superpose_fast(ids, f_poles, nw, self.wave_lags)
+        hw_acc = multiscale_wave_superpose_fast(ids, w_poles, nw, self.wave_lags)
+
+        # Optional Run-Length Orthogonal Phase Harmonics (`enable_repeat_phase`, odd channel shifts `5, 13, 21`):
+        # Separates consecutive repeated bytes (`key("=80")` != `key("=800")`, `key("=77")` != `key("=777")`)
+        # with `+0 B` state overhead and `0` self-loop traps!
+        if self.enable_repeat_phase and seq_len > 1:
+            rep1 = (ids[:, 1:] == ids[:, :-1]).unsqueeze(-1).to(hf_acc.dtype)
+            hf_r1 = torch.roll(f_poles, shifts=5, dims=-1)[ids[:, 1:]]
+            hw_r1 = torch.roll(w_poles, shifts=5, dims=-1)[ids[:, 1:]]
+            hf_acc[:, 1:, :] = hf_acc[:, 1:, :] + (0.42 * rep1) * hf_r1
+            hw_acc[:, 1:, :] = hw_acc[:, 1:, :] + (0.42 * rep1) * hw_r1
+            if seq_len > 2:
+                rep2 = rep1[:, 1:, :] * (ids[:, 1:-1] == ids[:, :-2]).unsqueeze(-1).to(hf_acc.dtype)
+                hf_r2 = torch.roll(f_poles, shifts=13, dims=-1)[ids[:, 2:]]
+                hw_r2 = torch.roll(w_poles, shifts=13, dims=-1)[ids[:, 2:]]
+                hf_acc[:, 2:, :] = hf_acc[:, 2:, :] + (0.38 * rep2) * hf_r2
+                hw_acc[:, 2:, :] = hw_acc[:, 2:, :] + (0.38 * rep2) * hw_r2
+            if seq_len > 3:
+                rep3 = rep2[:, 1:, :] * (ids[:, 2:-1] == ids[:, 1:-2]).unsqueeze(-1).to(hf_acc.dtype)
+                hf_r3 = torch.roll(f_poles, shifts=21, dims=-1)[ids[:, 3:]]
+                hw_r3 = torch.roll(w_poles, shifts=21, dims=-1)[ids[:, 3:]]
+                hf_acc[:, 3:, :] = hf_acc[:, 3:, :] + (0.34 * rep3) * hf_r3
+                hw_acc[:, 3:, :] = hw_acc[:, 3:, :] + (0.34 * rep3) * hw_r3
 
         hf = project_rows_to_unit_sphere(hf_acc)
         hw = project_rows_to_unit_sphere(hw_acc)
 
         # Measure true epistemic cap surprise `s_t = 1 - p_cap(b_t | stem_{t-1})` (ZERO `exp`/`log`/`Softmax`!):
         #   - Deterministic filler (`p_cap -> 1.0`): `s_t -> 0.0` (exact `0.0` `W_fast` write, zero forgetting!)
-        #   - Uniform 10-digit PIN shock (`p_cap = 0.10`): `s_t = 0.90` (sharp `W_fast` write,immune to pole clustering!)
+        #   - Uniform 10-digit PIN shock (`p_cap = 0.10`): `s_t = 0.90` (sharp `W_fast` write, immune to pole clustering!)
         if seq_len > 1:
             r_poles = project_rows_to_unit_sphere(self.reflex_cap_poles)
             r_temp = self.reflex_temp.clamp(2.0, 24.0)
-            r_scores = r_temp * torch.matmul(hf[:, :-1, :].detach(), r_poles.T)  # [B, T-1, V]
+            hf_det = hf[:, :-1, :].detach()
+            if hf_det.device.type == "cuda" and not return_reflex_loss:
+                r_scores = r_temp * (hf_det.bfloat16() @ r_poles.bfloat16().T).float()
+            else:
+                r_scores = r_temp * torch.matmul(hf_det, r_poles.T)  # [B, T-1, V]
             next_ids = ids[:, 1:]
             loss_reflex = (
                 tsallis15_fenchel_young_loss(r_scores, next_ids).mean()
@@ -192,9 +218,24 @@ class ByteShockFrontEnd(nn.Module):
                 else hf.new_zeros(())
             )
             with torch.no_grad():
-                p_local, _ = tsallis15_spherical_cap_probs(r_scores.detach())
+                p_local, _ = tsallis15_spherical_cap_probs_fast(r_scores.detach())
                 p_hit = p_local.gather(dim=-1, index=next_ids.unsqueeze(-1)).squeeze(-1)
-                s_tail = (1.0 - p_hit).clamp(0.0, 1.0)
+                s_tail_raw = (1.0 - p_hit).clamp(0.0, 1.0)
+                if self.shock_closure_decay > 0.0:
+                    # 1. Structural turn boundaries (`0x02` STX, `0x03` ETX, `0x04` EOT) carry guaranteed salience
+                    is_ctrl = next_ids <= 4
+                    s_base = torch.where(is_ctrl, s_tail_raw.clamp(min=0.82), s_tail_raw)
+                    # 2. 1-Step Causal Shock-Closure FIR (`PIN=800.` -> closing `.` inherits `0.85 * s_raw('0')`!)
+                    if s_tail_raw.shape[1] > 1:
+                        s_closed = s_base.clone()
+                        s_closed[:, 1:] = torch.maximum(
+                            s_closed[:, 1:], float(self.shock_closure_decay) * s_tail_raw[:, :-1]
+                        )
+                        s_tail = s_closed
+                    else:
+                        s_tail = s_base
+                else:
+                    s_tail = s_tail_raw
             s_head = torch.ones(bsz, 1, dtype=hf.dtype, device=hf.device)
             surprise = torch.cat((s_head, s_tail.to(hf.dtype)), dim=1)
         else:

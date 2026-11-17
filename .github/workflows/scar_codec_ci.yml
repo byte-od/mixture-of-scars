@@ -1,4 +1,4 @@
-name: ScarCodec v6.0 Zero-PyTorch & PyTorch CI
+name: ScarCodec v6.3 Zero-PyTorch & PyTorch Forensic CI
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
       - "scar_codec/**"
       - "scar_field/**"
       - "tests/test_scar_codec*.py"
+      - "tests/test_physics_lab_production_forensic.py"
+      - "tests/test_biorthogonal_v7_3_and_codec.py"
       - "paper/**"
       - ".github/workflows/scar_codec_ci.yml"
   pull_request:
@@ -37,11 +39,11 @@ jobs:
 
       - name: Run standalone CLI demo & Zero-PyTorch C99/SIMD tests
         run: |
-          python -c "import scar_codec; assert scar_codec.__version__ == '6.0.0'; assert not scar_codec.HAS_TORCH; assert scar_codec.get_compiled_c_lib() is not None"
+          python -c "import scar_codec; assert scar_codec.__version__ == '6.3.0'; assert not scar_codec.HAS_TORCH; assert scar_codec.get_compiled_c_lib() is not None"
           python -m scar_codec.cli --demo
 
   full-pytorch-and-synergy:
-    name: Full PyTorch Parity & Forensic Suite [ubuntu-latest, py3.11]
+    name: Full PyTorch Biorthogonal & 37-Check Production Forensic Suite [ubuntu-latest, py3.11]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +58,6 @@ jobs:
           python -m pip install --upgrade pip pytest "numpy>=1.24" "numcodecs>=0.12" "zarr>=2.16,<3.0"
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 
-      - name: Run all 22 ScarCodec v6.0 & Forensic pytest checks
+      - name: Run ScarCodec v6.3 Biorthogonal, Industrial & Production Forensic Suites
         run: |
-          pytest -v tests/test_scar_codec_v6_consolidation.py tests/test_scar_codec_forensic_and_synergy.py tests/test_scar_codec_physical.py
+          pytest -v tests/test_scar_codec_v6_consolidation.py tests/test_scar_codec_forensic_and_synergy.py tests/test_scar_codec_physical.py tests/test_physics_lab_production_forensic.py tests/test_biorthogonal_v7_3_and_codec.py

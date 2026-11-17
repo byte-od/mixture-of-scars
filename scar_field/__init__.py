@@ -53,13 +53,20 @@ from scar_field.s1_scouts import (
     build_scout_g0_step_mask,
     compute_ghost_jump_antiloop_loss,
 )
+from scar_field.triton_kernels import (
+    HAS_TRITON,
+    conway_sloane_e8_cuda_fast,
+    multiscale_wave_superpose_fast,
+    tsallis15_spherical_cap_probs_fast,
+)
 
-__version__ = "7.4.0"
+__version__ = "7.5.0"
 
 __all__ = [
     "ByteShockFrontEnd",
     "ChannelSelectiveKalmanScarBus",
     "E8SphericalLinear",
+    "HAS_TRITON",
     "HorizonCulledSymplecticGenerator",
     "KalmanBusState",
     "PackedE8TernaryMatrix",
@@ -82,13 +89,16 @@ __all__ = [
     "chunkwise_wy_channel_selective_scan",
     "compute_ghost_jump_antiloop_loss",
     "compute_proper_time",
+    "conway_sloane_e8_cuda_fast",
     "fwht64_rademacher",
     "heal_all_e8_scars",
+    "multiscale_wave_superpose_fast",
     "pack_ternary_2bit",
     "project_rows_to_unit_sphere",
     "quantize_ternary_ste",
     "rademacher_signs_det",
     "tsallis15_fenchel_young_loss",
     "tsallis15_spherical_cap_probs",
+    "tsallis15_spherical_cap_probs_fast",
     "unpack_ternary_2bit",
 ]

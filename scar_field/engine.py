@@ -133,6 +133,8 @@ class ScarFieldConfig:
     enable_adaptive_cap: bool = False
     scout_g0_theta: float = 0.0
     antiloop_weight: float = 0.0
+    shock_closure_decay: float = 0.0
+    enable_repeat_phase: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.wave_lags, list):
@@ -151,13 +153,18 @@ class ScarFieldConfig:
 
 
 class ScarFieldEngine(nn.Module):
-    """Complete Post-Transformer `ScarField v7.0 / v7.2` Engine (Zero `nn.Linear`, `ReLU`, `Softmax`, `RoPE(t)`)."""
+    """Complete Post-Transformer `ScarField v7.0 / v7.5` Engine (Zero `nn.Linear`, `ReLU`, `Softmax`, `RoPE(t)`)."""
 
     def __init__(self, cfg: Optional[ScarFieldConfig] = None) -> None:
         super().__init__()
         self.cfg = cfg if cfg is not None else ScarFieldConfig()
         c = self.cfg
-        max_wave_buf = max(4, (max(c.wave_lags) + 1) if c.wave_lags else 4)
+        if c.shock_closure_decay > 0.0 or c.enable_repeat_phase:
+            eff_max_lag = max(max(c.wave_lags) if c.wave_lags else 0, 3 if c.enable_repeat_phase else 0)
+            extra_lb = 2 if c.shock_closure_decay > 0.0 else 1
+            max_wave_buf = max(6, eff_max_lag + extra_lb)
+        else:
+            max_wave_buf = max(4, (max(c.wave_lags) + 1) if c.wave_lags else 4)
         self._recent_buf_cap = max_wave_buf
 
         self.frontend = ByteShockFrontEnd(
@@ -165,6 +172,8 @@ class ScarFieldEngine(nn.Module):
             d_world=c.d_world,
             vocab_size=c.vocab_size,
             wave_lags=c.wave_lags,
+            shock_closure_decay=c.shock_closure_decay,
+            enable_repeat_phase=c.enable_repeat_phase,
         )
         # Stage 1: Perceptual Cayley Geodesic Flow (refines raw byte wave into sharp semantic queries)
         self.flow_percept = ReversibleSymplecticCayleyFlow(
@@ -466,11 +475,29 @@ class ScarFieldEngine(nn.Module):
 
         scores, max_w_cos_t = self.head.forward_scores(hf_out, hw_out, bus_ctx=bus_ctx)
         if apply_repulsive_anti_loop:
-            # Penalize candidates whose world anchors collide with recently visited poles (`AURA` anti-loop)
+            # 1. Penalize candidates whose world anchors collide with recently visited poles (`AURA` anti-loop)
             ww = project_rows_to_unit_sphere(self.head.out_world_anchors)  # [V, d_world]
             rep_sim = torch.matmul(ww, state.repulsive_ring[0].T)           # [V, R_rep]
             rep_pen = (rep_sim - 0.88).clamp(min=0.0).square().sum(dim=-1)  # [V]
             scores = scores - 2.5 * rep_pen.unsqueeze(0)
+
+            # 2. O(1) Recent-Byte Cycle/Stutter Damper (`Delta = +0 B`: reuses `state.recent_bytes`!):
+            #    Permits valid 3-byte runs (`777`, `800`, `...`) while damping >= 4th identical byte
+            #    or >= 3rd consecutive 2-byte oscillation (`ababab...`).
+            if state.recent_len >= 3:
+                rb = state.recent_bytes[0, -state.recent_len :]
+                last_b = int(rb[-1].item())
+                if last_b == int(rb[-2].item()) == int(rb[-3].item()):
+                    scores = scores.clone()
+                    scores[0, last_b] = scores[0, last_b] - 6.0
+                elif state.recent_len >= 6:
+                    b_m2 = int(rb[-2].item())
+                    if (
+                        last_b == int(rb[-3].item()) == int(rb[-5].item())
+                        and b_m2 == int(rb[-4].item()) == int(rb[-6].item())
+                    ):
+                        scores = scores.clone()
+                        scores[0, b_m2] = scores[0, b_m2] - 5.0
 
         probs, _ = tsallis15_spherical_cap_probs(scores)
         p = probs[0]
@@ -620,7 +647,7 @@ class ScarFieldEngine(nn.Module):
         max_new_bytes: int = 240,
         enable_ghost_jump_scouts: bool = False,
         require_world_support: bool = False,
-        apply_repulsive_anti_loop: bool = False,
+        apply_repulsive_anti_loop: bool = True,
     ) -> "ScarFieldChatReply":
         """Multi-turn conversational inference in strictly `O(1)` memory (`Delta = +0 B` across turns!)."""
         dev = self.frontend.byte_form_poles.device
@@ -637,6 +664,7 @@ class ScarFieldEngine(nn.Module):
         conf_sum = 0.0
         s2_cnt = 0
         abstained = False
+        hit_eot = False
 
         for step_idx in range(max_new_bytes):
             dec = self.step_byte_interactive(
@@ -650,6 +678,7 @@ class ScarFieldEngine(nn.Module):
                 abstained = True
                 break
             if dec.action_byte == SCARFIELD_EOT_BYTE:
+                hit_eot = True
                 break
             gen_bytes.append(dec.action_byte)
             conf_sum += dec.confidence
@@ -657,10 +686,18 @@ class ScarFieldEngine(nn.Module):
                 s2_cnt += 1
             cur_byte = dec.action_byte
 
-        # Advance EOT into state so subsequent turns continue seamlessly in `O(1)` memory!
+        # Advance final byte (if max_new_bytes reached) + EOT + '\n' into state in `O(1)` memory!
         if not abstained:
-            _ = self.step_byte_interactive(SCARFIELD_EOT_BYTE, st, enable_ghost_jump_scouts=False)
-            _ = self.step_byte_interactive(ord("\n"), st, enable_ghost_jump_scouts=False)
+            if not hit_eot and len(gen_bytes) > 0:
+                _ = self.step_byte_interactive(
+                    cur_byte, st, enable_ghost_jump_scouts=False, apply_repulsive_anti_loop=False
+                )
+            _ = self.step_byte_interactive(
+                SCARFIELD_EOT_BYTE, st, enable_ghost_jump_scouts=False, apply_repulsive_anti_loop=False
+            )
+            _ = self.step_byte_interactive(
+                ord("\n"), st, enable_ghost_jump_scouts=False, apply_repulsive_anti_loop=False
+            )
 
         text_out = "" if abstained else bytes(gen_bytes).decode("utf-8", errors="replace").strip()
         n_gen = len(gen_bytes)

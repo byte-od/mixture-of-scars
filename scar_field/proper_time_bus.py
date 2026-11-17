@@ -259,6 +259,62 @@ class UniversalScarCartridgeStore(nn.Module):
         return out, max_res
 
 
+def _fast_block_unit_tril_inv(l_strict: torch.Tensor) -> torch.Tensor:
+    """Exact bounded block-2x2 recursive inverse of `I + l_strict` (`0` `L^k` overflow, `< 5e-7` up to `clen=256`!).
+
+    Unlike naive `(I - L)(I + L^2)(I + L^4)...` where intermediate powers `L^64` explode to `10^26` and
+    overflow float32/TF32 at `clen >= 64..128`, recursive block-2x2 inversion `T_21 = -T_22 @ L_21 @ T_11`
+    manipulates ONLY contractions (`||T|| <= 1.0`), staying bounded by `1.0` at every recursion level!
+    """
+    *lead, n, _ = l_strict.shape
+    p2 = 1
+    while p2 < n:
+        p2 *= 2
+    if p2 > n:
+        l_work = torch.zeros(*lead, p2, p2, dtype=l_strict.dtype, device=l_strict.device)
+        l_work[..., :n, :n] = l_strict
+    else:
+        l_work = l_strict
+
+    t_diag = torch.ones(*lead, p2, 1, 1, dtype=l_strict.dtype, device=l_strict.device)
+    blk = 1
+    while blk < p2:
+        num_pairs = p2 // (2 * blk)
+        t_pair = t_diag.reshape(*lead, num_pairs, 2, blk, blk)
+        t11 = t_pair[..., 0, :, :]
+        t22 = t_pair[..., 1, :, :]
+        lv = l_work.reshape(*lead, num_pairs, 2, blk, num_pairs, 2, blk)
+        lv_d = lv.diagonal(offset=0, dim1=-6, dim2=-3)
+        l21 = lv_d[..., 1, :, 0, :, :].movedim(-1, -3)
+        t21 = -torch.matmul(torch.matmul(t22, l21), t11)
+        z12 = torch.zeros_like(t21)
+        top = torch.cat((t11, z12), dim=-1)
+        bot = torch.cat((t21, t22), dim=-1)
+        t_diag = torch.cat((top, bot), dim=-2)
+        blk *= 2
+
+    out = t_diag.squeeze(-3)
+    return out[..., :n, :n]
+
+
+class _UnitTrilSolveAutograd(torch.autograd.Function):
+    """Exact 2-matmul adjoint of `(I + L_strict) U = R` (`0` autograd unrolling through block recursion!)."""
+
+    @staticmethod
+    def forward(ctx, l_strict: torch.Tensor, rhs: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+        inv_mat = _fast_block_unit_tril_inv(l_strict)
+        u_out = torch.matmul(inv_mat, rhs)
+        ctx.save_for_backward(inv_mat, u_out)
+        return u_out
+
+    @staticmethod
+    def backward(ctx, grad_u: torch.Tensor):  # type: ignore[override]
+        inv_mat, u_out = ctx.saved_tensors
+        grad_rhs = torch.matmul(inv_mat.transpose(-2, -1), grad_u)
+        grad_l = -torch.tril(torch.matmul(grad_rhs, u_out.transpose(-2, -1)), diagonal=-1)
+        return grad_l, grad_rhs
+
+
 def chunkwise_wy_channel_selective_scan(
     q: torch.Tensor,
     k: torch.Tensor,
@@ -315,18 +371,11 @@ def chunkwise_wy_channel_selective_scan(
         kw0 = torch.matmul(kc.unsqueeze(1), w_cur.transpose(-2, -1))  # [B, G, C, d_sub]
         rhs = bc.permute(0, 2, 1).unsqueeze(-1) * (vc_g - kw0)
 
-        if dev.type == "cuda" and clen <= 128:
-            # Exact finite nilpotent identity (`L^clen == 0` -> `0` approximation, `0` cuBLAS `trsm` stalls!):
-            # `(I + L)^{-1} === (I - L)(I + L^2)(I + L^4)...` in `ceil(log2(clen))` pure Tensor-Core `matmul`s!
-            inv_mat = eye_c - l_mat
-            pow_l = torch.matmul(l_mat, l_mat)
-            step_p = 2
-            while step_p < clen:
-                inv_mat = torch.matmul(inv_mat, eye_c + pow_l)
-                step_p *= 2
-                if step_p < clen:
-                    pow_l = torch.matmul(pow_l, pow_l)
-            u_g = torch.matmul(inv_mat, rhs)
+        if dev.type in ("cuda", "mps") and clen <= 256:
+            if torch.is_grad_enabled() and (l_mat.requires_grad or rhs.requires_grad):
+                u_g = _UnitTrilSolveAutograd.apply(l_mat, rhs)
+            else:
+                u_g = torch.matmul(_fast_block_unit_tril_inv(l_mat), rhs)
         else:
             u_g = torch.linalg.solve_triangular(eye_c + l_mat, rhs, upper=False, unitriangular=True)
 

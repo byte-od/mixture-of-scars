@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scar-codec"
-version = "6.0.0"
-description = "Zero-PyTorch Domain-Independent Physical Signal, FITS Astronomy, Zarr & Constant-Memory Telemetry Scar Operators (NumPy + Native C99/SIMD 0.388 us O(1) Block Read)"
+version = "6.3.0"
+description = "Zero-PyTorch Biorthogonal Lattice Compression, 0.376 us C99/SIMD O(1) mmap Block Reads, FITS/Zarr Storage & 34.8 KB Dual Telemetry Scar Operators"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

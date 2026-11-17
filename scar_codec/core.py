@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 
-__version__ = "6.0.0"
+__version__ = "6.3.0"
 
 
 def rademacher_signs_u32_exact(k: int, device: torch.device) -> torch.Tensor:

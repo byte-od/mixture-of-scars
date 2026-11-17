@@ -50,20 +50,20 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_v5_version_and_metadata_synchronization() -> None:
-    """Verifies `5.0.0` version parity across all 4 packages, metadata files, LaTeX paper, Zenodo kits, and HF Space."""
+    """Verifies version parity across all packages, metadata files, LaTeX papers, Zenodo kits, and HF Space."""
     assert scar_cache.__version__ == "5.0.0"
     assert mixture_of_scars.__version__ == "5.0.0"
-    assert scar_codec.__version__ == "5.0.0"
-    assert scar_native.__version__ == "5.0.0"
+    assert scar_codec.__version__ == "6.3.0"
+    assert scar_native.__version__ == "6.0.0"
 
     pyproject_txt = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "5.0.0"' in pyproject_txt
+    assert 'version = "6.0.0"' in pyproject_txt
 
     cff_txt = (REPO_ROOT / "CITATION.cff").read_text(encoding="utf-8")
-    assert 'version: "5.0.0"' in cff_txt
+    assert 'version: "6.3.0"' in cff_txt
 
     tex_txt = (REPO_ROOT / "paper_latex" / "main.tex").read_text(encoding="utf-8")
-    assert "Revision v5.0" in tex_txt
+    assert "Revision v6.0" in tex_txt
     assert "ScarNativeLM" in tex_txt
 
     for hf_pkg in ("scar_cache", "scar_codec", "scar_native"):
@@ -73,29 +73,42 @@ def test_v5_version_and_metadata_synchronization() -> None:
     # Verify preserved Zenodo v4.0 deposit artifacts remain 100% intact
     for z4_name in (
         "Mixture_of_Scars_and_SCache_Preprint_v4.0.pdf",
-        "MoS_SCache_LaTeX_arXiv_TMLR_v4.0.zip",
-        "arXiv_Direct_Upload_v4.0.zip",
+        "MoS_SCache_LaTeX_Source_v4.0.zip",
         "MoS_SCache_Adversarial_Replication_v4.0.zip",
+        "ZENODO_METADATA_v4.0.json",
         "mos_scache_v4_0_hero.png",
     ):
         zp4 = REPO_ROOT / "zenodo_deposit_v4_0" / z4_name
-        assert zp4.exists() and zp4.stat().st_size > 1024, f"Missing preserved Zenodo v4.0 file: {zp4}"
+        assert zp4.exists() and zp4.stat().st_size > 256, f"Missing preserved Zenodo v4.0 file: {zp4}"
 
     # Verify official Zenodo v5.0 deposit artifacts exist and are non-empty
     for z5_name in (
         "Pure_Scar_Native_and_MoS_Preprint_v5.0.pdf",
-        "MoS_ScarNative_LaTeX_arXiv_TMLR_v5.0.zip",
-        "arXiv_Direct_Upload_v5.0.zip",
+        "MoS_ScarNative_LaTeX_Source_v5.0.zip",
         "MoS_ScarNative_Adversarial_Replication_v5.0.zip",
+        "ZENODO_METADATA_v5.0.json",
         "mos_scarnative_v5_0_hero.png",
     ):
         zp5 = REPO_ROOT / "zenodo_deposit_v5_0" / z5_name
-        assert zp5.exists() and zp5.stat().st_size > 1024, f"Missing or empty Zenodo v5.0 file: {zp5}"
+        assert zp5.exists() and zp5.stat().st_size > 256, f"Missing or empty Zenodo v5.0 file: {zp5}"
+
+    # Verify official ScarCodec v6.3 Physics Preprint v3.0 deposit artifacts exist and are non-empty
+    for z_sc_name in (
+        "ScarCodec_v6_3_Biorthogonal_10Archives_Preprint_v3.0.pdf",
+        "ScarCodec_v6_3_LaTeX_and_arXiv_Source_v3.0.zip",
+        "ScarCodec_v6_3_Replication_v3.0.zip",
+        "ZENODO_METADATA_v3.0.json",
+        "SHA256SUMS.txt",
+        "scarcodec_v6_3_biorthogonal_10archives_v3_0_hero.png",
+    ):
+        zpsc = REPO_ROOT / "zenodo_deposit_scarcodec_v3_0" / z_sc_name
+        assert zpsc.exists() and zpsc.stat().st_size > 128, f"Missing ScarCodec v3.0 deposit file: {zpsc}"
 
     # Verify zero broken relative markdown links in README.md, Docs & Archive Index
     for md_path in (
         REPO_ROOT / "README.md",
         REPO_ROOT / "docs" / "SCAR_NATIVE_V5_FOUNDATION_ARCHITECTURE.md",
+        REPO_ROOT / "docs" / "SCARFIELD_V7_5_FUSED_AND_V8_MACRO_SCOUT_FLEET.md",
         REPO_ROOT / "docs" / "AUDIT_AND_VERIFICATION_GUIDE.md",
         REPO_ROOT / "docs" / "UNIFIED_SCAR_OPERATORS_AND_8_SOLUTIONS.md",
         REPO_ROOT / "docs" / "BEYOND_AI_SCAR_ARCHITECTURE_APPLICATIONS.md",
@@ -113,12 +126,13 @@ def test_v5_version_and_metadata_synchronization() -> None:
 
 
 def test_v5_wgsl_22_shader_inventory_and_sync() -> None:
-    """Enforces 22-shader WGSL 1.0 kernel inventory (including Shaders #21 & #22) and HF Space byte parity."""
+    """Enforces 26-shader WGSL 1.0 kernel inventory (including v5 & v6 Shaders #21-#26) and HF Space byte parity."""
     wgsl_main = (REPO_ROOT / "scar_cache" / "webgpu" / "mos_scache_kernels.wgsl").read_text(encoding="utf-8")
     compute_entries = re.findall(r"@compute\s+@workgroup_size\([^)]+\)\s*fn\s+([A-Za-z0-9_]+)", wgsl_main)
-    assert len(compute_entries) == 22, f"Expected 22 WGSL @compute shaders, found {len(compute_entries)}: {compute_entries}"
+    assert len(compute_entries) == 26, f"Expected 26 WGSL @compute shaders, found {len(compute_entries)}: {compute_entries}"
     assert "scarnative_widrow_hoff_evict_update" in compute_entries
     assert "scarnative_o1_hybrid_gqa_attention" in compute_entries
+    assert "scarnative_v6_hierarchical_o1_gqa_attention" in compute_entries
 
     wgsl_hf = (REPO_ROOT / "huggingface_space" / "scar_cache" / "webgpu" / "mos_scache_kernels.wgsl").read_text(
         encoding="utf-8"

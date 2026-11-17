@@ -113,7 +113,7 @@ sys.path.insert(0, sys.argv[1])
 import scar_codec
 from scar_codec.cli import run_quick_demo
 
-assert scar_codec.__version__ == "6.0.0", scar_codec.__version__
+assert scar_codec.__version__ == "6.3.0", scar_codec.__version__
 assert scar_codec.HAS_TORCH is False
 assert scar_codec.get_compiled_c_lib() is not None, "C99/SIMD failed to compile in read-only site-packages!"
 
