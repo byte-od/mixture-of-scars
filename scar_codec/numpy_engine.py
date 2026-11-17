@@ -144,6 +144,28 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
         ]
         lib.scar_conway_sloane_e8_encode_f32.restype = None
 
+        f64_p = ctypes.POINTER(ctypes.c_double)
+        lib.scar_fwht64_rademacher_batch_f32.argtypes = [
+            f32_p,
+            f32_p,
+            ctypes.c_int32,
+            ctypes.c_int32,
+            ctypes.c_int32,
+            f32_p,
+        ]
+        lib.scar_fwht64_rademacher_batch_f32.restype = None
+
+        lib.scar_vq4_nearest_and_kmeans_f32.argtypes = [
+            f32_p,
+            f32_p,
+            ctypes.c_int64,
+            f32_p,
+            u8_p,
+            f64_p,
+            f64_p,
+        ]
+        lib.scar_vq4_nearest_and_kmeans_f32.restype = None
+
         _C_LIB = lib
     except Exception:
         _C_LIB = None
@@ -178,6 +200,23 @@ def rademacher_signs_np(k: int) -> np.ndarray:
 
 def fwht_block64_np(x: np.ndarray, signs: np.ndarray, inverse: bool = False) -> np.ndarray:
     orig_shape = x.shape
+    pad_cols = int(orig_shape[-1])
+    clib = get_compiled_c_lib()
+    if clib is not None and pad_cols % 64 == 0 and x.size >= 64:
+        x_c = np.ascontiguousarray(x, dtype=np.float32)
+        s_c = np.ascontiguousarray(signs, dtype=np.float32)
+        n_rows = int(x_c.size // pad_cols)
+        out_c = np.empty_like(x_c)
+        clib.scar_fwht64_rademacher_batch_f32(
+            _ptr_or_null(x_c, ctypes.c_float),
+            _ptr_or_null(s_c, ctypes.c_float),
+            ctypes.c_int32(n_rows),
+            ctypes.c_int32(pad_cols),
+            ctypes.c_int32(1 if inverse else 0),
+            _ptr_or_null(out_c, ctypes.c_float),
+        )
+        return out_c.reshape(orig_shape)
+
     y = x.astype(np.float32, copy=True) if inverse else (x.astype(np.float32) * signs)
     y = y.reshape(-1, 64)
     h = 1
@@ -269,12 +308,31 @@ def _seed_d4_zero_lattice_np(z_sub: np.ndarray) -> np.ndarray:
 
 def _nearest_lut256_np(z_f32: np.ndarray, lut_f32: np.ndarray, chunk: int = 262144) -> np.ndarray:
     m4 = z_f32.shape[0]
-    out_idx = np.empty(m4, dtype=np.int64)
+    if m4 == 0:
+        return np.zeros((0,), dtype=np.uint8)
+    clib = get_compiled_c_lib()
+    if clib is not None:
+        z_c = np.ascontiguousarray(z_f32, dtype=np.float32)
+        lut_c = np.ascontiguousarray(lut_f32, dtype=np.float32)
+        out_u8 = np.empty(m4, dtype=np.uint8)
+        f32_p = ctypes.POINTER(ctypes.c_float)
+        f64_p = ctypes.POINTER(ctypes.c_double)
+        clib.scar_vq4_nearest_and_kmeans_f32(
+            _ptr_or_null(z_c, ctypes.c_float),
+            ctypes.cast(0, f32_p),
+            ctypes.c_int64(m4),
+            _ptr_or_null(lut_c, ctypes.c_float),
+            _ptr_or_null(out_u8, ctypes.c_uint8),
+            ctypes.cast(0, f64_p),
+            ctypes.cast(0, f64_p),
+        )
+        return out_u8
+    out_idx = np.empty(m4, dtype=np.uint8)
     c_n2 = np.sum(lut_f32 * lut_f32, axis=1, keepdims=True).T  # [1, 256]
     for s in range(0, m4, chunk):
         e = min(s + chunk, m4)
         dots = z_f32[s:e] @ lut_f32.T
-        out_idx[s:e] = np.argmin(c_n2 - 2.0 * dots, axis=1)
+        out_idx[s:e] = np.argmin(c_n2 - 2.0 * dots, axis=1).astype(np.uint8)
     return out_idx
 
 
@@ -554,25 +612,52 @@ class NumPyVQ4ScarCodec:
         w_energy = np.repeat(scales_f16.astype(np.float32).squeeze(-1) ** 2, 16)
 
         active_mask = w_energy > 0
-        z_seed = z_4d[active_mask] if int(np.sum(active_mask)) >= 256 else z_4d
+        n_act = int(np.sum(active_mask))
+        z_act = np.ascontiguousarray(z_4d[active_mask], dtype=np.float32) if n_act > 0 else np.zeros((0, 4), dtype=np.float32)
+        w_act = np.ascontiguousarray(w_energy[active_mask], dtype=np.float32) if n_act > 0 else np.zeros((0,), dtype=np.float32)
+        z_seed = z_act if n_act >= 256 else z_4d
         lut = _seed_d4_zero_lattice_np(z_seed)
         lut[0] = 0.0
-        for _ in range(self.kmeans_iters):
-            idx = _nearest_lut256_np(z_4d, lut)
-            lut[0] = 0.0
-            den = np.bincount(idx, weights=w_energy, minlength=256).astype(np.float32)
-            valid = den > 1e-10
-            valid[0] = False
-            for c_d in range(4):
-                num_c = np.bincount(idx, weights=z_4d[:, c_d] * w_energy, minlength=256).astype(np.float32)
-                lut[valid, c_d] = num_c[valid] / den[valid]
-            lut[0] = 0.0
+        clib = get_compiled_c_lib()
+        if n_act > 0 and self.kmeans_iters > 0:
+            if clib is not None:
+                den_f64 = np.zeros(256, dtype=np.float64)
+                num_f64 = np.zeros((256, 4), dtype=np.float64)
+                u8_null = ctypes.cast(0, ctypes.POINTER(ctypes.c_uint8))
+                for _ in range(self.kmeans_iters):
+                    lut_c = np.ascontiguousarray(lut, dtype=np.float32)
+                    clib.scar_vq4_nearest_and_kmeans_f32(
+                        _ptr_or_null(z_act, ctypes.c_float),
+                        _ptr_or_null(w_act, ctypes.c_float),
+                        ctypes.c_int64(n_act),
+                        _ptr_or_null(lut_c, ctypes.c_float),
+                        u8_null,
+                        _ptr_or_null(den_f64, ctypes.c_double),
+                        _ptr_or_null(num_f64, ctypes.c_double),
+                    )
+                    valid = den_f64 > 1e-10
+                    valid[0] = False
+                    lut[valid] = (num_f64[valid] / den_f64[valid, None]).astype(np.float32)
+                    lut[0] = 0.0
+            else:
+                for _ in range(self.kmeans_iters):
+                    idx = _nearest_lut256_np(z_act, lut).astype(np.int64)
+                    lut[0] = 0.0
+                    den = np.bincount(idx, weights=w_act, minlength=256).astype(np.float32)
+                    valid = den > 1e-10
+                    valid[0] = False
+                    for c_d in range(4):
+                        num_c = np.bincount(idx, weights=z_act[:, c_d] * w_act, minlength=256).astype(np.float32)
+                        lut[valid, c_d] = num_c[valid] / den[valid]
+                    lut[0] = 0.0
 
         lut256_f16 = np.ascontiguousarray(lut.astype(np.float16))
         lut_q = lut256_f16.astype(np.float32)
-        codes_u8 = _nearest_lut256_np(z_4d, lut_q).astype(np.uint8)
         zero_vec4_mask = np.repeat(zero_blk_mask.squeeze(-1), 16)
-        codes_u8 = np.where(zero_vec4_mask, np.uint8(0), codes_u8)
+        codes_u8 = np.zeros(z_4d.shape[0], dtype=np.uint8)
+        if n_act > 0:
+            codes_u8[active_mask] = _nearest_lut256_np(z_act, lut_q)
+        codes_u8[zero_vec4_mask] = np.uint8(0)
 
         if self.biorthogonal:
             q_raw = lut_q[codes_u8].reshape(n_rows * n_blocks_per_row, 64)
@@ -608,8 +693,10 @@ class NumPyVQ4ScarCodec:
                     np.float16
                 )
                 z2_4d = np.where(zero_blk2, 0.0, blocks2 / np.maximum(rms2.astype(np.float32), 1e-7)).reshape(-1, 4)
-                codes_u8 = _nearest_lut256_np(z2_4d, lut_q).astype(np.uint8)
-                codes_u8 = np.where(np.repeat(zero_blk2.squeeze(-1), 16), np.uint8(0), codes_u8)
+                act2_mask = ~np.repeat(zero_blk2.squeeze(-1), 16)
+                codes_u8 = np.zeros(z2_4d.shape[0], dtype=np.uint8)
+                if np.any(act2_mask):
+                    codes_u8[act2_mask] = _nearest_lut256_np(z2_4d[act2_mask], lut_q)
                 q_raw2 = lut_q[codes_u8].reshape(n_rows * n_blocks_per_row, 64)
                 q_n2_2 = np.sum(q_raw2 * q_raw2, axis=1, keepdims=True)
                 dual_sc2 = np.where(

@@ -669,3 +669,159 @@ void scar_conway_sloane_e8_encode_f32(
 #endif
     scar_e8_encode_range_impl(x_in, 0, n_blocks, lut_e8_f32, out_codes, out_dequant_f32);
 }
+
+static inline void scar_fwht64_rows_impl(
+    const float* __restrict__ x_in,
+    const float* __restrict__ signs_f32,
+    int32_t r_start,
+    int32_t r_end,
+    int32_t pad_cols,
+    int32_t inverse,
+    float* __restrict__ out_f32
+) {
+    for (int32_t r = r_start; r < r_end; ++r) {
+        const float* src_row = x_in + (size_t)r * (size_t)pad_cols;
+        float* dst_row = out_f32 + (size_t)r * (size_t)pad_cols;
+        for (int32_t c = 0; c < pad_cols; c += 64) {
+            float buf[64];
+            if (inverse) {
+                for (int i = 0; i < 64; ++i) buf[i] = src_row[c + i];
+                scar_fwht64_butterfly_inplace(buf);
+                for (int i = 0; i < 64; ++i) dst_row[c + i] = buf[i] * signs_f32[c + i];
+            } else {
+                for (int i = 0; i < 64; ++i) buf[i] = src_row[c + i] * signs_f32[c + i];
+                scar_fwht64_butterfly_inplace(buf);
+                for (int i = 0; i < 64; ++i) dst_row[c + i] = buf[i];
+            }
+        }
+    }
+}
+
+void scar_fwht64_rademacher_batch_f32(
+    const float* __restrict__ x_in,
+    const float* __restrict__ signs_f32,
+    int32_t n_rows,
+    int32_t pad_cols,
+    int32_t inverse,
+    float* __restrict__ out_f32
+) {
+#ifdef __APPLE__
+    int64_t tot_elems = (int64_t)n_rows * (int64_t)pad_cols;
+    if (tot_elems >= 65536 && n_rows >= 4) {
+        int32_t grain = 65536 / (pad_cols > 0 ? pad_cols : 64);
+        if (grain < 1) grain = 1;
+        size_t n_chunks = (size_t)((n_rows + grain - 1) / grain);
+        dispatch_apply(n_chunks, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^(size_t c_idx) {
+            int32_t r0 = (int32_t)c_idx * grain;
+            int32_t r1 = r0 + grain;
+            if (r1 > n_rows) r1 = n_rows;
+            scar_fwht64_rows_impl(x_in, signs_f32, r0, r1, pad_cols, inverse, out_f32);
+        });
+        return;
+    }
+#endif
+    scar_fwht64_rows_impl(x_in, signs_f32, 0, n_rows, pad_cols, inverse, out_f32);
+}
+
+static inline void scar_vq4_range_impl(
+    const float* __restrict__ z4_in,
+    const float* __restrict__ w_in,
+    int64_t i_start,
+    int64_t i_end,
+    const float* __restrict__ lut256_f32,
+    const float* __restrict__ half_norm2_f32,
+    uint8_t* __restrict__ out_codes_u8,
+    double* __restrict__ loc_den,
+    double* __restrict__ loc_num
+) {
+    for (int64_t i = i_start; i < i_end; ++i) {
+        const float* z = z4_in + (i << 2);
+        float z0 = z[0], z1 = z[1], z2 = z[2], z3 = z[3];
+        float best_score = -1.0e30f;
+        int best_c = 0;
+        for (int c = 0; c < 256; ++c) {
+            const float* u = lut256_f32 + (c << 2);
+            float sc = (z0 * u[0] + z1 * u[1] + z2 * u[2] + z3 * u[3]) - half_norm2_f32[c];
+            if (sc > best_score) {
+                best_score = sc;
+                best_c = c;
+            }
+        }
+        if (out_codes_u8 != NULL) {
+            out_codes_u8[i] = (uint8_t)best_c;
+        }
+        if (w_in != NULL && loc_den != NULL && loc_num != NULL) {
+            double w = (double)w_in[i];
+            loc_den[best_c] += w;
+            double* nm = loc_num + (best_c << 2);
+            nm[0] += w * (double)z0;
+            nm[1] += w * (double)z1;
+            nm[2] += w * (double)z2;
+            nm[3] += w * (double)z3;
+        }
+    }
+}
+
+void scar_vq4_nearest_and_kmeans_f32(
+    const float* __restrict__ z4_in,
+    const float* __restrict__ w_in,
+    int64_t n_vecs,
+    const float* __restrict__ lut256_f32,
+    uint8_t* __restrict__ out_codes_u8,
+    double* __restrict__ out_den_f64,
+    double* __restrict__ out_num_f64
+) {
+    float half_norm2[256];
+    for (int c = 0; c < 256; ++c) {
+        const float* u = lut256_f32 + (c << 2);
+        half_norm2[c] = 0.5f * (u[0] * u[0] + u[1] * u[1] + u[2] * u[2] + u[3] * u[3]);
+    }
+    if (out_den_f64 != NULL && out_num_f64 != NULL) {
+        for (int c = 0; c < 256; ++c) out_den_f64[c] = 0.0;
+        for (int c = 0; c < 1024; ++c) out_num_f64[c] = 0.0;
+    }
+
+#ifdef __APPLE__
+    if (n_vecs >= 16384) {
+        const int64_t grain = 16384;
+        const size_t n_chunks = (size_t)((n_vecs + grain - 1) / grain);
+        if (w_in != NULL && out_den_f64 != NULL && out_num_f64 != NULL) {
+            double* all_den = (double*)calloc(n_chunks * 256u, sizeof(double));
+            double* all_num = (double*)calloc(n_chunks * 1024u, sizeof(double));
+            if (all_den != NULL && all_num != NULL) {
+                const float* hn_ptr = half_norm2;
+                dispatch_apply(n_chunks, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^(size_t c_idx) {
+                    int64_t i0 = (int64_t)c_idx * grain;
+                    int64_t i1 = i0 + grain;
+                    if (i1 > n_vecs) i1 = n_vecs;
+                    scar_vq4_range_impl(
+                        z4_in, w_in, i0, i1, lut256_f32, hn_ptr, out_codes_u8,
+                        all_den + c_idx * 256u, all_num + c_idx * 1024u
+                    );
+                });
+                for (size_t c_idx = 0; c_idx < n_chunks; ++c_idx) {
+                    const double* cd = all_den + c_idx * 256u;
+                    const double* cn = all_num + c_idx * 1024u;
+                    for (int c = 0; c < 256; ++c) out_den_f64[c] += cd[c];
+                    for (int c = 0; c < 1024; ++c) out_num_f64[c] += cn[c];
+                }
+                free(all_den);
+                free(all_num);
+                return;
+            }
+            if (all_den != NULL) free(all_den);
+            if (all_num != NULL) free(all_num);
+        } else {
+            const float* hn_ptr = half_norm2;
+            dispatch_apply(n_chunks, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^(size_t c_idx) {
+                int64_t i0 = (int64_t)c_idx * grain;
+                int64_t i1 = i0 + grain;
+                if (i1 > n_vecs) i1 = n_vecs;
+                scar_vq4_range_impl(z4_in, NULL, i0, i1, lut256_f32, hn_ptr, out_codes_u8, NULL, NULL);
+            });
+            return;
+        }
+    }
+#endif
+    scar_vq4_range_impl(z4_in, w_in, 0, n_vecs, lut256_f32, half_norm2, out_codes_u8, out_den_f64, out_num_f64);
+}

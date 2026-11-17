@@ -78,6 +78,39 @@ _E8_LUT256_F32 = build_canonical_e8_lut256_np()
 _E8_HALF_NORM2 = np.ascontiguousarray(0.5 * np.sum(_E8_LUT256_F32 * _E8_LUT256_F32, axis=1))
 
 
+def _conway_sloane_e8_assign_np(z_8d: np.ndarray, zero_blk_1d: np.ndarray) -> np.ndarray:
+    """Exact Conway-Sloane C99 multithreaded `E_8` encoder + `Gate G0` vacuum compaction (`0` `[M, 256]` alloc!)."""
+    m8 = z_8d.shape[0]
+    e8_codes = np.zeros(m8, dtype=np.uint8)
+    act_blk = ~zero_blk_1d
+    if not np.any(act_blk):
+        return e8_codes
+    act_8d = np.repeat(act_blk, 8)
+    z_act = np.ascontiguousarray(z_8d[act_8d], dtype=np.float32)
+    n_act = int(z_act.shape[0])
+    clib = get_compiled_c_lib()
+    if clib is not None:
+        c_act = np.empty(n_act, dtype=np.uint8)
+        f32_null = ctypes.cast(0, ctypes.POINTER(ctypes.c_float))
+        clib.scar_conway_sloane_e8_encode_f32(
+            _ptr_or_null(z_act, ctypes.c_float),
+            ctypes.c_int64(n_act),
+            f32_null,
+            _ptr_or_null(c_act, ctypes.c_uint8),
+            f32_null,
+        )
+        e8_codes[act_8d] = c_act
+        return e8_codes
+
+    c_act = np.empty(n_act, dtype=np.uint8)
+    for s in range(0, n_act, 65536):
+        e = min(s + 65536, n_act)
+        scores = (z_act[s:e] @ _E8_LUT256_F32.T) - _E8_HALF_NORM2[None, :]
+        c_act[s:e] = np.argmax(scores, axis=1).astype(np.uint8)
+    e8_codes[act_8d] = c_act
+    return e8_codes
+
+
 @dataclass
 class ScarE8Package:
     """Ultra-compact `1.000 bpw` Gosset `E_8` compressed field (`18x–26x` smaller than `FP32`)."""
@@ -244,14 +277,8 @@ class ScarCodecE8:
         scales_f16 = np.where(zero_blk, 0.0, np.maximum(blk_rms, 1e-7)).astype(np.float16)
         z_8d = np.where(zero_blk, 0.0, blocks / np.maximum(scales_f16.astype(np.float32), 1e-7)).reshape(-1, 8)
 
-        # Nearest Gosset E8 root assignment (`argmax <z, u> - 0.5 ||u||^2`) in chunks
-        m8 = z_8d.shape[0]
-        e8_codes = np.empty(m8, dtype=np.uint8)
-        for s in range(0, m8, 262144):
-            e = min(s + 262144, m8)
-            scores = (z_8d[s:e] @ _E8_LUT256_F32.T) - _E8_HALF_NORM2[None, :]
-            e8_codes[s:e] = np.argmax(scores, axis=1).astype(np.uint8)
-        e8_codes = np.where(np.repeat(zero_blk.squeeze(-1), 8), np.uint8(0), e8_codes)
+        # Nearest Gosset E8 root assignment via C99 Conway-Sloane O(8) + Gate G0 vacuum compaction
+        e8_codes = _conway_sloane_e8_assign_np(z_8d, zero_blk.squeeze(-1))
 
         if self.biorthogonal:
             q_e8 = _E8_LUT256_F32[e8_codes].reshape(n_rows * n_blk, 64)
@@ -286,11 +313,7 @@ class ScarCodecE8:
                     np.float16
                 )
                 z2_8d = np.where(zero_blk2, 0.0, blocks2 / np.maximum(rms2.astype(np.float32), 1e-7)).reshape(-1, 8)
-                for s in range(0, m8, 262144):
-                    e = min(s + 262144, m8)
-                    scores2 = (z2_8d[s:e] @ _E8_LUT256_F32.T) - _E8_HALF_NORM2[None, :]
-                    e8_codes[s:e] = np.argmax(scores2, axis=1).astype(np.uint8)
-                e8_codes = np.where(np.repeat(zero_blk2.squeeze(-1), 8), np.uint8(0), e8_codes)
+                e8_codes = _conway_sloane_e8_assign_np(z2_8d, zero_blk2.squeeze(-1))
                 q_e8_2 = _E8_LUT256_F32[e8_codes].reshape(n_rows * n_blk, 64)
                 q_n2_2 = np.sum(q_e8_2 * q_e8_2, axis=1, keepdims=True)
                 dual_sc2 = np.where(
