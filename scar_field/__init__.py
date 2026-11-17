@@ -1,4 +1,4 @@
-"""ScarField v7.0 — Pure Post-Transformer Geodesic Scar Intelligence Package."""
+"""ScarField v8.0 — Pure Post-Transformer Geodesic Scar Intelligence & Macro-Scout Fleet Package."""
 
 from scar_field.byte_shock_simplex import (
     ByteShockFrontEnd,
@@ -34,6 +34,18 @@ from scar_field.engine import (
     encode_sft_dialogue_bytes_and_mask,
     format_scarfield_chat_turn,
 )
+from scar_field.macro_scout_fleet import (
+    GeodesicMergeTelemetry,
+    MacroBatchSpec,
+    MacroScoutGeodesicFleet,
+    MacroScoutSpec,
+    SharedCrystalMacroSwarm,
+    SharedCrystalSwarmTelemetry,
+    biorthogonal_conflict_free_tangent_merge,
+    clone_scarfield_engine_fast,
+    riemannian_exp_retract_2d,
+    riemannian_log_chord_2d,
+)
 from scar_field.proper_time_bus import (
     ChannelSelectiveKalmanScarBus,
     KalmanBusState,
@@ -60,36 +72,52 @@ from scar_field.triton_kernels import (
     tsallis15_spherical_cap_probs_fast,
 )
 
-__version__ = "7.5.0"
+__version__ = "8.0.0"
 
 __all__ = [
     "ByteShockFrontEnd",
     "ChannelSelectiveKalmanScarBus",
     "E8SphericalLinear",
+    "GeodesicMergeTelemetry",
     "HAS_TRITON",
     "HorizonCulledSymplecticGenerator",
     "KalmanBusState",
+    "MacroBatchSpec",
+    "MacroScoutGeodesicFleet",
+    "MacroScoutSpec",
     "PackedE8TernaryMatrix",
     "ReversibleSymplecticCayleyFlow",
     "RiemannianMuon",
+    "SCARFIELD_ASSISTANT_BYTE",
+    "SCARFIELD_EOT_BYTE",
+    "SCARFIELD_USER_BYTE",
+    "ScarFieldChatReply",
     "ScarFieldConfig",
     "ScarFieldEngine",
     "ScarFieldReflexDecision",
     "ScoutBatchTelemetry",
+    "SharedCrystalMacroSwarm",
+    "SharedCrystalSwarmTelemetry",
     "SphericalCapSimplexHead",
     "System1CorpusScoutFleet",
     "UScarPoleCartridge",
     "UniversalScarCartridgeStore",
     "VirtualGhostJumpDelta",
     "apply_relativistic_proper_time_phase",
+    "biorthogonal_conflict_free_tangent_merge",
+    "biorthogonal_shock_bank_insert_step_",
+    "biorthogonal_shock_bank_read",
     "build_canonical_e8_lut256",
     "build_scout_g0_step_mask",
     "c1_spherical_cap_resonance",
     "cayley_woodbury_step",
     "chunkwise_wy_channel_selective_scan",
+    "clone_scarfield_engine_fast",
     "compute_ghost_jump_antiloop_loss",
     "compute_proper_time",
     "conway_sloane_e8_cuda_fast",
+    "encode_sft_dialogue_bytes_and_mask",
+    "format_scarfield_chat_turn",
     "fwht64_rademacher",
     "heal_all_e8_scars",
     "multiscale_wave_superpose_fast",
@@ -97,6 +125,8 @@ __all__ = [
     "project_rows_to_unit_sphere",
     "quantize_ternary_ste",
     "rademacher_signs_det",
+    "riemannian_exp_retract_2d",
+    "riemannian_log_chord_2d",
     "tsallis15_fenchel_young_loss",
     "tsallis15_spherical_cap_probs",
     "tsallis15_spherical_cap_probs_fast",

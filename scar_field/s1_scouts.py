@@ -110,6 +110,26 @@ class System1CorpusScoutFleet:
         self.oversample_factor = int(oversample_factor)
         self.anchor_fraction = float(anchor_fraction)
         self.record_curriculum: bool = False  # Canonical System 1 Scout Curriculum Isolation!
+        self._async_tel_acc: Optional[torch.Tensor] = None
+
+    @torch.no_grad()
+    def flush_async_telemetry(self) -> ScoutBatchTelemetry:
+        """Flushes accumulated GPU-side telemetry in a single host sync at outer Macro-Scout boundaries."""
+        if self._async_tel_acc is None:
+            return ScoutBatchTelemetry(0, 0, 0.0, 0.0, 1.0, 0)
+        vals = self._async_tel_acc.detach().cpu().tolist()
+        self._async_tel_acc = None
+        steps = max(1.0, float(vals[3]))
+        cand_m = float(vals[1]) / steps
+        sel_m = float(vals[2]) / steps
+        return ScoutBatchTelemetry(
+            candidates_scanned=int(round(vals[4])),
+            selected_batch_size=int(round(vals[5])),
+            mean_candidate_shock=round(cand_m, 5),
+            mean_selected_shock=round(sel_m, 5),
+            epistemic_gain_ratio=round(sel_m / max(1e-6, cand_m), 4),
+            degenerate_windows_filtered=int(round(vals[0])),
+        )
 
     @torch.no_grad()
     def _score_candidates_tensors(
@@ -167,6 +187,7 @@ class System1CorpusScoutFleet:
         candidate_byte_ids: torch.Tensor,
         batch_size: int,
         candidate_loss_mask: Optional[torch.Tensor] = None,
+        sync_telemetry: bool = True,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], ScoutBatchTelemetry]:
         """Selects `batch_size` windows (`(1 - alpha)` top frontier shocks + `alpha` stratified anchors)."""
         n_cand = int(candidate_byte_ids.shape[0])
@@ -198,10 +219,29 @@ class System1CorpusScoutFleet:
         sel_bytes = candidate_byte_ids[chosen_idx]
         sel_mask = candidate_loss_mask[chosen_idx] if candidate_loss_mask is not None else None
 
+        cand_m_t = scores.clamp(min=0.0).mean()
+        sel_m_t = scores[chosen_idx].clamp(min=0.0).mean()
+        if not sync_telemetry:
+            # Zero-host-sync accumulation on GPU stream for Multi-Stream Macro-Scout concurrency!
+            inc = torch.stack(
+                (
+                    degen_sum_t.float(),
+                    cand_m_t.float(),
+                    sel_m_t.float(),
+                    scores.new_tensor(1.0),
+                    scores.new_tensor(float(n_cand)),
+                    scores.new_tensor(float(sel_bytes.shape[0])),
+                )
+            )
+            if self._async_tel_acc is None or self._async_tel_acc.device != inc.device:
+                self._async_tel_acc = inc
+            else:
+                self._async_tel_acc[:4] = self._async_tel_acc[:4] + inc[:4]
+                self._async_tel_acc[4:] = inc[4:]
+            return sel_bytes, sel_mask, ScoutBatchTelemetry(n_cand, int(sel_bytes.shape[0]), 0.0, 0.0, 1.0, 0)
+
         # Single coalesced 3-float host transfer instead of 3 sequential `.item()` stalls!
-        stats_cpu = torch.stack(
-            (degen_sum_t, scores.clamp(min=0.0).mean(), scores[chosen_idx].clamp(min=0.0).mean())
-        ).cpu().tolist()
+        stats_cpu = torch.stack((degen_sum_t, cand_m_t, sel_m_t)).cpu().tolist()
         degen_cnt = int(round(stats_cpu[0]))
         cand_mean = float(stats_cpu[1])
         sel_mean = float(stats_cpu[2])

@@ -595,7 +595,8 @@ class _ReversibleLeapfrogAutograd(torch.autograd.Function):
 
         active_indices_per_k: Optional[list[Optional[torch.Tensor]]] = None
         active_counts_per_k: Optional[list[int]] = None
-        if sm is not None:
+        async_mode = bool(getattr(gen_form, "async_stream_mode", False))
+        if sm is not None and not async_mode:
             nz_mask = sm.detach().abs() > 0.0  # [N, K] on-device
             if num_steps > 2:
                 diff_tail = (nz_mask[:, 2:] != nz_mask[:, 1:2]).long().sum().unsqueeze(0)
@@ -830,6 +831,14 @@ class ReversibleSymplecticCayleyFlow(nn.Module):
             base_rank=base_rank,
             num_scars=num_scars,
         )
+        self.async_stream_mode: bool = False
+
+    def set_async_stream_mode(self, enabled: bool = True) -> None:
+        """Enables zero-host-sync CUDA stream execution across concurrent `v8.0` Macro-Scouts."""
+        flag = bool(enabled)
+        self.async_stream_mode = flag
+        self.gen_form.async_stream_mode = flag  # type: ignore[attr-defined]
+        self.gen_world.async_stream_mode = flag  # type: ignore[attr-defined]
 
     def forward(
         self,

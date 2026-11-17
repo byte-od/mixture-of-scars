@@ -494,11 +494,25 @@ def audit_joss_package():
     yaml_hdr, body = parts[1], parts[2]
     for req_key in ("title:", "tags:", "authors:", "affiliations:", "date:", "bibliography: paper.bib"):
         assert req_key in yaml_hdr, f"Missing YAML key {req_key} in paper/paper.md!"
-    for req_sec in ("# Summary", "# Statement of Need"):
-        assert req_sec in body, f"Missing mandatory JOSS section `{req_sec}`!"
+    title_lines = [l for l in yaml_hdr.splitlines() if l.strip().startswith("title:")]
+    assert title_lines and "`" not in title_lines[0], "JOSS YAML title must not contain backticks!"
+    for req_sec in (
+        "# Summary",
+        "# Statement of need",
+        "# State of the field",
+        "# Software design",
+        "# Research impact statement",
+        "# AI usage disclosure",
+        "# Acknowledgements",
+        "# References",
+    ):
+        assert req_sec in body, f"Missing mandatory updated JOSS section `{req_sec}`!"
+    for req_gov in ("LICENSE", "CONTRIBUTING.md", "CHANGELOG.md", "CITATION.cff"):
+        gp = REPO_ROOT / req_gov
+        assert gp.exists() and gp.stat().st_size > 200, f"Missing JOSS Gate-3 governance file `{req_gov}`!"
 
     words = re.findall(r"\b\w+\b", body)
-    assert 750 <= len(words) <= 1650, f"JOSS word count {len(words)} outside target range [750, 1650]!"
+    assert 750 <= len(words) <= 1750, f"JOSS word count {len(words)} outside target range [750, 1750]!"
 
     cited_joss = set(re.findall(r"@([A-Za-z0-9_]+)", body))
     bib_entries = re.split(r"\n(?=@\w+\{)", "\n" + bib.strip())
@@ -519,6 +533,9 @@ def audit_joss_package():
 
 def build_replication_zip(zip_path: Path):
     files = [
+        REPO_ROOT / "LICENSE",
+        REPO_ROOT / "CONTRIBUTING.md",
+        REPO_ROOT / "CHANGELOG.md",
         REPO_ROOT / "CITATION.cff",
         REPO_ROOT / "README.md",
         REPO_ROOT / "pyproject.toml",

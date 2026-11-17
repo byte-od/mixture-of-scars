@@ -253,6 +253,28 @@ class ScarFieldEngine(nn.Module):
     def init_state(self, batch_size: int = 1, device: torch.device | str = "cpu") -> KalmanBusState:
         return self.bus.init_state(batch_size=batch_size, device=device)
 
+    def set_async_stream_mode(self, enabled: bool = True) -> None:
+        """Toggles zero-host-sync CUDA stream mode across all `ReversibleSymplecticCayleyFlow` blocks."""
+        self.flow_percept.set_async_stream_mode(enabled)
+        self.flow.set_async_stream_mode(enabled)
+        if self.extra_flows is not None:
+            for ef in self.extra_flows:
+                ef.set_async_stream_mode(enabled)
+
+    @torch.no_grad()
+    def bind_shared_e8_crystal_from(self, master: "ScarFieldEngine") -> int:
+        """Binds every `E8SphericalLinear` to `master`'s read-only Gosset `E_8` crystal (`0 B` `[O,I]` copy)."""
+        master_mods = dict(master.named_modules())
+        bound = 0
+        for name, mod in self.named_modules():
+            if isinstance(mod, E8SphericalLinear):
+                m_src = master_mods.get(name)
+                if not isinstance(m_src, E8SphericalLinear):
+                    raise KeyError(f"Master missing E8SphericalLinear `{name}`")
+                mod.bind_shared_e8_crystal(m_src)
+                bound += 1
+        return bound
+
     def _build_adaptive_step_mask(self, surprise: torch.Tensor) -> torch.Tensor:
         """Builds bit-exact `S1 (1-step)` vs `S2 (K-step)` step schedule mask `[B, T, K]`."""
         k_max = self.cfg.s2_steps
@@ -398,11 +420,12 @@ class ScarFieldEngine(nn.Module):
                 loss_unif = scores.new_zeros(())
             loss_align = loss_pull + 0.25 * loss_unif
 
-        # 4. Physical Vacuum `0x00` Margin Loss on out-of-cone queries (`max_w_cos < vacuum_kappa - 0.05`)
+        # 4. Physical Vacuum `0x00` Margin Loss on out-of-cone queries (`0` `.item()` host syncs!)
         loss_vac = scores.new_zeros(())
-        if out_of_cone_mask is not None and bool(out_of_cone_mask.any().item()):
-            excess = (max_w_cos[out_of_cone_mask] - (self.cfg.vacuum_kappa - 0.05)).clamp(min=0.0)
-            loss_vac = (excess * excess).mean()
+        if out_of_cone_mask is not None:
+            m_ooc = out_of_cone_mask.to(dtype=max_w_cos.dtype, device=max_w_cos.device)
+            excess = (max_w_cos - (self.cfg.vacuum_kappa - 0.05)).clamp(min=0.0) * m_ooc
+            loss_vac = (excess * excess).sum() / m_ooc.sum().clamp(min=1.0)
 
         # 5. Optional `System 1` Ghost-Jump Multi-Lag Repulsive Anti-Loop Scar Loss (`antiloop_weight > 0`)
         loss_antiloop = scores.new_zeros(())

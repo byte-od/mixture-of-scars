@@ -446,8 +446,10 @@ def biorthogonal_shock_bank_insert_step_(
     v_new: torch.Tensor,
     sal_new: torch.Tensor,
     write_thresh: float = 0.22,
+    b_idx: Optional[torch.Tensor] = None,
+    idx_new: Optional[torch.Tensor] = None,
 ) -> None:
-    """Vectorized `O(1)` Biorthogonal Shock Bank in-place update (`0` `.item()` GPU syncs across `bsz`!)."""
+    """Vectorized `O(1)` Biorthogonal Shock Bank strict Top-M heap update (`0` `.item()` GPU syncs!)."""
     bsz, m_slots, d_k = b_keys.shape
     d_v = b_vals.shape[-1]
     k_norm2 = (k_new * k_new).sum(dim=-1)  # [B]
@@ -461,7 +463,8 @@ def biorthogonal_shock_bank_insert_step_(
     eff_sal = torch.where(b_valid, b_sal, torch.full_like(b_sal, -1.0))
     min_sal, min_idx = torch.min(eff_sal, dim=-1)  # [B]
     min_slot_valid = b_valid.gather(1, min_idx.unsqueeze(1)).squeeze(1)
-    can_evict = (~min_slot_valid) | (sal_new >= min_sal * 0.90)
+    # Strict monotonic Top-M salience replacement (`sal_new > min_sal`, zero priority-inversion erosion!)
+    can_evict = (~min_slot_valid) | (sal_new > (min_sal + 1e-6))
 
     do_write = cand_ok & (is_dedup | can_evict)
     target_idx = torch.where(is_dedup, max_idx, min_idx)  # [B]
@@ -476,6 +479,8 @@ def biorthogonal_shock_bank_insert_step_(
     b_vals.copy_(torch.where(slot_mask.unsqueeze(-1).expand(bsz, m_slots, d_v), v_new.unsqueeze(1), b_vals))
     b_sal.copy_(torch.where(slot_mask, new_sal_val.unsqueeze(1).expand(bsz, m_slots), b_sal))
     b_valid.logical_or_(slot_mask)
+    if b_idx is not None and idx_new is not None:
+        b_idx.copy_(torch.where(slot_mask, idx_new.unsqueeze(1).expand(bsz, m_slots), b_idx))
 
 
 class ChannelSelectiveKalmanScarBus(nn.Module):
@@ -720,7 +725,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
                 biorth_chunks.append(b_read)
                 # Commit top shock transitions of this chunk into `O(1)` Biorthogonal Bank for subsequent chunks!
                 c_sal = sal_seq[:, c_start:c_end]
-                top_n = min(8, c_end - c_start)
+                top_n = min(max(8, (c_end - c_start) // 5), c_end - c_start)
                 _, top_pos = torch.topk(c_sal, k=top_n, dim=-1)
                 top_pos_sorted, _ = torch.sort(top_pos, dim=-1)
                 for j_s in range(top_n):
@@ -730,9 +735,16 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
                     v_step = v_flat_det.gather(1, idx_abs.view(bsz, 1, 1).expand(bsz, 1, self.d_bus)).squeeze(1)
                     s_step = c_sal.gather(1, idx_rel.view(bsz, 1)).squeeze(1)
                     biorthogonal_shock_bank_insert_step_(
-                        cur_bk, cur_bv, cur_bsal, cur_bval, k_step, v_step, s_step, write_thresh=0.22
+                        cur_bk,
+                        cur_bv,
+                        cur_bsal,
+                        cur_bval,
+                        k_step,
+                        v_step,
+                        s_step,
+                        write_thresh=0.22,
                     )
-            biorth_out = self.biorth_gain * torch.cat(biorth_chunks, dim=1)
+            biorth_out = self.biorth_gain.clamp(min=0.0) * torch.cat(biorth_chunks, dim=1)
         else:
             cur_bk, cur_bv, cur_bsal, cur_bval = None, None, None, None
             biorth_out = torch.zeros_like(v_flat)
@@ -865,7 +877,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         ring_out = torch.matmul(rw_norm.unsqueeze(1), state.ring_vals).squeeze(1)
 
         if self.biorth_slots > 0 and state.biorth_keys is not None and state.biorth_vals is not None and state.biorth_valid is not None:
-            biorth_t = self.biorth_gain * biorthogonal_shock_bank_read(
+            biorth_t = self.biorth_gain.clamp(min=0.0) * biorthogonal_shock_bank_read(
                 q.unsqueeze(1),
                 state.biorth_keys,
                 state.biorth_vals,
