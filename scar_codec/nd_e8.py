@@ -127,6 +127,10 @@ class ScarCodecE8:
         spike_sigma_threshold: float = 4.5,
         abs_tolerance: Optional[float] = None,
     ) -> None:
+        if rank < 0 or (rank > 0 and rank % 2 != 0):
+            raise ValueError(f"ScarCodecE8 rank must be 0 or an even integer, got {rank}")
+        if abs_tolerance is not None and (not math.isfinite(abs_tolerance) or abs_tolerance <= 0.0):
+            raise ValueError(f"abs_tolerance must be finite and > 0, got {abs_tolerance}")
         self.rank = rank
         self.equilibration_beta = equilibration_beta
         self.max_point_spikes = max_point_spikes
@@ -140,15 +144,18 @@ class ScarCodecE8:
         if not np.all(np.isfinite(arr)):
             raise ValueError("Input field contains NaN or Inf; mask or replace non-finite values before encoding")
         n_rows, n_cols = arr.shape
+        if n_rows <= 0 or n_cols <= 0:
+            raise ValueError(f"ScarCodecE8 expects non-empty 2D array [N >= 1, K >= 1], got {arr.shape}")
         amax = float(np.max(np.abs(arr))) if arr.size > 0 else 0.0
-        g_scale = compute_lossless_pow2_scale(amax)
+        g_scale = compute_lossless_pow2_scale(amax, self.abs_tolerance)
         inv_g_scale = 1.0 / g_scale
 
         pad_cols = ((n_cols + 63) // 64) * 64
         x = np.zeros((n_rows, pad_cols), dtype=np.float32)
         x[:, :n_cols] = (arr * np.float32(inv_g_scale)) if g_scale != 1.0 else arr
 
-        orig_zero_row = np.amax(np.abs(x), axis=1) <= (0.0 if g_scale != 1.0 else 1e-12)
+        zero_row_eps = 0.0 if (g_scale != 1.0 or self.abs_tolerance is not None) else 1e-12
+        orig_zero_row = np.amax(np.abs(x), axis=1) <= zero_row_eps
         x_base = x.copy()
         pre_spike_idx = np.zeros((0,), dtype=np.int64)
         if self.max_point_spikes > 0:
@@ -198,7 +205,8 @@ class ScarCodecE8:
         n_blk = pad_cols // 64
         blocks = x_rot.reshape(n_rows * n_blk, 64)
         blk_rms = np.sqrt(np.mean(blocks * blocks, axis=1, keepdims=True))
-        zero_blk = np.amax(np.abs(blocks), axis=1, keepdims=True) <= 1e-12
+        zero_blk_eps = 0.0 if self.abs_tolerance is not None else 1e-12
+        zero_blk = np.amax(np.abs(blocks), axis=1, keepdims=True) <= zero_blk_eps
         scales_f16 = np.where(zero_blk, 0.0, np.maximum(blk_rms, 1e-7)).astype(np.float16)
         z_8d = np.where(zero_blk, 0.0, blocks / np.maximum(scales_f16.astype(np.float32), 1e-7)).reshape(-1, 8)
 
@@ -228,23 +236,52 @@ class ScarCodecE8:
         else:
             x_approx = x_e8
 
-        rem = x - x_approx
-        rem[:, n_cols:] = 0.0
-        rem[orig_zero_row] = 0.0
-        flat_err = rem.reshape(-1)
-
         if self.abs_tolerance is not None:
+            empty_i32 = np.zeros((0,), dtype=np.int32)
+            empty_f16 = np.zeros((0,), dtype=np.float16)
+            base_pkg = ScarE8Package(
+                orig_rows=n_rows,
+                orig_cols=n_cols,
+                padded_cols=pad_cols,
+                rank=eff_rank,
+                e8_codes_u8=np.ascontiguousarray(e8_codes.reshape(n_rows, pad_cols // 8)),
+                scales_f16=np.ascontiguousarray(scales_f16.reshape(n_rows, n_blk)),
+                d_eq_f16=np.ascontiguousarray(d_eq_f16),
+                a_scar_u8=np.ascontiguousarray(a_u8),
+                a_scales_f16=np.ascontiguousarray(a_sc),
+                b_scar_u8=np.ascontiguousarray(b_u8),
+                b_row_scales_f16=np.ascontiguousarray(b_sc),
+                spike_flat_idx_i32=empty_i32,
+                spike_residual_f16=empty_f16,
+                abs_tolerance=None,
+                global_scale=1.0,
+            )
+            cur_rec_2d = np.zeros((n_rows, pad_cols), dtype=np.float32)
+            cur_rec_2d[:, :n_cols] = self.decode_full(base_pkg)
+            cur_rec = cur_rec_2d.reshape(-1)
+            flat_x = x.reshape(-1)
+            valid_2d = np.ones((n_rows, pad_cols), dtype=bool)
+            if pad_cols > n_cols:
+                valid_2d[:, n_cols:] = False
+            valid_2d[orig_zero_row, :] = False
+            valid_flat = valid_2d.reshape(-1)
+
             tol = float(self.abs_tolerance) * inv_g_scale
-            cur_r = flat_err.copy()
             ip, vp = [], []
             for _ in range(6):
+                cur_r = np.where(valid_flat, flat_x - cur_rec, 0.0)
                 vi = np.flatnonzero(np.abs(cur_r) > tol)
                 if vi.size == 0:
                     break
                 vf = np.clip(cur_r[vi], -65504.0, 65504.0).astype(np.float16)
+                nz = vf != 0
+                if not np.any(nz):
+                    break
+                vi = vi[nz]
+                vf = vf[nz]
                 ip.append(vi)
                 vp.append(vf)
-                cur_r[vi] -= vf.astype(np.float32)
+                cur_rec[vi] = (cur_rec[vi] + vf.astype(np.float32)).astype(np.float32)
             if ip:
                 ai = np.concatenate(ip)
                 av = np.concatenate(vp)
@@ -252,9 +289,13 @@ class ScarCodecE8:
                 s_idx = np.ascontiguousarray(ai[ord_i].astype(np.int32))
                 s_val = np.ascontiguousarray(av[ord_i])
             else:
-                s_idx = np.zeros((0,), dtype=np.int32)
-                s_val = np.zeros((0,), dtype=np.float16)
+                s_idx = empty_i32
+                s_val = empty_f16
         else:
+            rem = x - x_approx
+            rem[:, n_cols:] = 0.0
+            rem[orig_zero_row] = 0.0
+            flat_err = rem.reshape(-1)
             err_std = max(1e-8, float(np.sqrt(np.mean(x_base[~orig_zero_row] ** 2)))) if np.any(~orig_zero_row) else 1.0
             cm = np.abs(flat_err) > (self.spike_sigma_threshold * 0.25 * err_std)
             if pre_spike_idx.size > 0:
@@ -395,6 +436,12 @@ class ScarCodecND:
         max_3d_spikes: int = 2048,
         abs_tolerance: Optional[float] = None,
     ) -> None:
+        if spectral_rank < 1:
+            raise ValueError(f"spectral_rank must be >= 1, got {spectral_rank}")
+        if spatial_scar_rank < 0 or (spatial_scar_rank > 0 and spatial_scar_rank % 8 != 0):
+            raise ValueError(f"spatial_scar_rank must be 0 or a multiple of 8, got {spatial_scar_rank}")
+        if abs_tolerance is not None and (not math.isfinite(abs_tolerance) or abs_tolerance <= 0.0):
+            raise ValueError(f"abs_tolerance must be finite and > 0, got {abs_tolerance}")
         self.spectral_rank = spectral_rank
         self.spatial_scar_rank = spatial_scar_rank
         self.max_3d_spikes = max_3d_spikes
@@ -404,11 +451,13 @@ class ScarCodecND:
         arr = np.asarray(tensor_nd, dtype=np.float32)
         if arr.ndim < 3:
             raise ValueError(f"ScarCodecND expects >= 3D tensor (e.g. [V, Y, X]), got {arr.shape}")
+        if any(d <= 0 for d in arr.shape):
+            raise ValueError(f"ScarCodecND expects non-empty dimensions, got {arr.shape}")
         if not np.all(np.isfinite(arr)):
             raise ValueError("Input tensor contains NaN or Inf; mask or replace non-finite values before encoding")
         orig_shape = tuple(int(d) for d in arr.shape)
         amax = float(np.max(np.abs(arr))) if arr.size > 0 else 0.0
-        g_scale = compute_lossless_pow2_scale(amax)
+        g_scale = compute_lossless_pow2_scale(amax, self.abs_tolerance)
         inv_g_scale = 1.0 / g_scale
 
         d0 = orig_shape[0]
@@ -552,6 +601,8 @@ class ScarCodecND:
         """True `O(1)` 64-voxel spatial-strip read at spectral channel `v_chan` (`0` neighbor spatial blocks read!)."""
         n_spatial = int(np.prod(pkg.orig_shape[1:], dtype=np.int64))
         start_sp = spatial_block_idx * 64
+        if not (0 <= v_chan < pkg.orig_shape[0] and 0 <= start_sp < n_spatial):
+            raise IndexError(f"Voxel strip (v_chan={v_chan}, spatial_block_idx={spatial_block_idx}) out of bounds for {pkg.orig_shape}")
         valid_len = min(64, max(0, n_spatial - start_sp))
 
         blocks_per_eigen_row = pkg.eigen_cols // 64

@@ -6,6 +6,7 @@ deterministic `abs_tolerance` L_inf bound) to drop seamlessly into `Zarr`, `xarr
 
 from __future__ import annotations
 
+import math
 import struct
 from typing import Any, Optional
 
@@ -46,6 +47,10 @@ class ScarZarrCodec(_BaseCodec):
     ) -> None:
         if mode not in ("vq4", "e8"):
             raise ValueError(f"mode must be 'vq4' or 'e8', got {mode!r}")
+        if rank < 0 or (mode == "vq4" and rank > 0 and rank % 8 != 0) or (mode == "e8" and rank > 0 and rank % 2 != 0):
+            raise ValueError(f"Invalid rank={rank} for mode={mode!r}")
+        if abs_tolerance is not None and (not math.isfinite(abs_tolerance) or abs_tolerance <= 0.0):
+            raise ValueError(f"abs_tolerance must be finite and > 0, got {abs_tolerance}")
         self.rank = int(rank)
         self.max_point_spikes = int(max_point_spikes)
         self.abs_tolerance = float(abs_tolerance) if abs_tolerance is not None else None
@@ -53,6 +58,8 @@ class ScarZarrCodec(_BaseCodec):
 
     def encode(self, buf: Any) -> bytes:
         arr = np.asarray(buf)
+        if arr.size == 0:
+            raise ValueError("ScarZarrCodec cannot encode an empty 0-element buffer")
         orig_dtype = arr.dtype.str
         if len(orig_dtype.encode("ascii")) > 8:
             orig_dtype = "<f4"
@@ -92,7 +99,14 @@ class ScarZarrCodec(_BaseCodec):
         return meta + scar_blob
 
     def decode(self, buf: Any, out: Optional[np.ndarray] = None) -> np.ndarray:
-        mv = memoryview(buf)
+        if isinstance(buf, (bytes, bytearray, memoryview)):
+            mv = memoryview(buf)
+            if not mv.c_contiguous:
+                mv = memoryview(bytes(mv))
+        else:
+            mv = memoryview(np.ascontiguousarray(buf).view(np.uint8))
+        if len(mv) < 16:
+            raise ValueError(f"Truncated ScarZarrCodec chunk: {len(mv)} < 16 bytes")
         magic, dt_bytes, ndim = struct.unpack_from("<4s8sI", mv, 0)
         if magic != ZARR_WRAP_MAGIC:
             raise ValueError(f"Invalid ScarZarrCodec chunk header: {magic!r}")
@@ -106,10 +120,17 @@ class ScarZarrCodec(_BaseCodec):
         else:
             rec_2d = NumPyVQ4ScarCodec.decode_full(pkg, use_c_accel=True)
         total_n = int(np.prod(orig_shape, dtype=np.int64))
-        rec = rec_2d.reshape(-1)[:total_n].reshape(orig_shape).astype(orig_dtype, copy=False)
+        rec = np.ascontiguousarray(rec_2d.reshape(-1)[:total_n].reshape(orig_shape).astype(orig_dtype, copy=False))
 
         if out is not None:
-            np.copyto(out.reshape(orig_shape) if out.size == total_n else out, rec)
+            out_arr = np.asarray(out)
+            if out_arr.dtype == orig_dtype and out_arr.size == total_n:
+                np.copyto(out_arr.reshape(orig_shape), rec)
+            elif out_arr.nbytes == rec.nbytes:
+                # Official `numcodecs` flat `uint8` / byte-buffer `out` protocol (`ndarray_copy`)
+                np.copyto(out_arr.reshape(-1).view(np.uint8), rec.reshape(-1).view(np.uint8))
+            else:
+                raise ValueError(f"Incompatible `out` buffer: {out_arr.shape}/{out_arr.dtype} vs {rec.shape}/{rec.dtype}")
             return out
         return rec
 

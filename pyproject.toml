@@ -60,6 +60,13 @@ dev = [
 webgpu = [
     "wgpu>=0.18.0",
 ]
+physics-bench = [
+    "blosc2>=4.15.0 ; python_full_version >= '3.11'",
+    "imagecodecs>=2026.3.6 ; python_full_version >= '3.11'",
+    "pywavelets>=1.9.0 ; python_full_version >= '3.11'",
+    "zfpy==1.0.1 ; python_full_version >= '3.11'",
+    "zstandard>=0.25.0 ; python_full_version >= '3.11'",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -137,67 +137,89 @@ def deserialize_scar_buffer(
     verify_crc: bool = True,
 ) -> Union[NumPyVQ4ScarPackage, ScarE8Package]:
     """Zero-copy view deserialization of a `.scar` buffer or `mmap` object."""
-    mv = memoryview(buf)
-    if len(mv) < 64:
-        raise ValueError(f"Invalid .scar buffer: length {len(mv)} < 64-byte header")
+    with memoryview(buf) as mv:
+        buf_len = len(mv)
+        if buf_len < 64:
+            raise ValueError(f"Invalid .scar buffer: length {buf_len} < 64-byte header")
 
-    (
-        magic,
-        ver,
-        flags,
-        orig_rows,
-        orig_cols,
-        padded_cols,
-        rank,
-        num_spikes,
-        ndim,
-        tol_val,
-        expected_crc,
-        g_scale_raw,
-        r0,
-        r1,
-        r2,
-    ) = HEADER_STRUCT.unpack_from(mv, 0)
+        (
+            magic,
+            ver,
+            flags,
+            orig_rows,
+            orig_cols,
+            padded_cols,
+            rank,
+            num_spikes,
+            ndim,
+            tol_val,
+            expected_crc,
+            g_scale_raw,
+            r0,
+            r1,
+            r2,
+        ) = HEADER_STRUCT.unpack_from(mv, 0)
 
-    if magic != SCAR_MAGIC or ver != 6:
-        raise ValueError(f"Unsupported .scar magic/version: {magic!r} v{ver}")
-    if padded_cols <= 0 or (padded_cols % 64) != 0 or orig_rows < 0 or orig_cols < 0 or orig_cols > padded_cols:
-        raise ValueError(f"Corrupted .scar dimensions: rows={orig_rows}, cols={orig_cols}, padded={padded_cols}")
+        if magic != SCAR_MAGIC or ver != 6:
+            raise ValueError(f"Unsupported .scar magic/version: {magic!r} v{ver}")
+        if padded_cols <= 0 or (padded_cols % 64) != 0 or orig_rows <= 0 or orig_cols <= 0 or orig_cols > padded_cols:
+            raise ValueError(f"Corrupted .scar dimensions: rows={orig_rows}, cols={orig_cols}, padded={padded_cols}")
 
-    if verify_crc:
-        hdr_zero = HEADER_STRUCT.pack(
-            magic, ver, flags, orig_rows, orig_cols, padded_cols, rank, num_spikes, ndim, tol_val, 0, g_scale_raw, r0, r1, r2
-        )
-        actual_crc = zlib.crc32(mv[64:], zlib.crc32(hdr_zero)) & 0xFFFFFFFF
-        if actual_crc != expected_crc:
-            raise ValueError(f".scar CRC32 mismatch: expected 0x{expected_crc:08x}, got 0x{actual_crc:08x}")
+        if verify_crc:
+            hdr_zero = HEADER_STRUCT.pack(
+                magic, ver, flags, orig_rows, orig_cols, padded_cols, rank, num_spikes, ndim, tol_val, 0, g_scale_raw, r0, r1, r2
+            )
+            with mv[64:] as mv_body:
+                actual_crc = zlib.crc32(mv_body, zlib.crc32(hdr_zero)) & 0xFFFFFFFF
+            if actual_crc != expected_crc:
+                raise ValueError(f".scar CRC32 mismatch: expected 0x{expected_crc:08x}, got 0x{actual_crc:08x}")
 
     g_scale = float(g_scale_raw) if g_scale_raw != 0.0 else 1.0
     tol = float(tol_val) if (flags & FLAG_HAS_TOLERANCE) and tol_val > 0.0 else None
-    cur = 64
 
-    def _take(shape, dtype_str: str) -> np.ndarray:
-        nonlocal cur
-        dt = np.dtype(dtype_str)
-        count = int(np.prod(shape, dtype=np.int64))
-        nbytes = count * dt.itemsize
-        if cur + nbytes > len(mv):
-            raise ValueError(f"Truncated .scar payload at offset {cur} (+{nbytes} > {len(mv)})")
-        arr = np.frombuffer(mv, dtype=dt, count=count, offset=cur).reshape(shape)
-        cur = _align64(cur + nbytes)
-        return arr
+    def _take_all(specs: list[tuple[tuple[int, ...], str]]) -> list[np.ndarray]:
+        cur = 64
+        plan: list[tuple[int, int, tuple[int, ...], np.dtype]] = []
+        for shape, dtype_str in specs:
+            if any(int(s) < 0 for s in shape):
+                raise ValueError(f"Negative dimension in .scar header: {shape}")
+            dt = np.dtype(dtype_str)
+            count = int(np.prod(shape, dtype=np.int64))
+            nbytes = count * dt.itemsize
+            if cur + nbytes > buf_len:
+                raise ValueError(f"Truncated .scar payload at offset {cur} (+{nbytes} > {buf_len})")
+            plan.append((cur, count, shape, dt))
+            cur = _align64(cur + nbytes)
+        return [
+            np.frombuffer(buf, dtype=dt, count=count, offset=off).reshape(shape)
+            for (off, count, shape, dt) in plan
+        ]
 
     n_blk = padded_cols // 64
     if flags & FLAG_E8_MODE:
-        d_eq_f16 = _take((padded_cols,), "<f2")
-        e8_codes_u8 = _take((orig_rows, padded_cols // 8), "<u1")
-        scales_f16 = _take((orig_rows, n_blk), "<f2")
-        a_scar_u8 = _take((rank, padded_cols // 2), "<u1")
-        a_scales_f16 = _take((rank, n_blk), "<f2")
-        b_scar_u8 = _take((orig_rows, rank // 2), "<u1")
-        b_row_scales_f16 = _take((orig_rows,), "<f2")
-        spike_idx_i32 = _take((num_spikes,), "<i4")
-        spike_val_f16 = _take((num_spikes,), "<f2")
+        (
+            d_eq_f16,
+            e8_codes_u8,
+            scales_f16,
+            a_scar_u8,
+            a_scales_f16,
+            b_scar_u8,
+            b_row_scales_f16,
+            spike_idx_i32,
+            spike_val_f16,
+        ) = _take_all(
+            [
+                ((padded_cols,), "<f2"),
+                ((orig_rows, padded_cols // 8), "<u1"),
+                ((orig_rows, n_blk), "<f2"),
+                ((rank, padded_cols // 2), "<u1"),
+                ((rank, n_blk), "<f2"),
+                ((orig_rows, rank // 2), "<u1"),
+                ((orig_rows,), "<f2"),
+                ((num_spikes,), "<i4"),
+                ((num_spikes,), "<f2"),
+            ]
+        )
         return ScarE8Package(
             orig_rows=orig_rows,
             orig_cols=orig_cols,
@@ -216,16 +238,31 @@ def deserialize_scar_buffer(
             global_scale=g_scale,
         )
 
-    lut256_f16 = _take((256, 4), "<f2")
-    d_eq_f16 = _take((padded_cols,), "<f2")
-    codes_u32 = _take((orig_rows, padded_cols // 16), "<u4")
-    scales_f16 = _take((orig_rows, n_blk), "<f2")
-    a_scar_u8 = _take((rank, padded_cols // 2), "<u1")
-    a_scales_f16 = _take((rank, n_blk), "<f2")
-    b_scar_u8 = _take((orig_rows, rank // 2), "<u1")
-    b_row_scales_f16 = _take((orig_rows,), "<f2")
-    spike_idx_i32 = _take((num_spikes,), "<i4")
-    spike_val_f16 = _take((num_spikes,), "<f2")
+    (
+        lut256_f16,
+        d_eq_f16,
+        codes_u32,
+        scales_f16,
+        a_scar_u8,
+        a_scales_f16,
+        b_scar_u8,
+        b_row_scales_f16,
+        spike_idx_i32,
+        spike_val_f16,
+    ) = _take_all(
+        [
+            ((256, 4), "<f2"),
+            ((padded_cols,), "<f2"),
+            ((orig_rows, padded_cols // 16), "<u4"),
+            ((orig_rows, n_blk), "<f2"),
+            ((rank, padded_cols // 2), "<u1"),
+            ((rank, n_blk), "<f2"),
+            ((orig_rows, rank // 2), "<u1"),
+            ((orig_rows,), "<f2"),
+            ((num_spikes,), "<i4"),
+            ((num_spikes,), "<f2"),
+        ]
+    )
 
     return NumPyVQ4ScarPackage(
         orig_rows=orig_rows,
@@ -265,9 +302,19 @@ class ScarMmapFile:
 
     def __init__(self, path: Union[str, Path], verify_crc: bool = False) -> None:
         self.path = Path(path)
-        self._fh: Optional[BinaryIO] = self.path.open("rb")
-        self._mm: Optional[mmap.mmap] = mmap.mmap(self._fh.fileno(), 0, access=mmap.ACCESS_READ)
-        self.pkg = deserialize_scar_buffer(self._mm, verify_crc=verify_crc)
+        self._fh: Optional[BinaryIO] = None
+        self._mm: Optional[mmap.mmap] = None
+        self.pkg: Optional[Union[NumPyVQ4ScarPackage, ScarE8Package]] = None
+        try:
+            fsize = self.path.stat().st_size
+            if fsize < 64:
+                raise ValueError(f"Invalid .scar file {self.path}: size {fsize} < 64-byte header")
+            self._fh = self.path.open("rb")
+            self._mm = mmap.mmap(self._fh.fileno(), 0, access=mmap.ACCESS_READ)
+            self.pkg = deserialize_scar_buffer(self._mm, verify_crc=verify_crc)
+        except Exception:
+            self.close()
+            raise
 
     @property
     def shape(self) -> tuple[int, int]:
@@ -358,32 +405,42 @@ class ScarFieldMmapContainer:
 
     def __init__(self, path: Union[str, Path], verify_crc: bool = True) -> None:
         self.path = Path(path)
-        self._fh: Optional[BinaryIO] = self.path.open("rb")
-        self._mm: Optional[mmap.mmap] = mmap.mmap(self._fh.fileno(), 0, access=mmap.ACCESS_READ)
+        self._fh: Optional[BinaryIO] = None
+        self._mm: Optional[mmap.mmap] = None
         self._bound_holders: list[Any] = []
-        mv = memoryview(self._mm)
-        magic, ver, m_len, m_pad_len, t_len, expected_crc, _, _ = _SF_HDR.unpack_from(mv, 0)
-        if magic != SCARFIELD_MAGIC or ver != 7:
-            mv.release()
-            raise ValueError(f"Invalid ScarField container magic/version: {magic!r} v{ver}")
-        if verify_crc:
-            actual_crc = zlib.crc32(mv[64 : 64 + m_pad_len + t_len]) & 0xFFFFFFFF
-            if actual_crc != expected_crc:
-                mv.release()
-                raise ValueError(f"ScarField container CRC32 mismatch: 0x{expected_crc:08x} != 0x{actual_crc:08x}")
-
-        manifest = json.loads(bytes(mv[64 : 64 + m_len]).decode("utf-8"))
-        mv.release()
-        self.config: Dict[str, Any] = manifest["config"]
         self.arrays: Dict[str, np.ndarray] = {}
-        base_off = 64 + m_pad_len
-        for item in manifest["tensors"]:
-            dt = np.dtype(item["dtype"])
-            shp = tuple(item["shape"])
-            cnt = int(np.prod(shp, dtype=np.int64))
-            self.arrays[item["name"]] = np.frombuffer(
-                self._mm, dtype=dt, count=cnt, offset=base_off + int(item["offset"])
-            ).reshape(shp)
+        try:
+            fsize = self.path.stat().st_size
+            if fsize < 64:
+                raise ValueError(f"Invalid ScarField container {self.path}: size {fsize} < 64-byte header")
+            self._fh = self.path.open("rb")
+            self._mm = mmap.mmap(self._fh.fileno(), 0, access=mmap.ACCESS_READ)
+            mv = memoryview(self._mm)
+            try:
+                magic, ver, m_len, m_pad_len, t_len, expected_crc, _, _ = _SF_HDR.unpack_from(mv, 0)
+                if magic != SCARFIELD_MAGIC or ver != 7:
+                    raise ValueError(f"Invalid ScarField container magic/version: {magic!r} v{ver}")
+                if 64 + m_pad_len + t_len > len(mv):
+                    raise ValueError(f"Truncated ScarField container: expected {64 + m_pad_len + t_len} B, got {len(mv)} B")
+                if verify_crc:
+                    actual_crc = zlib.crc32(mv[64 : 64 + m_pad_len + t_len]) & 0xFFFFFFFF
+                    if actual_crc != expected_crc:
+                        raise ValueError(f"ScarField container CRC32 mismatch: 0x{expected_crc:08x} != 0x{actual_crc:08x}")
+                manifest = json.loads(bytes(mv[64 : 64 + m_len]).decode("utf-8"))
+            finally:
+                mv.release()
+            self.config: Dict[str, Any] = manifest["config"]
+            base_off = 64 + m_pad_len
+            for item in manifest["tensors"]:
+                dt = np.dtype(item["dtype"])
+                shp = tuple(item["shape"])
+                cnt = int(np.prod(shp, dtype=np.int64))
+                self.arrays[item["name"]] = np.frombuffer(
+                    self._mm, dtype=dt, count=cnt, offset=base_off + int(item["offset"])
+                ).reshape(shp)
+        except Exception:
+            self.close()
+            raise
 
     def register_holder(self, holder: Any) -> None:
         self._bound_holders.append(holder)

@@ -114,10 +114,14 @@ def _seed_d4_zero_lattice(z_sub: torch.Tensor) -> torch.Tensor:
 
     c_fixed = torch.tensor(pts, dtype=torch.float32, device=dev)
     rem = 256 - c_fixed.shape[0]
-    stride = max(1, z_sub.shape[0] // rem)
-    c_data = z_sub[::stride][:rem].clone()
-    if c_data.shape[0] < rem:
-        c_data = torch.cat([c_data, z_sub[: rem - c_data.shape[0]].clone()], dim=0)
+    if z_sub.shape[0] == 0:
+        c_data = torch.zeros((rem, 4), dtype=torch.float32, device=dev)
+    elif z_sub.shape[0] >= rem:
+        stride = max(1, z_sub.shape[0] // rem)
+        c_data = z_sub[::stride][:rem].clone()
+    else:
+        idx_fill = torch.arange(rem, dtype=torch.long, device=dev) % z_sub.shape[0]
+        c_data = z_sub[idx_fill].clone()
     return torch.cat([c_fixed, c_data], dim=0)
 
 
@@ -250,8 +254,8 @@ class PhysicalVQ4ScarCodec:
     ) -> None:
         if rank < 0 or (rank > 0 and rank % 8 != 0):
             raise ValueError(f"rank must be 0 or a multiple of 8, got {rank}")
-        if abs_tolerance is not None and abs_tolerance <= 0.0:
-            raise ValueError(f"abs_tolerance must be > 0 when provided, got {abs_tolerance}")
+        if abs_tolerance is not None and (not math.isfinite(abs_tolerance) or abs_tolerance <= 0.0):
+            raise ValueError(f"abs_tolerance must be finite and > 0 when provided, got {abs_tolerance}")
         self.rank = rank
         self.equilibration_beta = equilibration_beta
         self.kmeans_iters = kmeans_iters
@@ -269,8 +273,15 @@ class PhysicalVQ4ScarCodec:
         if not bool(torch.isfinite(x_orig).all().item()):
             raise ValueError("Input field contains NaN or Inf; mask or replace non-finite values before encoding")
         n_rows, n_cols = x_orig.shape
+        if n_rows <= 0 or n_cols <= 0:
+            raise ValueError(f"Expected non-empty 2D tensor [N >= 1, K >= 1], got {tuple(field_2d.shape)}")
         amax = float(x_orig.abs().amax().item()) if x_orig.numel() > 0 else 0.0
-        if amax <= 0.0 or (1.0e-2 <= amax <= 4096.0):
+        if amax <= 0.0:
+            g_scale = 1.0
+        elif self.abs_tolerance is not None and float(self.abs_tolerance) < 1.0e-6 * amax:
+            _, exp_p2 = math.frexp(amax / 2048.0)
+            g_scale = float(math.ldexp(1.0, exp_p2 - 1))
+        elif 1.0e-2 <= amax <= 4096.0:
             g_scale = 1.0
         else:
             _, exp_p2 = math.frexp(amax / 256.0)
@@ -285,7 +296,8 @@ class PhysicalVQ4ScarCodec:
             x = (x_orig * inv_g_scale) if g_scale != 1.0 else x_orig.clone()
 
         # Exact vacuum row mask (`0` extra storage bytes: zero rows get `scales_f16=0` and `b_row_scales_f16=0`)
-        orig_zero_row = x.abs().amax(dim=1) <= (0.0 if g_scale != 1.0 else 1e-12)
+        zero_row_eps = 0.0 if (g_scale != 1.0 or self.abs_tolerance is not None) else 1e-12
+        orig_zero_row = x.abs().amax(dim=1) <= zero_row_eps
 
         # Step 0: Pre-FWHT robust point-shock peeling so extreme HDR / cosmic-ray glints do not blow up 64-block scales
         x_base = x.clone()
@@ -342,7 +354,8 @@ class PhysicalVQ4ScarCodec:
         blocks = x_rot.reshape(n_rows * n_blocks_per_row, 64)
         blk_rms = blocks.square().mean(dim=1, keepdim=True).sqrt()
         # Preserve exact zero vacuum blocks (`blk_rms == 0 -> scale = 0, code = 0 -> exact 0.0`)!
-        zero_blk_mask = (blocks.abs().amax(dim=1, keepdim=True) <= 1e-12)
+        zero_blk_eps = 0.0 if self.abs_tolerance is not None else 1e-12
+        zero_blk_mask = (blocks.abs().amax(dim=1, keepdim=True) <= zero_blk_eps)
         scales_f16 = torch.where(zero_blk_mask, torch.zeros_like(blk_rms), blk_rms.clamp(min=1e-7)).to(torch.float16)
         sc_safe = scales_f16.float().clamp(min=1e-7)
         z_4d = torch.where(zero_blk_mask, torch.zeros_like(blocks), blocks / sc_safe).reshape(-1, 4)

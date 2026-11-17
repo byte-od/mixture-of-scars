@@ -141,9 +141,14 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
     return _C_LIB
 
 
-def compute_lossless_pow2_scale(amax: float) -> float:
+def compute_lossless_pow2_scale(amax: float, abs_tolerance: Optional[float] = None) -> float:
     """Lossless IEEE-754 power-of-two scale (`1.0` for nominal `[1e-2, 4096.0]`) preventing FP16 overflow/underflow."""
-    if amax <= 0.0 or (1.0e-2 <= amax <= 4096.0):
+    if amax <= 0.0:
+        return 1.0
+    if abs_tolerance is not None and float(abs_tolerance) < 1.0e-6 * amax:
+        _, exp = math.frexp(amax / 2048.0)
+        return float(math.ldexp(1.0, exp - 1))
+    if 1.0e-2 <= amax <= 4096.0:
         return 1.0
     _, exp = math.frexp(amax / 256.0)
     return float(math.ldexp(1.0, exp - 1))
@@ -242,10 +247,14 @@ def _seed_d4_zero_lattice_np(z_sub: np.ndarray) -> np.ndarray:
 
     c_fixed = np.asarray(pts, dtype=np.float32)
     rem = 256 - c_fixed.shape[0]
-    stride = max(1, z_sub.shape[0] // rem)
-    c_data = z_sub[::stride][:rem].copy()
-    if c_data.shape[0] < rem:
-        c_data = np.concatenate([c_data, z_sub[: rem - c_data.shape[0]].copy()], axis=0)
+    if z_sub.shape[0] == 0:
+        c_data = np.zeros((rem, 4), dtype=np.float32)
+    elif z_sub.shape[0] >= rem:
+        stride = max(1, z_sub.shape[0] // rem)
+        c_data = z_sub[::stride][:rem].copy()
+    else:
+        idx_fill = np.arange(rem, dtype=np.int64) % z_sub.shape[0]
+        c_data = z_sub[idx_fill].copy()
     return np.concatenate([c_fixed, c_data], axis=0)
 
 
@@ -410,8 +419,8 @@ class NumPyVQ4ScarCodec:
     ) -> None:
         if rank < 0 or (rank > 0 and rank % 8 != 0):
             raise ValueError(f"rank must be 0 or a multiple of 8, got {rank}")
-        if abs_tolerance is not None and abs_tolerance <= 0.0:
-            raise ValueError(f"abs_tolerance must be > 0, got {abs_tolerance}")
+        if abs_tolerance is not None and (not math.isfinite(abs_tolerance) or abs_tolerance <= 0.0):
+            raise ValueError(f"abs_tolerance must be finite and > 0, got {abs_tolerance}")
         self.rank = rank
         self.equilibration_beta = equilibration_beta
         self.kmeans_iters = kmeans_iters
@@ -426,8 +435,10 @@ class NumPyVQ4ScarCodec:
         if not np.all(np.isfinite(arr)):
             raise ValueError("Input field contains NaN or Inf; mask or replace non-finite values before encoding")
         n_rows, n_cols = arr.shape
+        if n_rows <= 0 or n_cols <= 0:
+            raise ValueError(f"Expected non-empty 2D array [N >= 1, K >= 1], got {arr.shape}")
         amax = float(np.max(np.abs(arr))) if arr.size > 0 else 0.0
-        g_scale = compute_lossless_pow2_scale(amax)
+        g_scale = compute_lossless_pow2_scale(amax, self.abs_tolerance)
         inv_g_scale = 1.0 / g_scale
 
         pad_cols = ((n_cols + 63) // 64) * 64
@@ -437,7 +448,8 @@ class NumPyVQ4ScarCodec:
         else:
             x = (arr * np.float32(inv_g_scale)).astype(np.float32) if g_scale != 1.0 else arr.copy()
 
-        orig_zero_row = np.amax(np.abs(x), axis=1) <= (0.0 if g_scale != 1.0 else 1e-12)
+        zero_row_eps = 0.0 if (g_scale != 1.0 or self.abs_tolerance is not None) else 1e-12
+        orig_zero_row = np.amax(np.abs(x), axis=1) <= zero_row_eps
         x_base = x.copy()
         pre_spike_idx = np.zeros((0,), dtype=np.int64)
 
@@ -491,7 +503,8 @@ class NumPyVQ4ScarCodec:
         n_blocks_per_row = pad_cols // 64
         blocks = x_rot.reshape(n_rows * n_blocks_per_row, 64)
         blk_rms = np.sqrt(np.mean(blocks * blocks, axis=1, keepdims=True))
-        zero_blk_mask = np.amax(np.abs(blocks), axis=1, keepdims=True) <= 1e-12
+        zero_blk_eps = 0.0 if self.abs_tolerance is not None else 1e-12
+        zero_blk_mask = np.amax(np.abs(blocks), axis=1, keepdims=True) <= zero_blk_eps
         scales_f16 = np.where(zero_blk_mask, 0.0, np.maximum(blk_rms, 1e-7)).astype(np.float16)
         sc_safe = np.maximum(scales_f16.astype(np.float32), 1e-7)
         z_4d = np.where(zero_blk_mask, 0.0, blocks / sc_safe).reshape(-1, 4)
@@ -535,25 +548,57 @@ class NumPyVQ4ScarCodec:
         else:
             x_approx = x_vq
 
-        rem_err = x - x_approx
-        if pad_cols > n_cols:
-            rem_err[:, n_cols:] = 0.0
-        rem_err[orig_zero_row] = 0.0
-        flat_err = rem_err.reshape(-1)
+        c4 = codes_u8.reshape(n_rows, pad_cols // 16, 4).astype(np.uint32)
+        codes_u32 = np.ascontiguousarray(c4[:, :, 0] | (c4[:, :, 1] << 8) | (c4[:, :, 2] << 16) | (c4[:, :, 3] << 24))
 
         if self.abs_tolerance is not None:
+            empty_i32 = np.zeros((0,), dtype=np.int32)
+            empty_f16 = np.zeros((0,), dtype=np.float16)
+            base_pkg = NumPyVQ4ScarPackage(
+                orig_rows=n_rows,
+                orig_cols=n_cols,
+                padded_cols=pad_cols,
+                rank=eff_rank,
+                codes_u32=codes_u32,
+                scales_f16=np.ascontiguousarray(scales_f16.reshape(n_rows, n_blocks_per_row)),
+                lut256_f16=lut256_f16,
+                d_eq_f16=np.ascontiguousarray(d_eq_f16),
+                a_scar_u8=np.ascontiguousarray(a_u8),
+                a_scales_f16=np.ascontiguousarray(a_sc),
+                b_scar_u8=np.ascontiguousarray(b_u8),
+                b_row_scales_f16=np.ascontiguousarray(b_sc),
+                spike_flat_idx_i32=empty_i32,
+                spike_residual_f16=empty_f16,
+                abs_tolerance=None,
+                global_scale=1.0,
+            )
+            cur_rec_2d = np.zeros((n_rows, pad_cols), dtype=np.float32)
+            cur_rec_2d[:, :n_cols] = self.decode_full(base_pkg)
+            cur_rec = cur_rec_2d.reshape(-1)
+            flat_x = x.reshape(-1)
+            valid_2d = np.ones((n_rows, pad_cols), dtype=bool)
+            if pad_cols > n_cols:
+                valid_2d[:, n_cols:] = False
+            valid_2d[orig_zero_row, :] = False
+            valid_flat = valid_2d.reshape(-1)
+
             tol = float(self.abs_tolerance) * inv_g_scale
-            cur_rem = flat_err.copy()
             idx_parts: List[np.ndarray] = []
             val_parts: List[np.ndarray] = []
             for _ in range(6):
+                cur_rem = np.where(valid_flat, flat_x - cur_rec, 0.0)
                 v_idx = np.flatnonzero(np.abs(cur_rem) > tol)
                 if v_idx.size == 0:
                     break
                 v_f16 = np.clip(cur_rem[v_idx], -65504.0, 65504.0).astype(np.float16)
+                nz = v_f16 != 0
+                if not np.any(nz):
+                    break
+                v_idx = v_idx[nz]
+                v_f16 = v_f16[nz]
                 idx_parts.append(v_idx)
                 val_parts.append(v_f16)
-                cur_rem[v_idx] -= v_f16.astype(np.float32)
+                cur_rec[v_idx] = (cur_rec[v_idx] + v_f16.astype(np.float32)).astype(np.float32)
             if idx_parts:
                 all_idx = np.concatenate(idx_parts)
                 all_val = np.concatenate(val_parts)
@@ -561,9 +606,14 @@ class NumPyVQ4ScarCodec:
                 spike_idx_i32 = np.ascontiguousarray(all_idx[order].astype(np.int32))
                 spike_val_f16 = np.ascontiguousarray(all_val[order])
             else:
-                spike_idx_i32 = np.zeros((0,), dtype=np.int32)
-                spike_val_f16 = np.zeros((0,), dtype=np.float16)
+                spike_idx_i32 = empty_i32
+                spike_val_f16 = empty_f16
         else:
+            rem_err = x - x_approx
+            if pad_cols > n_cols:
+                rem_err[:, n_cols:] = 0.0
+            rem_err[orig_zero_row] = 0.0
+            flat_err = rem_err.reshape(-1)
             err_std = (
                 max(1e-8, float(np.sqrt(np.mean(x_base[~orig_zero_row] ** 2))))
                 if np.any(~orig_zero_row)
@@ -585,9 +635,6 @@ class NumPyVQ4ScarCodec:
             else:
                 spike_idx_i32 = np.zeros((0,), dtype=np.int32)
                 spike_val_f16 = np.zeros((0,), dtype=np.float16)
-
-        c4 = codes_u8.reshape(n_rows, pad_cols // 16, 4).astype(np.uint32)
-        codes_u32 = np.ascontiguousarray(c4[:, :, 0] | (c4[:, :, 1] << 8) | (c4[:, :, 2] << 16) | (c4[:, :, 3] << 24))
 
         return NumPyVQ4ScarPackage(
             orig_rows=n_rows,
