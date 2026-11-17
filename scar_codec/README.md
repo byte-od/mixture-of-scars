@@ -115,11 +115,12 @@ pytest tests/test_scar_codec_physical.py tests/test_scar_codec_public_datasets.p
 2. **Canonical `.scar` On-Disk Container (`CRC32` + Zero-Copy OS `mmap`) & Official `Zarr` / `numcodecs` Plugin:**
    - [`binary_format.py`](binary_format.py) defines the 64-byte SIMD-aligned `SCARv6\x00\x00` format with `CRC32` bit-rot verification and `ScarMmapFile` (`read_block_o1` directly off SSD via OS `mmap` without loading the file into RAM).
    - [`zarr_codec.py`](zarr_codec.py) provides `ScarZarrCodec` (`codec_id = "scar"`), drop-in compatible with `Zarr`, `numcodecs`, `xarray`, and `Dask`.
-3. **Provable Deterministic $L_\infty$ Error-Bounded Mode (`abs_tolerance`):**
-   - Passing `abs_tolerance=eps` to `NumPyVQ4ScarCodec`, `PhysicalVQ4ScarCodec`, `ScarCodecND`, or `ScarCodecE8` guarantees $\max |X - \widehat{X}| \le \varepsilon$ via multi-pass Dekker `FP16 + FP16` residual splitting (verified on `3,938.25 MJy/sr` Spitzer stars: `11.99923 <= 12.0 MJy/sr` at `7.35×` compression, and down to `eps = 0.02`).
-4. **Native 3D / $N$-D Spectral-Tucker Cubes (`ScarCodecND`) & `1.000 bpw` Gosset $E_8$ Mode (`ScarCodecE8`):**
-   - [`nd_e8.py`](nd_e8.py): **`ScarCodecE8`** (`240` minimal $E_8$ roots + `0x00` vacuum + `15` Hadamard outer anchors, `0 B` codebook overhead) compresses `NASA Spitzer IRAC` by **`21.00×`** (`100,160 B`) with **`0.9556 MJy/sr` top-32 stellar peak error** (`1,710×` lower than `ZFP` at nearly `2×` higher compression).
+3. **Provable Deterministic $L_\infty$ Error-Bounded Mode (`abs_tolerance`) Across 29 Orders of Magnitude:**
+   - Passing `abs_tolerance=eps` to `NumPyVQ4ScarCodec`, `PhysicalVQ4ScarCodec`, `ScarCodecND`, or `ScarCodecE8` guarantees $\max |X - \widehat{X}| \le \varepsilon$ via lossless IEEE-754 power-of-two `global_scale` ($2^E$) + 6-pass clamped Dekker `FP16 + FP16` residual splitting (forensically verified from **`10⁻²¹` LIGO gravitational-wave strain** to **`1.5×10⁸` Chandra X-ray photon counts** with `0.0` vacuum error and zero `FP16` overflow/underflow in [`../results/scar_codec_forensic_and_synergy_audit.json`](../results/scar_codec_forensic_and_synergy_audit.json)).
+4. **Native 3D / $N$-D Spectral-Tucker Cubes (`ScarCodecND`), `1.000 bpw` Gosset $E_8$ Mode (`ScarCodecE8`) & `ScarField v7.0` Synergy:**
+   - [`nd_e8.py`](nd_e8.py): **`ScarCodecE8`** (`240` minimal $E_8$ roots + `0x00` vacuum + `15` Hadamard outer anchors, `0.0` codebook drift vs `scar_field`) compresses `NASA Spitzer IRAC` by **`21.00×`** (`100,160 B`) with **`0.9556 MJy/sr` top-32 stellar peak error** (`1,710×` lower than `ZFP` at nearly `2×` higher compression).
    - **`ScarCodecND`** encodes 3D radio cubes natively (`[53, 105, 105]` `FCRAO L1448 13CO` at **`12.32×` compression** and **`0.0566 K` top-32 peak error** — `3.36×` lower than 2D unfold and **`2.03×` lower than `CFITSIO FITS fpack`**) with true $\mathcal{O}(1)$ 64-voxel spatial-strip reads (`decode_voxel_strip_o1`).
+   - **Direct `ScarField v7.0` Synergy:** `c_kernels.c` provides `scar_e8_spherical_ternary_gemm_f32` (`0 B` weight-unpack heap) and `binary_format.py` provides the zero-pickle `.sfield.scar` `CRC32` `mmap` container (`1.88 MiB` vs `18.36 MiB` `.pt`), cutting `ScarField v7.0` live `E8` RAM by **`31.68×`** and speeding up full-engine CPU `S1` reflex by **`58.76×`** (`cos = 1.0`).
 
 ```python
 import numpy as np

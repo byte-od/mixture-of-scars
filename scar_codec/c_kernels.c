@@ -1,14 +1,19 @@
 /*
  * scar_codec/c_kernels.c — Zero-Dependency Native C99 + SIMD Acceleration Kernels for ScarCodec v6.0
  *
- * Provides sub-microsecond (< 1 us) O(1) random 64-float block decoding directly from in-memory
- * NumPy arrays OR zero-copy `mmap` `.scar` files on disk, plus vectorized full-field decoding and
- * constant-memory 34,816 B (`Delta = 0 B`) `SurpriseGatedAnomalySCache` ingestion without PyTorch.
+ * Provides:
+ *   1. Sub-microsecond (< 0.5 us) O(1) random 64-float block decoding directly from in-memory
+ *      NumPy arrays OR zero-copy `mmap` `.scar` files on disk (`int64_t` offset-safe for >2GV arrays).
+ *   2. Vectorized full-field decoding and safe zero-padded random block gather.
+ *   3. Gosset E8 (`1.000 bpw` = 1 byte per 8 floats, `lut_e8[0] == 0`) O(1) block decode.
+ *   4. Fused Zero-Materialization `scar_e8_spherical_ternary_gemm_f32` for `ScarField v7.0`
+ *      (`1.000 bpw` E8 substrate + 2-bit `{-1, 0, +1}` ternary atomic scars with 0 B weight-unpack heap!).
  */
 
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 static inline float scar_fp16_to_fp32(uint16_t h) {
     uint32_t sign = ((uint32_t)(h & 0x8000u)) << 16;
@@ -42,46 +47,13 @@ static inline float scar_fp16_to_fp32(uint16_t h) {
     return conv.f;
 }
 
-static inline uint16_t scar_fp32_to_fp16(float f) {
-    union {
-        float f;
-        uint32_t u;
-    } conv;
-    conv.f = f;
-    uint32_t x = conv.u;
-    uint32_t sign = (x >> 16) & 0x8000u;
-    int32_t exp = (int32_t)((x >> 23) & 0xFFu) - 127 + 15;
-    uint32_t mant = x & 0x007FFFFFu;
-
-    if (exp <= 0) {
-        if (exp < -10) {
-            return (uint16_t)sign;
-        }
-        mant = (mant | 0x00800000u) >> (1 - exp);
-        return (uint16_t)(sign | ((mant + 0x00001000u) >> 13));
-    } else if (exp >= 31) {
-        return (uint16_t)(sign | 0x7C00u);
-    }
-    uint32_t round_bit = 0x00001000u;
-    if ((mant & 0x00002000u) == 0u && (mant & 0x00001FFFu) == 0x00001000u) {
-        round_bit = 0u; /* round to nearest even */
-    }
-    x = sign | ((uint32_t)exp << 10) | (mant >> 13);
-    if (mant + round_bit >= 0x00800000u) {
-        x += 1u;
-    } else {
-        x = sign | ((uint32_t)exp << 10) | ((mant + round_bit) >> 13);
-    }
-    return (uint16_t)x;
-}
-
 static inline float scar_rademacher_sign(uint32_t col_idx) {
     uint32_t h = col_idx * 2654435761u;
     h = ((h >> 16) ^ h) * 0x45D9F3Bu;
     return ((h & 1u) == 0u) ? 1.0f : -1.0f;
 }
 
-static inline void scar_fwht64_inverse_inplace(float v[64]) {
+static inline void scar_fwht64_butterfly_inplace(float v[64]) {
     for (int h = 1; h < 64; h <<= 1) {
         for (int i = 0; i < 64; i += (h << 1)) {
             for (int j = i; j < i + h; ++j) {
@@ -119,11 +91,15 @@ void scar_decode_block64_f32(
     int32_t num_spikes,
     const int32_t*  spike_idx_i32,     /* [num_spikes] sorted */
     const uint16_t* spike_val_f16,     /* [num_spikes] */
+    float global_scale,                /* lossless pow2 IEEE-754 scale (1.0f nominal) */
     float* out_f32                     /* [<= 64] output buffer */
 ) {
     int32_t n_blocks_per_row = padded_cols >> 6;
-    int32_t n_u32_per_row    = padded_cols >> 4;
-    int32_t start_col        = block_idx << 6;
+    if (row_idx < 0 || row_idx >= orig_rows || block_idx < 0 || block_idx >= n_blocks_per_row) {
+        return;
+    }
+    int32_t n_u32_per_row = padded_cols >> 4;
+    int32_t start_col     = block_idx << 6;
     float buf[64];
 
     uint16_t sc_h = scales_f16[(size_t)row_idx * (size_t)n_blocks_per_row + (size_t)block_idx];
@@ -155,7 +131,7 @@ void scar_decode_block64_f32(
                 buf[base + 12 + d] = scar_fp16_to_fp32(l3[d]) * scale_val;
             }
         }
-        scar_fwht64_inverse_inplace(buf);
+        scar_fwht64_butterfly_inplace(buf);
         for (int i = 0; i < 64; ++i) {
             uint32_t col = (uint32_t)(start_col + i);
             float deq = scar_fp16_to_fp32(d_eq_f16[col]);
@@ -201,35 +177,42 @@ void scar_decode_block64_f32(
     }
 
     if (num_spikes > 0) {
-        int32_t flat_lo = row_idx * padded_cols + start_col;
-        int32_t flat_hi = flat_lo + 64;
+        int64_t flat_lo = (int64_t)row_idx * (int64_t)padded_cols + (int64_t)start_col;
+        int64_t flat_hi = flat_lo + 64;
 
         /* O(log M_spikes) lower_bound for `flat_lo` */
         int32_t lo = 0, hi = num_spikes;
         while (lo < hi) {
             int32_t mid = lo + ((hi - lo) >> 1);
-            if (spike_idx_i32[mid] < flat_lo) {
+            if ((int64_t)spike_idx_i32[mid] < flat_lo) {
                 lo = mid + 1;
             } else {
                 hi = mid;
             }
         }
-        while (lo < num_spikes && spike_idx_i32[lo] < flat_hi) {
-            int32_t off = spike_idx_i32[lo] - flat_lo;
+        while (lo < num_spikes && (int64_t)spike_idx_i32[lo] < flat_hi) {
+            int32_t off = (int32_t)((int64_t)spike_idx_i32[lo] - flat_lo);
             buf[off] += scar_fp16_to_fp32(spike_val_f16[lo]);
             ++lo;
         }
     }
 
     int32_t valid_len = orig_cols - start_col;
+    if (valid_len < 0) valid_len = 0;
     if (valid_len > 64) valid_len = 64;
-    for (int32_t i = 0; i < valid_len; ++i) {
-        out_f32[i] = buf[i];
+    if (global_scale == 1.0f) {
+        for (int32_t i = 0; i < valid_len; ++i) {
+            out_f32[i] = buf[i];
+        }
+    } else {
+        for (int32_t i = 0; i < valid_len; ++i) {
+            out_f32[i] = buf[i] * global_scale;
+        }
     }
 }
 
 /*
- * Full 2D field reconstruction in C (`lut256` decoded once to FP32 in L1 cache).
+ * Full 2D field reconstruction in C.
  */
 void scar_decode_full_f32(
     int32_t orig_rows,
@@ -247,6 +230,7 @@ void scar_decode_full_f32(
     int32_t num_spikes,
     const int32_t*  spike_idx_i32,
     const uint16_t* spike_val_f16,
+    float global_scale,
     float* out_full_f32                /* [orig_rows, orig_cols] */
 ) {
     int32_t n_blocks_per_row = padded_cols >> 6;
@@ -259,7 +243,7 @@ void scar_decode_full_f32(
                 orig_rows, orig_cols, padded_cols, rank, r, blk,
                 codes_u32, scales_f16, lut256_f16, d_eq_f16,
                 a_scar_u8, a_scales_f16, b_scar_u8, b_row_scales_f16,
-                num_spikes, spike_idx_i32, spike_val_f16,
+                num_spikes, spike_idx_i32, spike_val_f16, global_scale,
                 row_out + start_c
             );
         }
@@ -287,11 +271,15 @@ void scar_e8_decode_block64_f32(
     int32_t num_spikes,
     const int32_t*  spike_idx_i32,
     const uint16_t* spike_val_f16,
+    float global_scale,
     float* out_f32
 ) {
     int32_t n_blocks_per_row = padded_cols >> 6;
-    int32_t n_codes_per_row  = padded_cols >> 3;
-    int32_t start_col        = block_idx << 6;
+    if (row_idx < 0 || row_idx >= orig_rows || block_idx < 0 || block_idx >= n_blocks_per_row) {
+        return;
+    }
+    int32_t n_codes_per_row = padded_cols >> 3;
+    int32_t start_col       = block_idx << 6;
     float buf[64];
 
     float scale_val = scar_fp16_to_fp32(scales_f16[(size_t)row_idx * (size_t)n_blocks_per_row + (size_t)block_idx]);
@@ -299,7 +287,6 @@ void scar_e8_decode_block64_f32(
         for (int i = 0; i < 64; ++i) buf[i] = 0.0f;
     } else {
         const uint8_t* c8 = e8_codes_u8 + (size_t)row_idx * (size_t)n_codes_per_row + (size_t)(block_idx << 3);
-        /* Note: E8 roots have E[u_j^2] = 1.0 (`||u||^2 = 8`), scaled by `scale_val` */
         for (int g = 0; g < 8; ++g) {
             const float* e_vec = lut_e8_f32 + ((size_t)c8[g] << 3);
             int base = g << 3;
@@ -307,7 +294,7 @@ void scar_e8_decode_block64_f32(
                 buf[base + d] = e_vec[d] * scale_val;
             }
         }
-        scar_fwht64_inverse_inplace(buf);
+        scar_fwht64_butterfly_inplace(buf);
         for (int i = 0; i < 64; ++i) {
             uint32_t col = (uint32_t)(start_col + i);
             buf[i] = buf[i] * scar_rademacher_sign(col) * scar_fp16_to_fp32(d_eq_f16[col]);
@@ -349,28 +336,34 @@ void scar_e8_decode_block64_f32(
     }
 
     if (num_spikes > 0) {
-        int32_t flat_lo = row_idx * padded_cols + start_col;
-        int32_t flat_hi = flat_lo + 64;
+        int64_t flat_lo = (int64_t)row_idx * (int64_t)padded_cols + (int64_t)start_col;
+        int64_t flat_hi = flat_lo + 64;
         int32_t lo = 0, hi = num_spikes;
         while (lo < hi) {
             int32_t mid = lo + ((hi - lo) >> 1);
-            if (spike_idx_i32[mid] < flat_lo) lo = mid + 1;
+            if ((int64_t)spike_idx_i32[mid] < flat_lo) lo = mid + 1;
             else hi = mid;
         }
-        while (lo < num_spikes && spike_idx_i32[lo] < flat_hi) {
-            buf[spike_idx_i32[lo] - flat_lo] += scar_fp16_to_fp32(spike_val_f16[lo]);
+        while (lo < num_spikes && (int64_t)spike_idx_i32[lo] < flat_hi) {
+            int32_t off = (int32_t)((int64_t)spike_idx_i32[lo] - flat_lo);
+            buf[off] += scar_fp16_to_fp32(spike_val_f16[lo]);
             ++lo;
         }
     }
 
     int32_t valid_len = orig_cols - start_col;
+    if (valid_len < 0) valid_len = 0;
     if (valid_len > 64) valid_len = 64;
-    for (int32_t i = 0; i < valid_len; ++i) out_f32[i] = buf[i];
+    if (global_scale == 1.0f) {
+        for (int32_t i = 0; i < valid_len; ++i) out_f32[i] = buf[i];
+    } else {
+        for (int32_t i = 0; i < valid_len; ++i) out_f32[i] = buf[i] * global_scale;
+    }
 }
 
 /*
  * Batched O(1) random block gather (`num_queries` arbitrary `(row_idx, block_idx)` pairs)
- * amortizing Python-to-C FFI call overhead to measure pure C99/SIMD random-access speed (`< 0.5 us/block`).
+ * with guaranteed deterministic zero-padding on partial tail blocks (`orig_cols % 64 != 0`).
  */
 void scar_decode_blocks_gather_f32(
     int32_t orig_rows,
@@ -391,17 +384,133 @@ void scar_decode_blocks_gather_f32(
     int32_t num_spikes,
     const int32_t*  spike_idx_i32,
     const uint16_t* spike_val_f16,
+    float global_scale,
     float* out_blocks_f32              /* [num_queries, 64] */
 ) {
+    int32_t n_blocks_per_row = padded_cols >> 6;
     for (int32_t q = 0; q < num_queries; ++q) {
+        float* dst = out_blocks_f32 + ((size_t)q << 6);
+        int32_t r = query_rows[q];
+        int32_t b = query_blocks[q];
+        if (r < 0 || r >= orig_rows || b < 0 || b >= n_blocks_per_row) {
+            for (int i = 0; i < 64; ++i) dst[i] = 0.0f;
+            continue;
+        }
+        int32_t valid_len = orig_cols - (b << 6);
+        if (valid_len < 0) valid_len = 0;
+        if (valid_len < 64) {
+            for (int i = valid_len; i < 64; ++i) dst[i] = 0.0f;
+        }
         scar_decode_block64_f32(
             orig_rows, orig_cols, padded_cols, rank,
-            query_rows[q], query_blocks[q],
+            r, b,
             codes_u32, scales_f16, lut256_f16, d_eq_f16,
             a_scar_u8, a_scales_f16, b_scar_u8, b_row_scales_f16,
-            num_spikes, spike_idx_i32, spike_val_f16,
-            out_blocks_f32 + ((size_t)q << 6)
+            num_spikes, spike_idx_i32, spike_val_f16, global_scale,
+            dst
         );
     }
 }
 
+/*
+ * Fused Zero-Materialization `E8 (1.000 bpw) + 2-bit Ternary Scar` GEMM/GEMV for `ScarField v7.0`.
+ * Executes `y = (FWHT(x * s) @ W_e8^T) * tau_scale + ((x @ A_tern^T) @ B_tern^T) * scar_scale`
+ * directly from 1-bit packed `codes_u8` (`1 byte = 8 weights`) + 2-bit `a_tern_u8`/`b_tern_u8`
+ * (`1 byte = 4 ternary weights`) with ZERO dense `[O, I]` float32 weight allocation!
+ */
+void scar_e8_spherical_ternary_gemm_f32(
+    int32_t batch_m,
+    int32_t in_features,
+    int32_t out_features,
+    int32_t scar_rank,
+    float tau_scale,
+    float scar_scale,
+    const float*   x_f32,              /* [batch_m, in_features] */
+    const uint8_t* codes_u8,           /* [out_features, in_features / 8] */
+    const float*   lut_e8_f32,         /* [256, 8] */
+    const uint8_t* a_tern_u8,          /* [scar_rank, in_features / 4] */
+    const uint8_t* b_tern_u8,          /* [out_features, scar_rank / 4] */
+    float* out_f32                     /* [batch_m, out_features] */
+) {
+    if (batch_m <= 0 || in_features <= 0 || out_features <= 0 || (in_features & 63) != 0) {
+        return;
+    }
+    float x_rot_stack[8192];
+    float z_tern_stack[512];
+    float* x_rot = (in_features <= 8192) ? x_rot_stack : (float*)malloc((size_t)in_features * sizeof(float));
+    float* z_tern = (scar_rank <= 512) ? z_tern_stack : (float*)malloc((size_t)scar_rank * sizeof(float));
+    if (!x_rot || !z_tern) {
+        if (x_rot && x_rot != x_rot_stack) free(x_rot);
+        if (z_tern && z_tern != z_tern_stack) free(z_tern);
+        return;
+    }
+
+    int32_t n_groups8 = in_features >> 3;
+    int32_t n_a_bytes = in_features >> 2;
+    int32_t n_b_bytes = scar_rank >> 2;
+    int has_scar = (scar_rank > 0 && scar_scale != 0.0f && a_tern_u8 != NULL && b_tern_u8 != NULL);
+
+    for (int32_t m = 0; m < batch_m; ++m) {
+        const float* x_row = x_f32 + (size_t)m * (size_t)in_features;
+
+        /* 1. Rademacher pre-sign + orthonormal FWHT-64 in L1 stack registers */
+        for (int32_t blk = 0; blk < in_features; blk += 64) {
+            float* dst64 = x_rot + blk;
+            for (int i = 0; i < 64; ++i) {
+                dst64[i] = x_row[blk + i] * scar_rademacher_sign((uint32_t)(blk + i));
+            }
+            scar_fwht64_butterfly_inplace(dst64);
+        }
+
+        /* 2. Low-rank 2-bit ternary projection `z_tern = x_row @ A_tern^T` (`{-1, 0, +1}`) */
+        if (has_scar) {
+            for (int32_t r = 0; r < scar_rank; ++r) {
+                const uint8_t* a_row = a_tern_u8 + (size_t)r * (size_t)n_a_bytes;
+                float acc_a = 0.0f;
+                for (int32_t k = 0; k < n_a_bytes; ++k) {
+                    uint8_t pk = a_row[k];
+                    int32_t base = k << 2;
+                    acc_a += x_row[base    ] * (float)((int)( pk        & 3u) - 1);
+                    acc_a += x_row[base + 1] * (float)((int)((pk >> 2)  & 3u) - 1);
+                    acc_a += x_row[base + 2] * (float)((int)((pk >> 4)  & 3u) - 1);
+                    acc_a += x_row[base + 3] * (float)((int)((pk >> 6)  & 3u) - 1);
+                }
+                z_tern[r] = acc_a * scar_scale;
+            }
+        }
+
+        /* 3. Fused 1-bit E8 dot product + 2-bit ternary `B_tern` output accumulation */
+        float* y_row = out_f32 + (size_t)m * (size_t)out_features;
+        for (int32_t o = 0; o < out_features; ++o) {
+            const uint8_t* c_row = codes_u8 + (size_t)o * (size_t)n_groups8;
+            float acc_e8 = 0.0f;
+            for (int32_t g = 0; g < n_groups8; ++g) {
+                uint8_t code = c_row[g];
+                if (code != 0u) {
+                    const float* u = lut_e8_f32 + ((size_t)code << 3);
+                    const float* xr = x_rot + (g << 3);
+                    acc_e8 += u[0] * xr[0] + u[1] * xr[1] + u[2] * xr[2] + u[3] * xr[3]
+                            + u[4] * xr[4] + u[5] * xr[5] + u[6] * xr[6] + u[7] * xr[7];
+                }
+            }
+            float y_val = acc_e8 * tau_scale;
+            if (has_scar) {
+                const uint8_t* b_row = b_tern_u8 + (size_t)o * (size_t)n_b_bytes;
+                float acc_b = 0.0f;
+                for (int32_t kb = 0; kb < n_b_bytes; ++kb) {
+                    uint8_t pb = b_row[kb];
+                    int32_t rb = kb << 2;
+                    acc_b += z_tern[rb    ] * (float)((int)( pb        & 3u) - 1);
+                    acc_b += z_tern[rb + 1] * (float)((int)((pb >> 2)  & 3u) - 1);
+                    acc_b += z_tern[rb + 2] * (float)((int)((pb >> 4)  & 3u) - 1);
+                    acc_b += z_tern[rb + 3] * (float)((int)((pb >> 6)  & 3u) - 1);
+                }
+                y_val += acc_b;
+            }
+            y_row[o] = y_val;
+        }
+    }
+
+    if (x_rot != x_rot_stack) free(x_rot);
+    if (z_tern != z_tern_stack) free(z_tern);
+}

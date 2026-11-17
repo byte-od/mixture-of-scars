@@ -29,6 +29,7 @@ from scar_codec.numpy_engine import (
     NumPyVQ4ScarPackage,
     _extract_compressed_int4_asvd_np,
     _ptr_or_null,
+    compute_lossless_pow2_scale,
     dequant_block64_int4_np,
     dequant_rowwise_int4_np,
     fwht_block64_np,
@@ -38,7 +39,15 @@ from scar_codec.numpy_engine import (
 
 
 def build_canonical_e8_lut256_np() -> np.ndarray:
-    """Builds the `[256, 8]` Gosset `E_8 + 0x00 Vacuum + H_8 Shell` codebook (`1.000 bit/sample`)."""
+    """Builds the `[256, 8]` Gosset `E_8 + 0x00 Vacuum + H_8 Shell` codebook (`1.000 bit/sample`).
+
+    Bit-identical (`max |diff| == 0.0`) with `scar_field.e8_lattice.build_canonical_e8_lut256`:
+      - `0`: `(0, 0, 0, 0, 0, 0, 0, 0)` exact physical vacuum (`0x00`)
+      - `1..112`: `D_8` roots `{±2, ±2, 0..}` (`||u||^2 = 8`)
+      - `113..240`: even-parity spinor roots `{±1}^8` (`||u||^2 = 8`)
+      - `241`: `H_8[0]` (`||u||^2 = 18`)
+      - `242..255`: `±H_8[1..7]` (`||u||^2 = 18`)
+    """
     rows: List[List[float]] = [[0.0] * 8]
     # 112 integer D_8 roots `{±2, ±2, 0..}` (`||u||^2 = 8`)
     for i, j in combinations(range(8), 2):
@@ -57,11 +66,11 @@ def build_canonical_e8_lut256_np() -> np.ndarray:
     h = np.array([[1.0]], dtype=np.float32)
     for _ in range(3):
         h = np.vstack((np.hstack((h, h)), np.hstack((h, -h))))
-    h8 = (h / math.sqrt(8.0)) * (3.0 * math.sqrt(2.0))
+    h8 = (h / math.sqrt(8.0)) * math.sqrt(18.0)
+    rows.append(h8[0].tolist())
     for r_i in range(1, 8):
         rows.append(h8[r_i].tolist())
         rows.append((-h8[r_i]).tolist())
-    rows.append(h8[0].tolist())
     return np.ascontiguousarray(np.asarray(rows, dtype=np.float32))
 
 
@@ -86,6 +95,8 @@ class ScarE8Package:
     b_row_scales_f16: np.ndarray    # [N] float16
     spike_flat_idx_i32: np.ndarray  # [M_spikes] int32
     spike_residual_f16: np.ndarray  # [M_spikes] float16
+    abs_tolerance: Optional[float] = None
+    global_scale: float = 1.0
 
     def physical_bytes(self) -> int:
         arrays = (
@@ -124,12 +135,20 @@ class ScarCodecE8:
 
     def encode(self, field_2d: np.ndarray) -> ScarE8Package:
         arr = np.asarray(field_2d, dtype=np.float32)
+        if arr.ndim != 2:
+            raise ValueError(f"ScarCodecE8 expects 2D array [N, K], got {arr.shape}")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError("Input field contains NaN or Inf; mask or replace non-finite values before encoding")
         n_rows, n_cols = arr.shape
+        amax = float(np.max(np.abs(arr))) if arr.size > 0 else 0.0
+        g_scale = compute_lossless_pow2_scale(amax)
+        inv_g_scale = 1.0 / g_scale
+
         pad_cols = ((n_cols + 63) // 64) * 64
         x = np.zeros((n_rows, pad_cols), dtype=np.float32)
-        x[:, :n_cols] = arr
+        x[:, :n_cols] = (arr * np.float32(inv_g_scale)) if g_scale != 1.0 else arr
 
-        orig_zero_row = np.amax(np.abs(x), axis=1) <= 1e-12
+        orig_zero_row = np.amax(np.abs(x), axis=1) <= (0.0 if g_scale != 1.0 else 1e-12)
         x_base = x.copy()
         pre_spike_idx = np.zeros((0,), dtype=np.int64)
         if self.max_point_spikes > 0:
@@ -215,14 +234,14 @@ class ScarCodecE8:
         flat_err = rem.reshape(-1)
 
         if self.abs_tolerance is not None:
-            tol = float(self.abs_tolerance)
+            tol = float(self.abs_tolerance) * inv_g_scale
             cur_r = flat_err.copy()
             ip, vp = [], []
-            for _ in range(3):
+            for _ in range(6):
                 vi = np.flatnonzero(np.abs(cur_r) > tol)
                 if vi.size == 0:
                     break
-                vf = cur_r[vi].astype(np.float16)
+                vf = np.clip(cur_r[vi], -65504.0, 65504.0).astype(np.float16)
                 ip.append(vi)
                 vp.append(vf)
                 cur_r[vi] -= vf.astype(np.float32)
@@ -246,7 +265,7 @@ class ScarCodecE8:
                     ci = ci[np.argpartition(-np.abs(flat_err[ci]), self.max_point_spikes - 1)[: self.max_point_spikes]]
                 ci = np.sort(ci)
                 s_idx = np.ascontiguousarray(ci.astype(np.int32))
-                s_val = np.ascontiguousarray(flat_err[ci].astype(np.float16))
+                s_val = np.ascontiguousarray(np.clip(flat_err[ci], -65504.0, 65504.0).astype(np.float16))
             else:
                 s_idx = np.zeros((0,), dtype=np.int32)
                 s_val = np.zeros((0,), dtype=np.float16)
@@ -265,13 +284,17 @@ class ScarCodecE8:
             b_row_scales_f16=np.ascontiguousarray(b_sc),
             spike_flat_idx_i32=s_idx,
             spike_residual_f16=s_val,
+            abs_tolerance=self.abs_tolerance,
+            global_scale=g_scale,
         )
 
     @staticmethod
-    def decode_block_o1(pkg: ScarE8Package, row_idx: int, block_idx: int) -> np.ndarray:
+    def decode_block_o1(pkg: ScarE8Package, row_idx: int, block_idx: int, use_c_accel: bool = True) -> np.ndarray:
         start_col = block_idx * 64
+        if not (0 <= row_idx < pkg.orig_rows and 0 <= start_col < pkg.padded_cols):
+            raise IndexError(f"Block ({row_idx}, {block_idx}) out of bounds")
         valid_len = min(64, max(0, pkg.orig_cols - start_col))
-        lib = get_compiled_c_lib()
+        lib = get_compiled_c_lib() if use_c_accel else None
         if lib is not None:
             out = np.empty(valid_len, dtype=np.float32)
             lib.scar_e8_decode_block64_f32(
@@ -292,6 +315,7 @@ class ScarCodecE8:
                 int(pkg.spike_flat_idx_i32.size),
                 _ptr_or_null(pkg.spike_flat_idx_i32, ctypes.c_int32),
                 _ptr_or_null(pkg.spike_residual_f16.view(np.uint16), ctypes.c_uint16),
+                float(pkg.global_scale),
                 out.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             )
             return out
@@ -309,11 +333,13 @@ class ScarCodecE8:
             ab = dequant_block64_int4_np(pkg.a_scar_u8[:, block_idx * 32 : (block_idx + 1) * 32], pkg.a_scales_f16[:, block_idx : block_idx + 1])
             out64 = out64 + (br @ ab)
         if pkg.spike_flat_idx_i32.size > 0:
-            flo = row_idx * pkg.padded_cols + start_col
+            flo = int(row_idx) * int(pkg.padded_cols) + start_col
             lo = int(np.searchsorted(pkg.spike_flat_idx_i32, flo, side="left"))
             hi = int(np.searchsorted(pkg.spike_flat_idx_i32, flo + 64, side="left"))
             if hi > lo:
                 np.add.at(out64, pkg.spike_flat_idx_i32[lo:hi] - flo, pkg.spike_residual_f16[lo:hi].astype(np.float32))
+        if pkg.global_scale != 1.0:
+            out64 = out64 * np.float32(pkg.global_scale)
         return out64[:valid_len]
 
     @staticmethod
@@ -342,6 +368,8 @@ class ScarNDPackage:
     eigen_vq4_pkg: NumPyVQ4ScarPackage # 2D VQ4-Scar package over `[k_spec * eigen_rows_per_mode, eigen_cols]`
     voxel_spike_idx_i32: np.ndarray    # [M_3d] sorted flat voxel indices in `[0, prod(orig_shape))`
     voxel_spike_val_f16: np.ndarray    # [M_3d] float16 3D point/line shock residuals
+    abs_tolerance: Optional[float] = None
+    global_scale: float = 1.0
 
     def physical_bytes(self) -> int:
         return (
@@ -376,13 +404,19 @@ class ScarCodecND:
         arr = np.asarray(tensor_nd, dtype=np.float32)
         if arr.ndim < 3:
             raise ValueError(f"ScarCodecND expects >= 3D tensor (e.g. [V, Y, X]), got {arr.shape}")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError("Input tensor contains NaN or Inf; mask or replace non-finite values before encoding")
         orig_shape = tuple(int(d) for d in arr.shape)
+        amax = float(np.max(np.abs(arr))) if arr.size > 0 else 0.0
+        g_scale = compute_lossless_pow2_scale(amax)
+        inv_g_scale = 1.0 / g_scale
+
         d0 = orig_shape[0]
         n_spatial = int(np.prod(orig_shape[1:], dtype=np.int64))
-        mat = arr.reshape(d0, n_spatial)  # [D_0, N_spatial]
+        mat = (arr.reshape(d0, n_spatial) * np.float32(inv_g_scale)) if g_scale != 1.0 else arr.reshape(d0, n_spatial)
 
         # 1. Exact zero-mask tracking + Pre-Tucker 3D MAD spike peeling (so maser/cosmic spikes never warp `U_spec`!)
-        zero_fiber = np.amax(np.abs(mat), axis=0) <= 1e-12
+        zero_fiber = np.amax(np.abs(mat), axis=0) <= (0.0 if g_scale != 1.0 else 1e-12)
         mat_base = mat.copy()
         pre_3d_idx = np.zeros((0,), dtype=np.int64)
         if self.max_3d_spikes > 0:
@@ -439,14 +473,14 @@ class ScarCodecND:
         # 3. 3D Voxel Shock / `abs_tolerance` Residual Capture across `[D_0 * N_spatial]`
         rem_flat = (mat - rec_3d_flat).reshape(-1)
         if self.abs_tolerance is not None:
-            tol = float(self.abs_tolerance)
+            tol = float(self.abs_tolerance) * inv_g_scale
             cur_r = rem_flat.copy()
             ip, vp = [], []
-            for _ in range(3):
+            for _ in range(6):
                 vi = np.flatnonzero(np.abs(cur_r) > tol)
                 if vi.size == 0:
                     break
-                vf = cur_r[vi].astype(np.float16)
+                vf = np.clip(cur_r[vi], -65504.0, 65504.0).astype(np.float16)
                 ip.append(vi)
                 vp.append(vf)
                 cur_r[vi] -= vf.astype(np.float32)
@@ -473,7 +507,7 @@ class ScarCodecND:
                     ci = ci[np.argpartition(-np.abs(rem_flat[ci]), self.max_3d_spikes - 1)[: self.max_3d_spikes]]
                 ci = np.sort(ci)
                 sp_idx = np.ascontiguousarray(ci.astype(np.int32))
-                sp_val = np.ascontiguousarray(rem_flat[ci].astype(np.float16))
+                sp_val = np.ascontiguousarray(np.clip(rem_flat[ci], -65504.0, 65504.0).astype(np.float16))
             else:
                 sp_idx = np.zeros((0,), dtype=np.int32)
                 sp_val = np.zeros((0,), dtype=np.float16)
@@ -490,11 +524,12 @@ class ScarCodecND:
             eigen_vq4_pkg=vq_pkg,
             voxel_spike_idx_i32=sp_idx,
             voxel_spike_val_f16=sp_val,
+            abs_tolerance=self.abs_tolerance,
+            global_scale=g_scale,
         )
 
     @staticmethod
     def decode_full(pkg: ScarNDPackage) -> np.ndarray:
-        d0 = pkg.orig_shape[0]
         n_spatial = int(np.prod(pkg.orig_shape[1:], dtype=np.int64))
         k_spec = pkg.spectral_basis_f16.shape[1]
         rpm = pkg.eigen_rows_per_mode
@@ -508,6 +543,8 @@ class ScarCodecND:
         out_flat = (pkg.spectral_basis_f16.astype(np.float32) @ rec_eigen).reshape(-1)
         if pkg.voxel_spike_idx_i32.size > 0:
             np.add.at(out_flat, pkg.voxel_spike_idx_i32, pkg.voxel_spike_val_f16.astype(np.float32))
+        if pkg.global_scale != 1.0:
+            out_flat = out_flat * np.float32(pkg.global_scale)
         return out_flat.reshape(pkg.orig_shape)
 
     @staticmethod
@@ -533,7 +570,7 @@ class ScarCodecND:
                 out64 += w_m * eb[:valid_len]
 
         if pkg.voxel_spike_idx_i32.size > 0:
-            flat_lo = v_chan * n_spatial + start_sp
+            flat_lo = int(v_chan) * n_spatial + start_sp
             lo = int(np.searchsorted(pkg.voxel_spike_idx_i32, flat_lo, side="left"))
             hi = int(np.searchsorted(pkg.voxel_spike_idx_i32, flat_lo + valid_len, side="left"))
             if hi > lo:
@@ -542,4 +579,6 @@ class ScarCodecND:
                     pkg.voxel_spike_idx_i32[lo:hi] - flat_lo,
                     pkg.voxel_spike_val_f16[lo:hi].astype(np.float32),
                 )
+        if pkg.global_scale != 1.0:
+            out64 = out64 * np.float32(pkg.global_scale)
         return out64

@@ -16,10 +16,14 @@ Unifies all five Zero-Legacy mathematical pillars and pure `AURA / System One` o
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
+
+from scar_codec.binary_format import ScarFieldMmapContainer, save_scarfield_v7_container
 
 from scar_field.byte_shock_simplex import (
     ByteShockFrontEnd,
@@ -449,6 +453,90 @@ class ScarFieldEngine(nn.Module):
             if isinstance(mod, E8SphericalLinear):
                 packed[name] = mod.to_packed()
         return packed
+
+    @torch.no_grad()
+    def freeze_to_packed_e8(self) -> Dict[str, PackedE8TernaryMatrix]:
+        """Freezes all `E8SphericalLinear` operators to `1.000 bpw` `scar_codec` C99/SIMD mode & frees FP32 weights."""
+        packed: Dict[str, PackedE8TernaryMatrix] = {}
+        for name, mod in self.named_modules():
+            if isinstance(mod, E8SphericalLinear):
+                packed[name] = mod.freeze_to_packed()
+        return packed
+
+    @torch.no_grad()
+    def save_packed_scar_container(self, path: Union[str, Path]) -> int:
+        """Exports the entire `ScarFieldEngine` into a zero-pickle `CRC32` `.sfield.scar` container via `scar_codec`."""
+        packed = self.pack_all_e8_matrices()
+        arrays: Dict[str, np.ndarray] = {}
+        for name, pk in packed.items():
+            arrays[f"e8::{name}::codes_u8"] = pk.codes_u8.detach().cpu().numpy()
+            arrays[f"e8::{name}::a_tern"] = pk.a_tern_packed.detach().cpu().numpy()
+            arrays[f"e8::{name}::b_tern"] = pk.b_tern_packed.detach().cpu().numpy()
+            arrays[f"e8::{name}::scalars"] = np.asarray([pk.tau_base, pk.gamma_scar], dtype=np.float32)
+            arrays[f"e8::{name}::shape"] = np.asarray(
+                [pk.out_features, pk.in_features, pk.scar_rank], dtype=np.int32
+            )
+
+        for n, p in self.named_parameters():
+            if not any(n.startswith(k + ".") for k in packed):
+                arr = p.detach().cpu().numpy()
+                arrays[f"pole::{n}"] = arr.astype(np.float16) if arr.ndim >= 2 else arr.astype(np.float32)
+
+        return save_scarfield_v7_container(asdict(self.cfg), arrays, path)
+
+    @classmethod
+    @torch.no_grad()
+    def load_packed_scar_mmap(
+        cls,
+        path: Union[str, Path],
+        verify_crc: bool = True,
+    ) -> Tuple["ScarFieldEngine", ScarFieldMmapContainer]:
+        """Cold-loads a packed `ScarFieldEngine` via zero-copy OS `mmap` (`0` pickle, `< 2 ms` load!)."""
+        container = ScarFieldMmapContainer(path, verify_crc=verify_crc)
+        cfg = ScarFieldConfig(**container.config)
+        import scar_field.e8_lattice as _e8_mod
+
+        _e8_mod._SKIP_E8_INIT_ALLOC = True
+        try:
+            eng = cls(cfg)
+        finally:
+            _e8_mod._SKIP_E8_INIT_ALLOC = False
+
+        for name, mod in eng.named_modules():
+            if isinstance(mod, E8SphericalLinear):
+                shp = container.arrays[f"e8::{name}::shape"]
+                sc = container.arrays[f"e8::{name}::scalars"]
+                c_mm = container.arrays[f"e8::{name}::codes_u8"]
+                a_mm = container.arrays[f"e8::{name}::a_tern"]
+                b_mm = container.arrays[f"e8::{name}::b_tern"]
+                empty_u8 = torch.empty((0,), dtype=torch.uint8)
+                pk = PackedE8TernaryMatrix(
+                    out_features=int(shp[0]),
+                    in_features=int(shp[1]),
+                    scar_rank=int(shp[2]),
+                    codes_u8=empty_u8,
+                    a_tern_packed=empty_u8,
+                    b_tern_packed=empty_u8,
+                    tau_base=float(sc[0]),
+                    gamma_scar=float(sc[1]),
+                    _mmap_views=(c_mm, a_mm, b_mm),
+                )
+                container.register_holder(pk)
+                mod.load_frozen_packed(pk)
+
+        param_map = dict(eng.named_parameters())
+        for key, arr in container.arrays.items():
+            if key.startswith("pole::"):
+                pname = key[len("pole::") :]
+                if pname in param_map:
+                    tgt = param_map[pname]
+                    src_t = torch.from_numpy(np.array(arr, copy=True)).reshape(tgt.shape).to(tgt.dtype)
+                    tgt.copy_(src_t)
+                    tgt.requires_grad_(False)
+        for p in eng.parameters():
+            p.requires_grad_(False)
+
+        return eng, container
 
     @torch.no_grad()
     def byte_budget_summary(self) -> Dict[str, Any]:

@@ -18,12 +18,14 @@ Zero-Legacy Mathematical Primitives for `ScarField v7.0`:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import combinations, product
 import math
 from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
+
+from scar_codec.nd_e8 import build_canonical_e8_lut256_np
+from scar_codec.numpy_engine import e8_spherical_ternary_gemm_np
 
 
 def rademacher_signs_det(dim: int, device: torch.device | str = "cpu") -> torch.Tensor:
@@ -61,46 +63,15 @@ def _hadamard8_matrix() -> torch.Tensor:
 
 @torch.no_grad()
 def build_canonical_e8_lut256(device: torch.device | str = "cpu") -> torch.Tensor:
-    """Builds the exact `[256, 8]` `E8 + Vacuum + Outer Hadamard Shell` codebook.
+    """Builds the exact `[256, 8]` `E8 + Vacuum + Outer Hadamard Shell` codebook via `scar_codec`.
 
-    Coordinate scaling is matched to unit-variance isotropic coordinates `E[z_j^2] = 1`
-    (`E[||z||_2^2] = 8.0` on 8D blocks of `sqrt(I) * S^{I-1}`):
+    Shared single source of truth (`0.0` drift) with `scar_codec.build_canonical_e8_lut256_np`:
       - `0`: `(0, 0, 0, 0, 0, 0, 0, 0)` exact physical vacuum (`0x00`).
       - `1..112`: `D_8` roots `(±2, ±2, 0, 0, 0, 0, 0, 0)` (`||u||_2^2 = 8.0`, integer coords!).
       - `113..240`: Spinor roots `(±1, ..., ±1)` with even minus count (`||u||_2^2 = 8.0`, bipolar!).
       - `241..255`: 15 orthonormal `H_8` outer-shell vectors at `||u||_2^2 = 18.0` (`r = 3*sqrt(2)`).
     """
-    rows = [[0.0] * 8]
-
-    # 1. 112 integer D_8 roots scaled by 2 -> coords in {-2, 0, +2}, squared norm = 8.0
-    for i, j in combinations(range(8), 2):
-        for si in (-2.0, 2.0):
-            for sj in (-2.0, 2.0):
-                v = [0.0] * 8
-                v[i] = si
-                v[j] = sj
-                rows.append(v)
-
-    # 2. 128 half-integer spinor roots scaled by 2 -> coords in {-1, +1} with even minus count
-    for signs in product((-1.0, 1.0), repeat=8):
-        neg_cnt = sum(1 for s in signs if s < 0.0)
-        if (neg_cnt % 2) == 0:
-            rows.append(list(signs))
-
-    if len(rows) != 241:
-        raise RuntimeError(f"Expected 1 + 240 E8 vectors, got {len(rows)}")
-
-    # 3. 15 outer-shell orthonormal H_8 modes at radius sqrt(18.0) for high-energy tail blocks
-    h8 = _hadamard8_matrix() * math.sqrt(18.0)
-    rows.append(h8[0].tolist())
-    for k in range(1, 8):
-        rows.append(h8[k].tolist())
-        rows.append((-h8[k]).tolist())
-
-    if len(rows) != 256:
-        raise RuntimeError(f"Expected exactly 256 codewords, got {len(rows)}")
-
-    return torch.tensor(rows, dtype=torch.float32, device=device)
+    return torch.from_numpy(build_canonical_e8_lut256_np()).to(device=device, dtype=torch.float32)
 
 
 def project_rows_to_unit_sphere(w: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
@@ -153,13 +124,18 @@ class PackedE8TernaryMatrix:
     b_tern_packed: torch.Tensor   # [O, r // 4] uint8 -> 2-bit ternary {-1, 0, +1}
     tau_base: float
     gamma_scar: float
+    _mmap_views: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None
 
     @property
     def substrate_bytes(self) -> int:
+        if self._mmap_views is not None:
+            return int(self._mmap_views[0].nbytes)
         return int(self.codes_u8.numel())
 
     @property
     def scar_bytes(self) -> int:
+        if self._mmap_views is not None:
+            return int(self._mmap_views[1].nbytes + self._mmap_views[2].nbytes)
         return int(self.a_tern_packed.numel() + self.b_tern_packed.numel())
 
     @property
@@ -170,18 +146,56 @@ class PackedE8TernaryMatrix:
     def substrate_bits_per_weight(self) -> float:
         return (self.substrate_bytes * 8.0) / float(self.out_features * self.in_features)
 
-    def forward(self, x: torch.Tensor, lut_e8: torch.Tensor, signs: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        lut_e8: torch.Tensor,
+        signs: torch.Tensor,
+        use_c_accel: bool = True,
+    ) -> torch.Tensor:
+        if use_c_accel and x.device.type == "cpu" and (not x.requires_grad):
+            if self._mmap_views is not None:
+                c_np, a_np, b_np = self._mmap_views
+            else:
+                c_np = self.codes_u8.numpy()
+                a_np = self.a_tern_packed.numpy()
+                b_np = self.b_tern_packed.numpy()
+            y_np = e8_spherical_ternary_gemm_np(
+                x_f32=x.detach().float().numpy(),
+                codes_u8=c_np,
+                lut_e8_f32=lut_e8.detach().cpu().float().numpy(),
+                a_tern_u8=a_np,
+                b_tern_u8=b_np,
+                scar_rank=self.scar_rank,
+                tau_base=self.tau_base,
+                gamma_scar=self.gamma_scar,
+                use_c_accel=True,
+            )
+            return torch.from_numpy(y_np).to(dtype=x.dtype)
+
         xf = x.float()
         x_rot = fwht64_rademacher(xf, signs, inverse=False)
-        w_rot = lut_e8[self.codes_u8.long()].reshape(self.out_features, self.in_features)
+        if self._mmap_views is not None:
+            c_t = torch.from_numpy(self._mmap_views[0].copy()).to(xf.device)
+            a_t_pk = torch.from_numpy(self._mmap_views[1].copy()).to(xf.device)
+            b_t_pk = torch.from_numpy(self._mmap_views[2].copy()).to(xf.device)
+        else:
+            c_t = self.codes_u8.to(xf.device)
+            a_t_pk = self.a_tern_packed.to(xf.device)
+            b_t_pk = self.b_tern_packed.to(xf.device)
+        w_rot = lut_e8[c_t.long()].reshape(self.out_features, self.in_features)
         inv_sqrt_i = 1.0 / math.sqrt(float(self.in_features))
         y = (x_rot @ w_rot.T) * (self.tau_base * inv_sqrt_i)
         if self.scar_rank > 0 and abs(self.gamma_scar) > 0.0:
-            a_f = unpack_ternary_2bit(self.a_tern_packed.to(xf.device))
-            b_f = unpack_ternary_2bit(self.b_tern_packed.to(xf.device))
+            a_f = unpack_ternary_2bit(a_t_pk)
+            b_f = unpack_ternary_2bit(b_t_pk)
             scale_s = self.gamma_scar / math.sqrt(float(self.in_features * max(1, self.scar_rank)))
             y = y + ((xf @ a_f.T) @ b_f.T) * scale_s
         return y.to(x.dtype)
+
+
+_SKIP_E8_INIT_ALLOC = False
+_SHARED_E8_LUT_CPU: Optional[torch.Tensor] = None
 
 
 class E8SphericalLinear(nn.Module):
@@ -209,17 +223,29 @@ class E8SphericalLinear(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.scar_rank = scar_rank
+        self._frozen_packed: Optional[PackedE8TernaryMatrix] = None
 
-        w_init = project_rows_to_unit_sphere(torch.randn(out_features, in_features))
-        self.weight_sphere = nn.Parameter(w_init)
-        self.tau_base = nn.Parameter(torch.tensor(float(init_tau), dtype=torch.float32))
-
-        lut = build_canonical_e8_lut256("cpu")
+        global _SHARED_E8_LUT_CPU
+        if _SHARED_E8_LUT_CPU is None:
+            _SHARED_E8_LUT_CPU = build_canonical_e8_lut256("cpu")
+        lut = _SHARED_E8_LUT_CPU
         lut_half_norm2 = 0.5 * (lut * lut).sum(dim=-1)
         signs = rademacher_signs_det(in_features, "cpu")
         self.register_buffer("lut_e8", lut, persistent=False)
         self.register_buffer("lut_half_norm2", lut_half_norm2, persistent=False)
         self.register_buffer("signs", signs, persistent=False)
+
+        if _SKIP_E8_INIT_ALLOC:
+            self.register_parameter("weight_sphere", None)
+            self.register_parameter("tau_base", None)
+            self.register_parameter("a_scar", None)
+            self.register_parameter("b_scar", None)
+            self.register_parameter("gamma_scar", None)
+            return
+
+        w_init = project_rows_to_unit_sphere(torch.randn(out_features, in_features))
+        self.weight_sphere = nn.Parameter(w_init)
+        self.tau_base = nn.Parameter(torch.tensor(float(init_tau), dtype=torch.float32))
 
         if scar_rank > 0:
             self.a_scar = nn.Parameter(project_rows_to_unit_sphere(torch.randn(scar_rank, in_features)))
@@ -276,6 +302,9 @@ class E8SphericalLinear(nn.Module):
             self.gamma_scar.fill_(opt_gamma)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self._frozen_packed is not None:
+            return self._frozen_packed.forward(x, self.lut_e8, self.signs, use_c_accel=True)
+
         xf = x.float()
         w_unit = project_rows_to_unit_sphere(self.weight_sphere.float())
         sqrt_i = math.sqrt(float(self.in_features))
@@ -297,7 +326,26 @@ class E8SphericalLinear(nn.Module):
         return y.to(x.dtype)
 
     @torch.no_grad()
+    def freeze_to_packed(self) -> PackedE8TernaryMatrix:
+        """Frees dense FP32 QAT weights and switches to `1.000 bpw` `scar_codec` C99/SIMD execution."""
+        pk = self.to_packed()
+        self.load_frozen_packed(pk)
+        return pk
+
+    @torch.no_grad()
+    def load_frozen_packed(self, pk: PackedE8TernaryMatrix) -> None:
+        """Installs a pre-packed `1.000 bpw` E8 + 2-bit Ternary matrix and releases FP32 master parameters."""
+        self._frozen_packed = pk
+        self.register_parameter("weight_sphere", None)
+        self.register_parameter("tau_base", None)
+        self.register_parameter("a_scar", None)
+        self.register_parameter("b_scar", None)
+        self.register_parameter("gamma_scar", None)
+
+    @torch.no_grad()
     def to_packed(self) -> PackedE8TernaryMatrix:
+        if self._frozen_packed is not None:
+            return self._frozen_packed
         w_unit = project_rows_to_unit_sphere(self.weight_sphere.float())
         sqrt_i = math.sqrt(float(self.in_features))
         w_rot = fwht64_rademacher(w_unit, self.signs, inverse=False) * sqrt_i

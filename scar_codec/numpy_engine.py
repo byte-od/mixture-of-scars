@@ -42,7 +42,13 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
 
     ext = "dylib" if platform.system() == "Darwin" else "so"
     arch = platform.machine().lower()
-    so_path = pkg_dir / f"_scar_codec_c_{arch}.{ext}"
+    legacy_so = pkg_dir / f"_scar_codec_c_{arch}.{ext}"
+    if legacy_so.exists():
+        try:
+            legacy_so.unlink()
+        except Exception:
+            pass
+    so_path = pkg_dir / f"_scar_codec_c_v61_{arch}.{ext}"
 
     need_build = (not so_path.exists()) or (c_src.stat().st_mtime > so_path.stat().st_mtime)
     if need_build:
@@ -70,7 +76,7 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
             ctypes.c_int32, ctypes.c_int32,
             u32_p, u16_p, u16_p, u16_p,
             u8_p, u16_p, u8_p, u16_p,
-            ctypes.c_int32, i32_p, u16_p, f32_p,
+            ctypes.c_int32, i32_p, u16_p, ctypes.c_float, f32_p,
         ]
         lib.scar_decode_block64_f32.restype = None
 
@@ -78,7 +84,7 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
             ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32,
             u32_p, u16_p, u16_p, u16_p,
             u8_p, u16_p, u8_p, u16_p,
-            ctypes.c_int32, i32_p, u16_p, f32_p,
+            ctypes.c_int32, i32_p, u16_p, ctypes.c_float, f32_p,
         ]
         lib.scar_decode_full_f32.restype = None
 
@@ -87,7 +93,7 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
             ctypes.c_int32, ctypes.c_int32,
             u8_p, u16_p, f32_p, u16_p,
             u8_p, u16_p, u8_p, u16_p,
-            ctypes.c_int32, i32_p, u16_p, f32_p,
+            ctypes.c_int32, i32_p, u16_p, ctypes.c_float, f32_p,
         ]
         lib.scar_e8_decode_block64_f32.restype = None
 
@@ -96,14 +102,29 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
             ctypes.c_int32, i32_p, i32_p,
             u32_p, u16_p, u16_p, u16_p,
             u8_p, u16_p, u8_p, u16_p,
-            ctypes.c_int32, i32_p, u16_p, f32_p,
+            ctypes.c_int32, i32_p, u16_p, ctypes.c_float, f32_p,
         ]
         lib.scar_decode_blocks_gather_f32.restype = None
+
+        lib.scar_e8_spherical_ternary_gemm_f32.argtypes = [
+            ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32,
+            ctypes.c_float, ctypes.c_float,
+            f32_p, u8_p, f32_p, u8_p, u8_p, f32_p,
+        ]
+        lib.scar_e8_spherical_ternary_gemm_f32.restype = None
 
         _C_LIB = lib
     except Exception:
         _C_LIB = None
     return _C_LIB
+
+
+def compute_lossless_pow2_scale(amax: float) -> float:
+    """Lossless IEEE-754 power-of-two scale (`1.0` for nominal `[1e-2, 4096.0]`) preventing FP16 overflow/underflow."""
+    if amax <= 0.0 or (1.0e-2 <= amax <= 4096.0):
+        return 1.0
+    _, exp = math.frexp(amax / 256.0)
+    return float(math.ldexp(1.0, exp - 1))
 
 
 def _ptr_or_null(arr: np.ndarray, c_type):
@@ -269,10 +290,31 @@ class NumPyVQ4ScarPackage:
     spike_flat_idx_i32: np.ndarray  # [M_spikes] int32 sorted
     spike_residual_f16: np.ndarray  # [M_spikes] float16
     abs_tolerance: Optional[float] = None
+    global_scale: float = 1.0
     _cached_c_ptrs: Optional[tuple] = None
 
     def get_c_ptrs(self) -> tuple:
         if self._cached_c_ptrs is None:
+            if not self.codes_u32.flags["C_CONTIGUOUS"]:
+                self.codes_u32 = np.ascontiguousarray(self.codes_u32)
+            if not self.scales_f16.flags["C_CONTIGUOUS"]:
+                self.scales_f16 = np.ascontiguousarray(self.scales_f16)
+            if not self.lut256_f16.flags["C_CONTIGUOUS"]:
+                self.lut256_f16 = np.ascontiguousarray(self.lut256_f16)
+            if not self.d_eq_f16.flags["C_CONTIGUOUS"]:
+                self.d_eq_f16 = np.ascontiguousarray(self.d_eq_f16)
+            if not self.a_scar_u8.flags["C_CONTIGUOUS"]:
+                self.a_scar_u8 = np.ascontiguousarray(self.a_scar_u8)
+            if not self.a_scales_f16.flags["C_CONTIGUOUS"]:
+                self.a_scales_f16 = np.ascontiguousarray(self.a_scales_f16)
+            if not self.b_scar_u8.flags["C_CONTIGUOUS"]:
+                self.b_scar_u8 = np.ascontiguousarray(self.b_scar_u8)
+            if not self.b_row_scales_f16.flags["C_CONTIGUOUS"]:
+                self.b_row_scales_f16 = np.ascontiguousarray(self.b_row_scales_f16)
+            if not self.spike_flat_idx_i32.flags["C_CONTIGUOUS"]:
+                self.spike_flat_idx_i32 = np.ascontiguousarray(self.spike_flat_idx_i32)
+            if not self.spike_residual_f16.flags["C_CONTIGUOUS"]:
+                self.spike_residual_f16 = np.ascontiguousarray(self.spike_residual_f16)
             self._cached_c_ptrs = (
                 _ptr_or_null(self.codes_u32, ctypes.c_uint32),
                 _ptr_or_null(self.scales_f16.view(np.uint16), ctypes.c_uint16),
@@ -285,6 +327,7 @@ class NumPyVQ4ScarPackage:
                 int(self.spike_flat_idx_i32.size),
                 _ptr_or_null(self.spike_flat_idx_i32, ctypes.c_int32),
                 _ptr_or_null(self.spike_residual_f16.view(np.uint16), ctypes.c_uint16),
+                float(self.global_scale),
             )
         return self._cached_c_ptrs
 
@@ -326,6 +369,8 @@ class NumPyVQ4ScarPackage:
             b_row_scales_f16=np.ascontiguousarray(pkg.b_row_scales_f16.detach().cpu().numpy()),
             spike_flat_idx_i32=np.ascontiguousarray(pkg.spike_flat_idx_i32.detach().cpu().numpy()),
             spike_residual_f16=np.ascontiguousarray(pkg.spike_residual_f16.detach().cpu().numpy()),
+            abs_tolerance=getattr(pkg, "abs_tolerance", None),
+            global_scale=float(getattr(pkg, "global_scale", 1.0)),
         )
 
 
@@ -356,15 +401,21 @@ class NumPyVQ4ScarCodec:
         arr = np.asarray(field_2d, dtype=np.float32)
         if arr.ndim != 2:
             raise ValueError(f"Expected 2D array [N, K], got {arr.shape}")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError("Input field contains NaN or Inf; mask or replace non-finite values before encoding")
         n_rows, n_cols = arr.shape
+        amax = float(np.max(np.abs(arr))) if arr.size > 0 else 0.0
+        g_scale = compute_lossless_pow2_scale(amax)
+        inv_g_scale = 1.0 / g_scale
+
         pad_cols = ((n_cols + 63) // 64) * 64
         if pad_cols > n_cols:
             x = np.zeros((n_rows, pad_cols), dtype=np.float32)
-            x[:, :n_cols] = arr
+            x[:, :n_cols] = arr * np.float32(inv_g_scale) if g_scale != 1.0 else arr
         else:
-            x = arr.copy()
+            x = (arr * np.float32(inv_g_scale)).astype(np.float32) if g_scale != 1.0 else arr.copy()
 
-        orig_zero_row = np.amax(np.abs(x), axis=1) <= 1e-12
+        orig_zero_row = np.amax(np.abs(x), axis=1) <= (0.0 if g_scale != 1.0 else 1e-12)
         x_base = x.copy()
         pre_spike_idx = np.zeros((0,), dtype=np.int64)
 
@@ -469,15 +520,15 @@ class NumPyVQ4ScarCodec:
         flat_err = rem_err.reshape(-1)
 
         if self.abs_tolerance is not None:
-            tol = float(self.abs_tolerance)
+            tol = float(self.abs_tolerance) * inv_g_scale
             cur_rem = flat_err.copy()
             idx_parts: List[np.ndarray] = []
             val_parts: List[np.ndarray] = []
-            for _ in range(3):
+            for _ in range(6):
                 v_idx = np.flatnonzero(np.abs(cur_rem) > tol)
                 if v_idx.size == 0:
                     break
-                v_f16 = cur_rem[v_idx].astype(np.float16)
+                v_f16 = np.clip(cur_rem[v_idx], -65504.0, 65504.0).astype(np.float16)
                 idx_parts.append(v_idx)
                 val_parts.append(v_f16)
                 cur_rem[v_idx] -= v_f16.astype(np.float32)
@@ -508,7 +559,7 @@ class NumPyVQ4ScarCodec:
                     cand_idx = cand_idx[top_r]
                 cand_idx = np.sort(cand_idx)
                 spike_idx_i32 = np.ascontiguousarray(cand_idx.astype(np.int32))
-                spike_val_f16 = np.ascontiguousarray(flat_err[cand_idx].astype(np.float16))
+                spike_val_f16 = np.ascontiguousarray(np.clip(flat_err[cand_idx], -65504.0, 65504.0).astype(np.float16))
             else:
                 spike_idx_i32 = np.zeros((0,), dtype=np.int32)
                 spike_val_f16 = np.zeros((0,), dtype=np.float16)
@@ -532,6 +583,7 @@ class NumPyVQ4ScarCodec:
             spike_flat_idx_i32=spike_idx_i32,
             spike_residual_f16=spike_val_f16,
             abs_tolerance=self.abs_tolerance,
+            global_scale=g_scale,
         )
 
     @staticmethod
@@ -580,12 +632,14 @@ class NumPyVQ4ScarCodec:
             out64 = out64 + (b_row @ a_blk)
 
         if pkg.spike_flat_idx_i32.size > 0:
-            flat_lo = row_idx * pkg.padded_cols + start_col
+            flat_lo = int(row_idx) * int(pkg.padded_cols) + start_col
             flat_hi = flat_lo + 64
             lo = int(np.searchsorted(pkg.spike_flat_idx_i32, flat_lo, side="left"))
             hi = int(np.searchsorted(pkg.spike_flat_idx_i32, flat_hi, side="left"))
             if hi > lo:
                 np.add.at(out64, pkg.spike_flat_idx_i32[lo:hi] - flat_lo, pkg.spike_residual_f16[lo:hi].astype(np.float32))
+        if pkg.global_scale != 1.0:
+            out64 = out64 * np.float32(pkg.global_scale)
         return out64[:valid_len]
 
     @staticmethod
@@ -609,7 +663,14 @@ class NumPyVQ4ScarCodec:
                 out.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             )
             return out
-        return np.stack([NumPyVQ4ScarCodec.decode_block_o1(pkg, int(r_i32[i]), int(b_i32[i]), False) for i in range(n_q)])
+        out_py = np.zeros((n_q, 64), dtype=np.float32)
+        n_blk = pkg.padded_cols // 64
+        for i in range(n_q):
+            ri, bi = int(r_i32[i]), int(b_i32[i])
+            if 0 <= ri < pkg.orig_rows and 0 <= bi < n_blk:
+                blk = NumPyVQ4ScarCodec.decode_block_o1(pkg, ri, bi, False)
+                out_py[i, : blk.size] = blk
+        return out_py
 
     @staticmethod
     def decode_full(pkg: NumPyVQ4ScarPackage, use_c_accel: bool = True) -> np.ndarray:
@@ -640,7 +701,72 @@ class NumPyVQ4ScarCodec:
             out = x_vq
         if pkg.spike_flat_idx_i32.size > 0:
             np.add.at(out.reshape(-1), pkg.spike_flat_idx_i32, pkg.spike_residual_f16.astype(np.float32))
+        if pkg.global_scale != 1.0:
+            out = out * np.float32(pkg.global_scale)
         return out[:, : pkg.orig_cols]
+
+
+def e8_spherical_ternary_gemm_np(
+    x_f32: np.ndarray,
+    codes_u8: np.ndarray,
+    lut_e8_f32: np.ndarray,
+    a_tern_u8: np.ndarray,
+    b_tern_u8: np.ndarray,
+    scar_rank: int,
+    tau_base: float,
+    gamma_scar: float,
+    use_c_accel: bool = True,
+) -> np.ndarray:
+    """Zero-Materialization `E8 (1.000 bpw) + 2-bit Ternary Scar` GEMM/GEMV (`0 B` weight-dequant heap!)."""
+    orig_shape = x_f32.shape
+    in_features = orig_shape[-1]
+    out_features = codes_u8.shape[0]
+    x_2d = np.ascontiguousarray(x_f32.reshape(-1, in_features), dtype=np.float32)
+    batch_m = x_2d.shape[0]
+    tau_scale = float(tau_base) / math.sqrt(float(in_features))
+    scar_scale = float(gamma_scar) / math.sqrt(float(in_features * max(1, scar_rank))) if scar_rank > 0 else 0.0
+
+    lib = get_compiled_c_lib() if use_c_accel else None
+    if lib is not None:
+        out_2d = np.empty((batch_m, out_features), dtype=np.float32)
+        c_arr = codes_u8 if codes_u8.flags["C_CONTIGUOUS"] else np.ascontiguousarray(codes_u8)
+        l_arr = lut_e8_f32 if lut_e8_f32.flags["C_CONTIGUOUS"] else np.ascontiguousarray(lut_e8_f32, dtype=np.float32)
+        a_arr = a_tern_u8 if a_tern_u8.flags["C_CONTIGUOUS"] else np.ascontiguousarray(a_tern_u8)
+        b_arr = b_tern_u8 if b_tern_u8.flags["C_CONTIGUOUS"] else np.ascontiguousarray(b_tern_u8)
+        lib.scar_e8_spherical_ternary_gemm_f32(
+            batch_m,
+            in_features,
+            out_features,
+            scar_rank,
+            tau_scale,
+            scar_scale,
+            _ptr_or_null(x_2d, ctypes.c_float),
+            _ptr_or_null(c_arr, ctypes.c_uint8),
+            _ptr_or_null(l_arr, ctypes.c_float),
+            _ptr_or_null(a_arr, ctypes.c_uint8),
+            _ptr_or_null(b_arr, ctypes.c_uint8),
+            out_2d.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+        )
+        return out_2d.reshape(*orig_shape[:-1], out_features)
+
+    # Pure-NumPy fallback
+    signs = rademacher_signs_np(in_features)
+    x_rot = fwht_block64_np(x_2d, signs, inverse=False)
+    w_rot = lut_e8_f32[codes_u8].reshape(out_features, in_features)
+    y = (x_rot @ w_rot.T) * np.float32(tau_scale)
+    if scar_rank > 0 and abs(scar_scale) > 0.0:
+        a_i8 = a_tern_u8.astype(np.int8)
+        b_i8 = b_tern_u8.astype(np.int8)
+        a_f = np.stack(
+            (((a_i8 & 3) - 1), (((a_tern_u8 >> 2).astype(np.int8) & 3) - 1), (((a_tern_u8 >> 4).astype(np.int8) & 3) - 1), (((a_tern_u8 >> 6).astype(np.int8) & 3) - 1)),
+            axis=-1,
+        ).reshape(scar_rank, in_features).astype(np.float32)
+        b_f = np.stack(
+            (((b_i8 & 3) - 1), (((b_tern_u8 >> 2).astype(np.int8) & 3) - 1), (((b_tern_u8 >> 4).astype(np.int8) & 3) - 1), (((b_tern_u8 >> 6).astype(np.int8) & 3) - 1)),
+            axis=-1,
+        ).reshape(out_features, scar_rank).astype(np.float32)
+        y = y + ((x_2d @ a_f.T) @ b_f.T) * np.float32(scar_scale)
+    return y.reshape(*orig_shape[:-1], out_features)
 
 
 class OrthogonalSubspaceProjectorNumPy:

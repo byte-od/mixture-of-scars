@@ -14,11 +14,14 @@ from __future__ import annotations
 __version__ = "6.0.0"
 
 from scar_codec.binary_format import (
+    SCARFIELD_MAGIC,
     SCAR_MAGIC,
+    ScarFieldMmapContainer,
     ScarMmapFile,
     deserialize_scar_buffer,
     load_scar_file,
     save_scar_file,
+    save_scarfield_v7_container,
     serialize_scar_bytes,
 )
 from scar_codec.nd_e8 import (
@@ -33,6 +36,8 @@ from scar_codec.numpy_engine import (
     NumPyVQ4ScarPackage,
     OrthogonalSubspaceProjectorNumPy,
     SurpriseGatedAnomalySCacheNumPy,
+    compute_lossless_pow2_scale,
+    e8_spherical_ternary_gemm_np,
     get_compiled_c_lib,
 )
 from scar_codec.zarr_codec import ScarZarrCodec
@@ -59,6 +64,7 @@ except ImportError:  # pragma: no cover - standalone zero-PyTorch runtime!
 __all__ = [
     "__version__",
     "HAS_TORCH",
+    "SCARFIELD_MAGIC",
     "SCAR_MAGIC",
     "CircularRingBufferOT",
     "NumPyVQ4ScarCodec",
@@ -70,16 +76,20 @@ __all__ = [
     "ScarCodecE8",
     "ScarCodecND",
     "ScarE8Package",
+    "ScarFieldMmapContainer",
     "ScarMmapFile",
     "ScarNDPackage",
     "ScarZarrCodec",
     "SurpriseGatedAnomalySCache",
     "SurpriseGatedAnomalySCacheNumPy",
     "build_canonical_e8_lut256_np",
+    "compute_lossless_pow2_scale",
     "deserialize_scar_buffer",
+    "e8_spherical_ternary_gemm_np",
     "get_compiled_c_lib",
     "load_scar_file",
     "save_scar_file",
+    "save_scarfield_v7_container",
     "serialize_scar_bytes",
     "unique_tensor_storage_bytes",
 ]

@@ -211,6 +211,8 @@ class PhysicalVQ4ScarPackage:
     b_row_scales_f16: torch.Tensor   # [N] float16
     spike_flat_idx_i32: torch.Tensor # [M_spikes] int32 sorted flat indices in [0, N * K_pad)
     spike_residual_f16: torch.Tensor # [M_spikes] float16 residual shocks
+    abs_tolerance: Optional[float] = None
+    global_scale: float = 1.0
 
     def all_tensors(self) -> List[torch.Tensor]:
         return [
@@ -264,16 +266,26 @@ class PhysicalVQ4ScarCodec:
             raise ValueError(f"Expected 2D tensor [N, K], got shape {tuple(field_2d.shape)}")
         dev = field_2d.device
         x_orig = field_2d.detach().float()
+        if not bool(torch.isfinite(x_orig).all().item()):
+            raise ValueError("Input field contains NaN or Inf; mask or replace non-finite values before encoding")
         n_rows, n_cols = x_orig.shape
+        amax = float(x_orig.abs().amax().item()) if x_orig.numel() > 0 else 0.0
+        if amax <= 0.0 or (1.0e-2 <= amax <= 4096.0):
+            g_scale = 1.0
+        else:
+            _, exp_p2 = math.frexp(amax / 256.0)
+            g_scale = float(math.ldexp(1.0, exp_p2 - 1))
+        inv_g_scale = 1.0 / g_scale
+
         pad_cols = ((n_cols + 63) // 64) * 64
         if pad_cols > n_cols:
             x = torch.zeros((n_rows, pad_cols), dtype=torch.float32, device=dev)
-            x[:, :n_cols] = x_orig
+            x[:, :n_cols] = x_orig * inv_g_scale if g_scale != 1.0 else x_orig
         else:
-            x = x_orig.clone()
+            x = (x_orig * inv_g_scale) if g_scale != 1.0 else x_orig.clone()
 
         # Exact vacuum row mask (`0` extra storage bytes: zero rows get `scales_f16=0` and `b_row_scales_f16=0`)
-        orig_zero_row = (x.abs().amax(dim=1) <= 1e-12)
+        orig_zero_row = x.abs().amax(dim=1) <= (0.0 if g_scale != 1.0 else 1e-12)
 
         # Step 0: Pre-FWHT robust point-shock peeling so extreme HDR / cosmic-ray glints do not blow up 64-block scales
         x_base = x.clone()
@@ -385,19 +397,16 @@ class PhysicalVQ4ScarCodec:
         rem_err[orig_zero_row] = 0.0
         flat_err = rem_err.reshape(-1)
         if self.abs_tolerance is not None:
-            # Deterministic Error-Bounded Mode (`||X - X_hat||_inf <= abs_tolerance`):
-            # Uses multi-pass Dekker `FP16 + FP16` splitting so even extreme HDR values (`> 3,000`)
-            # whose single-FP16 ULP exceeds `abs_tolerance` satisfy `max |err| <= abs_tolerance` exactly!
-            tol = float(self.abs_tolerance)
+            tol = float(self.abs_tolerance) * inv_g_scale
             cur_rem = flat_err.clone()
             idx_parts: List[torch.Tensor] = []
             val_parts: List[torch.Tensor] = []
-            for _ in range(3):
+            for _ in range(6):
                 viol = cur_rem.abs() > tol
                 if not bool(viol.any().item()):
                     break
                 v_idx = torch.nonzero(viol, as_tuple=False).squeeze(-1)
-                v_f16 = cur_rem[v_idx].to(torch.float16)
+                v_f16 = cur_rem[v_idx].clamp(-65504.0, 65504.0).to(torch.float16)
                 idx_parts.append(v_idx)
                 val_parts.append(v_f16)
                 cur_rem[v_idx] = cur_rem[v_idx] - v_f16.float()
@@ -422,7 +431,7 @@ class PhysicalVQ4ScarCodec:
                     cand_idx = cand_idx[top_rel]
                 cand_idx, _ = torch.sort(cand_idx)
                 spike_idx_i32 = cand_idx.to(torch.int32).contiguous()
-                spike_val_f16 = flat_err[cand_idx].to(torch.float16).contiguous()
+                spike_val_f16 = flat_err[cand_idx].clamp(-65504.0, 65504.0).to(torch.float16).contiguous()
             else:
                 spike_idx_i32 = torch.zeros((0,), dtype=torch.int32, device=dev)
                 spike_val_f16 = torch.zeros((0,), dtype=torch.float16, device=dev)
@@ -446,6 +455,8 @@ class PhysicalVQ4ScarCodec:
             b_row_scales_f16=b_sc.contiguous(),
             spike_flat_idx_i32=spike_idx_i32,
             spike_residual_f16=spike_val_f16,
+            abs_tolerance=self.abs_tolerance,
+            global_scale=g_scale,
         )
 
     @staticmethod
@@ -480,6 +491,8 @@ class PhysicalVQ4ScarCodec:
             flat_out = out.reshape(-1)
             flat_out.index_add_(0, pkg.spike_flat_idx_i32.long(), pkg.spike_residual_f16.float())
 
+        if pkg.global_scale != 1.0:
+            out = out * float(pkg.global_scale)
         return out[:, : pkg.orig_cols]
 
     @staticmethod
@@ -525,7 +538,7 @@ class PhysicalVQ4ScarCodec:
             out64 = blk_vq
 
         if pkg.spike_flat_idx_i32.numel() > 0:
-            flat_lo = row_idx * pkg.padded_cols + start_col
+            flat_lo = int(row_idx) * int(pkg.padded_cols) + start_col
             flat_hi = flat_lo + 64
             s_i64 = pkg.spike_flat_idx_i32.long()
             lo_pos = int(torch.searchsorted(s_i64, flat_lo, right=False).item())
@@ -534,6 +547,8 @@ class PhysicalVQ4ScarCodec:
                 local_offsets = s_i64[lo_pos:hi_pos] - flat_lo
                 out64.index_add_(0, local_offsets, pkg.spike_residual_f16[lo_pos:hi_pos].float())
 
+        if pkg.global_scale != 1.0:
+            out64 = out64 * float(pkg.global_scale)
         valid_len = min(64, max(0, pkg.orig_cols - start_col))
         return out64[:valid_len]
 

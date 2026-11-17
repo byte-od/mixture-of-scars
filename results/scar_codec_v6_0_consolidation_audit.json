@@ -5,10 +5,10 @@
   "pillar_1_and_2_c_simd_mmap_and_zarr": {
     "spitzer_scar_file_bytes": 178944,
     "spitzer_compression_vs_fp32_x": 11.75,
-    "python_mmap_single_block_o1_us": 9.253,
-    "c_simd_pure_random_block_o1_us": 0.389,
-    "speedup_vs_pytorch_133_8us_x": 344.2,
-    "speedup_vs_zlib_4299us_x": 11060.8,
+    "python_mmap_single_block_o1_us": 8.99,
+    "c_simd_pure_random_block_o1_us": 0.388,
+    "speedup_vs_pytorch_133_8us_x": 345.1,
+    "speedup_vs_zlib_4299us_x": 11088.4,
     "zarr_codec_chunk_bytes": 178976,
     "zarr_codec_rmse": 5.11552
   },
