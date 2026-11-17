@@ -415,20 +415,19 @@ class ScarFieldMmapContainer:
                 raise ValueError(f"Invalid ScarField container {self.path}: size {fsize} < 64-byte header")
             self._fh = self.path.open("rb")
             self._mm = mmap.mmap(self._fh.fileno(), 0, access=mmap.ACCESS_READ)
-            mv = memoryview(self._mm)
-            try:
+            with memoryview(self._mm) as mv:
                 magic, ver, m_len, m_pad_len, t_len, expected_crc, _, _ = _SF_HDR.unpack_from(mv, 0)
                 if magic != SCARFIELD_MAGIC or ver != 7:
                     raise ValueError(f"Invalid ScarField container magic/version: {magic!r} v{ver}")
                 if 64 + m_pad_len + t_len > len(mv):
                     raise ValueError(f"Truncated ScarField container: expected {64 + m_pad_len + t_len} B, got {len(mv)} B")
                 if verify_crc:
-                    actual_crc = zlib.crc32(mv[64 : 64 + m_pad_len + t_len]) & 0xFFFFFFFF
+                    with mv[64 : 64 + m_pad_len + t_len] as crc_slice:
+                        actual_crc = zlib.crc32(crc_slice) & 0xFFFFFFFF
                     if actual_crc != expected_crc:
                         raise ValueError(f"ScarField container CRC32 mismatch: 0x{expected_crc:08x} != 0x{actual_crc:08x}")
-                manifest = json.loads(bytes(mv[64 : 64 + m_len]).decode("utf-8"))
-            finally:
-                mv.release()
+                with mv[64 : 64 + m_len] as m_slice:
+                    manifest = json.loads(bytes(m_slice).decode("utf-8"))
             self.config: Dict[str, Any] = manifest["config"]
             base_off = 64 + m_pad_len
             for item in manifest["tensors"]:

@@ -202,8 +202,9 @@ def main() -> None:
                         c_u8 = torch.from_numpy(np.array(ctr.arrays[f"e8::{mname}::codes_u8"], copy=True)).long().to(dev)
                         a_pk = torch.from_numpy(np.array(ctr.arrays[f"e8::{mname}::a_tern"], copy=True)).to(dev)
                         b_pk = torch.from_numpy(np.array(ctr.arrays[f"e8::{mname}::b_tern"], copy=True)).to(dev)
-                        sc = ctr.arrays[f"e8::{mname}::scalars"]
+                        sc = np.array(ctr.arrays[f"e8::{mname}::scalars"], copy=True)
                         tau_b, gam_s = float(sc[0]), float(sc[1])
+                        del sc
                         sqrt_i = math.sqrt(float(mod.in_features))
                         lut_d = mod.lut_e8.to(dev)
                         sgn_d = mod.signs.to(dev)
