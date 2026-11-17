@@ -36,21 +36,29 @@ def rademacher_signs_det(dim: int, device: torch.device | str = "cpu") -> torch.
     return torch.where((h & 1) == 0, 1.0, -1.0)
 
 
+_HADAMARD64_CACHE: dict[Tuple[str, Optional[int], torch.dtype], torch.Tensor] = {}
+
+
+def _get_hadamard64(device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    key = (device.type, device.index, dtype)
+    mat = _HADAMARD64_CACHE.get(key)
+    if mat is None:
+        h = torch.tensor([[1.0]], dtype=torch.float32, device=device)
+        for _ in range(6):
+            h = torch.cat((torch.cat((h, h), dim=1), torch.cat((h, -h), dim=1)), dim=0)
+        mat = (h * 0.125).to(dtype=dtype).contiguous()
+        _HADAMARD64_CACHE[key] = mat
+    return mat
+
+
 def fwht64_rademacher(x: torch.Tensor, signs: torch.Tensor, inverse: bool = False) -> torch.Tensor:
-    """Multiplierless orthonormal 64-point Fast Walsh-Hadamard Transform (zero `d_eq`)."""
+    """Multiplierless orthonormal 64-point Fast Walsh-Hadamard Transform (1 fused GEMM, zero `d_eq`)."""
     orig_shape = x.shape
     if orig_shape[-1] % 64 != 0:
         raise ValueError(f"Last dimension ({orig_shape[-1]}) must be divisible by 64")
     y = x if inverse else (x * signs)
-    y = y.reshape(-1, 64)
-    h = 1
-    while h < 64:
-        y = y.reshape(-1, 64 // (2 * h), 2, h)
-        a = y[:, :, 0, :]
-        b = y[:, :, 1, :]
-        y = torch.stack((a + b, a - b), dim=2)
-        h *= 2
-    out = (y.reshape(-1, 64) * 0.125).reshape(orig_shape)
+    h64 = _get_hadamard64(y.device, y.dtype)
+    out = torch.matmul(y.reshape(-1, 64), h64).reshape(orig_shape)
     return (out * signs) if inverse else out
 
 
@@ -224,6 +232,11 @@ class E8SphericalLinear(nn.Module):
         self.out_features = out_features
         self.scar_rank = scar_rank
         self._frozen_packed: Optional[PackedE8TernaryMatrix] = None
+        self._cached_q_key: Optional[Tuple[int, int, str, Optional[int]]] = None
+        self._cached_w_q_rot: Optional[torch.Tensor] = None
+        self._cached_nograd_key: Optional[Tuple[int, int, int, int, int, str, Optional[int]]] = None
+        self._cached_a_t: Optional[torch.Tensor] = None
+        self._cached_b_t: Optional[torch.Tensor] = None
 
         global _SHARED_E8_LUT_CPU
         if _SHARED_E8_LUT_CPU is None:
@@ -260,7 +273,11 @@ class E8SphericalLinear(nn.Module):
 
     def _assign_e8_codes(self, w_rot_scaled: torch.Tensor) -> torch.Tensor:
         blks = w_rot_scaled.reshape(-1, 8)
-        scores = blks @ self.lut_e8.T - self.lut_half_norm2
+        if blks.device.type == "cuda":
+            # Exact FP16 Tensor-Core inner product (`lut_e8` & `lut_half_norm2` are small half-integers/shells)
+            scores = torch.matmul(blks.half(), self.lut_e8.half().T).float() - self.lut_half_norm2
+        else:
+            scores = blks @ self.lut_e8.T - self.lut_half_norm2
         return torch.argmax(scores, dim=-1).reshape(self.out_features, self.in_features // 8)
 
     @torch.no_grad()
@@ -306,20 +323,59 @@ class E8SphericalLinear(nn.Module):
             return self._frozen_packed.forward(x, self.lut_e8, self.signs, use_c_accel=True)
 
         xf = x.float()
-        w_unit = project_rows_to_unit_sphere(self.weight_sphere.float())
         sqrt_i = math.sqrt(float(self.in_features))
-        w_rot = fwht64_rademacher(w_unit, self.signs, inverse=False) * sqrt_i
-        with torch.no_grad():
-            codes = self._assign_e8_codes(w_rot)
-            w_q_rot = self.lut_e8[codes].reshape(self.out_features, self.in_features)
-        w_ste_rot = w_rot + (w_q_rot - w_rot).detach()
+        dev = self.weight_sphere.device
+        q_key = (self.weight_sphere._version, self.weight_sphere.data_ptr(), dev.type, dev.index)
+
+        if self._cached_q_key != q_key or self._cached_w_q_rot is None or self._cached_w_q_rot.device != dev:
+            with torch.no_grad():
+                w_u_ng = project_rows_to_unit_sphere(self.weight_sphere.detach().float())
+                w_r_ng = fwht64_rademacher(w_u_ng, self.signs, inverse=False) * sqrt_i
+                codes = self._assign_e8_codes(w_r_ng)
+                self._cached_w_q_rot = self.lut_e8[codes].reshape(self.out_features, self.in_features)
+                self._cached_q_key = q_key
+
+        w_q_rot = self._cached_w_q_rot
+        need_w_grad = torch.is_grad_enabled() and (self.weight_sphere.requires_grad or self.tau_base.requires_grad)
+        if need_w_grad:
+            w_unit = project_rows_to_unit_sphere(self.weight_sphere.float())
+            w_rot = fwht64_rademacher(w_unit, self.signs, inverse=False) * sqrt_i
+            w_ste_rot = w_rot + (w_q_rot - w_rot).detach()
+        else:
+            w_ste_rot = w_q_rot
 
         x_rot = fwht64_rademacher(xf, self.signs, inverse=False)
         y = (x_rot @ w_ste_rot.T) * (self.tau_base / sqrt_i)
 
         if self.scar_rank > 0 and self.a_scar is not None and self.b_scar is not None and self.gamma_scar is not None:
-            a_t, _ = quantize_ternary_ste(self.a_scar.float())
-            b_t, _ = quantize_ternary_ste(self.b_scar.float())
+            need_s_grad = torch.is_grad_enabled() and (
+                self.a_scar.requires_grad or self.b_scar.requires_grad or self.gamma_scar.requires_grad
+            )
+            if need_s_grad:
+                a_t, _ = quantize_ternary_ste(self.a_scar.float())
+                b_t, _ = quantize_ternary_ste(self.b_scar.float())
+            else:
+                ng_key = (
+                    self.a_scar._version,
+                    self.b_scar._version,
+                    self.a_scar.data_ptr(),
+                    self.b_scar.data_ptr(),
+                    self.scar_rank,
+                    dev.type,
+                    dev.index,
+                )
+                if (
+                    self._cached_nograd_key != ng_key
+                    or self._cached_a_t is None
+                    or self._cached_b_t is None
+                    or self._cached_a_t.device != dev
+                ):
+                    with torch.no_grad():
+                        self._cached_a_t, _ = quantize_ternary_ste(self.a_scar.detach().float())
+                        self._cached_b_t, _ = quantize_ternary_ste(self.b_scar.detach().float())
+                        self._cached_nograd_key = ng_key
+                a_t = self._cached_a_t
+                b_t = self._cached_b_t
             scale_s = self.gamma_scar / math.sqrt(float(self.in_features * self.scar_rank))
             y = y + ((xf @ a_t.T) @ b_t.T) * scale_s
 

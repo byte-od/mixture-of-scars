@@ -122,19 +122,30 @@ def tsallis15_fenchel_young_loss(scores: torch.Tensor, targets: torch.Tensor) ->
 
 
 class ByteShockFrontEnd(nn.Module):
-    """Tokenizer-free `V = 256` UTF-8 Byte Perceptual Front-End with Native Surprise Sensor."""
+    """Tokenizer-free `V = 256` UTF-8 Byte Perceptual Front-End with Multi-Scale Spherical Wave & Surprise Sensor."""
 
-    def __init__(self, d_form: int, d_world: int, vocab_size: int = 256) -> None:
+    def __init__(
+        self,
+        d_form: int,
+        d_world: int,
+        vocab_size: int = 256,
+        wave_lags: Tuple[int, ...] = (1, 2, 3),
+    ) -> None:
         super().__init__()
         self.d_form = d_form
         self.d_world = d_world
         self.vocab_size = vocab_size
+        self.wave_lags: Tuple[int, ...] = tuple(int(x) for x in wave_lags)
 
         self.byte_form_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_form)))
         self.byte_world_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_world)))
-        # Causal 4-byte perceptual wave mixer on `S^{D_f-1}` & `S^{D_w-1}` (distinguishes n-gram stems cleanly!)
-        self.ngram_weights = nn.Parameter(torch.tensor([1.0, 0.55, 0.30, 0.16], dtype=torch.float32))
-        # Zero-Softmax Tsallis-1.5 local 4-byte cap observer (`s_t = 1 - p_cap(b_t | b_{t-4..t-1})` in `[0, 1]`)
+        # Causal multi-scale spherical wave weights (`t` + `wave_lags`, zero `nn.Linear`, zero `BPE`!)
+        if self.wave_lags == (1, 2, 3):
+            init_w = [1.0, 0.55, 0.30, 0.16]
+        else:
+            init_w = [1.0] + [float(0.62 * (0.84 ** idx)) for idx in range(len(self.wave_lags))]
+        self.ngram_weights = nn.Parameter(torch.tensor(init_w, dtype=torch.float32))
+        # Zero-Softmax Tsallis-1.5 local cap observer (`s_t = 1 - p_cap(b_t | wave_{t-1})` in `[0, 1]`)
         self.reflex_cap_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_form)))
         self.reflex_temp = nn.Parameter(torch.tensor(8.0, dtype=torch.float32))
 
@@ -149,19 +160,20 @@ class ByteShockFrontEnd(nn.Module):
         hf_raw = f_poles[ids]  # [B, T, D_f]
         hw_raw = w_poles[ids]  # [B, T, D_w]
 
-        # Causal 4-byte spherical wave superposition (`t, t-1, t-2, t-3`) with cyclic channel shifts
+        # Causal multi-scale spherical wave superposition (`t` + `wave_lags`) with cyclic channel shifts
         bsz, seq_len, _ = hf_raw.shape
         nw = self.ngram_weights
         hf_acc = nw[0] * hf_raw
         hw_acc = nw[0] * hw_raw
-        for lag in (1, 2, 3):
+        for idx, lag in enumerate(self.wave_lags, start=1):
             if seq_len > lag:
                 pad_f = torch.zeros(bsz, lag, self.d_form, dtype=hf_raw.dtype, device=hf_raw.device)
                 pad_w = torch.zeros(bsz, lag, self.d_world, dtype=hw_raw.dtype, device=hw_raw.device)
-                shifted_f = torch.roll(torch.cat((pad_f, hf_raw[:, :-lag, :]), dim=1), shifts=lag * 2, dims=-1)
-                shifted_w = torch.roll(torch.cat((pad_w, hw_raw[:, :-lag, :]), dim=1), shifts=lag * 2, dims=-1)
-                hf_acc = hf_acc + nw[lag] * shifted_f
-                hw_acc = hw_acc + nw[lag] * shifted_w
+                shift_ch = (idx * 2) if self.wave_lags == (1, 2, 3) else (lag * 2)
+                shifted_f = torch.roll(torch.cat((pad_f, hf_raw[:, :-lag, :]), dim=1), shifts=shift_ch, dims=-1)
+                shifted_w = torch.roll(torch.cat((pad_w, hw_raw[:, :-lag, :]), dim=1), shifts=shift_ch, dims=-1)
+                hf_acc = hf_acc + nw[idx] * shifted_f
+                hw_acc = hw_acc + nw[idx] * shifted_w
 
         hf = project_rows_to_unit_sphere(hf_acc)
         hw = project_rows_to_unit_sphere(hw_acc)

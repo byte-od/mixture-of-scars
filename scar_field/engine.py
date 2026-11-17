@@ -63,23 +63,40 @@ class ScarFieldConfig:
     ghost_jump_gamma: float = 0.35
     wy_chunk_size: int = 32
     enable_kalman_fast: bool = True
+    wave_lags: Tuple[int, ...] = (1, 2, 3)
+    num_macro_cycles: int = 1
+
+    def __post_init__(self) -> None:
+        if isinstance(self.wave_lags, list):
+            object.__setattr__(self, "wave_lags", tuple(int(x) for x in self.wave_lags))
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ScarFieldConfig":
+        valid_fields = {f for f in cls.__dataclass_fields__}
+        filtered = {k: v for k, v in data.items() if k in valid_fields}
+        if "wave_lags" in filtered and isinstance(filtered["wave_lags"], list):
+            filtered["wave_lags"] = tuple(int(x) for x in filtered["wave_lags"])
+        return cls(**filtered)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
 
 class ScarFieldEngine(nn.Module):
-    """Complete Post-Transformer `ScarField v7.0` Engine (Zero `nn.Linear`, `ReLU`, `Softmax`, `RoPE(t)`)."""
+    """Complete Post-Transformer `ScarField v7.0 / v7.2` Engine (Zero `nn.Linear`, `ReLU`, `Softmax`, `RoPE(t)`)."""
 
     def __init__(self, cfg: Optional[ScarFieldConfig] = None) -> None:
         super().__init__()
         self.cfg = cfg if cfg is not None else ScarFieldConfig()
         c = self.cfg
+        max_wave_buf = max(4, (max(c.wave_lags) + 1) if c.wave_lags else 4)
+        self._recent_buf_cap = max_wave_buf
 
         self.frontend = ByteShockFrontEnd(
             d_form=c.d_form,
             d_world=c.d_world,
             vocab_size=c.vocab_size,
+            wave_lags=c.wave_lags,
         )
         # Stage 1: Perceptual Cayley Geodesic Flow (refines raw byte wave into sharp semantic queries)
         self.flow_percept = ReversibleSymplecticCayleyFlow(
@@ -100,6 +117,7 @@ class ScarFieldEngine(nn.Module):
             repulsive_len=c.repulsive_len,
             shock_write_theta=c.shock_write_theta,
             enable_kalman_fast=c.enable_kalman_fast,
+            recent_wave_buf_len=max_wave_buf,
         )
         # Stage 2: Reasoning/Synthesis Cayley Geodesic Flow (`S1` K=1 <-> `S2` K=s2_steps)
         self.flow = ReversibleSymplecticCayleyFlow(
@@ -109,6 +127,22 @@ class ScarFieldEngine(nn.Module):
             base_rank=c.base_rank,
             num_scars=c.num_scars,
         )
+        # Optional Deep Macro-Cycles (`num_macro_cycles >= 2` for `v7.2-Deep`, `0` overhead when `== 1`!)
+        if c.num_macro_cycles > 1:
+            self.extra_flows = nn.ModuleList(
+                [
+                    ReversibleSymplecticCayleyFlow(
+                        d_form=c.d_form,
+                        d_world=c.d_world,
+                        d_bus=c.d_bus,
+                        base_rank=c.base_rank,
+                        num_scars=c.num_scars,
+                    )
+                    for _ in range(c.num_macro_cycles - 1)
+                ]
+            )
+        else:
+            self.extra_flows = None
         self.head = SphericalCapSimplexHead(
             d_form=c.d_form,
             d_world=c.d_world,
@@ -173,7 +207,7 @@ class ScarFieldEngine(nn.Module):
         hf_phased, bus_ctx, uscar_res, next_state = self.bus.forward_sequence(
             hf0, hw0, surprise, state=state, chunk_size=self.cfg.wy_chunk_size, v_shock_hint=v_sym
         )
-        tail_n = min(4, full_ids.shape[1])
+        tail_n = min(self._recent_buf_cap, full_ids.shape[1])
         next_state.recent_bytes.zero_()
         next_state.recent_bytes[:, -tail_n:] = full_ids[:, -tail_n:].clamp(0, 255).to(torch.uint8)
         next_state.recent_len = int(tail_n)
@@ -185,6 +219,15 @@ class ScarFieldEngine(nn.Module):
             num_steps=self.cfg.s2_steps,
             step_mask=step_mask,
         )
+        if self.extra_flows is not None:
+            for ef in self.extra_flows:
+                hf_out, hw_out = ef(
+                    hf_out,
+                    hw_out,
+                    bus_ctx,
+                    num_steps=self.cfg.s2_steps,
+                    step_mask=step_mask,
+                )
         scores, max_w_cos = self.head.forward_scores(hf_out, hw_out, bus_ctx=bus_ctx)
         v_pred = self.head.value_judge(hw_out)
         return {
@@ -303,7 +346,7 @@ class ScarFieldEngine(nn.Module):
         hf_phased, bus_ctx, uscar_res, _ = self.bus.step_pulse(
             hf_t, hw_t, s_t, state=state, mutate_state=True, v_shock_hint_t=v_sym_t
         )
-        tail_n = min(4, win.shape[1])
+        tail_n = min(self._recent_buf_cap, win.shape[1])
         state.recent_bytes.zero_()
         state.recent_bytes[:, -tail_n:] = win[:, -tail_n:].to(torch.uint8)
         state.recent_len = int(tail_n)
@@ -311,6 +354,9 @@ class ScarFieldEngine(nn.Module):
         use_s2 = bool(float(s_t[0].item()) >= self.cfg.s2_surprise_theta)
         k_steps = self.cfg.s2_steps if use_s2 else self.cfg.s1_steps
         hf_out, hw_out = self.flow(hf_phased, hw_t, bus_ctx, num_steps=k_steps)
+        if self.extra_flows is not None:
+            for ef in self.extra_flows:
+                hf_out, hw_out = ef(hf_out, hw_out, bus_ctx, num_steps=k_steps)
 
         scores, max_w_cos_t = self.head.forward_scores(hf_out, hw_out, bus_ctx=bus_ctx)
         if apply_repulsive_anti_loop:
@@ -384,11 +430,14 @@ class ScarFieldEngine(nn.Module):
                     hf_b1, hw_b1, s_b1, state=virt_st, mutate_state=False, v_shock_hint_t=v_sym_b1
                 )
                 hf_o1, hw_o1 = self.flow(hf_p1, hw_b1, bus_1, num_steps=self.cfg.s1_steps)
+                if self.extra_flows is not None:
+                    for ef in self.extra_flows:
+                        hf_o1, hw_o1 = ef(hf_o1, hw_o1, bus_1, num_steps=self.cfg.s1_steps)
 
                 # Step 2 Ghost-Jump lookahead using `VirtualGhostJumpDelta` (`0 B` W_fast copy!)
                 sc_1, _ = self.head.forward_scores(hf_o1, hw_o1, bus_ctx=bus_1)
                 next_top1 = sc_1.argmax(dim=-1)
-                win_b2 = torch.cat((win_b1[:, -min(4, win_b1.shape[1]) :], next_top1.unsqueeze(-1)), dim=1)
+                win_b2 = torch.cat((win_b1[:, -min(self._recent_buf_cap, win_b1.shape[1]) :], next_top1.unsqueeze(-1)), dim=1)
                 hf_b2_all, hw_b2_all, s_b2_all = self.frontend(win_b2)
                 hf_b2, hw_b2 = self.flow_percept(hf_b2_all[:, -1], hw_b2_all[:, -1], hf_b2_all[:, -1], num_steps=2)
                 assert delta_1 is not None
@@ -417,13 +466,16 @@ class ScarFieldEngine(nn.Module):
                 hf_p2, bus_2, _, _ = self.bus.step_pulse(
                     hf_b2,
                     hw_b2,
-                    s_b2_all[:, 1],
+                    s_b2_all[:, -1],
                     state=virt_st_2,
                     virtual_delta=v_delta,
                     mutate_state=False,
                     v_shock_hint_t=v_sym_b2,
                 )
-                _, hw_o2 = self.flow(hf_p2, hw_b2, bus_2, num_steps=self.cfg.s1_steps)
+                hf_o2, hw_o2 = self.flow(hf_p2, hw_b2, bus_2, num_steps=self.cfg.s1_steps)
+                if self.extra_flows is not None:
+                    for ef in self.extra_flows:
+                        hf_o2, hw_o2 = ef(hf_o2, hw_o2, bus_2, num_steps=self.cfg.s1_steps)
 
                 v_j1 = self.head.value_judge(hw_o1)
                 v_j2 = self.head.value_judge(hw_o2)
@@ -493,7 +545,7 @@ class ScarFieldEngine(nn.Module):
     ) -> Tuple["ScarFieldEngine", ScarFieldMmapContainer]:
         """Cold-loads a packed `ScarFieldEngine` via zero-copy OS `mmap` (`0` pickle, `< 2 ms` load!)."""
         container = ScarFieldMmapContainer(path, verify_crc=verify_crc)
-        cfg = ScarFieldConfig(**container.config)
+        cfg = ScarFieldConfig.from_dict(container.config)
         import scar_field.e8_lattice as _e8_mod
 
         _e8_mod._SKIP_E8_INIT_ALLOC = True

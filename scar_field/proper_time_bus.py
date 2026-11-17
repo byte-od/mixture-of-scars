@@ -303,6 +303,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         repulsive_len: int = 8,
         shock_write_theta: float = 0.18,
         enable_kalman_fast: bool = True,
+        recent_wave_buf_len: int = 4,
     ) -> None:
         super().__init__()
         if d_bus % num_subspaces != 0:
@@ -317,6 +318,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         self.repulsive_len = repulsive_len
         self.shock_write_theta = shock_write_theta
         self.enable_kalman_fast = enable_kalman_fast
+        self.recent_wave_buf_len = max(4, int(recent_wave_buf_len))
 
         joint_dim = d_form + d_world
         if joint_dim % 64 != 0:
@@ -349,7 +351,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             w_fast=torch.zeros(batch_size, self.num_subspaces, self.d_sub, self.d_key, device=device),
             k_prev=torch.zeros(batch_size, self.d_key, device=device),
             has_prev_key=torch.zeros(batch_size, dtype=torch.bool, device=device),
-            recent_bytes=torch.zeros(batch_size, 4, dtype=torch.uint8, device=device),
+            recent_bytes=torch.zeros(batch_size, self.recent_wave_buf_len, dtype=torch.uint8, device=device),
             recent_len=0,
             ring_keys=torch.zeros(batch_size, self.ring_len, self.d_key, device=device),
             ring_vals=torch.zeros(batch_size, self.ring_len, self.d_bus, device=device),
