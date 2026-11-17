@@ -1,10 +1,10 @@
-# `scar_codec` (`v6.0.0`) — Zero-PyTorch C/SIMD Physical Signal, FITS/Zarr Cube, $E_8$ & Constant-Memory Telemetry Library
+# `scar_codec` (`v6.0` / `v6.3-Biorthogonal`) — Zero-PyTorch C99/SIMD Physical Signal, FITS/Zarr Cube, Conway–Sloane $E_8$ & Constant-Memory Dual Telemetry Library
 
 [![License: MIT](https://img.shields.io/badge/License-MIT%20(Code)%20%7C%20CC--BY--4.0%20(Report)-blue.svg)](../LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Zero PyTorch Required](https://img.shields.io/badge/Dependencies-NumPy%20%2B%20Auto%20C99%2FSIMD%20(PyTorch%20Optional)-0d9488.svg)](numpy_engine.py)
-[![C/SIMD Speed](https://img.shields.io/badge/O(1)%20Block%20Read-0.388%20%C2%B5s%20C99%2FSIMD%20mmap%20(11%2C088x%20%3E%20zlib)-16a34a.svg)](c_kernels.c)
-[![Zenodo Preprint v2.0](https://img.shields.io/badge/Zenodo%20Preprint%20v2.0-NASA%20%7C%20ZFP%20%7C%20fpack%20%7C%20Gosset%20E8-0284c7.svg)](../zenodo_deposit_scarcodec_v2_0/ScarCodec_v6_Public_Observational_Datasets_Preprint_v2.0.pdf)
+[![C/SIMD Speed](https://img.shields.io/badge/O(1)%20Block%20Read-0.376%20%C2%B5s%20C99%2FSIMD%20mmap%20(25%2C991x%20%3E%20SPERR)-16a34a.svg)](c_kernels.c)
+[![Zenodo Preprint v3.0](https://img.shields.io/badge/Zenodo%20Preprint%20v3.0-10%20Archives%20%7C%20Biorthogonal%20%7C%20SZ3%2FSPERR%20%7C%20E8-0284c7.svg)](../zenodo_deposit_scarcodec_v3_0/ScarCodec_v6_3_Biorthogonal_10Archives_Preprint_v3.0.pdf)
 [![JOSS Paper](https://img.shields.io/badge/JOSS%20Submission%20Ready-paper%2Fpaper.md-7c3aed.svg)](../paper/paper.md)
 
 `scar_codec` extracts the five pure mathematical operators of **Mixture of Scars (`MoS`)** and **`SCache` $\mathcal{O}(1)$** into a standalone, **neural-network-free** signal, scientific array, storage, and black-box telemetry library (`0` dependency on `transformers`, `0` trained weights):
@@ -15,7 +15,7 @@
 4. **Blind Covariance `OrthogonalSubspaceProjector` ($P_\perp = \mathbf{I} - \mathbf{U}\mathbf{U}^\top$):** Cancels narrowband/spatial interference calibrated solely from noisy baseline runs (`0` clean-signal oracle).
 5. **Constant-Memory `SurpriseGatedAnomalySCache` (`34,816 B` = `34.8 KB`, $\Delta = 0\text{ B}$):** Fixed-footprint Widrow-Hoff associative black-box recorder (`> 40,000 frames/s`) that ignores stationary background and retains ultra-rare mission faults across arbitrarily long streams, with masked partial-cue hetero-associative sensor reconstruction.
 
-![ScarCodec Empirical Evaluation on 5 Public Observational Archives](../zenodo_deposit_scarcodec_public_data_v1_0/scarcodec_public_data_v1_0_hero.png)
+![ScarCodec v6.3 Biorthogonal Evaluation Across 10 Public Scientific Archives & 2026 SOTA](../zenodo_deposit_scarcodec_v3_0/scarcodec_v6_3_biorthogonal_10archives_v3_0_hero.png)
 
 ---
 
@@ -62,6 +62,11 @@ Evaluated directly against native compiled C/C++ implementations of modern 2025/
 | **`SZ3` / `SPERR` Strict $L_\infty$ (`±50 µV` ECG)** | `MIT-BIH 119` (`1.3M` samples, `0` violations) | `1.53×` ratio · **`4.56 µs` random seek** | `~17.8×` ratio · `4,052 µs` (`SZ3`) / `23,100 µs` (`SPERR`) | **Candid Trade-Off:** Variable-length entropy coders compress smooth $L_\infty$ fields higher, sacrificing fixed-offset SIMT/GPU $\mathcal{O}(1)$ seeks (**`888×–5,062×` slower**). |
 | **`Frequent Directions` (`SIAM J. Comput.` SVD Sketch)** | `MIT-BIH 119` Lead-`V1` Dropout (`34,816 B`) | **`cos = 0.99220`** (`3.76 µs`, `48` timestamps) | `cos = 0.89557` (`22.78 µs`, `0` timestamps) | **`6.1×` faster streaming update** + higher cross-lead `PVC` reconstruction + exact discrete arrhythmia event timestamps. |
 | **`Vitter Algorithm R` & `Nita-Gary SK`** | `NASA Shuttle` (`3,120 B`) & `1,000×` Broadband RFI | **`100.0%` faults** · **`cos = 0.9926` pulsar** | `0.50%` Reservoir · `cos = -0.0068` SK | **`200×` higher rare-fault capture** than uniform reservoir sampling; spatial $P_\perp$ cancels Gaussian broadband jammers invisible to kurtosis `SK ≈ 1.0`. |
+
+### 1.6 Biorthogonal Smooth–Shock–Lattice (`v6.2`) & Multithreaded C99 Conway–Sloane $\mathcal{O}(8)$ + `Gate G0` (`v6.3`) Audit ([`../results/scar_codec_v6_3_forensic_real_data_audit.json`](../results/scar_codec_v6_3_forensic_real_data_audit.json))
+- **Zero-Byte-Overhead Biorthogonal Decoupling (`biorthogonal=True`, $\Delta = +0\text{ B}$ `.scar`):** Alternating coupled projections with exact dual least-squares block scaling $\alpha_b^* = \langle r_b, q_b\rangle / \|q_b\|_2^2$ yields **`+8.56 dB` SNR gain** on `IRIS Tohoku Mw 9.1` (`RMSE 30,848 → 11,518`, `-38.69%` bytes at $\varepsilon=5{,}000$), **`-27.06%` byte savings** on `MIT-BIH 119` under clinical IEC $\pm 50\text{ }\mu\text{V}$ (`0` violations), **`0.8821 °C` ocean RMSE** at `23.60×` on 3D `NOAA OISST v2` (`0.0000 °C` Antarctica land bleed vs. `0.079 °C` `SZ3` and `0.159 °C` `SPERR`), and **`7.80` counts peak error** on `17.10×` `ROSAT` Gosset $E_8$ (beating `SZ3` `17.06` and `SPERR CDF 9/7` `24.68`).
+- **Biorthogonal Dual `SCache` & Behrens–Scharf `P_biorth`:** Solving the active-slot dual Gram system $(K_{\mathcal{O}}K_{\mathcal{O}}^\top + \lambda I)^{-1}$ in fixed `34,816 B` ($\Delta=0\text{ B}$) lifts `PhysioNet 64-Ch` oblique `32→32` cortical recall from `0.7433` to **`cos = 0.9822`** (beating `Frequent Directions` SVD `0.9570`), `MIT-BIH 119` fusion-beat recall to **`0.9858`**, and `NASA Space Shuttle` corrupted fault recall from `0.7258` to **`0.99994`** (`159×` lower $L_2$ error). Under an oblique `-60 dB` jammer at `31.8°`, `BiorthogonalObliqueProjectorNumPy` preserves **`100.0%` signal amplitude** (`rel_err = 0.1057` vs. `28%` / `0.7208` in orthogonal $P_\perp$).
+- **Real-Data `v6.3` Encode Speed & Forensic Production Guarantees:** Exact C99 Conway–Sloane $\mathcal{O}(8)$ $D_8$ coset decoding + `System 1 Gate G0` active compaction encode real scientific fields at **`44.4–72.5 MB/s`** (`MIT-BIH 119`: `72.5 MB/s` at `23.77×`; `Tohoku`: `62.1 MB/s` at `20.90×`; `LIGO GW150914`: `60.5 MB/s` at `21.50×`; `Bolocam`: `59.9 MB/s` at `22.32×`; `Spitzer`: `59.3 MB/s` at `21.33×`) with **`0.3765 µs` C99/SIMD `mmap` $\mathcal{O}(1)$ reads**, `0-ULP` lossless `float32` recovery across `200 dB` intra-block contrast, `32/32` `CRC32` tamper rejections (`0` FD leaks), and `0.00e+00` 8-thread `mmap` drift.
 
 ---
 

@@ -1,15 +1,45 @@
-\begin{thebibliography}{19}
+\begin{thebibliography}{30}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
+\bibitem[Abbott et~al.(2016)]{abbott2016observation}
+Benjamin~P. Abbott et~al.
+\newblock Observation of gravitational waves from a binary black hole merger.
+\newblock \emph{Physical Review Letters}, 116\penalty0 (6):\penalty0 061102, 2016.
+\newblock \doi{10.1103/PhysRevLett.116.061102}.
+
+\bibitem[{Albuquerque Seismological Laboratory (ASL)/USGS}(1988)]{asl1988gsn}
+{Albuquerque Seismological Laboratory (ASL)/USGS}.
+\newblock Global seismograph network ({GSN} - {IRIS}/{USGS}).
+\newblock International Federation of Digital Seismograph Networks, 1988.
+\newblock \doi{10.7914/SN/IU}.
+
 \bibitem[{Astropy Collaboration} et~al.(2022){Astropy Collaboration}, Price-Whelan, Lim, Earl, Starkman, Bradley, Shupe, Patil, Corrales, Brasseur, et~al.]{astropy2022project}
 {Astropy Collaboration}, Adrian~M. Price-Whelan, Pey~Lian Lim, Nicholas Earl, Nathaniel Starkman, Larry Bradley, David~L. Shupe, Aarya~A. Patil, Lia Corrales, C.~E. Brasseur, et~al.
 \newblock The {Astropy} project: Sustaining and growing a community-oriented open-source project and the latest major release (v5.0) of the core package.
 \newblock \emph{The Astrophysical Journal}, 935\penalty0 (2):\penalty0 167, 2022.
 \newblock \doi{10.3847/1538-4357/ac7c74}.
+
+\bibitem[Behrens and Scharf(1994)]{behrens1994signal}
+Richard~T. Behrens and Louis~L. Scharf.
+\newblock Signal processing applications of oblique projection operators.
+\newblock \emph{IEEE Transactions on Signal Processing}, 42\penalty0 (6):\penalty0 1413--1424, 1994.
+\newblock \doi{10.1109/78.286957}.
+
+\bibitem[Catlett et~al.(1994)Catlett, Michie, Spiegelhalter, and Taylor]{michie1994statlog}
+Jason Catlett, Donald Michie, David~J. Spiegelhalter, and Charles~C. Taylor.
+\newblock Statlog (shuttle) ({NASA} space shuttle radiator control benchmark).
+\newblock UCI Machine Learning Repository, 1994.
+\newblock \doi{10.24432/C5WS31}.
+
+\bibitem[Cohen et~al.(1992)Cohen, Daubechies, and Feauveau]{cohen1992biorthogonal}
+Albert Cohen, Ingrid Daubechies, and Jean-Christophe Feauveau.
+\newblock Biorthogonal bases of compactly supported wavelets.
+\newblock \emph{Communications on Pure and Applied Mathematics}, 45\penalty0 (5):\penalty0 485--560, 1992.
+\newblock \doi{10.1002/cpa.3160450502}.
 
 \bibitem[Conway and Sloane(1982)]{conway1982fast}
 John~H. Conway and Neil J.~A. Sloane.
@@ -28,6 +58,12 @@ Giovanni~G. Fazio, Joseph~L. Hora, Lori~E. Allen, Matthew L.~N. Ashby, Pauline B
 \newblock The infrared array camera ({IRAC}) for the {Spitzer} space telescope.
 \newblock \emph{The Astrophysical Journal Supplement Series}, 154\penalty0 (1):\penalty0 10--17, 2004.
 \newblock \doi{10.1086/422843}.
+
+\bibitem[Ghashami et~al.(2016)Ghashami, Liberty, Phillips, and Woodruff]{ghashami2016frequent}
+Mina Ghashami, Edo Liberty, Jeff~M. Phillips, and David~P. Woodruff.
+\newblock Frequent directions: Simple and deterministic matrix sketching.
+\newblock \emph{SIAM Journal on Computing}, 45\penalty0 (5):\penalty0 1762--1792, 2016.
+\newblock \doi{10.1137/15M1009718}.
 
 \bibitem[Ginsburg et~al.(2013)Ginsburg, Glenn, Rosolowsky, Ellsworth-Bowers, Battersby, Dunham, Merello, Shirley, Bally, Evans~II, et~al.]{ginsburg2013bolocam}
 Adam Ginsburg, Jason Glenn, Erik Rosolowsky, Timothy~P. Ellsworth-Bowers, Cara Battersby, Miranda Dunham, Manuel Merello, Yancy Shirley, John Bally, Neal~J. Evans~II, et~al.
@@ -59,16 +95,35 @@ Amir Leshem, Alle-Jan van~der Veen, and Albert-Jan Boonstra.
 \newblock \emph{The Astrophysical Journal Supplement Series}, 131\penalty0 (1):\penalty0 355--373, 2000.
 \newblock \doi{10.1086/313489}.
 
+\bibitem[Li et~al.(2023)Li, Lindstrom, and Clyne]{li2023sperr}
+Shaomeng Li, Peter Lindstrom, and John~P. Clyne.
+\newblock Lossy scientific data compression with {SPERR}.
+\newblock In \emph{2023 IEEE International Parallel and Distributed Processing Symposium (IPDPS)}, pages 1007--1017, 2023.
+\newblock \doi{10.1109/IPDPS54959.2023.00104}.
+
+\bibitem[Liang et~al.(2023)Liang, Zhao, Di, Li, Underwood, Gok, Tian, Deng, Calhoun, Tao, Chen, and Cappello]{liang2022sz3}
+Xin Liang, Kai Zhao, Sheng Di, Sihuan Li, Robert Underwood, Ali~M. Gok, Jiannan Tian, Junjing Deng, Jon~C. Calhoun, Dingwen Tao, Zizhong Chen, and Franck Cappello.
+\newblock {SZ3}: A modular framework for composing prediction-based error-bounded lossy compressors.
+\newblock \emph{IEEE Transactions on Big Data}, 9\penalty0 (2):\penalty0 485--498, 2023.
+\newblock \doi{10.1109/TBDATA.2022.3201176}.
+
 \bibitem[Lindstrom(2014)]{lindstrom2014zfp}
 Peter Lindstrom.
 \newblock Fixed-rate compressed floating-point arrays.
 \newblock \emph{IEEE Transactions on Visualization and Computer Graphics}, 20\penalty0 (12):\penalty0 2674--2683, 2014.
 \newblock \doi{10.1109/TVCG.2014.2346458}.
 
-\bibitem[Michie et~al.(1994)Michie, Spiegelhalter, and Taylor]{michie1994statlog}
-Donald Michie, David~J. Spiegelhalter, and Charles~C. Taylor.
-\newblock \emph{Machine Learning, Neural and Statistical Classification ({NASA} Space Shuttle {Statlog} Benchmark)}.
-\newblock Ellis Horwood, 1994.
+\bibitem[Moody and Mark(2001)]{moody2001impact}
+George~B. Moody and Roger~G. Mark.
+\newblock The impact of the {MIT-BIH} arrhythmia database.
+\newblock \emph{IEEE Engineering in Medicine and Biology Magazine}, 20\penalty0 (3):\penalty0 45--50, 2001.
+\newblock \doi{10.1109/51.932724}.
+
+\bibitem[Nita and Gary(2010)]{nita2010generalized}
+Gelu~M. Nita and Dale~E. Gary.
+\newblock The generalized spectral kurtosis estimator.
+\newblock \emph{Monthly Notices of the Royal Astronomical Society: Letters}, 406\penalty0 (1):\penalty0 L60--L64, 2010.
+\newblock \doi{10.1111/j.1745-3933.2010.00882.x}.
 
 \bibitem[Pence et~al.(2009)Pence, Seaman, and White]{pence2009fpack}
 William~D. Pence, Rob Seaman, and Richard~L. White.
@@ -84,10 +139,16 @@ William~D. Pence, Lucio Chiappetti, Clive~G. Page, Richard~A. Shaw, and Elizabet
 
 \bibitem[Reis~Filho(2026)]{reisfilho2026mos_zenodo}
 Julio~Cesar Reis~Filho.
-\newblock Shared-stage scar-native neural architecture (\texttt{ScarNativeLM v6.0}), \texttt{PointScarFlow v1.0}, and domain-independent \texttt{ScarCodec}.
+\newblock Shared-stage scar-native neural architecture (\texttt{ScarNativeLM v6.0}), \texttt{PointScarFlow v1.0}, \texttt{ScarField v7}, and domain-independent \texttt{ScarCodec}.
 \newblock \emph{Zenodo Preprint}, 2026.
 \newblock \doi{10.5281/zenodo.24172784}.
 \newblock URL \href{https://doi.org/10.5281/zenodo.24172784}{\texttt{https://doi.org/10.5281/zenodo.24172784}}.
+
+\bibitem[Reynolds et~al.(2002)Reynolds, Rayner, Smith, Stokes, and Wang]{reynolds2002improved}
+Richard~W. Reynolds, Nick~A. Rayner, Thomas~M. Smith, Diane~C. Stokes, and Wanqiu Wang.
+\newblock An improved in situ and satellite {SST} analysis for climate.
+\newblock \emph{Journal of Climate}, 15\penalty0 (13):\penalty0 1609--1625, 2002.
+\newblock \doi{10.1175/1520-0442(2002)015<1609:AIISAS>2.0.CO;2}.
 
 \bibitem[Ridge et~al.(2006)Ridge, Di~Francesco, Kirk, Li, Goodman, Alves, Arce, Borkin, Caselli, Foster, et~al.]{ridge2006complete}
 Naomi~A. Ridge, James Di~Francesco, Helen Kirk, Di~Li, Alyssa~A. Goodman, Jo{\~a}o~F. Alves, H{\'e}ctor~G. Arce, Michelle~A. Borkin, Paola Caselli, Jonathan~B. Foster, et~al.
@@ -100,6 +161,12 @@ Gerwin Schalk, Dennis~J. McFarland, Thilo Hinterberger, Niels Birbaumer, and Jon
 \newblock {BCI2000}: A general-purpose brain-computer interface ({BCI}) system.
 \newblock \emph{IEEE Transactions on Biomedical Engineering}, 51\penalty0 (6):\penalty0 1034--1043, 2004.
 \newblock \doi{10.1109/TBME.2004.827072}.
+
+\bibitem[Snowden et~al.(1997)Snowden, Egger, Freyberg, McCammon, Plucinsky, Sanders, Schmitt, Tr{\"u}mper, and Voges]{snowden1997rosat}
+Steven~L. Snowden, R.~Egger, M.~J. Freyberg, D.~McCammon, P.~P. Plucinsky, W.~T. Sanders, J.~H. M.~M. Schmitt, J.~Tr{\"u}mper, and W.~Voges.
+\newblock {ROSAT} survey diffuse {X}-ray background maps. {II}.
+\newblock \emph{The Astrophysical Journal}, 485\penalty0 (1):\penalty0 125--135, 1997.
+\newblock \doi{10.1086/304399}.
 
 \bibitem[Viazovska(2017)]{viazovska2017sphere}
 Maryna~S. Viazovska.

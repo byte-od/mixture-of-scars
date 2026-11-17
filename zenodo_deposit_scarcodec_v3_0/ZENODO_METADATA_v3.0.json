@@ -1,0 +1,43 @@
+{
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "version": "3.0.0",
+  "publication_date": "2026-11-17",
+  "title": "Biorthogonal Lattice-Shock Decoupling, 0.376 us O(1) C99/SIMD Reads, and Constant-Memory Dual Telemetry with Zero-PyTorch ScarCodec v6.3 Across Ten Public Scientific Archives",
+  "creators": [
+    {
+      "name": "Reis Filho, Julio Cesar",
+      "affiliation": "Byte-OD Research & System One Architecture Lab"
+    }
+  ],
+  "license": "cc-by-4.0",
+  "keywords": [
+    "ScarCodec v6.3",
+    "Biorthogonal Projection",
+    "Zero-PyTorch C99 SIMD",
+    "Conway-Sloane Gosset E8",
+    "Scientific Data Compression",
+    "FITS Astronomy",
+    "Zarr Numcodecs",
+    "SZ3 and SPERR Benchmark",
+    "LIGO GW150914",
+    "IRIS Tohoku Seismology",
+    "NOAA OISST Climate",
+    "MIT-BIH Holter ECG",
+    "PhysioNet EEG",
+    "NASA Space Shuttle Telemetry",
+    "Constant-Memory Anomaly Detection"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.24172784",
+      "relation": "isSupplementTo",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "https://github.com/byte-od/mixture-of-scars",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

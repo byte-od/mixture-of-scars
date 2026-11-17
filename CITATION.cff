@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use ScarCodec, ScarField, Mixture of Scars (MoS), or SCache O(1) in your research or engineering systems, please cite this work."
 type: software
-title: "ScarCodec v6.0, ScarField v7, Mixture of Scars (MoS), and SCache O(1): Zero-PyTorch C99/SIMD Lattice Compression, Constant-Memory Telemetry, and Zero-Legacy Spherical Neural Fields"
+title: "ScarCodec v6.3-Biorthogonal, ScarField v7.4-Turbo, Mixture of Scars (MoS), and SCache O(1): Zero-PyTorch C99/SIMD Lattice Compression, Constant-Memory Dual Telemetry, and Zero-Legacy Spherical Neural Fields"
 authors:
   - family-names: "Reis Filho"
     given-names: "Julio Cesar"
@@ -10,14 +10,15 @@ doi: "10.5281/zenodo.24172784"
 url: "https://github.com/byte-od/mixture-of-scars"
 repository-code: "https://github.com/byte-od/mixture-of-scars"
 repository-artifact: "https://github.com/byte-od/mixture-of-scars/releases/tag/v1.2.0-qwen72b-mos"
-abstract: "Open-source software ecosystem comprising: (1) ScarCodec v6.0, a Zero-PyTorch (NumPy + compiled C99/SIMD) library, CRC32 mmap binary format (.scar), and Zarr/numcodecs plugin (ScarZarrCodec) delivering 10.5x-21.0x IEEE-754 scientific compression (D4 VQ4 and 1.000 bpw Gosset E8), 0.388 us O(1) 64-float random block reads, 29-decade deterministic L_inf error bounds, orthogonal subspace interference nulling (P_perp), and 34,816 B (Delta=0 B) associative anomaly telemetry validated on SHA-256-verified NASA Spitzer, CSO Bolocam, FCRAO 14-m, NASA Space Shuttle, and PhysioNet archives; and (2) ScarField v7 / ScarNativeLM / MoS foundations for constant-memory and sub-2-bit neural inference across native and WebGPU runtimes."
+abstract: "Open-source software ecosystem comprising: (1) ScarCodec v6.0 / v6.3-Biorthogonal, a Zero-PyTorch (NumPy + multithreaded C99/SIMD) library, CRC32 mmap binary format (.scar), and Zarr/numcodecs plugin (ScarZarrCodec) delivering 10.5x-54.1x IEEE-754 scientific compression (D4 VQ4, 1.000 bpw Conway-Sloane O(8) Gosset E8 at 44.4-72.5 MB/s, and 3D Tucker), 0.376 us O(1) 64-float random block reads, biorthogonal smooth-shock-lattice decoupling (+8.56 dB on Mw 9.1 Tohoku, -27.06% IEC 50 uV ECG bytes), Behrens-Scharf oblique interference nulling (P_biorth), 29-decade deterministic L_inf error bounds, and 34,816 B (Delta=0 B) dual associative anomaly telemetry validated across 16 SHA-256-verified files from 10 public archives and modern 2026 SOTA (SZ3, SPERR, Blosc2, CCSDS-121, Frequent Directions); and (2) ScarField v7.4-Turbo / ScarNativeLM / MoS foundations across native and WebGPU runtimes."
 version: "6.0.0"
-date-released: "2026-11-16"
+date-released: "2026-11-17"
 license: "MIT"
 keywords:
   - "Scientific Data Compression"
   - "FITS Astronomy"
   - "Zarr"
+  - "Biorthogonal Projection"
   - "Lattice Vector Quantization"
   - "Gosset E8 Lattice"
   - "D4 Lattice"
@@ -30,7 +31,7 @@ keywords:
   - "SCache"
 references:
   - type: article
-    title: "Sub-Microsecond O(1) Lattice Compression, Deterministic L_inf Error Bounds, and Constant-Memory Anomaly Telemetry with Zero-PyTorch ScarCodec v6.0 on Public Astronomy, Spacecraft, and Biomedical Archives"
+    title: "Biorthogonal Lattice-Shock Decoupling, 0.376 us O(1) C99/SIMD Reads, and Constant-Memory Dual Telemetry with Zero-PyTorch ScarCodec v6.3 Across Ten Public Scientific Archives"
     authors:
       - family-names: "Reis Filho"
         given-names: "Julio Cesar"
