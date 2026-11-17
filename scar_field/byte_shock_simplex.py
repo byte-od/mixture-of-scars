@@ -237,6 +237,7 @@ class SphericalCapSimplexHead(nn.Module):
         vocab_size: int = 256,
         init_temp: float = 6.0,
         vacuum_kappa: float = 0.15,
+        enable_adaptive_cap: bool = False,
     ) -> None:
         super().__init__()
         self.d_form = d_form
@@ -244,12 +245,15 @@ class SphericalCapSimplexHead(nn.Module):
         self.d_bus = d_bus
         self.vocab_size = vocab_size
         self.vacuum_kappa = vacuum_kappa
+        self.enable_adaptive_cap = bool(enable_adaptive_cap)
 
         self.out_form_anchors = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_form)))
         self.out_world_anchors = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_world)))
         self.out_bus_anchors = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_bus)))
         self.mix_weights = nn.Parameter(torch.tensor([0.38, 0.38, 0.95], dtype=torch.float32))
         self.temp_scale = nn.Parameter(torch.tensor(float(init_temp), dtype=torch.float32))
+        if self.enable_adaptive_cap:
+            self.cap_adapt_gain = nn.Parameter(torch.tensor(0.35, dtype=torch.float32))
 
         # `AURA` Epistemic Coherence Judge `V(h_world) in (-1, +1)` for Ghost-Jump Scout scoring!
         self.value_pole = nn.Parameter(project_rows_to_unit_sphere(torch.randn(1, d_world)))
@@ -276,7 +280,14 @@ class SphericalCapSimplexHead(nn.Module):
             comb = comb + mw[2] * cos_b
 
         temp = self.temp_scale.clamp(1.0, 28.0)
-        scores = temp * comb
+        if self.enable_adaptive_cap:
+            top8_vals, _ = torch.topk(comb, k=min(8, comb.shape[-1]), dim=-1)
+            margin8 = (top8_vals[..., 0:1] - top8_vals.mean(dim=-1, keepdim=True)).clamp(min=0.0)
+            adapt = self.cap_adapt_gain.clamp(0.0, 3.0) / (1.0 + 6.0 * margin8)
+            eff_temp = (temp / (1.0 + adapt)).clamp(1.0, 28.0)
+            scores = eff_temp * comb
+        else:
+            scores = temp * comb
         return scores, max_w_cos
 
     def value_judge(self, h_world: torch.Tensor) -> torch.Tensor:

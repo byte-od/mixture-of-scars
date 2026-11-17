@@ -40,6 +40,62 @@ from scar_field.proper_time_bus import (
     VirtualGhostJumpDelta,
 )
 
+SCARFIELD_USER_BYTE: int = 0x02       # ASCII STX (Start of User Prompt)
+SCARFIELD_ASSISTANT_BYTE: int = 0x03  # ASCII ETX (Start of Assistant Reply)
+SCARFIELD_EOT_BYTE: int = 0x04        # ASCII EOT (Deterministic End of Reply; 0x00 stays Physical Vacuum!)
+
+
+@dataclass
+class ScarFieldChatReply:
+    """Structured multi-turn conversational output emitted by `ScarFieldEngine.generate_reply`."""
+
+    text: str
+    bytes_generated: int
+    abstained_0x00: bool
+    mean_confidence: float
+    s2_deliberation_fraction: float
+    state_bytes: int
+    state: KalmanBusState
+
+
+def format_scarfield_chat_turn(user_text: str, assistant_text: Optional[str] = None) -> bytes:
+    """Formats a raw UTF-8 conversational turn (`0` static BPE vocabulary needed!)."""
+    clean_u = user_text.replace("\x00", "").replace("\x02", "").replace("\x03", "").replace("\x04", "").strip()
+    prefix = b"\x02User: " + clean_u.encode("utf-8") + b"\n\x03Assistant: "
+    if assistant_text is None:
+        return prefix
+    clean_a = assistant_text.replace("\x00", "").replace("\x02", "").replace("\x03", "").replace("\x04", "").strip()
+    return prefix + clean_a.encode("utf-8") + b"\x04\n"
+
+
+def encode_sft_dialogue_bytes_and_mask(turns: list[Tuple[str, str]]) -> Tuple[np.ndarray, np.ndarray]:
+    """Encodes multi-turn `[(user, assistant), ...]` into `(byte_ids [L], target_mask [L-1])`.
+
+    `target_mask[t] == 1.0` strictly when predicting `byte_ids[t + 1]` belonging to the Assistant reply
+    or its terminating `0x04` EOT byte (`0.0` on User prompt bytes!).
+    """
+    raw_bytes = bytearray()
+    is_target_pos: list[float] = []
+    for u_txt, a_txt in turns:
+        prefix = format_scarfield_chat_turn(u_txt, assistant_text=None)
+        clean_a = a_txt.replace("\x00", "").replace("\x02", "").replace("\x03", "").replace("\x04", "").strip()
+        reply = clean_a.encode("utf-8") + b"\x04"
+        suffix = b"\n"
+
+        raw_bytes.extend(prefix)
+        is_target_pos.extend([0.0] * len(prefix))
+
+        raw_bytes.extend(reply)
+        is_target_pos.extend([1.0] * len(reply))
+
+        raw_bytes.extend(suffix)
+        is_target_pos.extend([0.0] * len(suffix))
+
+    arr_u8 = np.asarray(raw_bytes, dtype=np.uint8)
+    # `target_mask[t]` masks loss on target `byte_ids[t + 1]`!
+    mask_f32 = np.asarray(is_target_pos[1:], dtype=np.float32)
+    return arr_u8, mask_f32
+
 
 @dataclass
 class ScarFieldConfig:
@@ -65,6 +121,10 @@ class ScarFieldConfig:
     enable_kalman_fast: bool = True
     wave_lags: Tuple[int, ...] = (1, 2, 3)
     num_macro_cycles: int = 1
+    biorth_slots: int = 0
+    biorth_lambda: float = 0.04
+    enable_biorth_uscar: bool = True
+    enable_adaptive_cap: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.wave_lags, list):
@@ -118,6 +178,9 @@ class ScarFieldEngine(nn.Module):
             shock_write_theta=c.shock_write_theta,
             enable_kalman_fast=c.enable_kalman_fast,
             recent_wave_buf_len=max_wave_buf,
+            biorth_slots=c.biorth_slots,
+            biorth_lambda=c.biorth_lambda,
+            enable_biorth_uscar=c.enable_biorth_uscar,
         )
         # Stage 2: Reasoning/Synthesis Cayley Geodesic Flow (`S1` K=1 <-> `S2` K=s2_steps)
         self.flow = ReversibleSymplecticCayleyFlow(
@@ -149,6 +212,7 @@ class ScarFieldEngine(nn.Module):
             d_bus=c.d_bus,
             vocab_size=c.vocab_size,
             vacuum_kappa=c.vacuum_kappa,
+            enable_adaptive_cap=c.enable_adaptive_cap,
         )
         self.assert_zero_legacy_modules()
 
@@ -249,8 +313,9 @@ class ScarFieldEngine(nn.Module):
         byte_ids: torch.Tensor,
         paired_translation_ids: Optional[torch.Tensor] = None,
         out_of_cone_mask: Optional[torch.Tensor] = None,
+        target_loss_mask: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
-        """Unified Zero-Softmax Tsallis-1.5 + Ghost-Jump Multi-Step + Cross-Lingual `S_world` Loss."""
+        """Unified Zero-Softmax Tsallis-1.5 + Ghost-Jump Multi-Step + Cross-Lingual `S_world` + Masked SFT Loss."""
         out = self.forward_sequence(byte_ids, adaptive_depth=True)
         scores = out["scores"]
         hw_out = out["h_world"]
@@ -262,7 +327,9 @@ class ScarFieldEngine(nn.Module):
         # 1. Primary Zero-Softmax Tsallis-1.5 Spherical Cap Loss weighted by intrinsic local surprise `(1 + 3*s_{t+1})`
         per_tok_cap = tsallis15_fenchel_young_loss(scores[:, :-1, :], byte_ids[:, 1:])
         surp_w = 1.0 + 3.0 * surprise[:, 1:].detach()
-        loss_cap = (per_tok_cap * surp_w).sum() / surp_w.sum().clamp(min=1.0)
+        if target_loss_mask is not None:
+            surp_w = surp_w * target_loss_mask.to(dtype=surp_w.dtype, device=surp_w.device)
+        loss_cap = (per_tok_cap * surp_w).sum() / surp_w.sum().clamp(min=1e-6)
         loss_reflex = out["loss_reflex"]
 
         # 2. `System One` Ghost-Jump Multi-Shock Geodesic Lookahead (`t -> t+2`) + `Juiz` Critic calibration
@@ -424,6 +491,10 @@ class ScarFieldEngine(nn.Module):
                     h_prev=state.h_prev.expand(n_b, -1),
                     repulsive_ring=state.repulsive_ring.expand(n_b, -1, -1),
                     repulsive_ptr=state.repulsive_ptr,
+                    biorth_keys=state.biorth_keys.expand(n_b, -1, -1) if state.biorth_keys is not None else None,
+                    biorth_vals=state.biorth_vals.expand(n_b, -1, -1) if state.biorth_vals is not None else None,
+                    biorth_salience=state.biorth_salience.expand(n_b, -1) if state.biorth_salience is not None else None,
+                    biorth_valid=state.biorth_valid.expand(n_b, -1) if state.biorth_valid is not None else None,
                 )
                 v_sym_b1 = bus_anch[cand_ids.clamp(0, self.cfg.vocab_size - 1)]
                 hf_p1, bus_1, _, delta_1 = self.bus.step_pulse(
@@ -461,6 +532,10 @@ class ScarFieldEngine(nn.Module):
                     h_prev=hw_b1,
                     repulsive_ring=virt_st.repulsive_ring,
                     repulsive_ptr=virt_st.repulsive_ptr,
+                    biorth_keys=virt_st.biorth_keys,
+                    biorth_vals=virt_st.biorth_vals,
+                    biorth_salience=virt_st.biorth_salience,
+                    biorth_valid=virt_st.biorth_valid,
                 )
                 v_sym_b2 = bus_anch[next_top1.clamp(0, self.cfg.vocab_size - 1)]
                 hf_p2, bus_2, _, _ = self.bus.step_pulse(
@@ -496,6 +571,68 @@ class ScarFieldEngine(nn.Module):
             is_vacuum_abstain=False,
             steps_executed=k_steps,
             ghost_jump_used=gj_used,
+        )
+
+    @torch.no_grad()
+    def generate_reply(
+        self,
+        user_prompt: str,
+        state: Optional[KalmanBusState] = None,
+        max_new_bytes: int = 240,
+        enable_ghost_jump_scouts: bool = False,
+        require_world_support: bool = False,
+        apply_repulsive_anti_loop: bool = False,
+    ) -> "ScarFieldChatReply":
+        """Multi-turn conversational inference in strictly `O(1)` memory (`Delta = +0 B` across turns!)."""
+        dev = self.frontend.byte_form_poles.device
+        st = self.init_state(batch_size=1, device=dev) if state is None else state
+        turn_prefix = format_scarfield_chat_turn(user_prompt, assistant_text=None)
+        prefill_bytes = list(turn_prefix)
+        if len(prefill_bytes) > 1:
+            pre_t = torch.tensor([prefill_bytes[:-1]], dtype=torch.long, device=dev)
+            pre_out = self.forward_sequence(pre_t, state=st, adaptive_depth=True)
+            st = pre_out["state"]
+
+        cur_byte = int(prefill_bytes[-1])
+        gen_bytes: list[int] = []
+        conf_sum = 0.0
+        s2_cnt = 0
+        abstained = False
+
+        for step_idx in range(max_new_bytes):
+            dec = self.step_byte_interactive(
+                cur_byte,
+                st,
+                enable_ghost_jump_scouts=enable_ghost_jump_scouts,
+                require_world_support=(require_world_support and step_idx == 0),
+                apply_repulsive_anti_loop=apply_repulsive_anti_loop,
+            )
+            if dec.is_vacuum_abstain or dec.action_byte == 0:
+                abstained = True
+                break
+            if dec.action_byte == SCARFIELD_EOT_BYTE:
+                break
+            gen_bytes.append(dec.action_byte)
+            conf_sum += dec.confidence
+            if dec.steps_executed > self.cfg.s1_steps:
+                s2_cnt += 1
+            cur_byte = dec.action_byte
+
+        # Advance EOT into state so subsequent turns continue seamlessly in `O(1)` memory!
+        if not abstained:
+            _ = self.step_byte_interactive(SCARFIELD_EOT_BYTE, st, enable_ghost_jump_scouts=False)
+            _ = self.step_byte_interactive(ord("\n"), st, enable_ghost_jump_scouts=False)
+
+        text_out = "" if abstained else bytes(gen_bytes).decode("utf-8", errors="replace").strip()
+        n_gen = len(gen_bytes)
+        return ScarFieldChatReply(
+            text=text_out,
+            bytes_generated=n_gen,
+            abstained_0x00=abstained,
+            mean_confidence=(conf_sum / max(1, n_gen)),
+            s2_deliberation_fraction=(s2_cnt / max(1, n_gen)),
+            state_bytes=st.total_state_bytes,
+            state=st,
         )
 
     @torch.no_grad()

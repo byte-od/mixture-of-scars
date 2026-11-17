@@ -126,6 +126,7 @@ class ScarCodecE8:
         max_point_spikes: int = 256,
         spike_sigma_threshold: float = 4.5,
         abs_tolerance: Optional[float] = None,
+        biorthogonal: bool = False,
     ) -> None:
         if rank < 0 or (rank > 0 and rank % 2 != 0):
             raise ValueError(f"ScarCodecE8 rank must be 0 or an even integer, got {rank}")
@@ -136,6 +137,7 @@ class ScarCodecE8:
         self.max_point_spikes = max_point_spikes
         self.spike_sigma_threshold = spike_sigma_threshold
         self.abs_tolerance = abs_tolerance
+        self.biorthogonal = bool(biorthogonal)
 
     def encode(self, field_2d: np.ndarray) -> ScarE8Package:
         arr = np.asarray(field_2d, dtype=np.float32)
@@ -192,7 +194,39 @@ class ScarCodecE8:
                 x_base, np.ones_like(col_rms), rank=eff_rank, alpha=0.5
             )
             b_sc = np.where(orig_zero_row, np.float16(0.0), b_sc)
-            res_vq = x_base - np.where(orig_zero_row[:, None], 0.0, scar_p1)
+            scar_p1_clean = np.where(orig_zero_row[:, None], 0.0, scar_p1)
+            if self.biorthogonal and self.max_point_spikes > 0:
+                s_dev = x - scar_p1_clean
+                s_dev[:, n_cols:] = 0.0
+                s_dev[orig_zero_row] = 0.0
+                act_s = np.abs(s_dev[~orig_zero_row, :n_cols]).reshape(-1)
+                if act_s.size > 0:
+                    mad_s = max(1e-6, 1.4826 * float(np.median(act_s)))
+                    cand_bi = np.flatnonzero(np.abs(s_dev.reshape(-1)) > (self.spike_sigma_threshold * mad_s))
+                    x_base = x.copy()
+                    if cand_bi.size > 0:
+                        if cand_bi.size > self.max_point_spikes:
+                            cand_bi = cand_bi[
+                                np.argpartition(-np.abs(s_dev.reshape(-1)[cand_bi]), self.max_point_spikes - 1)[
+                                    : self.max_point_spikes
+                                ]
+                            ]
+                        x_base.reshape(-1)[cand_bi] = scar_p1_clean.reshape(-1)[cand_bi]
+                        x_base[orig_zero_row] = 0.0
+                    col_rms = np.maximum(np.sqrt(np.mean(x_base * x_base, axis=0)), 1e-6)
+                    med_rms = max(1e-6, float(np.median(col_rms)))
+                    d_eq_f16 = (
+                        np.clip((col_rms / med_rms) ** self.equilibration_beta, 0.05, 32.0).astype(np.float16)
+                        if self.equilibration_beta > 0.0
+                        else np.ones(pad_cols, dtype=np.float16)
+                    )
+                    d_f32 = d_eq_f16.astype(np.float32)
+                    a_u8, a_sc, b_u8, b_sc, scar_p1 = _extract_compressed_int4_asvd_np(
+                        x_base, np.ones_like(col_rms), rank=eff_rank, alpha=0.5
+                    )
+                    b_sc = np.where(orig_zero_row, np.float16(0.0), b_sc)
+                    scar_p1_clean = np.where(orig_zero_row[:, None], 0.0, scar_p1)
+            res_vq = x_base - scar_p1_clean
         else:
             a_u8 = np.zeros((0, pad_cols // 2), dtype=np.uint8)
             a_sc = np.zeros((0, pad_cols // 64), dtype=np.float16)
@@ -219,10 +253,20 @@ class ScarCodecE8:
             e8_codes[s:e] = np.argmax(scores, axis=1).astype(np.uint8)
         e8_codes = np.where(np.repeat(zero_blk.squeeze(-1), 8), np.uint8(0), e8_codes)
 
+        if self.biorthogonal:
+            q_e8 = _E8_LUT256_F32[e8_codes].reshape(n_rows * n_blk, 64)
+            q_n2 = np.sum(q_e8 * q_e8, axis=1, keepdims=True)
+            dual_sc = np.where(
+                (q_n2 > 1e-12) & (~zero_blk),
+                np.sum(blocks * q_e8, axis=1, keepdims=True) / np.maximum(q_n2, 1e-12),
+                0.0,
+            )
+            scales_f16 = np.clip(dual_sc, 0.0, 65504.0).astype(np.float16)
+
         vq_blks = _E8_LUT256_F32[e8_codes].reshape(n_rows * n_blk, 64) * scales_f16.astype(np.float32)
         x_e8 = fwht_block64_np(vq_blks.reshape(n_rows, pad_cols), signs, inverse=True) * d_f32[None, :]
         x_e8 = np.where(
-            np.broadcast_to(zero_blk.reshape(n_rows, n_blk, 1), (n_rows, n_blk, 64)).reshape(n_rows, pad_cols),
+            np.broadcast_to(((scales_f16 == 0.0) if self.biorthogonal else zero_blk).reshape(n_rows, n_blk, 1), (n_rows, n_blk, 64)).reshape(n_rows, pad_cols),
             0.0,
             x_e8,
         )
@@ -232,7 +276,39 @@ class ScarCodecE8:
                 x_base - x_e8, np.ones_like(col_rms), rank=eff_rank, alpha=0.5
             )
             b_sc = np.where(orig_zero_row, np.float16(0.0), b_sc)
-            x_approx = x_e8 + (dequant_rowwise_int4_np(b_u8, b_sc) @ dequant_block64_int4_np(a_u8, a_sc))
+            scar_p2 = dequant_rowwise_int4_np(b_u8, b_sc) @ dequant_block64_int4_np(a_u8, a_sc)
+            if self.biorthogonal:
+                blocks2 = fwht_block64_np((x_base - scar_p2) / d_f32[None, :], signs, inverse=False).reshape(
+                    n_rows * n_blk, 64
+                )
+                zero_blk2 = np.amax(np.abs(blocks2), axis=1, keepdims=True) <= zero_blk_eps
+                rms2 = np.where(zero_blk2, 0.0, np.maximum(np.sqrt(np.mean(blocks2 * blocks2, axis=1, keepdims=True)), 1e-7)).astype(
+                    np.float16
+                )
+                z2_8d = np.where(zero_blk2, 0.0, blocks2 / np.maximum(rms2.astype(np.float32), 1e-7)).reshape(-1, 8)
+                for s in range(0, m8, 262144):
+                    e = min(s + 262144, m8)
+                    scores2 = (z2_8d[s:e] @ _E8_LUT256_F32.T) - _E8_HALF_NORM2[None, :]
+                    e8_codes[s:e] = np.argmax(scores2, axis=1).astype(np.uint8)
+                e8_codes = np.where(np.repeat(zero_blk2.squeeze(-1), 8), np.uint8(0), e8_codes)
+                q_e8_2 = _E8_LUT256_F32[e8_codes].reshape(n_rows * n_blk, 64)
+                q_n2_2 = np.sum(q_e8_2 * q_e8_2, axis=1, keepdims=True)
+                dual_sc2 = np.where(
+                    (q_n2_2 > 1e-12) & (~zero_blk2),
+                    np.sum(blocks2 * q_e8_2, axis=1, keepdims=True) / np.maximum(q_n2_2, 1e-12),
+                    0.0,
+                )
+                scales_f16 = np.clip(dual_sc2, 0.0, 65504.0).astype(np.float16)
+                vq_blks2 = q_e8_2 * scales_f16.astype(np.float32)
+                x_e8 = fwht_block64_np(vq_blks2.reshape(n_rows, pad_cols), signs, inverse=True) * d_f32[None, :]
+                x_e8 = np.where(
+                    np.broadcast_to((scales_f16 == 0.0).reshape(n_rows, n_blk, 1), (n_rows, n_blk, 64)).reshape(
+                        n_rows, pad_cols
+                    ),
+                    0.0,
+                    x_e8,
+                )
+            x_approx = x_e8 + scar_p2
         else:
             x_approx = x_e8
 
@@ -435,6 +511,7 @@ class ScarCodecND:
         spatial_scar_rank: int = 16,
         max_3d_spikes: int = 2048,
         abs_tolerance: Optional[float] = None,
+        biorthogonal: bool = False,
     ) -> None:
         if spectral_rank < 1:
             raise ValueError(f"spectral_rank must be >= 1, got {spectral_rank}")
@@ -446,6 +523,7 @@ class ScarCodecND:
         self.spatial_scar_rank = spatial_scar_rank
         self.max_3d_spikes = max_3d_spikes
         self.abs_tolerance = abs_tolerance
+        self.biorthogonal = bool(biorthogonal)
 
     def encode(self, tensor_nd: np.ndarray) -> ScarNDPackage:
         arr = np.asarray(tensor_nd, dtype=np.float32)
@@ -491,8 +569,35 @@ class ScarCodecND:
         u_spec_f16 = np.ascontiguousarray(u_full[:, :k_spec].astype(np.float16))
         u_spec = u_spec_f16.astype(np.float32)
 
-        # Project `[D_0, N_spatial]` -> `[k_spec, N_spatial]` eigen-maps (preserving natural singular energy!)
-        eigen_maps = u_spec.T @ mat_base  # [k_spec, N_spatial]
+        # Project `[D_0, N_spatial]` -> `[k_spec, N_spatial]` eigen-maps (dual basis compensates FP16 non-orthogonality!)
+        if self.biorthogonal:
+            gram_sp = (u_spec.T @ u_spec) + 1e-6 * np.eye(k_spec, dtype=np.float32)
+            u_dual_t = np.linalg.solve(gram_sp, u_spec.T)  # `u_dual_t @ u_spec ≈ I_k`
+            if self.max_3d_spikes > 0:
+                smooth_3d = u_spec @ (u_dual_t @ mat_base)
+                dev_bi = mat - smooth_3d
+                act_bi = np.abs(dev_bi[:, ~zero_fiber]).reshape(-1)
+                if act_bi.size > 0:
+                    mad_bi = max(1e-6, 1.4826 * float(np.median(act_bi)))
+                    cand_bi = np.flatnonzero(np.abs(dev_bi.reshape(-1)) > (5.0 * mad_bi))
+                    mat_base = mat.copy()
+                    if cand_bi.size > 0:
+                        if cand_bi.size > self.max_3d_spikes:
+                            cand_bi = cand_bi[
+                                np.argpartition(-np.abs(dev_bi.reshape(-1)[cand_bi]), self.max_3d_spikes - 1)[
+                                    : self.max_3d_spikes
+                                ]
+                            ]
+                        mat_base.reshape(-1)[cand_bi] = smooth_3d.reshape(-1)[cand_bi]
+                    mat_base[:, zero_fiber] = 0.0
+                    u_full2, _, _ = np.linalg.svd(mat_base @ mat_base.T, full_matrices=False)
+                    u_spec_f16 = np.ascontiguousarray(u_full2[:, :k_spec].astype(np.float16))
+                    u_spec = u_spec_f16.astype(np.float32)
+                    gram_sp = (u_spec.T @ u_spec) + 1e-6 * np.eye(k_spec, dtype=np.float32)
+                    u_dual_t = np.linalg.solve(gram_sp, u_spec.T)
+            eigen_maps = u_dual_t @ mat_base
+        else:
+            eigen_maps = u_spec.T @ mat_base  # [k_spec, N_spatial]
         mode_scales_f16 = np.ones((k_spec,), dtype=np.float16)
         m_sc_f32 = mode_scales_f16.astype(np.float32)
 
@@ -510,6 +615,7 @@ class ScarCodecND:
             max_point_spikes=min(128, max(0, self.max_3d_spikes // 4)),
             spike_sigma_threshold=4.5,
             abs_tolerance=None,
+            biorthogonal=self.biorthogonal,
         )
         vq_pkg = vq_codec.encode(stacked_2d)
         rec_stacked = NumPyVQ4ScarCodec.decode_full(vq_pkg, use_c_accel=True)

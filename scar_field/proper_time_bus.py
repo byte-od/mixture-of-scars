@@ -89,10 +89,14 @@ class KalmanBusState:
     h_prev: torch.Tensor         # [B, d_world] (`Tri-Compass` local velocity!)
     repulsive_ring: torch.Tensor  # [B, R_rep, d_world] (`AURA` negative anti-loop scars!)
     repulsive_ptr: int
+    biorth_keys: Optional[torch.Tensor] = None      # [B, M_biorth, d_key] (`O(1)` Biorthogonal Dual Shock Bank!)
+    biorth_vals: Optional[torch.Tensor] = None      # [B, M_biorth, d_bus]
+    biorth_salience: Optional[torch.Tensor] = None  # [B, M_biorth]
+    biorth_valid: Optional[torch.Tensor] = None     # [B, M_biorth] bool
 
     @property
     def total_state_bytes(self) -> int:
-        tensors = (
+        tensors = [
             self.w_fast,
             self.k_prev,
             self.has_prev_key,
@@ -105,7 +109,10 @@ class KalmanBusState:
             self.has_origin,
             self.h_prev,
             self.repulsive_ring,
-        )
+        ]
+        for opt_t in (self.biorth_keys, self.biorth_vals, self.biorth_salience, self.biorth_valid):
+            if opt_t is not None:
+                tensors.append(opt_t)
         return sum(int(t.numel() * t.element_size()) for t in tensors)
 
 
@@ -137,12 +144,20 @@ class UScarPoleCartridge:
 
 
 class UniversalScarCartridgeStore(nn.Module):
-    """Manages detached `.uscar` gravitational poles directly on `S^{D_w-1}` (no magic `golden_layer`!)."""
+    """Manages detached `.uscar` gravitational poles directly on `S^{D_w-1}` with Biorthogonal Dual Poles."""
 
-    def __init__(self, d_world: int, d_bus: int) -> None:
+    def __init__(
+        self,
+        d_world: int,
+        d_bus: int,
+        biorthogonal_poles: bool = True,
+        biorth_lambda: float = 0.04,
+    ) -> None:
         super().__init__()
         self.d_world = d_world
         self.d_bus = d_bus
+        self.biorthogonal_poles = bool(biorthogonal_poles)
+        self.biorth_lambda = float(biorth_lambda)
         self.cartridges: Dict[str, UScarPoleCartridge] = {}
 
     @torch.no_grad()
@@ -204,6 +219,31 @@ class UniversalScarCartridgeStore(nn.Module):
             return out, max_res
 
         hw = h_world.float()
+        if len(active) >= 2 and self.biorthogonal_poles:
+            poles_mat = torch.stack([c.pole_world.to(hw.device).float() for c in active], dim=0)  # [C, d_world]
+            n_c = poles_mat.shape[0]
+            gram = torch.matmul(poles_mat, poles_mat.T) + self.biorth_lambda * torch.eye(
+                n_c, dtype=torch.float32, device=hw.device
+            )
+            # Biorthogonal Dual Poles: `P_tilde = (P P^T + lam I)^{-1} P` -> `P_tilde P^T ≈ I_C`!
+            dual_poles = torch.linalg.solve(gram, poles_mat)  # [C, d_world]
+            self_gain = (dual_poles * poles_mat).sum(dim=-1).clamp(min=0.1)  # [C]
+            raw_cos_all = torch.matmul(hw, poles_mat.T)  # [..., C]
+            dual_coord_all = torch.matmul(hw, dual_poles.T) / self_gain  # [..., C]
+            for idx_c, c in enumerate(active):
+                cos_p = raw_cos_all[..., idx_c]
+                dual_c = dual_coord_all[..., idx_c]
+                raw_gate = (2.0 * c1_spherical_cap_resonance(cos_p, hw.new_tensor(c.horizon_kappa))).clamp(0.0, 1.0)
+                dual_gate = (2.0 * c1_spherical_cap_resonance(dual_c, hw.new_tensor(0.35))).clamp(0.0, 1.0)
+                norm_gate = torch.minimum(raw_gate, dual_gate)
+                max_res = torch.maximum(max_res, norm_gate.to(max_res.dtype))
+                if float(norm_gate.max().item()) > 0.0:
+                    a_p = c.a_proj.to(hw.device)
+                    b_v = c.b_value.to(hw.device)
+                    inj = torch.matmul(torch.matmul(hw, a_p.T), b_v.T)
+                    out = out + (norm_gate.unsqueeze(-1) * inj).to(out.dtype)
+            return out, max_res
+
         for c in active:
             pole = c.pole_world.to(hw.device)
             cos_p = torch.matmul(hw, pole)  # [...]
@@ -289,8 +329,91 @@ def chunkwise_wy_channel_selective_scan(
     return readout, w_cur.to(v.dtype)
 
 
+def biorthogonal_shock_bank_read(
+    q_vecs: torch.Tensor,
+    b_keys: torch.Tensor,
+    b_vals: torch.Tensor,
+    b_valid: torch.Tensor,
+    horizon_kappa: torch.Tensor,
+    ridge_lambda: float = 0.04,
+) -> torch.Tensor:
+    """Biorthogonal Dual Shock Readout (`K_tilde = (K K^T + lam I)^{-1} K` -> `K_tilde K^T ≈ I_M`).
+
+    Eliminates oblique hubness/crosstalk among `M` stored long-range shock keys in strictly `O(1)` space
+    with ZERO `Softmax`, ZERO `exp()`, and exact `0.0` output outside the spherical horizon `horizon_kappa`.
+    """
+    bsz, q_len, _ = q_vecs.shape
+    m_slots = b_keys.shape[1]
+    d_bus = b_vals.shape[-1]
+    if not bool(b_valid.any().item()):
+        return torch.zeros(bsz, q_len, d_bus, dtype=b_vals.dtype, device=q_vecs.device)
+
+    val_f = b_valid.float()  # [B, M]
+    k_m = b_keys.float() * val_f.unsqueeze(-1)  # [B, M, d_key]
+    v_m = b_vals.float() * val_f.unsqueeze(-1)  # [B, M, d_bus]
+    qf = q_vecs.float()
+
+    raw_cos = torch.matmul(qf, k_m.transpose(-2, -1))  # [B, L, M]
+    masked_cos = torch.where(b_valid.unsqueeze(1), raw_cos, torch.full_like(raw_cos, -1.0))
+    max_cos = masked_cos.amax(dim=-1, keepdim=True)  # [B, L, 1]
+    kap = horizon_kappa.float().clamp(0.15, 0.88)
+    hor_gate = (2.0 * c1_spherical_cap_resonance(max_cos, kap)).clamp(0.0, 1.0)  # [B, L, 1]
+    if float(hor_gate.max().item()) <= 0.0:
+        return torch.zeros(bsz, q_len, d_bus, dtype=b_vals.dtype, device=q_vecs.device)
+
+    eye_m = torch.eye(m_slots, dtype=torch.float32, device=q_vecs.device).unsqueeze(0)
+    gram = torch.matmul(k_m, k_m.transpose(-2, -1)) + float(ridge_lambda) * eye_m  # [B, M, M]
+    raw_rhs = (raw_cos * val_f.unsqueeze(1)).transpose(-2, -1)  # [B, M, L]
+    alpha = torch.linalg.solve(gram, raw_rhs).transpose(-2, -1)  # [B, L, M]
+    alpha_pos = alpha.clamp(0.0, 1.5) * val_f.unsqueeze(1)
+    out = hor_gate * torch.matmul(alpha_pos, v_m)
+    return out.to(b_vals.dtype)
+
+
+@torch.no_grad()
+def biorthogonal_shock_bank_insert_step_(
+    b_keys: torch.Tensor,
+    b_vals: torch.Tensor,
+    b_sal: torch.Tensor,
+    b_valid: torch.Tensor,
+    k_new: torch.Tensor,
+    v_new: torch.Tensor,
+    sal_new: torch.Tensor,
+    write_thresh: float = 0.22,
+) -> None:
+    """Updates `O(1)` Biorthogonal Shock Bank in-place (`+0 B` alloc) with key-deduplication & salience eviction."""
+    bsz = k_new.shape[0]
+    for b in range(bsz):
+        s_val = float(sal_new[b].item())
+        if s_val <= write_thresh:
+            continue
+        kb = k_new[b]
+        if float((kb * kb).sum().item()) < 0.25:
+            continue
+        vb = v_new[b]
+        val_mask = b_valid[b]
+        if bool(val_mask.any().item()):
+            sims = torch.matmul(b_keys[b], kb)
+            sims_valid = torch.where(val_mask, sims, torch.full_like(sims, -2.0))
+            max_sim, max_idx = torch.max(sims_valid, dim=0)
+            if float(max_sim.item()) > 0.92:
+                idx_o = int(max_idx.item())
+                b_keys[b, idx_o].copy_(kb)
+                b_vals[b, idx_o].copy_(vb)
+                b_sal[b, idx_o] = max(s_val, float(b_sal[b, idx_o].item()))
+                continue
+        eff_sal = torch.where(val_mask, b_sal[b], torch.full_like(b_sal[b], -1.0))
+        min_sal, min_idx = torch.min(eff_sal, dim=0)
+        idx_t = int(min_idx.item())
+        if (not bool(val_mask[idx_t].item())) or s_val >= float(min_sal.item()) * 0.90:
+            b_keys[b, idx_t].copy_(kb)
+            b_vals[b, idx_t].copy_(vb)
+            b_sal[b, idx_t] = s_val
+            b_valid[b, idx_t] = True
+
+
 class ChannelSelectiveKalmanScarBus(nn.Module):
-    """Unified 3-Timescale Central Workspace + Kinematic `Tri-Compass` + Anti-Loop Scars."""
+    """Unified 3-Timescale Central Workspace + Biorthogonal Dual Shock Bank + Kinematic `Tri-Compass`."""
 
     def __init__(
         self,
@@ -304,6 +427,9 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         shock_write_theta: float = 0.18,
         enable_kalman_fast: bool = True,
         recent_wave_buf_len: int = 4,
+        biorth_slots: int = 0,
+        biorth_lambda: float = 0.04,
+        enable_biorth_uscar: bool = True,
     ) -> None:
         super().__init__()
         if d_bus % num_subspaces != 0:
@@ -319,6 +445,8 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         self.shock_write_theta = shock_write_theta
         self.enable_kalman_fast = enable_kalman_fast
         self.recent_wave_buf_len = max(4, int(recent_wave_buf_len))
+        self.biorth_slots = max(0, int(biorth_slots))
+        self.biorth_lambda = float(biorth_lambda)
 
         joint_dim = d_form + d_world
         if joint_dim % 64 != 0:
@@ -344,9 +472,25 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         self.register_buffer("inv_freq", build_proper_time_frequencies(d_form), persistent=False)
         self.ring_kappa = nn.Parameter(torch.tensor(0.35, dtype=torch.float32))
         self.tier_mix = nn.Parameter(torch.tensor([1.35, 0.45, 1.0, 0.30], dtype=torch.float32))
-        self.uscar_store = UniversalScarCartridgeStore(d_world=d_world, d_bus=d_bus)
+        if self.biorth_slots > 0:
+            self.biorth_gain = nn.Parameter(torch.tensor(1.10, dtype=torch.float32))
+            self.biorth_kappa = nn.Parameter(torch.tensor(0.50, dtype=torch.float32))
+        self.uscar_store = UniversalScarCartridgeStore(
+            d_world=d_world,
+            d_bus=d_bus,
+            biorthogonal_poles=enable_biorth_uscar,
+            biorth_lambda=biorth_lambda,
+        )
 
     def init_state(self, batch_size: int, device: torch.device | str = "cpu") -> KalmanBusState:
+        bk = torch.zeros(batch_size, self.biorth_slots, self.d_key, device=device) if self.biorth_slots > 0 else None
+        bv = torch.zeros(batch_size, self.biorth_slots, self.d_bus, device=device) if self.biorth_slots > 0 else None
+        bs = torch.full((batch_size, self.biorth_slots), -1.0, device=device) if self.biorth_slots > 0 else None
+        bval = (
+            torch.zeros(batch_size, self.biorth_slots, dtype=torch.bool, device=device)
+            if self.biorth_slots > 0
+            else None
+        )
         return KalmanBusState(
             w_fast=torch.zeros(batch_size, self.num_subspaces, self.d_sub, self.d_key, device=device),
             k_prev=torch.zeros(batch_size, self.d_key, device=device),
@@ -363,6 +507,10 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             h_prev=torch.zeros(batch_size, self.d_world, device=device),
             repulsive_ring=torch.zeros(batch_size, self.repulsive_len, self.d_world, device=device),
             repulsive_ptr=0,
+            biorth_keys=bk,
+            biorth_vals=bv,
+            biorth_salience=bs,
+            biorth_valid=bval,
         )
 
     def _extract_qkv_beta(
@@ -466,6 +614,61 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             k_ctx, prop_t, build_proper_time_frequencies(self.d_key, device=dev)
         )
         v_flat = v.reshape(bsz, seq_len, self.d_bus)
+
+        # 2.5. Long-Horizon Biorthogonal Dual Shock Bank (`O(1)` `M_biorth` slots, `K_tilde K^T ≈ I`, `Delta = +0 B`)
+        if self.biorth_slots > 0:
+            cur_bk = (
+                st.biorth_keys.detach().clone()
+                if st.biorth_keys is not None
+                else torch.zeros(bsz, self.biorth_slots, self.d_key, device=dev)
+            )
+            cur_bv = (
+                st.biorth_vals.detach().clone()
+                if st.biorth_vals is not None
+                else torch.zeros(bsz, self.biorth_slots, self.d_bus, device=dev)
+            )
+            cur_bsal = (
+                st.biorth_salience.detach().clone()
+                if st.biorth_salience is not None
+                else torch.full((bsz, self.biorth_slots), -1.0, device=dev)
+            )
+            cur_bval = (
+                st.biorth_valid.detach().clone()
+                if st.biorth_valid is not None
+                else torch.zeros(bsz, self.biorth_slots, dtype=torch.bool, device=dev)
+            )
+            biorth_chunks: List[torch.Tensor] = []
+            sal_seq = beta_bind.mean(dim=-1).detach()  # [B, T]
+            k_bind_det = k_bind.detach()
+            v_flat_det = v_flat.detach()
+            for c_start in range(0, seq_len, chunk_size):
+                c_end = min(seq_len, c_start + chunk_size)
+                b_read = biorthogonal_shock_bank_read(
+                    q[:, c_start:c_end, :],
+                    cur_bk.clone(),
+                    cur_bv.clone(),
+                    cur_bval.clone(),
+                    self.biorth_kappa,
+                    ridge_lambda=self.biorth_lambda,
+                )
+                biorth_chunks.append(b_read)
+                # Commit top shock transitions of this chunk into `O(1)` Biorthogonal Bank for subsequent chunks!
+                c_sal = sal_seq[:, c_start:c_end]
+                top_n = min(8, c_end - c_start)
+                _, top_pos = torch.topk(c_sal, k=top_n, dim=-1)
+                top_pos_sorted, _ = torch.sort(top_pos, dim=-1)
+                for j_s in range(top_n):
+                    idx_g = top_pos_sorted[:, j_s]  # [B]
+                    k_step = k_bind_det.gather(1, idx_g.view(bsz, 1, 1).expand(bsz, 1, self.d_key)).squeeze(1)
+                    v_step = v_flat_det.gather(1, idx_g.view(bsz, 1, 1).expand(bsz, 1, self.d_bus)).squeeze(1)
+                    s_step = c_sal.gather(1, idx_g.view(bsz, 1)).squeeze(1)
+                    biorthogonal_shock_bank_insert_step_(
+                        cur_bk, cur_bv, cur_bsal, cur_bval, k_step, v_step, s_step, write_thresh=0.22
+                    )
+            biorth_out = self.biorth_gain * torch.cat(biorth_chunks, dim=1)
+        else:
+            cur_bk, cur_bv, cur_bsal, cur_bval = None, None, None, None
+            biorth_out = torch.zeros_like(v_flat)
         if st.ring_valid.any():
             k_cat = torch.cat((st.ring_keys, k_ring), dim=1)
             v_cat = torch.cat((st.ring_vals, v_flat), dim=1)
@@ -504,7 +707,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             ),
             dim=1,
         )
-        goal_dir = project_rows_to_unit_sphere(kalman_flat + ring_out + uscar_out + 1e-6)
+        goal_dir = project_rows_to_unit_sphere(kalman_flat + biorth_out + ring_out + uscar_out + 1e-6)
         if goal_dir.shape[-1] != self.d_world:
             # Project/slice cleanly onto `d_world`
             if goal_dir.shape[-1] > self.d_world:
@@ -521,6 +724,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         # so empty memory (`W_fast @ q == 0` at 1st `PIN=`) emits `0.0` vacuum instead of unit-norm noise!
         raw_bus = (
             tm[0] * (kalman_flat / math.sqrt(float(self.num_subspaces)))
+            + biorth_out
             + tm[1] * ring_out
             + tm[2] * uscar_out
             + 0.10 * tm[3] * tri_out
@@ -551,6 +755,10 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             h_prev=h_world[:, -1, :].detach(),
             repulsive_ring=new_rep,
             repulsive_ptr=int(rep_tail.shape[1] % self.repulsive_len),
+            biorth_keys=cur_bk,
+            biorth_vals=cur_bv,
+            biorth_salience=cur_bsal,
+            biorth_valid=cur_bval,
         )
         return hf_phased, bus_ctx, uscar_res, new_state
 
@@ -595,11 +803,23 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         rw_norm = rw / (0.5 + rw.sum(dim=-1, keepdim=True))
         ring_out = torch.matmul(rw_norm.unsqueeze(1), state.ring_vals).squeeze(1)
 
+        if self.biorth_slots > 0 and state.biorth_keys is not None and state.biorth_vals is not None and state.biorth_valid is not None:
+            biorth_t = self.biorth_gain * biorthogonal_shock_bank_read(
+                q.unsqueeze(1),
+                state.biorth_keys,
+                state.biorth_vals,
+                state.biorth_valid,
+                self.biorth_kappa,
+                ridge_lambda=self.biorth_lambda,
+            ).squeeze(1)
+        else:
+            biorth_t = torch.zeros(h_world_t.shape[0], self.d_bus, dtype=v.dtype, device=dev)
+
         uscar_out, uscar_res = self.uscar_store.query(h_world_t)
 
         h_orig = torch.where(state.has_origin.unsqueeze(-1), state.h_origin, h_world_t)
         h_prev = torch.where(state.has_origin.unsqueeze(-1), state.h_prev, h_world_t)
-        goal_dir = project_rows_to_unit_sphere(kalman_flat + ring_out + uscar_out + 1e-6)
+        goal_dir = project_rows_to_unit_sphere(kalman_flat + biorth_t + ring_out + uscar_out + 1e-6)
         if goal_dir.shape[-1] > self.d_world:
             goal_w = project_rows_to_unit_sphere(goal_dir[..., : self.d_world])
         elif goal_dir.shape[-1] < self.d_world:
@@ -612,6 +832,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         tm = self.tier_mix
         raw_bus = (
             tm[0] * (kalman_flat / math.sqrt(float(self.num_subspaces)))
+            + biorth_t
             + tm[1] * ring_out
             + tm[2] * uscar_out
             + 0.10 * tm[3] * tri_out
@@ -628,6 +849,23 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         if mutate_state:
             if self.enable_kalman_fast:
                 state.w_fast.add_(torch.matmul(delta_v.unsqueeze(-1), k_bind.unsqueeze(1).unsqueeze(-2)))
+            if (
+                self.biorth_slots > 0
+                and state.biorth_keys is not None
+                and state.biorth_vals is not None
+                and state.biorth_salience is not None
+                and state.biorth_valid is not None
+            ):
+                biorthogonal_shock_bank_insert_step_(
+                    state.biorth_keys,
+                    state.biorth_vals,
+                    state.biorth_salience,
+                    state.biorth_valid,
+                    k_bind,
+                    v.reshape(h_world_t.shape[0], self.d_bus),
+                    beta_bind.mean(dim=-1),
+                    write_thresh=0.22,
+                )
             state.k_prev.copy_(k_ctx)
             state.has_prev_key.fill_(True)
             state.ring_keys[:, :-1, :] = state.ring_keys[:, 1:, :].clone()

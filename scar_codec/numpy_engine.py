@@ -416,6 +416,7 @@ class NumPyVQ4ScarCodec:
         max_point_spikes: int = 512,
         spike_sigma_threshold: float = 4.5,
         abs_tolerance: Optional[float] = None,
+        biorthogonal: bool = False,
     ) -> None:
         if rank < 0 or (rank > 0 and rank % 8 != 0):
             raise ValueError(f"rank must be 0 or a multiple of 8, got {rank}")
@@ -427,6 +428,7 @@ class NumPyVQ4ScarCodec:
         self.max_point_spikes = max_point_spikes
         self.spike_sigma_threshold = spike_sigma_threshold
         self.abs_tolerance = abs_tolerance
+        self.biorthogonal = bool(biorthogonal)
 
     def encode(self, field_2d: np.ndarray) -> NumPyVQ4ScarPackage:
         arr = np.asarray(field_2d, dtype=np.float32)
@@ -490,6 +492,38 @@ class NumPyVQ4ScarCodec:
             )
             b_sc = np.where(orig_zero_row, np.float16(0.0), b_sc)
             scar_p1 = np.where(orig_zero_row[:, None], 0.0, scar_p1)
+            if self.biorthogonal and self.max_point_spikes > 0:
+                # Biorthogonal Smooth–Shock Oblique Decoupling: isolate shocks relative to smooth manifold `scar_p1`
+                s_dev = x - scar_p1
+                if pad_cols > n_cols:
+                    s_dev[:, n_cols:] = 0.0
+                s_dev[orig_zero_row] = 0.0
+                act_s = np.abs(s_dev[~orig_zero_row, :n_cols]).reshape(-1)
+                if act_s.size > 0:
+                    mad_s = max(1e-6, 1.4826 * float(np.median(act_s)))
+                    cand_bi = np.flatnonzero(np.abs(s_dev.reshape(-1)) > (self.spike_sigma_threshold * mad_s))
+                    x_base = x.copy()
+                    if cand_bi.size > 0:
+                        if cand_bi.size > self.max_point_spikes:
+                            cand_bi = cand_bi[
+                                np.argpartition(-np.abs(s_dev.reshape(-1)[cand_bi]), self.max_point_spikes - 1)[
+                                    : self.max_point_spikes
+                                ]
+                            ]
+                        x_base.reshape(-1)[cand_bi] = scar_p1.reshape(-1)[cand_bi]
+                        x_base[orig_zero_row] = 0.0
+                    col_rms = np.maximum(np.sqrt(np.mean(x_base * x_base, axis=0)), 1e-6)
+                    med_rms = max(1e-6, float(np.median(col_rms)))
+                    if self.equilibration_beta > 0.0:
+                        d_eq_f16 = np.clip((col_rms / med_rms) ** self.equilibration_beta, 0.05, 32.0).astype(np.float16)
+                    else:
+                        d_eq_f16 = np.ones(pad_cols, dtype=np.float16)
+                    d_f32 = d_eq_f16.astype(np.float32)
+                    a_u8, a_sc, b_u8, b_sc, scar_p1 = _extract_compressed_int4_asvd_np(
+                        x_base, np.ones_like(col_rms), rank=eff_rank, alpha=0.5
+                    )
+                    b_sc = np.where(orig_zero_row, np.float16(0.0), b_sc)
+                    scar_p1 = np.where(orig_zero_row[:, None], 0.0, scar_p1)
             res_for_vq = x_base - scar_p1
         else:
             a_u8 = np.zeros((0, pad_cols // 2), dtype=np.uint8)
@@ -531,12 +565,22 @@ class NumPyVQ4ScarCodec:
         zero_vec4_mask = np.repeat(zero_blk_mask.squeeze(-1), 16)
         codes_u8 = np.where(zero_vec4_mask, np.uint8(0), codes_u8)
 
+        if self.biorthogonal:
+            q_raw = lut_q[codes_u8].reshape(n_rows * n_blocks_per_row, 64)
+            q_n2 = np.sum(q_raw * q_raw, axis=1, keepdims=True)
+            dual_sc = np.where(
+                (q_n2 > 1e-12) & (~zero_blk_mask),
+                np.sum(blocks * q_raw, axis=1, keepdims=True) / np.maximum(q_n2, 1e-12),
+                0.0,
+            )
+            scales_f16 = np.clip(dual_sc, 0.0, 65504.0).astype(np.float16)
+
         vq_blocks = lut_q[codes_u8] .reshape(n_rows * n_blocks_per_row, 64) * scales_f16.astype(np.float32)
         x_vq = fwht_block64_np(vq_blocks.reshape(n_rows, pad_cols), signs, inverse=True) * d_f32[None, :]
         zero_elem_mask = np.broadcast_to(zero_blk_mask.reshape(n_rows, n_blocks_per_row, 1), (n_rows, n_blocks_per_row, 64)).reshape(
             n_rows, pad_cols
         )
-        x_vq = np.where(zero_elem_mask, 0.0, x_vq)
+        x_vq = np.where((scales_f16 == 0.0).reshape(n_rows, n_blocks_per_row, 1).repeat(64, axis=2).reshape(n_rows, pad_cols) if self.biorthogonal else zero_elem_mask, 0.0, x_vq)
 
         if eff_rank > 0:
             a_u8, a_sc, b_u8, b_sc, _ = _extract_compressed_int4_asvd_np(
@@ -544,6 +588,36 @@ class NumPyVQ4ScarCodec:
             )
             b_sc = np.where(orig_zero_row, np.float16(0.0), b_sc)
             scar_p2 = dequant_rowwise_int4_np(b_u8, b_sc) @ dequant_block64_int4_np(a_u8, a_sc)
+            if self.biorthogonal:
+                # Coupled Pass-2 Oblique Lattice Update against final `scar_p2` (`0` extra bytes!)
+                res_vq2 = x_base - scar_p2
+                blocks2 = fwht_block64_np(res_vq2 / d_f32[None, :], signs, inverse=False).reshape(
+                    n_rows * n_blocks_per_row, 64
+                )
+                zero_blk2 = np.amax(np.abs(blocks2), axis=1, keepdims=True) <= zero_blk_eps
+                rms2 = np.where(zero_blk2, 0.0, np.maximum(np.sqrt(np.mean(blocks2 * blocks2, axis=1, keepdims=True)), 1e-7)).astype(
+                    np.float16
+                )
+                z2_4d = np.where(zero_blk2, 0.0, blocks2 / np.maximum(rms2.astype(np.float32), 1e-7)).reshape(-1, 4)
+                codes_u8 = _nearest_lut256_np(z2_4d, lut_q).astype(np.uint8)
+                codes_u8 = np.where(np.repeat(zero_blk2.squeeze(-1), 16), np.uint8(0), codes_u8)
+                q_raw2 = lut_q[codes_u8].reshape(n_rows * n_blocks_per_row, 64)
+                q_n2_2 = np.sum(q_raw2 * q_raw2, axis=1, keepdims=True)
+                dual_sc2 = np.where(
+                    (q_n2_2 > 1e-12) & (~zero_blk2),
+                    np.sum(blocks2 * q_raw2, axis=1, keepdims=True) / np.maximum(q_n2_2, 1e-12),
+                    0.0,
+                )
+                scales_f16 = np.clip(dual_sc2, 0.0, 65504.0).astype(np.float16)
+                vq_blocks2 = q_raw2 * scales_f16.astype(np.float32)
+                x_vq = fwht_block64_np(vq_blocks2.reshape(n_rows, pad_cols), signs, inverse=True) * d_f32[None, :]
+                x_vq = np.where(
+                    np.broadcast_to((scales_f16 == 0.0).reshape(n_rows, n_blocks_per_row, 1), (n_rows, n_blocks_per_row, 64)).reshape(
+                        n_rows, pad_cols
+                    ),
+                    0.0,
+                    x_vq,
+                )
             x_approx = x_vq + scar_p2
         else:
             x_approx = x_vq
@@ -857,6 +931,51 @@ class OrthogonalSubspaceProjectorNumPy:
         return x - (x @ self.basis_u) @ self.basis_u.T
 
 
+class BiorthogonalObliqueProjectorNumPy:
+    """Zero-PyTorch Behrens-Scharf Biorthogonal Oblique Subspace Projector (`P_biorth = I - U_J U_tilde_J^T`)."""
+
+    def __init__(
+        self,
+        interference_basis: np.ndarray,
+        signal_prior_basis: np.ndarray,
+        ridge_lambda: float = 1e-4,
+    ) -> None:
+        if ridge_lambda <= 0.0:
+            raise ValueError(f"ridge_lambda must be > 0, got {ridge_lambda}")
+        uj, _ = np.linalg.qr(np.asarray(interference_basis, dtype=np.float32), mode="reduced")
+        sp = np.asarray(signal_prior_basis, dtype=np.float32)
+        if sp.size > 0 and sp.ndim == 2 and sp.shape[1] > 0:
+            us, _ = np.linalg.qr(sp, mode="reduced")
+            wj = uj - us @ (us.T @ uj)
+        else:
+            us = np.zeros((uj.shape[0], 0), dtype=np.float32)
+            wj = uj
+        r_j = uj.shape[1]
+        gram = (wj.T @ wj).astype(np.float64) + float(ridge_lambda) * np.eye(r_j, dtype=np.float64)
+        u_tilde_j = np.linalg.solve(gram, wj.T.astype(np.float64)).T.astype(np.float32)
+        self.basis_u_j = np.ascontiguousarray(uj)
+        self.dual_u_tilde_j = np.ascontiguousarray(u_tilde_j)
+        self.signal_basis_u_s = np.ascontiguousarray(us)
+        self.ridge_lambda = float(ridge_lambda)
+
+    @classmethod
+    def fit_from_interference_calibration(
+        cls,
+        calib_matrix: np.ndarray,
+        signal_prior_basis: np.ndarray,
+        subspace_rank: int = 4,
+        ridge_lambda: float = 1e-4,
+    ) -> "BiorthogonalObliqueProjectorNumPy":
+        u_raw, _, _ = np.linalg.svd(np.asarray(calib_matrix, dtype=np.float32), full_matrices=False)
+        return cls(u_raw[:, :subspace_rank], signal_prior_basis, ridge_lambda=ridge_lambda)
+
+    def project_clean(self, array_signal: np.ndarray) -> np.ndarray:
+        x = np.asarray(array_signal, dtype=np.float32)
+        if x.shape[0] == self.basis_u_j.shape[0] and x.ndim == 2:
+            return x - self.basis_u_j @ (self.dual_u_tilde_j.T @ x)
+        return x - (x @ self.dual_u_tilde_j) @ self.basis_u_j.T
+
+
 class SurpriseGatedAnomalySCacheNumPy:
     """Zero-PyTorch `34,816 B` (`34.8 KB` exact, `Delta = 0 B`) Constant-Space Black-Box Recorder."""
 
@@ -951,12 +1070,40 @@ class SurpriseGatedAnomalySCacheNumPy:
         partial_frame: np.ndarray,
         observed_mask: np.ndarray,
         input_is_deviation: bool = False,
+        biorthogonal: bool = False,
+        ridge_lambda: float = 1e-2,
     ) -> np.ndarray:
         mask = np.asarray(observed_mask, dtype=bool)
         pf = np.asarray(partial_frame, dtype=np.float32)
         dev_obs = pf if input_is_deviation else (pf - self.ema_mean_f32)
         cue = np.where(mask, dev_obs, np.float32(0.0))
-        rec_dev = self.query_associative(cue)
+        if not biorthogonal:
+            rec_dev = self.query_associative(cue)
+            return rec_dev if input_is_deviation else (self.ema_mean_f32 + rec_dev)
+
+        valid_slots = self.slot_ts_i64 >= 0
+        if not np.any(valid_slots) or not np.any(mask):
+            rec_dev = self.query_associative(cue)
+            return rec_dev if input_is_deviation else (self.ema_mean_f32 + rec_dev)
+
+        v_act = self.slot_vals_f16[valid_slots].astype(np.float32).T  # [C, K]
+        col_norms = np.maximum(np.linalg.norm(v_act, axis=0, keepdims=True), 1e-8)
+        u_act = v_act / col_norms
+        u_obs = u_act[mask, :]
+        y_obs = dev_obs[mask]
+        k_act = u_act.shape[1]
+        gram = (u_obs.T @ u_obs).astype(np.float64) + float(ridge_lambda) * np.eye(k_act, dtype=np.float64)
+        alpha = np.linalg.solve(gram, (u_obs.T @ y_obs).astype(np.float64)).astype(np.float32)
+        slot_rec = u_act @ alpha
+        rem_obs = np.zeros_like(dev_obs)
+        rem_obs[mask] = y_obs - (u_obs @ alpha)
+        rem_norm = float(np.linalg.norm(rem_obs))
+        if rem_norm > 1e-6:
+            w_res = self.query_associative(rem_obs) * (rem_norm / max(1e-6, float(np.linalg.norm(y_obs))))
+            rec_dev = slot_rec + 0.25 * w_res
+        else:
+            rec_dev = slot_rec
+        rec_dev = np.where(mask, dev_obs, rec_dev)
         return rec_dev if input_is_deviation else (self.ema_mean_f32 + rec_dev)
 
     def recorded_timestamps(self) -> List[int]:

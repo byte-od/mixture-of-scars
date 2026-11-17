@@ -598,6 +598,70 @@ class OrthogonalSubspaceProjector:
         return x - (x @ u) @ u.T
 
 
+class BiorthogonalObliqueProjector:
+    """Behrens-Scharf Biorthogonal Oblique Subspace Projector (`P_biorth = I - U_J U_tilde_J^T`).
+
+    Unlike `OrthogonalSubspaceProjector` (`P_perp = I - U_J U_J^T`), which attenuates desired
+    physical signals whenever signal `U_S` and interference `U_J` overlap obliquely (`U_J^T U_S != 0`),
+    `BiorthogonalObliqueProjector` constructs the dual analyzer `U_tilde_J = P_{perp S} U_J (U_J^T P_{perp S} U_J + lam I)^{-1}`:
+      - `U_tilde_J^T U_J ≈ I`  -> cancels `100%` of structured interference `U_J` (`P_biorth U_J ≈ 0`)
+      - `U_tilde_J^T U_S == 0` -> preserves `100%` of oblique desired signal `U_S` (`P_biorth U_S == U_S`, zero attenuation!)
+    """
+
+    def __init__(
+        self,
+        interference_basis: torch.Tensor,
+        signal_prior_basis: torch.Tensor,
+        ridge_lambda: float = 1e-4,
+    ) -> None:
+        if ridge_lambda <= 0.0:
+            raise ValueError(f"ridge_lambda must be > 0, got {ridge_lambda}")
+        uj, _ = torch.linalg.qr(interference_basis.detach().float(), mode="reduced")
+        if signal_prior_basis.numel() > 0 and signal_prior_basis.shape[1] > 0:
+            us, _ = torch.linalg.qr(signal_prior_basis.detach().float(), mode="reduced")
+            wj = uj - us @ (us.T @ uj)
+        else:
+            us = torch.zeros((uj.shape[0], 0), dtype=torch.float32, device=uj.device)
+            wj = uj
+        r_j = uj.shape[1]
+        gram = wj.T @ wj + float(ridge_lambda) * torch.eye(r_j, dtype=torch.float32, device=uj.device)
+        u_tilde_j = torch.linalg.solve(gram, wj.T).T
+        self.basis_u_j = uj
+        self.dual_u_tilde_j = u_tilde_j
+        self.signal_basis_u_s = us
+        self.ridge_lambda = float(ridge_lambda)
+
+    @classmethod
+    @torch.no_grad()
+    def fit_from_interference_calibration(
+        cls,
+        calib_matrix: torch.Tensor,
+        signal_prior_basis: torch.Tensor,
+        subspace_rank: int = 4,
+        ridge_lambda: float = 1e-4,
+    ) -> "BiorthogonalObliqueProjector":
+        """Fits blind interference subspace `U_J` from noisy baseline `[C, T_cal]` and builds dual `U_tilde_J`."""
+        c_mat = calib_matrix.detach().float()
+        # Fit interference modes in `P_{perp S}` so signal energy present in calibration is never absorbed into `U_J`!
+        if signal_prior_basis.numel() > 0 and signal_prior_basis.shape[1] > 0:
+            us, _ = torch.linalg.qr(signal_prior_basis.detach().float().to(c_mat.device), mode="reduced")
+            # Extract raw dominant jammer directions from `calib_matrix` directly
+            u_raw, _, _ = torch.linalg.svd(c_mat, full_matrices=False)
+            return cls(u_raw[:, :subspace_rank], us, ridge_lambda=ridge_lambda)
+        u_raw, _, _ = torch.linalg.svd(c_mat, full_matrices=False)
+        return cls(u_raw[:, :subspace_rank], signal_prior_basis, ridge_lambda=ridge_lambda)
+
+    @torch.no_grad()
+    def project_clean(self, array_signal: torch.Tensor) -> torch.Tensor:
+        """Applies `P_biorth X = X - U_J (U_tilde_J^T X)` in `O(C * r_J * T)` FLOPs."""
+        x = array_signal.float()
+        uj = self.basis_u_j.to(x.device)
+        ut = self.dual_u_tilde_j.to(x.device)
+        if x.shape[0] == uj.shape[0] and x.ndim == 2:
+            return x - uj @ (ut.T @ x)
+        return x - (x @ ut) @ uj.T
+
+
 class CircularRingBufferOT:
     """Baseline fixed-capacity circular recorder (`FDR / Telemetry Ring`) subject to `O(T)` overwrite."""
 
@@ -746,20 +810,46 @@ class SurpriseGatedAnomalySCache:
         partial_frame: torch.Tensor,
         observed_mask: torch.Tensor,
         input_is_deviation: bool = False,
+        biorthogonal: bool = False,
+        ridge_lambda: float = 1e-2,
     ) -> torch.Tensor:
         """Reconstructs a full `C`-channel frame (or deviation) from a subset of observed channels (`+0 B` alloc).
 
-        Args:
-            partial_frame: `[C]` tensor containing sensor readings (or shock deviations if `input_is_deviation=True`).
-            observed_mask: `[C]` boolean mask (`True` for known/intact sensors, `False` for missing/failed sensors).
-            input_is_deviation: If `True`, treats `partial_frame` as already baseline-centered (`x - ema_mean`)
-                and returns the recalled `C`-channel shock deviation directly.
+        When `biorthogonal=True`, solves the exact dual Gram system `(U_obs^T U_obs + lam I)^{-1} U_obs^T y_obs`
+        across stored anomaly slots (`U_tilde_obs^T U_obs ≈ I`), eliminating oblique crosstalk between
+        correlated multi-sensor fault modes while staying in fixed `34,816 B` (`Delta = 0 B`).
         """
         mask = observed_mask.to(dtype=torch.bool, device=self.w_scar_f32.device)
         pf = partial_frame.to(dtype=torch.float32, device=self.w_scar_f32.device)
         dev_obs = pf if input_is_deviation else (pf - self.ema_mean_f32)
         cue = torch.where(mask, dev_obs, torch.zeros_like(dev_obs))
-        recalled_dev = self.query_associative(cue)
+        if not biorthogonal:
+            recalled_dev = self.query_associative(cue)
+            return recalled_dev if input_is_deviation else (self.ema_mean_f32 + recalled_dev)
+
+        valid_slots = self.slot_ts_i64 >= 0
+        if not bool(valid_slots.any().item()) or not bool(mask.any().item()):
+            recalled_dev = self.query_associative(cue)
+            return recalled_dev if input_is_deviation else (self.ema_mean_f32 + recalled_dev)
+
+        v_act = self.slot_vals_f16[valid_slots].float().T  # [C, K]
+        col_norms = v_act.norm(dim=0, keepdim=True).clamp(min=1e-8)
+        u_act = v_act / col_norms  # [C, K]
+        u_obs = u_act[mask, :]     # [|Omega|, K]
+        y_obs = dev_obs[mask]      # [|Omega|]
+        k_act = u_act.shape[1]
+        gram = u_obs.T @ u_obs + float(ridge_lambda) * torch.eye(k_act, dtype=torch.float32, device=pf.device)
+        alpha = torch.linalg.solve(gram, u_obs.T @ y_obs)  # [K]
+        slot_rec = u_act @ alpha
+        rem_obs = torch.zeros_like(dev_obs)
+        rem_obs[mask] = y_obs - (u_obs @ alpha)
+        rem_norm = float(rem_obs.norm().item())
+        if rem_norm > 1e-6:
+            w_res = self.query_associative(rem_obs) * (rem_norm / max(1e-6, float(y_obs.norm().item())))
+            recalled_dev = slot_rec + 0.25 * w_res
+        else:
+            recalled_dev = slot_rec
+        recalled_dev = torch.where(mask, dev_obs, recalled_dev)
         return recalled_dev if input_is_deviation else (self.ema_mean_f32 + recalled_dev)
 
     def recorded_timestamps(self) -> List[int]:

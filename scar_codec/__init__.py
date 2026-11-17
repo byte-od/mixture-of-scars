@@ -32,6 +32,7 @@ from scar_codec.nd_e8 import (
     build_canonical_e8_lut256_np,
 )
 from scar_codec.numpy_engine import (
+    BiorthogonalObliqueProjectorNumPy,
     NumPyVQ4ScarCodec,
     NumPyVQ4ScarPackage,
     OrthogonalSubspaceProjectorNumPy,
@@ -44,6 +45,7 @@ from scar_codec.zarr_codec import ScarZarrCodec
 
 try:
     from scar_codec.core import (
+        BiorthogonalObliqueProjector,
         CircularRingBufferOT,
         OrthogonalSubspaceProjector,
         PhysicalVQ4ScarCodec,
@@ -57,6 +59,7 @@ except ImportError:  # pragma: no cover - standalone zero-PyTorch runtime!
     PhysicalVQ4ScarCodec = NumPyVQ4ScarCodec  # type: ignore[misc,assignment]
     PhysicalVQ4ScarPackage = NumPyVQ4ScarPackage  # type: ignore[misc,assignment]
     OrthogonalSubspaceProjector = OrthogonalSubspaceProjectorNumPy  # type: ignore[misc,assignment]
+    BiorthogonalObliqueProjector = BiorthogonalObliqueProjectorNumPy  # type: ignore[misc,assignment]
     SurpriseGatedAnomalySCache = SurpriseGatedAnomalySCacheNumPy  # type: ignore[misc,assignment]
     CircularRingBufferOT = None  # type: ignore[assignment]
     unique_tensor_storage_bytes = None  # type: ignore[assignment]
@@ -66,6 +69,8 @@ __all__ = [
     "HAS_TORCH",
     "SCARFIELD_MAGIC",
     "SCAR_MAGIC",
+    "BiorthogonalObliqueProjector",
+    "BiorthogonalObliqueProjectorNumPy",
     "CircularRingBufferOT",
     "NumPyVQ4ScarCodec",
     "NumPyVQ4ScarPackage",

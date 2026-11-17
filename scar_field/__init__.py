@@ -24,7 +24,16 @@ from scar_field.e8_lattice import (
     rademacher_signs_det,
     unpack_ternary_2bit,
 )
-from scar_field.engine import ScarFieldConfig, ScarFieldEngine
+from scar_field.engine import (
+    SCARFIELD_ASSISTANT_BYTE,
+    SCARFIELD_EOT_BYTE,
+    SCARFIELD_USER_BYTE,
+    ScarFieldChatReply,
+    ScarFieldConfig,
+    ScarFieldEngine,
+    encode_sft_dialogue_bytes_and_mask,
+    format_scarfield_chat_turn,
+)
 from scar_field.proper_time_bus import (
     ChannelSelectiveKalmanScarBus,
     KalmanBusState,
@@ -32,12 +41,14 @@ from scar_field.proper_time_bus import (
     UniversalScarCartridgeStore,
     VirtualGhostJumpDelta,
     apply_relativistic_proper_time_phase,
+    biorthogonal_shock_bank_insert_step_,
+    biorthogonal_shock_bank_read,
     chunkwise_wy_channel_selective_scan,
     compute_proper_time,
 )
 from scar_field.riemannian_muon import RiemannianMuon, heal_all_e8_scars
 
-__version__ = "7.0.0"
+__version__ = "7.3.0"
 
 __all__ = [
     "ByteShockFrontEnd",
