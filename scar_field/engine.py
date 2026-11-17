@@ -39,6 +39,12 @@ from scar_field.proper_time_bus import (
     KalmanBusState,
     VirtualGhostJumpDelta,
 )
+from scar_field.s1_scouts import (
+    ScoutBatchTelemetry,
+    System1CorpusScoutFleet,
+    build_scout_g0_step_mask,
+    compute_ghost_jump_antiloop_loss,
+)
 
 SCARFIELD_USER_BYTE: int = 0x02       # ASCII STX (Start of User Prompt)
 SCARFIELD_ASSISTANT_BYTE: int = 0x03  # ASCII ETX (Start of Assistant Reply)
@@ -125,6 +131,8 @@ class ScarFieldConfig:
     biorth_lambda: float = 0.04
     enable_biorth_uscar: bool = True
     enable_adaptive_cap: bool = False
+    scout_g0_theta: float = 0.0
+    antiloop_weight: float = 0.0
 
     def __post_init__(self) -> None:
         if isinstance(self.wave_lags, list):
@@ -275,7 +283,17 @@ class ScarFieldEngine(nn.Module):
         next_state.recent_bytes.zero_()
         next_state.recent_bytes[:, -tail_n:] = full_ids[:, -tail_n:].clamp(0, 255).to(torch.uint8)
         next_state.recent_len = int(tail_n)
-        step_mask = self._build_adaptive_step_mask(surprise) if adaptive_depth else None
+        step_mask = (
+            build_scout_g0_step_mask(
+                surprise,
+                s2_steps=self.cfg.s2_steps,
+                s2_surprise_theta=self.cfg.s2_surprise_theta,
+                scout_g0_theta=0.0,
+                allow_full_bypass=False,
+            )
+            if adaptive_depth
+            else None
+        )
         hf_out, hw_out = self.flow(
             hf_phased,
             hw0,
@@ -284,13 +302,24 @@ class ScarFieldEngine(nn.Module):
             step_mask=step_mask,
         )
         if self.extra_flows is not None:
+            extra_mask = (
+                build_scout_g0_step_mask(
+                    surprise,
+                    s2_steps=self.cfg.s2_steps,
+                    s2_surprise_theta=self.cfg.s2_surprise_theta,
+                    scout_g0_theta=self.cfg.scout_g0_theta,
+                    allow_full_bypass=self.cfg.scout_g0_theta > 0.0,
+                )
+                if adaptive_depth
+                else None
+            )
             for ef in self.extra_flows:
                 hf_out, hw_out = ef(
                     hf_out,
                     hw_out,
                     bus_ctx,
                     num_steps=self.cfg.s2_steps,
-                    step_mask=step_mask,
+                    step_mask=extra_mask,
                 )
         scores, max_w_cos = self.head.forward_scores(hf_out, hw_out, bus_ctx=bus_ctx)
         v_pred = self.head.value_judge(hw_out)
@@ -366,6 +395,13 @@ class ScarFieldEngine(nn.Module):
             excess = (max_w_cos[out_of_cone_mask] - (self.cfg.vacuum_kappa - 0.05)).clamp(min=0.0)
             loss_vac = (excess * excess).mean()
 
+        # 5. Optional `System 1` Ghost-Jump Multi-Lag Repulsive Anti-Loop Scar Loss (`antiloop_weight > 0`)
+        loss_antiloop = scores.new_zeros(())
+        if self.cfg.antiloop_weight > 0.0 and byte_ids.shape[1] > 5:
+            loss_antiloop = compute_ghost_jump_antiloop_loss(
+                hw_out[:, :-1, :], byte_ids[:, 1:], target_loss_mask=target_loss_mask
+            )
+
         total = (
             loss_cap
             + 0.30 * loss_reflex
@@ -373,6 +409,7 @@ class ScarFieldEngine(nn.Module):
             + 0.15 * loss_judge
             + 0.50 * loss_align
             + 0.50 * loss_vac
+            + float(self.cfg.antiloop_weight) * loss_antiloop
         )
         return {
             "loss": total,
@@ -382,6 +419,7 @@ class ScarFieldEngine(nn.Module):
             "loss_judge": loss_judge.detach(),
             "loss_align": loss_align.detach(),
             "loss_vacuum": loss_vac.detach(),
+            "loss_antiloop": loss_antiloop.detach(),
         }
 
     @torch.no_grad()
@@ -418,10 +456,11 @@ class ScarFieldEngine(nn.Module):
         state.recent_bytes[:, -tail_n:] = win[:, -tail_n:].to(torch.uint8)
         state.recent_len = int(tail_n)
 
-        use_s2 = bool(float(s_t[0].item()) >= self.cfg.s2_surprise_theta)
+        s_val = float(s_t[0].item())
+        use_s2 = bool(s_val >= self.cfg.s2_surprise_theta)
         k_steps = self.cfg.s2_steps if use_s2 else self.cfg.s1_steps
         hf_out, hw_out = self.flow(hf_phased, hw_t, bus_ctx, num_steps=k_steps)
-        if self.extra_flows is not None:
+        if self.extra_flows is not None and not (self.cfg.scout_g0_theta > 0.0 and s_val < self.cfg.scout_g0_theta):
             for ef in self.extra_flows:
                 hf_out, hw_out = ef(hf_out, hw_out, bus_ctx, num_steps=k_steps)
 

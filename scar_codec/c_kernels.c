@@ -14,6 +14,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#endif
 
 static inline float scar_fp16_to_fp32(uint16_t h) {
     uint32_t sign = ((uint32_t)(h & 0x8000u)) << 16;
@@ -513,4 +516,156 @@ void scar_e8_spherical_ternary_gemm_f32(
 
     if (x_rot != x_rot_stack) free(x_rot);
     if (z_tern != z_tern_stack) free(z_tern);
+}
+
+static const uint8_t SCAR_D8_PAIR_LUT[8][8] = {
+    {0u, 0u, 1u, 2u, 3u, 4u, 5u, 6u},
+    {0u, 0u, 7u, 8u, 9u, 10u, 11u, 12u},
+    {0u, 0u, 0u, 13u, 14u, 15u, 16u, 17u},
+    {0u, 0u, 0u, 0u, 18u, 19u, 20u, 21u},
+    {0u, 0u, 0u, 0u, 0u, 22u, 23u, 24u},
+    {0u, 0u, 0u, 0u, 0u, 0u, 25u, 26u},
+    {0u, 0u, 0u, 0u, 0u, 0u, 0u, 27u},
+    {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u}
+};
+
+static const uint8_t SCAR_SPINOR_EVEN_LUT[256] = {
+    113u,   0u,   0u, 114u,   0u, 115u, 116u,   0u,   0u, 117u, 118u,   0u, 119u,   0u,   0u, 120u,
+      0u, 121u, 122u,   0u, 123u,   0u,   0u, 124u, 125u,   0u,   0u, 126u,   0u, 127u, 128u,   0u,
+      0u, 129u, 130u,   0u, 131u,   0u,   0u, 132u, 133u,   0u,   0u, 134u,   0u, 135u, 136u,   0u,
+    137u,   0u,   0u, 138u,   0u, 139u, 140u,   0u,   0u, 141u, 142u,   0u, 143u,   0u,   0u, 144u,
+      0u, 145u, 146u,   0u, 147u,   0u,   0u, 148u, 149u,   0u,   0u, 150u,   0u, 151u, 152u,   0u,
+    153u,   0u,   0u, 154u,   0u, 155u, 156u,   0u,   0u, 157u, 158u,   0u, 159u,   0u,   0u, 160u,
+    161u,   0u,   0u, 162u,   0u, 163u, 164u,   0u,   0u, 165u, 166u,   0u, 167u,   0u,   0u, 168u,
+      0u, 169u, 170u,   0u, 171u,   0u,   0u, 172u, 173u,   0u,   0u, 174u,   0u, 175u, 176u,   0u,
+      0u, 177u, 178u,   0u, 179u,   0u,   0u, 180u, 181u,   0u,   0u, 182u,   0u, 183u, 184u,   0u,
+    185u,   0u,   0u, 186u,   0u, 187u, 188u,   0u,   0u, 189u, 190u,   0u, 191u,   0u,   0u, 192u,
+    193u,   0u,   0u, 194u,   0u, 195u, 196u,   0u,   0u, 197u, 198u,   0u, 199u,   0u,   0u, 200u,
+      0u, 201u, 202u,   0u, 203u,   0u,   0u, 204u, 205u,   0u,   0u, 206u,   0u, 207u, 208u,   0u,
+    209u,   0u,   0u, 210u,   0u, 211u, 212u,   0u,   0u, 213u, 214u,   0u, 215u,   0u,   0u, 216u,
+      0u, 217u, 218u,   0u, 219u,   0u,   0u, 220u, 221u,   0u,   0u, 222u,   0u, 223u, 224u,   0u,
+      0u, 225u, 226u,   0u, 227u,   0u,   0u, 228u, 229u,   0u,   0u, 230u,   0u, 231u, 232u,   0u,
+    233u,   0u,   0u, 234u,   0u, 235u, 236u,   0u,   0u, 237u, 238u,   0u, 239u,   0u,   0u, 240u
+};
+
+static inline void scar_e8_encode_range_impl(
+    const float* __restrict__ x_in,
+    int64_t b_start,
+    int64_t b_end,
+    const float* __restrict__ lut_e8_f32,
+    uint8_t* __restrict__ out_codes,
+    float* __restrict__ out_dequant_f32
+) {
+    for (int64_t b = b_start; b < b_end; ++b) {
+        const float* x = x_in + (b << 3);
+        float x0 = x[0], x1 = x[1], x2 = x[2], x3 = x[3];
+        float x4 = x[4], x5 = x[5], x6 = x[6], x7 = x[7];
+
+        float best_s = 0.0f;
+        uint8_t best_c = 0u;
+
+        float ax[8] = {
+            fabsf(x0), fabsf(x1), fabsf(x2), fabsf(x3),
+            fabsf(x4), fabsf(x5), fabsf(x6), fabsf(x7)
+        };
+
+        float max1 = -1.0f, max2 = -1.0f, min1 = 1.0e30f, sum_abs = 0.0f;
+        int idx_max1 = 0, idx_max2 = 1, idx_min = 0;
+        int m8 = 0, neg_cnt = 0;
+        for (int k = 0; k < 8; ++k) {
+            float a = ax[k];
+            sum_abs += a;
+            if (a > max1) {
+                max2 = max1; idx_max2 = idx_max1;
+                max1 = a; idx_max1 = k;
+            } else if (a > max2) {
+                max2 = a; idx_max2 = k;
+            }
+            if (a < min1) {
+                min1 = a; idx_min = k;
+            }
+            if (x[k] >= 0.0f) {
+                m8 |= (1 << (7 - k));
+            } else {
+                neg_cnt++;
+            }
+        }
+
+        /* 1. D8 integer roots (1..112) */
+        float s_d8 = 2.0f * (max1 + max2) - 4.0f;
+        if (s_d8 > best_s) {
+            int i = (idx_max1 < idx_max2) ? idx_max1 : idx_max2;
+            int j = (idx_max1 < idx_max2) ? idx_max2 : idx_max1;
+            int si = (x[i] >= 0.0f) ? 1 : 0;
+            int sj = (x[j] >= 0.0f) ? 1 : 0;
+            best_s = s_d8;
+            best_c = (uint8_t)(1 + 4 * (int)SCAR_D8_PAIR_LUT[i][j] + 2 * si + sj);
+        }
+
+        /* 2. Even-parity spinor roots (113..240) */
+        float s_sp = sum_abs - ((neg_cnt & 1) ? (2.0f * min1) : 0.0f) - 4.0f;
+        if (s_sp > best_s) {
+            int m_even = (neg_cnt & 1) ? (m8 ^ (1 << (7 - idx_min))) : m8;
+            best_s = s_sp;
+            best_c = SCAR_SPINOR_EVEN_LUT[m_even];
+        }
+
+        /* 3. Fast 8-point Walsh-Hadamard outer shell (241..255, sqrt(18/8) == 1.5f exact!) */
+        if (1.5f * sum_abs > 9.0f + best_s) {
+            float a0 = x0 + x1, a1 = x0 - x1, a2 = x2 + x3, a3 = x2 - x3;
+            float a4 = x4 + x5, a5 = x4 - x5, a6 = x6 + x7, a7 = x6 - x7;
+            float b0 = a0 + a2, b1 = a1 + a3, b2 = a0 - a2, b3 = a1 - a3;
+            float b4 = a4 + a6, b5 = a5 + a7, b6 = a4 - a6, b7 = a5 - a7;
+            float z[8] = {
+                b0 + b4, b1 + b5, b2 + b6, b3 + b7,
+                b0 - b4, b1 - b5, b2 - b6, b3 - b7
+            };
+            float s_h0 = 1.5f * z[0] - 9.0f;
+            if (s_h0 > best_s) {
+                best_s = s_h0;
+                best_c = 241u;
+            }
+            for (int r = 1; r < 8; ++r) {
+                float zr = z[r];
+                float s_hr = 1.5f * fabsf(zr) - 9.0f;
+                if (s_hr > best_s) {
+                    best_s = s_hr;
+                    best_c = (uint8_t)(242 + 2 * (r - 1) + ((zr < 0.0f) ? 1 : 0));
+                }
+            }
+        }
+
+        if (out_codes != NULL) {
+            out_codes[b] = best_c;
+        }
+        if (out_dequant_f32 != NULL && lut_e8_f32 != NULL) {
+            const float* u = lut_e8_f32 + ((size_t)best_c << 3);
+            float* dst = out_dequant_f32 + (b << 3);
+            dst[0] = u[0]; dst[1] = u[1]; dst[2] = u[2]; dst[3] = u[3];
+            dst[4] = u[4]; dst[5] = u[5]; dst[6] = u[6]; dst[7] = u[7];
+        }
+    }
+}
+
+void scar_conway_sloane_e8_encode_f32(
+    const float* __restrict__ x_in,
+    int64_t n_blocks,
+    const float* __restrict__ lut_e8_f32,
+    uint8_t* __restrict__ out_codes,
+    float* __restrict__ out_dequant_f32
+) {
+#ifdef __APPLE__
+    if (n_blocks >= 32768) {
+        const int64_t grain = 32768;
+        const size_t n_chunks = (size_t)((n_blocks + grain - 1) / grain);
+        dispatch_apply(n_chunks, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^(size_t c_idx) {
+            int64_t b0 = (int64_t)c_idx * grain;
+            int64_t b1 = b0 + grain;
+            if (b1 > n_blocks) b1 = n_blocks;
+            scar_e8_encode_range_impl(x_in, b0, b1, lut_e8_f32, out_codes, out_dequant_f32);
+        });
+        return;
+    }
+#endif
+    scar_e8_encode_range_impl(x_in, 0, n_blocks, lut_e8_f32, out_codes, out_dequant_f32);
 }

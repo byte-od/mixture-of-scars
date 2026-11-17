@@ -24,7 +24,7 @@ from typing import Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from scar_field.cayley_geodesic import c1_spherical_cap_resonance
+from scar_field.cayley_geodesic import _halley_spd_inv_direct, c1_spherical_cap_resonance
 from scar_field.e8_lattice import E8SphericalLinear, project_rows_to_unit_sphere
 
 
@@ -358,13 +358,17 @@ def biorthogonal_shock_bank_read(
     max_cos = masked_cos.amax(dim=-1, keepdim=True)  # [B, L, 1]
     kap = horizon_kappa.float().clamp(0.15, 0.88)
     hor_gate = (2.0 * c1_spherical_cap_resonance(max_cos, kap)).clamp(0.0, 1.0)  # [B, L, 1]
-    if float(hor_gate.max().item()) <= 0.0:
+    if q_vecs.device.type == "cpu" and float(hor_gate.max().item()) <= 0.0:
         return torch.zeros(bsz, q_len, d_bus, dtype=b_vals.dtype, device=q_vecs.device)
 
     eye_m = torch.eye(m_slots, dtype=torch.float32, device=q_vecs.device).unsqueeze(0)
     gram = torch.matmul(k_m, k_m.transpose(-2, -1)) + float(ridge_lambda) * eye_m  # [B, M, M]
     raw_rhs = (raw_cos * val_f.unsqueeze(1)).transpose(-2, -1)  # [B, M, L]
-    alpha = torch.linalg.solve(gram, raw_rhs).transpose(-2, -1)  # [B, L, M]
+    if gram.device.type in ("cuda", "mps"):
+        gram_inv = _halley_spd_inv_direct(gram, eye_m, n_steps=8)
+        alpha = torch.matmul(gram_inv, raw_rhs).transpose(-2, -1)
+    else:
+        alpha = torch.linalg.solve(gram, raw_rhs).transpose(-2, -1)  # [B, L, M]
     alpha_pos = alpha.clamp(0.0, 1.5) * val_f.unsqueeze(1)
     out = hor_gate * torch.matmul(alpha_pos, v_m)
     return out.to(b_vals.dtype)
@@ -658,10 +662,11 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
                 _, top_pos = torch.topk(c_sal, k=top_n, dim=-1)
                 top_pos_sorted, _ = torch.sort(top_pos, dim=-1)
                 for j_s in range(top_n):
-                    idx_g = top_pos_sorted[:, j_s]  # [B]
-                    k_step = k_bind_det.gather(1, idx_g.view(bsz, 1, 1).expand(bsz, 1, self.d_key)).squeeze(1)
-                    v_step = v_flat_det.gather(1, idx_g.view(bsz, 1, 1).expand(bsz, 1, self.d_bus)).squeeze(1)
-                    s_step = c_sal.gather(1, idx_g.view(bsz, 1)).squeeze(1)
+                    idx_rel = top_pos_sorted[:, j_s]  # [B] within `[0 .. c_end - c_start - 1]`
+                    idx_abs = idx_rel + c_start       # [B] within `[0 .. seq_len - 1]`
+                    k_step = k_bind_det.gather(1, idx_abs.view(bsz, 1, 1).expand(bsz, 1, self.d_key)).squeeze(1)
+                    v_step = v_flat_det.gather(1, idx_abs.view(bsz, 1, 1).expand(bsz, 1, self.d_bus)).squeeze(1)
+                    s_step = c_sal.gather(1, idx_rel.view(bsz, 1)).squeeze(1)
                     biorthogonal_shock_bank_insert_step_(
                         cur_bk, cur_bv, cur_bsal, cur_bval, k_step, v_step, s_step, write_thresh=0.22
                     )
@@ -669,18 +674,12 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         else:
             cur_bk, cur_bv, cur_bsal, cur_bval = None, None, None, None
             biorth_out = torch.zeros_like(v_flat)
-        if st.ring_valid.any():
-            k_cat = torch.cat((st.ring_keys, k_ring), dim=1)
-            v_cat = torch.cat((st.ring_vals, v_flat), dim=1)
-            valid_cat = torch.cat(
-                (st.ring_valid, torch.ones(bsz, seq_len, dtype=torch.bool, device=dev)), dim=1
-            )
-            r_off = self.ring_len
-        else:
-            k_cat = k_ring
-            v_cat = v_flat
-            valid_cat = torch.ones(bsz, seq_len, dtype=torch.bool, device=dev)
-            r_off = 0
+        k_cat = torch.cat((st.ring_keys, k_ring), dim=1)
+        v_cat = torch.cat((st.ring_vals, v_flat), dim=1)
+        valid_cat = torch.cat(
+            (st.ring_valid, torch.ones(bsz, seq_len, dtype=torch.bool, device=dev)), dim=1
+        )
+        r_off = int(st.ring_keys.shape[1])
 
         sim_all = torch.matmul(q_ring, k_cat.transpose(-2, -1))  # [B, T, R_off + T]
         t_idx = torch.arange(seq_len, device=dev).unsqueeze(1) + r_off

@@ -135,6 +135,15 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
         ]
         lib.scar_e8_spherical_ternary_gemm_f32.restype = None
 
+        lib.scar_conway_sloane_e8_encode_f32.argtypes = [
+            f32_p,
+            ctypes.c_int64,
+            f32_p,
+            u8_p,
+            f32_p,
+        ]
+        lib.scar_conway_sloane_e8_encode_f32.restype = None
+
         _C_LIB = lib
     except Exception:
         _C_LIB = None

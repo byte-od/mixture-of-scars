@@ -33,6 +33,52 @@ def c1_spherical_cap_resonance(cos_sim: torch.Tensor, kappa: torch.Tensor) -> to
     return pos2 / (width2 + pos2)
 
 
+def _halley_spd_inv_direct(g_mat: torch.Tensor, eye_n: torch.Tensor, n_steps: int = 7) -> torch.Tensor:
+    """Zero-`cuSOLVER` cubic Halley inverse (`3^n_steps` convergence) for strictly SPD `g_mat`."""
+    l1_norm = g_mat.abs().sum(dim=-1).amax(dim=-1, keepdim=True).unsqueeze(-1).clamp(min=1e-4)
+    g_inv = (1.85 / l1_norm) * eye_n
+    for _ in range(n_steps):
+        r_m = eye_n - torch.matmul(g_mat, g_inv)
+        g_inv = torch.matmul(g_inv, eye_n + torch.matmul(r_m, eye_n + r_m))
+    return g_inv
+
+
+def _halley_spd_matrix_inv_cuda(m_mat: torch.Tensor, eye_2r: torch.Tensor) -> torch.Tensor:
+    """Zero-`cuSOLVER` Tensor-Core `bmm` matrix inverse of `M = I_{2r} + alpha Q^T P` (`det(M) >= 1`).
+
+    Uses 6 cubic Halley iterations (`3^6 = 729`th-order convergence) on the strictly SPD normal
+    matrix `G = M^T M` followed by 2 quadratic Schulz polish steps directly on `M`.
+    """
+    mt = m_mat.transpose(-2, -1)
+    g_mat = torch.matmul(mt, m_mat)  # [..., 2r, 2r] SPD with lambda_min > 0
+    g_inv = _halley_spd_inv_direct(g_mat, eye_2r, n_steps=6)
+    m_inv = torch.matmul(g_inv, mt)
+    m_inv = torch.matmul(m_inv, 2.0 * eye_2r - torch.matmul(m_mat, m_inv))
+    m_inv = torch.matmul(m_inv, 2.0 * eye_2r - torch.matmul(m_mat, m_inv))
+    return m_inv
+
+
+class _FastCayleySolveAutograd(torch.autograd.Function):
+    """Solves `M w = b` with ZERO `cuSOLVER` launches on CUDA/MPS and ZERO solves in backward (`2` tiny `bmm`s)!"""
+
+    @staticmethod
+    def forward(ctx, m_mat: torch.Tensor, qt_x: torch.Tensor, eye_2r: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+        if m_mat.device.type in ("cuda", "mps"):
+            m_inv = _halley_spd_matrix_inv_cuda(m_mat, eye_2r)
+        else:
+            m_inv = torch.linalg.inv(m_mat)
+        w_vec = torch.matmul(m_inv, qt_x)
+        ctx.save_for_backward(m_inv, w_vec)
+        return w_vec
+
+    @staticmethod
+    def backward(ctx, grad_w: torch.Tensor):  # type: ignore[override]
+        m_inv, w_vec = ctx.saved_tensors
+        grad_qt_x = torch.matmul(m_inv.transpose(-2, -1), grad_w)
+        grad_m = -torch.matmul(grad_qt_x, w_vec.transpose(-2, -1))
+        return grad_m, grad_qt_x, None
+
+
 def cayley_woodbury_step(
     x: torch.Tensor,
     u: torch.Tensor,
@@ -70,7 +116,12 @@ def cayley_woodbury_step(
     m_mat = eye_2r + alpha_m * qt_p
 
     qt_x = torch.matmul(q_mat.transpose(-2, -1), xf.unsqueeze(-1))  # [..., 2r, 1]
-    w_vec = torch.linalg.solve(m_mat, qt_x)  # [..., 2r, 1]
+    if torch.is_grad_enabled() and (m_mat.requires_grad or qt_x.requires_grad):
+        w_vec = _FastCayleySolveAutograd.apply(m_mat, qt_x, eye_2r)
+    elif m_mat.device.type in ("cuda", "mps"):
+        w_vec = torch.matmul(_halley_spd_matrix_inv_cuda(m_mat, eye_2r), qt_x)
+    else:
+        w_vec = torch.linalg.solve(m_mat, qt_x)
     pw = torch.matmul(p_mat, w_vec).squeeze(-1)  # [..., D]
 
     out = xf - (2.0 * alpha) * pw
@@ -183,7 +234,10 @@ class HorizonCulledSymplecticGenerator(nn.Module):
 
 
 class _ReversibleLeapfrogAutograd(torch.autograd.Function):
-    """Exact `O(1)` activation-memory backward pass by inverting Symplectic Cayley steps (`-dt`)!"""
+    """Exact `O(1)` activation-memory backward pass with:
+      1. `System 1` Scout `Gate G0` Sparse Token Compaction (skips `dt_k == 0` tokens on `k >= 0` with `0.0` drift!),
+      2. Deferred `1x` `E8SphericalLinear` weight-gradient projection (instead of `Kx` sphere/FWHT passes!).
+    """
 
     @staticmethod
     def forward(  # type: ignore[override]
@@ -198,100 +252,247 @@ class _ReversibleLeapfrogAutograd(torch.autograd.Function):
         *all_params: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         dt_base = 1.0 / float(max(1, num_steps))
-        hf = h_form
-        hw = h_world
+        lead_shape = h_form.shape[:-1]
+        d_f = h_form.shape[-1]
+        d_w = h_world.shape[-1]
+        d_b = bus_ctx.shape[-1]
+        n_tot = int(h_form.numel() // d_f)
+
+        hf = h_form.reshape(n_tot, d_f).clone()
+        hw = h_world.reshape(n_tot, d_w).clone()
+        bc = bus_ctx.reshape(n_tot, d_b)
+        sm = step_mask.reshape(n_tot, num_steps) if step_mask is not None else None
+        # Pre-compute active token index lists with at most ONE host sync per flow (0 syncs inside K-loop!)
+        active_indices_per_k: Optional[list[Optional[torch.Tensor]]] = None
+        active_counts_per_k: Optional[list[int]] = None
+        if sm is not None:
+            sm_cpu = sm.detach().cpu()
+            active_indices_per_k = []
+            active_counts_per_k = []
+            for k in range(num_steps):
+                idx_cpu = torch.nonzero(sm_cpu[:, k].abs() > 0.0, as_tuple=False).squeeze(-1)
+                cnt = int(idx_cpu.numel())
+                active_counts_per_k.append(cnt)
+                if 0 < cnt < n_tot:
+                    active_indices_per_k.append(idx_cpu.to(device=hf.device, non_blocking=True))
+                else:
+                    active_indices_per_k.append(None)
 
         with torch.no_grad():
             for k in range(num_steps):
                 tau_k = float(k) * dt_base
-                dt_k: float | torch.Tensor
-                if step_mask is not None:
-                    # Per-token adaptive S1/S2 step mask `step_mask[..., k] in {0.0, 1.0}`
-                    dt_k = step_mask[..., k : k + 1] * dt_base
+                if sm is not None and active_counts_per_k is not None and active_indices_per_k is not None:
+                    n_act = active_counts_per_k[k]
+                    if n_act == 0:
+                        continue
+                    idx_k = active_indices_per_k[k]
+                    if idx_k is not None:
+                        dt_sub = sm[idx_k, k : k + 1] * dt_base
+                        hf_sub = hf[idx_k]
+                        hw_sub = hw[idx_k]
+                        bc_sub = bc[idx_k]
+                        uf, vf = gen_form(hw_sub, bc_sub, tau_k)
+                        hf_sub = cayley_woodbury_step(hf_sub, uf, vf, dt_sub)
+                        uw, vw = gen_world(hf_sub, bc_sub, tau_k)
+                        hw_sub = cayley_woodbury_step(hw_sub, uw, vw, dt_sub)
+                        hf[idx_k] = hf_sub
+                        hw[idx_k] = hw_sub
+                        continue
+                    dt_k: float | torch.Tensor = sm[:, k : k + 1] * dt_base
                 else:
                     dt_k = dt_base
 
-                uf, vf = gen_form(hw, bus_ctx, tau_k)
+                uf, vf = gen_form(hw, bc, tau_k)
                 hf = cayley_woodbury_step(hf, uf, vf, dt_k)
-
-                uw, vw = gen_world(hf, bus_ctx, tau_k)
+                uw, vw = gen_world(hf, bc, tau_k)
                 hw = cayley_woodbury_step(hw, uw, vw, dt_k)
+
+        hf_out = hf.reshape(*lead_shape, d_f)
+        hw_out = hw.reshape(*lead_shape, d_w)
 
         # Save ONLY final state at tau=1 (`O(1)` memory regardless of `num_steps`!)
         ctx.save_for_backward(
-            hf.detach(),
-            hw.detach(),
+            hf_out.detach(),
+            hw_out.detach(),
             bus_ctx.detach(),
-            step_mask.detach() if step_mask is not None else torch.empty(0, device=hf.device),
+            step_mask.detach() if step_mask is not None else torch.empty(0, device=hf_out.device),
         )
         ctx.num_steps = num_steps
         ctx.has_mask = step_mask is not None
+        ctx.active_indices_per_k = active_indices_per_k
+        ctx.active_counts_per_k = active_counts_per_k
         ctx.gen_form = gen_form
         ctx.gen_world = gen_world
-        return hf, hw
+        return hf_out, hw_out
 
     @staticmethod
     def backward(ctx, grad_hf: torch.Tensor, grad_hw: torch.Tensor):  # type: ignore[override]
-        hf_cur, hw_cur, bus_saved, mask_saved = ctx.saved_tensors
+        hf_saved, hw_saved, bus_saved, mask_saved = ctx.saved_tensors
         num_steps: int = ctx.num_steps
         gen_form: HorizonCulledSymplecticGenerator = ctx.gen_form
         gen_world: HorizonCulledSymplecticGenerator = ctx.gen_world
         dt_base = 1.0 / float(max(1, num_steps))
 
-        params_list = list(gen_form.parameters()) + list(gen_world.parameters())
-        param_grads = [torch.zeros_like(p) for p in params_list]
-        grad_bus_total = torch.zeros_like(bus_saved) if bus_saved.numel() > 0 else torch.zeros_like(bus_saved)
+        lead_shape = hf_saved.shape[:-1]
+        d_f = hf_saved.shape[-1]
+        d_w = hw_saved.shape[-1]
+        d_b = bus_saved.shape[-1]
+        n_tot = int(hf_saved.numel() // d_f)
 
-        ghf = grad_hf
-        ghw = grad_hw
+        hf_cur = hf_saved.reshape(n_tot, d_f).clone()
+        hw_cur = hw_saved.reshape(n_tot, d_w).clone()
+        bc_flat = bus_saved.reshape(n_tot, d_b)
+        sm_flat = mask_saved.reshape(n_tot, num_steps) if ctx.has_mask else None
 
-        for k in range(num_steps - 1, -1, -1):
-            tau_k = float(k) * dt_base
-            if ctx.has_mask:
-                dt_k: float | torch.Tensor = mask_saved[..., k : k + 1] * dt_base
-                neg_dt_k: float | torch.Tensor = -dt_k
-            else:
-                dt_k = dt_base
-                neg_dt_k = -dt_base
+        ghf = grad_hf.reshape(n_tot, d_f).clone()
+        ghw = grad_hw.reshape(n_tot, d_w).clone()
+        grad_bus_flat = torch.zeros_like(bc_flat)
 
-            # 1. Analytically invert Half-Step 2 (`hw_prev = Cayley(-dt_k, gen_world(hf_next)) hw_cur`)
-            with torch.no_grad():
-                uw_inv, vw_inv = gen_world(hf_cur, bus_saved, tau_k)
-                hw_prev = cayley_woodbury_step(hw_cur, uw_inv, vw_inv, neg_dt_k)
-                # Analytically invert Half-Step 1 (`hf_prev = Cayley(-dt_k, gen_form(hw_prev)) hf_cur`)
-                uf_inv, vf_inv = gen_form(hw_prev, bus_saved, tau_k)
-                hf_prev = cayley_woodbury_step(hf_cur, uf_inv, vf_inv, neg_dt_k)
+        params_form = list(gen_form.parameters())
+        params_world = list(gen_world.parameters())
+        params_list = params_form + params_world
+        e8_mods = [m for m in (list(gen_form.modules()) + list(gen_world.modules())) if isinstance(m, E8SphericalLinear)]
+        e8_param_ids = {id(p) for m in e8_mods for p in m.parameters()}
+        direct_form_idx = [i for i, p in enumerate(params_form) if id(p) not in e8_param_ids and p.requires_grad]
+        direct_form_params = [params_form[i] for i in direct_form_idx]
+        n_form = len(params_form)
+        direct_world_idx = [n_form + i for i, p in enumerate(params_world) if id(p) not in e8_param_ids and p.requires_grad]
+        direct_world_params = [params_world[i - n_form] for i in direct_world_idx]
+        param_grads: list[Optional[torch.Tensor]] = [
+            torch.zeros_like(p) if p.requires_grad else None for p in params_list
+        ]
 
-            # 2. Local autograd through forward step `k` from exact reconstructed `(hf_prev, hw_prev)`
-            hf_in = hf_prev.detach().requires_grad_(True)
-            hw_in = hw_prev.detach().requires_grad_(True)
-            bus_in = bus_saved.detach().requires_grad_(True)
+        active_indices_per_k = ctx.active_indices_per_k
+        active_counts_per_k = ctx.active_counts_per_k
 
-            with torch.enable_grad():
-                uf, vf = gen_form(hw_in, bus_in, tau_k)
-                hf_mid = cayley_woodbury_step(hf_in, uf, vf, dt_k)
-                uw, vw = gen_world(hf_mid, bus_in, tau_k)
-                hw_out = cayley_woodbury_step(hw_in, uw, vw, dt_k)
+        for m in e8_mods:
+            m.begin_deferred_grad_pass()
 
-            grads = torch.autograd.grad(
-                outputs=(hf_mid, hw_out),
-                inputs=(hf_in, hw_in, bus_in, *params_list),
-                grad_outputs=(ghf, ghw),
-                allow_unused=True,
-            )
+        try:
+            for k in range(num_steps - 1, -1, -1):
+                tau_k = float(k) * dt_base
+                if sm_flat is not None and active_counts_per_k is not None and active_indices_per_k is not None:
+                    n_act = active_counts_per_k[k]
+                    if n_act == 0:
+                        continue
+                    idx_k = active_indices_per_k[k]
+                    use_sparse = idx_k is not None
+                else:
+                    idx_k = None
+                    use_sparse = False
 
-            ghf = grads[0] if grads[0] is not None else torch.zeros_like(hf_in)
-            ghw = grads[1] if grads[1] is not None else torch.zeros_like(hw_in)
-            if grads[2] is not None:
-                grad_bus_total = grad_bus_total + grads[2]
-            for idx, pg in enumerate(grads[3:]):
-                if pg is not None:
-                    param_grads[idx] = param_grads[idx] + pg
+                if use_sparse and idx_k is not None:
+                    dt_sub: float | torch.Tensor = sm_flat[idx_k, k : k + 1] * dt_base  # type: ignore[index]
+                    neg_dt_sub: float | torch.Tensor = -dt_sub
+                    hf_c = hf_cur[idx_k]
+                    hw_c = hw_cur[idx_k]
+                    bc_c = bc_flat[idx_k]
+                    ghf_c = ghf[idx_k]
+                    ghw_c = ghw[idx_k]
+                else:
+                    if sm_flat is not None:
+                        dt_sub = sm_flat[:, k : k + 1] * dt_base
+                        neg_dt_sub = -dt_sub
+                    else:
+                        dt_sub = dt_base
+                        neg_dt_sub = -dt_base
+                    hf_c = hf_cur
+                    hw_c = hw_cur
+                    bc_c = bc_flat
+                    ghf_c = ghf
+                    ghw_c = ghw
 
-            hf_cur = hf_prev
-            hw_cur = hw_prev
+                # Half-step B1: Single `gen_world(hf_mid, bc)` eval both inverts `hw` AND backprops `hw_out`!
+                hf_mid_in = hf_c.detach().requires_grad_(True)
+                bc_w_in = bc_c.detach().requires_grad_(True)
+                with torch.enable_grad():
+                    uw, vw = gen_world(hf_mid_in, bc_w_in, tau_k)
+                with torch.no_grad():
+                    hw_prev_c = cayley_woodbury_step(hw_c, uw.detach(), vw.detach(), neg_dt_sub)
+                hw_in = hw_prev_c.detach().requires_grad_(True)
+                with torch.enable_grad():
+                    hw_out = cayley_woodbury_step(hw_in, uw, vw, dt_sub)
 
-        return (ghf, ghw, grad_bus_total, None, None, None, None, *param_grads)
+                grads_w = torch.autograd.grad(
+                    outputs=hw_out,
+                    inputs=(hw_in, hf_mid_in, bc_w_in, *direct_world_params),
+                    grad_outputs=ghw_c,
+                    allow_unused=True,
+                )
+                ghw_from_w = grads_w[0] if grads_w[0] is not None else torch.zeros_like(hw_in)
+                ghf_mid_tot = ghf_c + grads_w[1] if grads_w[1] is not None else ghf_c
+                gbc_w = grads_w[2]
+
+                # Half-step B2: Single `gen_form(hw_prev, bc)` eval both inverts `hf` AND backprops `hf_mid`!
+                hw_prev_in = hw_prev_c.detach().requires_grad_(True)
+                bc_f_in = bc_c.detach().requires_grad_(True)
+                with torch.enable_grad():
+                    uf, vf = gen_form(hw_prev_in, bc_f_in, tau_k)
+                with torch.no_grad():
+                    hf_prev_c = cayley_woodbury_step(hf_c, uf.detach(), vf.detach(), neg_dt_sub)
+                hf_in = hf_prev_c.detach().requires_grad_(True)
+                with torch.enable_grad():
+                    hf_mid = cayley_woodbury_step(hf_in, uf, vf, dt_sub)
+
+                grads_f = torch.autograd.grad(
+                    outputs=hf_mid,
+                    inputs=(hf_in, hw_prev_in, bc_f_in, *direct_form_params),
+                    grad_outputs=ghf_mid_tot,
+                    allow_unused=True,
+                )
+                new_ghf = grads_f[0] if grads_f[0] is not None else torch.zeros_like(hf_in)
+                new_ghw = ghw_from_w + grads_f[1] if grads_f[1] is not None else ghw_from_w
+                gbc_f = grads_f[2]
+                if gbc_w is not None and gbc_f is not None:
+                    new_gbc: Optional[torch.Tensor] = gbc_w + gbc_f
+                else:
+                    new_gbc = gbc_w if gbc_w is not None else gbc_f
+
+                if use_sparse and idx_k is not None:
+                    ghf[idx_k] = new_ghf
+                    ghw[idx_k] = new_ghw
+                    if new_gbc is not None:
+                        grad_bus_flat[idx_k] = grad_bus_flat[idx_k] + new_gbc
+                    hf_cur[idx_k] = hf_prev_c
+                    hw_cur[idx_k] = hw_prev_c
+                else:
+                    ghf = new_ghf
+                    ghw = new_ghw
+                    if new_gbc is not None:
+                        grad_bus_flat = grad_bus_flat + new_gbc
+                    hf_cur = hf_prev_c
+                    hw_cur = hw_prev_c
+
+                for loc_i, pg in enumerate(grads_w[3:]):
+                    if pg is not None:
+                        p_idx = direct_world_idx[loc_i]
+                        cur_pg = param_grads[p_idx]
+                        param_grads[p_idx] = pg if cur_pg is None else (cur_pg + pg)
+                for loc_i, pg in enumerate(grads_f[3:]):
+                    if pg is not None:
+                        p_idx = direct_form_idx[loc_i]
+                        cur_pg = param_grads[p_idx]
+                        param_grads[p_idx] = pg if cur_pg is None else (cur_pg + pg)
+        finally:
+            e8_final_grads: dict[int, torch.Tensor] = {}
+            for m in e8_mods:
+                e8_final_grads.update(m.finalize_deferred_grad_pass())
+
+        for i, p in enumerate(params_list):
+            pid = id(p)
+            if pid in e8_final_grads:
+                param_grads[i] = e8_final_grads[pid]
+
+        return (
+            ghf.reshape(*lead_shape, d_f),
+            ghw.reshape(*lead_shape, d_w),
+            grad_bus_flat.reshape(*lead_shape, d_b),
+            None,
+            None,
+            None,
+            None,
+            *param_grads,
+        )
 
 
 class ReversibleSymplecticCayleyFlow(nn.Module):

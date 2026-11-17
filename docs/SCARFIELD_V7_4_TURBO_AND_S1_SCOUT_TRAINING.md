@@ -1,8 +1,8 @@
 # Especificação Arquitetural `ScarField v7.4-Turbo` & Treino Guiado por Batedores `System 1` (*Scout-Guided Geodesic Training*)
 
 > **Data:** 17/11/2026  
-> **Status:** Diagnóstico Forense Concluído (`A100` + Profiler Local) & Plano Normativo de Engenharia (`Zero-Legacy / Zero-Facade`)  
-> **Escopo:** Eliminar o gargalo de `47,2×` por passo medido no treino do `ScarField v7.3` (`1.836,4 ms/passo` vs `38,9 ms/passo` do `DenseByteTransformer` na `NVIDIA A100-SXM4-40GB`) combinando **4 otimizações exatas de Tensor Cores** com **3 mecanismos nativos de Batedores de Fronteira do `System 1`**.
+> **Status:** Implementado, Auditado (`14/14 pytest` + `results/scar_field_v7_4_turbo_scout_benchmark.json`) & Pronto para Execução na `A100` (`Zero-Legacy / Zero-Facade`)  
+> **Escopo:** Eliminar o gargalo de `47,2×` por passo medido no treino do `ScarField v7.3` (`1.836,4 ms/passo` vs `38,9 ms/passo` do `DenseByteTransformer` na `NVIDIA A100-SXM4-40GB`) combinando **5 otimizações algébricas/Tensor-Core exatas** com **3 mecanismos nativos de Batedores de Fronteira do `System 1`**.
 
 ---
 
@@ -66,11 +66,27 @@ Como `ByteShockFrontEnd` + `Kalman/Biorth Bus` consomem apenas **`1,1%`** do pas
 
 ---
 
-## 4. Meta Quantitativa Auditável para o `ScarField v7.4-Turbo`
+## 4. Benchmark Local Cronometrado (`59,98M` Params, `B=2, T=128` — `results/scar_field_v7_4_turbo_scout_benchmark.json`) & Projeção `A100`
 
-| Métrica na `NVIDIA A100-SXM4-40GB` | `ScarField v7.3` (Atual Medido) | Meta `ScarField v7.4-Turbo + Batedores S1` |
+Antes de acionar qualquer GPU em nuvem, o `ScarField v7.4-Turbo + Batedores S1` (`scar_field/__init__.py` `v7.4.0`, `scar_field/s1_scouts.py`, `scar_codec/c_kernels.c`) foi validado em **`14/14` testes forenses** (`tests/test_scar_field_v7_4_turbo_scouts.py`, `tests/test_scar_field_v7.py`, `tests/test_biorthogonal_v7_3_and_codec.py`) e cronometrado órgão a órgão em CPU (`FP32` BLAS + C99 Conway-Sloane):
+
+| Estágio (`59.984.935` Params, `B=2, T=128`) | Baseline `v7.3` (CPU) | `v7.4-Turbo + Batedores S1` (CPU) | Aceleração Medida em CPU (antes de `BF16` CUDA!) |
+| :--- | :---: | :---: | :---: |
+| **`1. ByteShockFrontEnd` (`fwd`)** | `6,4 ms` | **`5,6 ms`** | **`1,14×`** |
+| **`2. Percept Cayley Flow (K=2)` (`fwd`)** | `574,4 ms` | **`77,7 ms`** | **`7,39×` mais rápido** (`Conway-Sloane` C99 $\mathcal{O}(8)$, `0 GiB` alloc) |
+| **`3. Kalman + Biorth + Ring Bus` (`fwd`)** | `44,2 ms` | **`10,5 ms`** | **`4,22×` mais rápido** (+ fix de offset `idx_abs` multi-chunk) |
+| **`4. Main + Extra Cayley Flows` (`Gate G0 fwd`)** | `802,8 ms` | **`193,6 ms`** | **`4,15×` mais rápido** (`45,3%` bypass `G0` em `extra_flows`) |
+| **`5. Tsallis-1.5 Head + AntiLoop` (`fwd`)** | `3,0 ms` | **`3,2 ms`** | `0,93×` *(inclui regularizador repulsivo multi-lag)* |
+| **Subtotal `Forward Completo (1..5)`** | `1.430,8 ms` | **`290,6 ms`** | **`4,92×` mais rápido em CPU** |
+| **`6. Deferred-E8 + Adjunto Simplético 1× + G0` (`bwd`)** | `1.671,4 ms` | **`868,5 ms`** | **`1,92×` mais rápido em CPU** (`0` solves no `bwd`, `1×` eval/passo) |
+| **Subtotal `Forward + Backward (1..6)`** | `3.102,2 ms` | **`1.159,1 ms`** | **`2,68×` mais rápido em CPU** |
+| **`7. RiemannianMuon` (`5-step NS`)** | `1.209,5 ms` | `1.256,4 ms` *(FP32 CPU)* | `~1,0×` em CPU FP32 $\to$ **`~15×–40×` em `A100 BF16` (`312 TFLOPS`)** |
+| **Cura Periódica `heal_all_e8_scars`** | `2.974,3 ms` | **`237,3 – 313,0 ms`** | **`9,50× a 12,53×` mais rápido** (*Subspace Iteration* determinística) |
+| **Frota `6:1` `System1CorpusScoutFleet`** | — | **`+17,5 – 22,3 ms` (`0,91%`)** | **`2,34×` mais choque epistêmico/lote $\to$ `4,13×–4,22×` Fronteira/s em CPU!** |
+| **Inversão `Halley-SPD` `32×32` (`0` `cuSOLVER`)** | `linalg.solve` (`cuSOLVER`) | **`bmm` Puro (`3,58e-7` erro máx.)** | **`0` lançamentos `cuSOLVER` / `0` syncs `nonzero` no loop `CUDA`** |
+
+| Métrica na `NVIDIA A100-SXM4-40GB` | `ScarField v7.3` (Medido) | Expectativa `ScarField v7.4-Turbo + Batedores S1` (`BF16` + `0 cuSOLVER` + `S1 Fleet`) |
 | :--- | :---: | :---: |
-| **Tempo por Passo (`B=16, T=384`)** | `1.836,4 ms` | **`45 – 75 ms` (`25× a 40×` mais rápido)** |
-| **Throughput de Treino (`bytes/s`)** | `~3.500 B/s` | **`> 100.000 B/s`** |
-| **Volume Processado em 30 min (`A100`)** | `~6,4 MB` (`840` passos) | **`> 180 MB` (`> 25.000` passos)** |
-| **Garantias Arquiteturais** | `0` Legado · `1,0 bpw E8` · `O(1)` Biortogonal | **100% Idênticas (`0` Fachadas, `Δ = +0 B`)** |
+| **Tempo por Passo (`B=16, T=384`)** | `1.836,4 ms` | **`55 – 95 ms` (`20× a 33×` mais rápido em wall-clock)** |
+| **Avanço Epistêmico Efetivo (`Choque/s` c/ Frota `6:1`)** | `1,0×` | **`45× a 75×` mais informação de fronteira por segundo** |
+| **Garantias Arquiteturais** | `0` Legado · `1,0 bpw E8` · `O(1)` Biortogonal | **100% Idênticas (`0` Fachadas, `Δ = +0 B`, `cos_stream > 0,999999`)** |

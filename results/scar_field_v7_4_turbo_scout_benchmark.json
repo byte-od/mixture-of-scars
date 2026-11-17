@@ -1,0 +1,69 @@
+{
+  "suite": "scar_field_v7_4_turbo_and_s1_scout_benchmark",
+  "version": "7.4.0",
+  "model_spherical_params": 59984935,
+  "batch_shape": [
+    2,
+    128
+  ],
+  "v7_3_baseline_cpu_ms": {
+    "frontend_fwd_ms": 6.4,
+    "percept_cayley_fwd_ms": 574.4,
+    "kalman_biorth_bus_fwd_ms": 44.2,
+    "main_extra_cayley_fwd_ms": 802.8,
+    "tsallis_head_fwd_ms": 3.0,
+    "backward_total_ms": 1671.4,
+    "riemannian_muon_step_ms": 1209.5,
+    "step_total_no_heal_ms": 4311.7,
+    "periodic_svd_heal_ms": 2974.3
+  },
+  "v7_4_turbo_kernels_only_cpu_ms": {
+    "frontend_fwd_ms": 5.57,
+    "percept_cayley_fwd_ms": 78.24,
+    "kalman_biorth_bus_fwd_ms": 10.41,
+    "main_extra_cayley_fwd_ms": 205.92,
+    "tsallis_head_fwd_ms": 3.01,
+    "backward_total_ms": 905.06,
+    "riemannian_muon_step_ms": 1253.25,
+    "step_total_no_heal_ms": 2461.47,
+    "s2_active_pct": 54.33,
+    "extra_flow_g0_bypass_pct": 0.0
+  },
+  "v7_4_turbo_plus_s1_scouts_cpu_ms": {
+    "frontend_fwd_ms": 5.63,
+    "percept_cayley_fwd_ms": 77.69,
+    "kalman_biorth_bus_fwd_ms": 10.47,
+    "main_extra_cayley_fwd_ms": 193.62,
+    "tsallis_head_fwd_ms": 3.21,
+    "backward_total_ms": 868.54,
+    "riemannian_muon_step_ms": 1256.38,
+    "step_total_no_heal_ms": 2415.55,
+    "s2_active_pct": 53.94,
+    "extra_flow_g0_bypass_pct": 45.28
+  },
+  "periodic_e8_scar_heal": {
+    "healed_layers": 8,
+    "v7_3_full_svd_ms": 2974.3,
+    "v7_4_conway_subspace_ms": 313.03,
+    "heal_speedup_x": 9.502
+  },
+  "s1_corpus_scout_fleet_6to1": {
+    "record_curriculum": false,
+    "fleet_overhead_ms": 22.29,
+    "fleet_overhead_pct_of_step": 0.91,
+    "candidates_scanned": 12,
+    "selected_batch_size": 2,
+    "mean_candidate_shock": 0.68131,
+    "mean_selected_shock": 1.59202,
+    "epistemic_gain_ratio_x": 2.3367,
+    "degenerate_windows_filtered": 3
+  },
+  "halley_spd_zero_cusolver_32x32_max_residual": 3.5762786865234375e-07,
+  "summary_speedups": {
+    "cpu_wall_clock_turbo_only_x": 1.752,
+    "cpu_wall_clock_with_gate_g0_x": 1.785,
+    "cpu_wall_clock_with_g0_and_6to1_fleet_x": 1.769,
+    "periodic_svd_heal_x": 9.502,
+    "effective_epistemic_shock_per_sec_x": 4.134
+  }
+}

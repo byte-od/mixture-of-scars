@@ -47,8 +47,14 @@ from scar_field.proper_time_bus import (
     compute_proper_time,
 )
 from scar_field.riemannian_muon import RiemannianMuon, heal_all_e8_scars
+from scar_field.s1_scouts import (
+    ScoutBatchTelemetry,
+    System1CorpusScoutFleet,
+    build_scout_g0_step_mask,
+    compute_ghost_jump_antiloop_loss,
+)
 
-__version__ = "7.3.0"
+__version__ = "7.4.0"
 
 __all__ = [
     "ByteShockFrontEnd",
@@ -62,15 +68,19 @@ __all__ = [
     "ScarFieldConfig",
     "ScarFieldEngine",
     "ScarFieldReflexDecision",
+    "ScoutBatchTelemetry",
     "SphericalCapSimplexHead",
+    "System1CorpusScoutFleet",
     "UScarPoleCartridge",
     "UniversalScarCartridgeStore",
     "VirtualGhostJumpDelta",
     "apply_relativistic_proper_time_phase",
     "build_canonical_e8_lut256",
+    "build_scout_g0_step_mask",
     "c1_spherical_cap_resonance",
     "cayley_woodbury_step",
     "chunkwise_wy_channel_selective_scan",
+    "compute_ghost_jump_antiloop_loss",
     "compute_proper_time",
     "fwht64_rademacher",
     "heal_all_e8_scars",
