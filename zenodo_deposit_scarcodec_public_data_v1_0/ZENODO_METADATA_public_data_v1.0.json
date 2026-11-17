@@ -1,9 +1,9 @@
 {
   "upload_type": "publication",
   "publication_type": "preprint",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "publication_date": "2026-11-16",
-  "title": "Empirical Evaluation of Domain-Independent ScarCodec Operators on Public Observational Astronomy, Spacecraft Telemetry, and 64-Channel Biomedical Sensor Archives",
+  "title": "Sub-Microsecond O(1) Lattice Compression, Deterministic L_inf Error Bounds, and Constant-Memory Anomaly Telemetry with Zero-PyTorch ScarCodec v6.0 on Public Astronomy, Spacecraft, and Biomedical Archives",
   "creators": [
     {
       "name": "Reis Filho, Julio Cesar",
@@ -12,19 +12,25 @@
   ],
   "license": "cc-by-4.0",
   "keywords": [
-    "ScarCodec",
+    "ScarCodec v6.0",
+    "Zero-PyTorch C99 SIMD",
     "Scientific Data Compression",
     "FITS Astronomy",
+    "Zarr Numcodecs",
+    "Gosset E8 Lattice",
+    "D4 Lattice Quantization",
+    "Deterministic Error-Bounded Compression",
     "NASA Spitzer IRAC",
+    "CSO Bolocam",
+    "FCRAO 14-m",
     "NASA Space Shuttle Telemetry",
     "PhysioNet EEG",
-    "D4 Lattice Quantization",
     "Constant-Memory Anomaly Detection"
   ],
   "related_identifiers": [
     {
       "identifier": "10.5281/zenodo.24172784",
-      "relation": "isSupplementedBy",
+      "relation": "isNewVersionOf",
       "scheme": "doi"
     },
     {

@@ -1,0 +1,61 @@
+name: ScarCodec v6.0 Zero-PyTorch & PyTorch CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scar_codec/**"
+      - "scar_field/**"
+      - "tests/test_scar_codec*.py"
+      - "paper/**"
+      - ".github/workflows/scar_codec_ci.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  standalone-zero-pytorch:
+    name: Standalone Zero-PyTorch (NumPy + C99/SIMD + Zarr) [${{ matrix.os }}, py${{ matrix.python-version }}]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build and install standalone scar-codec wheel (NO PyTorch installed)
+        run: |
+          python -m pip install --upgrade pip build pytest "numpy>=1.24" "numcodecs>=0.12" "zarr>=2.16,<3.0"
+          python scripts/build_standalone_scar_codec_pypi.py --verify
+
+      - name: Run standalone CLI demo & Zero-PyTorch C99/SIMD tests
+        run: |
+          python -c "import scar_codec; assert scar_codec.__version__ == '6.0.0'; assert not scar_codec.HAS_TORCH; assert scar_codec.get_compiled_c_lib() is not None"
+          python -m scar_codec.cli --demo
+
+  full-pytorch-and-synergy:
+    name: Full PyTorch Parity & Forensic Suite [ubuntu-latest, py3.11]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CPU PyTorch + Zarr + pytest
+        run: |
+          python -m pip install --upgrade pip pytest "numpy>=1.24" "numcodecs>=0.12" "zarr>=2.16,<3.0"
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Run all 22 ScarCodec v6.0 & Forensic pytest checks
+        run: |
+          pytest -v tests/test_scar_codec_v6_consolidation.py tests/test_scar_codec_forensic_and_synergy.py tests/test_scar_codec_physical.py

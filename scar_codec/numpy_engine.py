@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import ctypes
 from dataclasses import dataclass
+import hashlib
 import math
+import os
 from pathlib import Path
 import platform
 import shutil
 import subprocess
+import tempfile
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -29,7 +32,11 @@ _C_LIB_TRIED = False
 
 
 def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
-    """Compiles (if needed) and loads `_scar_codec_c.{so,dylib}` with `-O3` SIMD vectorization."""
+    """Compiles (if needed) and loads `_scar_codec_c.{so,dylib}` with `-O3` SIMD vectorization.
+
+    Automatically falls back to `~/.cache/scar_codec/` (or `tempfile.gettempdir()`) when
+    `scar_codec` is installed inside a read-only `site-packages` directory.
+    """
     global _C_LIB, _C_LIB_TRIED
     if _C_LIB_TRIED:
         return _C_LIB
@@ -42,25 +49,40 @@ def get_compiled_c_lib() -> Optional[ctypes.CDLL]:
 
     ext = "dylib" if platform.system() == "Darwin" else "so"
     arch = platform.machine().lower()
+    src_hash = hashlib.sha256(c_src.read_bytes()).hexdigest()[:10]
     legacy_so = pkg_dir / f"_scar_codec_c_{arch}.{ext}"
     if legacy_so.exists():
         try:
             legacy_so.unlink()
         except Exception:
             pass
-    so_path = pkg_dir / f"_scar_codec_c_v61_{arch}.{ext}"
 
-    need_build = (not so_path.exists()) or (c_src.stat().st_mtime > so_path.stat().st_mtime)
-    if need_build:
+    local_so = pkg_dir / f"_scar_codec_c_v61_{arch}.{ext}"
+    cache_root = Path(os.environ.get("SCAR_CODEC_CACHE_DIR", Path.home() / ".cache" / "scar_codec"))
+    cache_so = cache_root / f"_scar_codec_c_v61_{arch}_{src_hash}.{ext}"
+    tmp_so = Path(tempfile.gettempdir()) / f"_scar_codec_c_v61_{arch}_{src_hash}.{ext}"
+
+    so_path: Optional[Path] = None
+    for cand in (local_so, cache_so, tmp_so):
+        if cand.exists() and cand.stat().st_mtime >= c_src.stat().st_mtime:
+            so_path = cand
+            break
+
+    if so_path is None:
         cc = shutil.which("clang") or shutil.which("cc") or shutil.which("gcc")
         if cc is not None:
-            cmd = [cc, "-O3", "-shared", "-fPIC", str(c_src), "-o", str(so_path), "-lm"]
-            try:
-                subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20.0)
-            except Exception:
-                pass
+            for target_so in (local_so, cache_so, tmp_so):
+                try:
+                    target_so.parent.mkdir(parents=True, exist_ok=True)
+                    cmd = [cc, "-O3", "-shared", "-fPIC", str(c_src), "-o", str(target_so), "-lm"]
+                    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20.0)
+                    if target_so.exists():
+                        so_path = target_so
+                        break
+                except Exception:
+                    continue
 
-    if not so_path.exists():
+    if so_path is None or not so_path.exists():
         return None
 
     try:

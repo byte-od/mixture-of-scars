@@ -1,4 +1,4 @@
-\begin{thebibliography}{17}
+\begin{thebibliography}{19}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -9,46 +9,61 @@
 {Astropy Collaboration}, Adrian~M. Price-Whelan, Pey~Lian Lim, Nicholas Earl, Nathaniel Starkman, Larry Bradley, David~L. Shupe, Aarya~A. Patil, Lia Corrales, C.~E. Brasseur, et~al.
 \newblock The {Astropy} project: Sustaining and growing a community-oriented open-source project and the latest major release (v5.0) of the core package.
 \newblock \emph{The Astrophysical Journal}, 935\penalty0 (2):\penalty0 167, 2022.
+\newblock \doi{10.3847/1538-4357/ac7c74}.
 
 \bibitem[Conway and Sloane(1982)]{conway1982fast}
 John~H. Conway and Neil J.~A. Sloane.
 \newblock Fast quantizing and decoding algorithms for lattice quantizers and codes.
 \newblock \emph{IEEE Transactions on Information Theory}, 28\penalty0 (2):\penalty0 227--232, 1982.
+\newblock \doi{10.1109/TIT.1982.1056484}.
+
+\bibitem[Dekker(1971)]{dekker1971floating}
+Theodorus~J. Dekker.
+\newblock A floating-point technique for extending the available precision.
+\newblock \emph{Numerische Mathematik}, 18\penalty0 (3):\penalty0 224--242, 1971.
+\newblock \doi{10.1007/BF01397083}.
 
 \bibitem[Fazio et~al.(2004)Fazio, Hora, Allen, Ashby, Barmby, Deutsch, Huang, Kleiner, Marengo, Megeath, et~al.]{fazio2004irac}
 Giovanni~G. Fazio, Joseph~L. Hora, Lori~E. Allen, Matthew L.~N. Ashby, Pauline Barmby, Lynne~K. Deutsch, Jia-Sheng Huang, Steven Kleiner, Massimo Marengo, S.~Thomas Megeath, et~al.
 \newblock The infrared array camera ({IRAC}) for the {Spitzer} space telescope.
 \newblock \emph{The Astrophysical Journal Supplement Series}, 154\penalty0 (1):\penalty0 10--17, 2004.
+\newblock \doi{10.1086/422843}.
 
 \bibitem[Ginsburg et~al.(2013)Ginsburg, Glenn, Rosolowsky, Ellsworth-Bowers, Battersby, Dunham, Merello, Shirley, Bally, Evans~II, et~al.]{ginsburg2013bolocam}
 Adam Ginsburg, Jason Glenn, Erik Rosolowsky, Timothy~P. Ellsworth-Bowers, Cara Battersby, Miranda Dunham, Manuel Merello, Yancy Shirley, John Bally, Neal~J. Evans~II, et~al.
 \newblock The {Bolocam} galactic plane survey. {IX}. data release 2 and outer galaxy extension.
 \newblock \emph{The Astrophysical Journal Supplement Series}, 208\penalty0 (2):\penalty0 14, 2013.
+\newblock \doi{10.1088/0067-0049/208/2/14}.
 
 \bibitem[Goldberger et~al.(2000)Goldberger, Amaral, Glass, Hausdorff, Ivanov, Mark, Mietus, Moody, Peng, and Stanley]{goldberger2000physionet}
 Ary~L. Goldberger, Luis A.~N. Amaral, Leon Glass, Jeffrey~M. Hausdorff, Plamen~Ch. Ivanov, Roger~G. Mark, Joseph~E. Mietus, George~B. Moody, Chung-Kang Peng, and H.~Eugene Stanley.
 \newblock {PhysioBank}, {PhysioToolkit}, and {PhysioNet}: Components of a new research resource for complex physiologic signals.
 \newblock \emph{Circulation}, 101\penalty0 (23):\penalty0 e215--e220, 2000.
+\newblock \doi{10.1161/01.CIR.101.23.e215}.
 
 \bibitem[Hjorth(1975)]{hjorth1975onlinesource}
 Bo~Hjorth.
 \newblock An on-line transformation of {EEG} scalp potentials into orthogonal source derivations.
 \newblock \emph{Electroencephalography and Clinical Neurophysiology}, 39\penalty0 (5):\penalty0 526--530, 1975.
+\newblock \doi{10.1016/0013-4694(75)90056-5}.
 
 \bibitem[Kemp et~al.(1992)Kemp, V{\"a}rri, Rosa, Nielsen, and Gade]{kemp1992edf}
 Bob Kemp, Alpo V{\"a}rri, Agostinho~C. Rosa, Kim~D. Nielsen, and John Gade.
 \newblock A simple format for exchange of digitized polygraphic recordings.
 \newblock \emph{Electroencephalography and Clinical Neurophysiology}, 82\penalty0 (5):\penalty0 391--393, 1992.
+\newblock \doi{10.1016/0013-4694(92)90009-7}.
 
 \bibitem[Leshem et~al.(2000)Leshem, van~der Veen, and Boonstra]{leshem2000multichannel}
 Amir Leshem, Alle-Jan van~der Veen, and Albert-Jan Boonstra.
 \newblock Multichannel radio astronomical imaging in the presence of strong radio-frequency interference.
 \newblock \emph{The Astrophysical Journal Supplement Series}, 131\penalty0 (1):\penalty0 355--373, 2000.
+\newblock \doi{10.1086/313489}.
 
 \bibitem[Lindstrom(2014)]{lindstrom2014zfp}
 Peter Lindstrom.
 \newblock Fixed-rate compressed floating-point arrays.
 \newblock \emph{IEEE Transactions on Visualization and Computer Graphics}, 20\penalty0 (12):\penalty0 2674--2683, 2014.
+\newblock \doi{10.1109/TVCG.2014.2346458}.
 
 \bibitem[Michie et~al.(1994)Michie, Spiegelhalter, and Taylor]{michie1994statlog}
 Donald Michie, David~J. Spiegelhalter, and Charles~C. Taylor.
@@ -59,11 +74,13 @@ Donald Michie, David~J. Spiegelhalter, and Charles~C. Taylor.
 William~D. Pence, Rob Seaman, and Richard~L. White.
 \newblock Lossless astronomical image compression and the effects of noise.
 \newblock \emph{Publications of the Astronomical Society of the Pacific}, 121\penalty0 (878):\penalty0 414--427, 2009.
+\newblock \doi{10.1086/599023}.
 
 \bibitem[Pence et~al.(2010)Pence, Chiappetti, Page, Shaw, and Stobie]{pence2010fits}
 William~D. Pence, Lucio Chiappetti, Clive~G. Page, Richard~A. Shaw, and Elizabeth Stobie.
 \newblock Definition of the flexible image transport system ({FITS}), version 3.0.
 \newblock \emph{Astronomy \& Astrophysics}, 524:\penalty0 A42, 2010.
+\newblock \doi{10.1051/0004-6361/201015362}.
 
 \bibitem[Reis~Filho(2026)]{reisfilho2026mos_zenodo}
 Julio~Cesar Reis~Filho.
@@ -76,20 +93,30 @@ Julio~Cesar Reis~Filho.
 Naomi~A. Ridge, James Di~Francesco, Helen Kirk, Di~Li, Alyssa~A. Goodman, Jo{\~a}o~F. Alves, H{\'e}ctor~G. Arce, Michelle~A. Borkin, Paola Caselli, Jonathan~B. Foster, et~al.
 \newblock The {COMPLETE} survey of star-forming regions: Phase {I} data.
 \newblock \emph{The Astronomical Journal}, 131\penalty0 (6):\penalty0 2921--2933, 2006.
+\newblock \doi{10.1086/503704}.
 
 \bibitem[Schalk et~al.(2004)Schalk, McFarland, Hinterberger, Birbaumer, and Wolpaw]{schalk2004bci2000}
 Gerwin Schalk, Dennis~J. McFarland, Thilo Hinterberger, Niels Birbaumer, and Jonathan~R. Wolpaw.
 \newblock {BCI2000}: A general-purpose brain-computer interface ({BCI}) system.
 \newblock \emph{IEEE Transactions on Biomedical Engineering}, 51\penalty0 (6):\penalty0 1034--1043, 2004.
+\newblock \doi{10.1109/TBME.2004.827072}.
+
+\bibitem[Viazovska(2017)]{viazovska2017sphere}
+Maryna~S. Viazovska.
+\newblock The sphere packing problem in dimension 8.
+\newblock \emph{Annals of Mathematics}, 185\penalty0 (3):\penalty0 991--1015, 2017.
+\newblock \doi{10.4007/annals.2017.185.3.7}.
 
 \bibitem[Walsh(1923)]{walsh1923closed}
 Joseph~L. Walsh.
 \newblock A closed set of normal orthogonal functions.
 \newblock \emph{American Journal of Mathematics}, 45\penalty0 (1):\penalty0 5--24, 1923.
+\newblock \doi{10.2307/2387224}.
 
 \bibitem[Widrow and Hoff(1960)]{widrow1960adaptive}
 Bernard Widrow and Marcian~E. Hoff.
 \newblock Adaptive switching circuits.
 \newblock In \emph{IRE WESCON Convention Record}, volume~4, pages 96--104, 1960.
+\newblock \doi{10.21236/AD0241531}.
 
 \end{thebibliography}

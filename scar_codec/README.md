@@ -3,8 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT%20(Code)%20%7C%20CC--BY--4.0%20(Report)-blue.svg)](../LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Zero PyTorch Required](https://img.shields.io/badge/Dependencies-NumPy%20%2B%20Auto%20C99%2FSIMD%20(PyTorch%20Optional)-0d9488.svg)](numpy_engine.py)
-[![C/SIMD Speed](https://img.shields.io/badge/O(1)%20Block%20Read-0.389%20%C2%B5s%20C%2FSIMD%20mmap%20(11%2C061x%20%3E%20zlib)-16a34a.svg)](c_kernels.c)
-[![Public Archives Preprint](https://img.shields.io/badge/Physics%20Preprint%20v1.1-NASA%20%7C%20ZFP%20%7C%20fpack%20%7C%20PhysioNet%20SHA--256-0284c7.svg)](../zenodo_deposit_scarcodec_public_data_v1_0/ScarCodec_Public_Observational_Datasets_Preprint_v1.0.pdf)
+[![C/SIMD Speed](https://img.shields.io/badge/O(1)%20Block%20Read-0.388%20%C2%B5s%20C99%2FSIMD%20mmap%20(11%2C088x%20%3E%20zlib)-16a34a.svg)](c_kernels.c)
+[![Zenodo Preprint v2.0](https://img.shields.io/badge/Zenodo%20Preprint%20v2.0-NASA%20%7C%20ZFP%20%7C%20fpack%20%7C%20Gosset%20E8-0284c7.svg)](../zenodo_deposit_scarcodec_v2_0/ScarCodec_v6_Public_Observational_Datasets_Preprint_v2.0.pdf)
+[![JOSS Paper](https://img.shields.io/badge/JOSS%20Submission%20Ready-paper%2Fpaper.md-7c3aed.svg)](../paper/paper.md)
 
 `scar_codec` extracts the five pure mathematical operators of **Mixture of Scars (`MoS`)** and **`SCache` $\mathcal{O}(1)$** into a standalone, **neural-network-free** signal, scientific array, storage, and black-box telemetry library (`0` dependency on `transformers`, `0` trained weights):
 

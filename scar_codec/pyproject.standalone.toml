@@ -5,20 +5,52 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "scar-codec"
 version = "6.0.0"
-description = "Zero-PyTorch Domain-Independent Physical Signal, FITS Astronomy, Zarr & Constant-Memory Telemetry Scar Operators (NumPy + Native C/SIMD < 1 us O(1) Block Read)"
+description = "Zero-PyTorch Domain-Independent Physical Signal, FITS Astronomy, Zarr & Constant-Memory Telemetry Scar Operators (NumPy + Native C99/SIMD 0.388 us O(1) Block Read)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [
     { name = "Julio Cesar Reis Filho" }
 ]
+keywords = [
+    "scientific-compression",
+    "fits",
+    "zarr",
+    "numcodecs",
+    "lattice-quantization",
+    "gosset-e8",
+    "walsh-hadamard",
+    "telemetry",
+    "astronomy",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: C",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
 dependencies = [
     "numpy>=1.22.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/byte-od/mixture-of-scars"
+Repository = "https://github.com/byte-od/mixture-of-scars/tree/main/scar_codec"
+Issues = "https://github.com/byte-od/mixture-of-scars/issues"
+
 [project.optional-dependencies]
 zarr = ["numcodecs>=0.12.0", "zarr>=2.16.0"]
 torch = ["torch>=2.0.0"]
+test = ["pytest>=7.4.0"]
 
 [project.scripts]
 scar-codec = "scar_codec.cli:main_cli"
+mos-scar-codec = "scar_codec.cli:main_cli"
+
+[tool.setuptools.packages.find]
+include = ["scar_codec*"]
+
+[tool.setuptools.package-data]
+scar_codec = ["c_kernels.c", "README.md"]
