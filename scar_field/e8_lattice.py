@@ -217,15 +217,15 @@ class _DeferredE8GemmAutograd(torch.autograd.Function):
         x_rot: torch.Tensor,
         w_q_rot: torch.Tensor,
         w_q_rot_bf16: Optional[torch.Tensor],
-        tau_val: float,
+        tau_t: torch.Tensor,
         inv_sqrt_i: float,
         a_t: Optional[torch.Tensor],
         b_t: Optional[torch.Tensor],
-        gamma_val: float,
+        gamma_t: torch.Tensor,
         scale_s_unit: float,
         owner: "E8SphericalLinear",
     ) -> torch.Tensor:
-        scale_w = tau_val * inv_sqrt_i
+        scale_w = tau_t * inv_sqrt_i
         if w_q_rot_bf16 is not None and x_rot.device.type == "cuda":
             y_base = (x_rot.bfloat16() @ w_q_rot_bf16.T).float() * scale_w
         else:
@@ -236,7 +236,7 @@ class _DeferredE8GemmAutograd(torch.autograd.Function):
         if a_t is not None and b_t is not None:
             xa = xf @ a_t.T
             y_scar_unscaled = xa @ b_t.T
-            y_out = y_base + y_scar_unscaled * (gamma_val * scale_s_unit)
+            y_out = y_base + y_scar_unscaled * (gamma_t * scale_s_unit)
         else:
             y_out = y_base
 
@@ -244,15 +244,15 @@ class _DeferredE8GemmAutograd(torch.autograd.Function):
             xf.detach(),
             x_rot.detach(),
             w_q_rot,
+            tau_t,
+            gamma_t,
             a_t if a_t is not None else torch.empty(0, device=xf.device),
             b_t if b_t is not None else torch.empty(0, device=xf.device),
             xa.detach() if xa is not None else torch.empty(0, device=xf.device),
             y_scar_unscaled.detach() if y_scar_unscaled is not None else torch.empty(0, device=xf.device),
         )
         ctx.w_q_rot_bf16 = w_q_rot_bf16
-        ctx.tau_val = tau_val
         ctx.inv_sqrt_i = inv_sqrt_i
-        ctx.gamma_val = gamma_val
         ctx.scale_s_unit = scale_s_unit
         ctx.has_scar = a_t is not None and b_t is not None
         ctx.owner = owner
@@ -260,33 +260,28 @@ class _DeferredE8GemmAutograd(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_y: torch.Tensor):  # type: ignore[override]
-        xf, x_rot, w_q_rot, a_t, b_t, xa, y_scar_unscaled = ctx.saved_tensors
+        xf, x_rot, w_q_rot, tau_t, gamma_t, a_t, b_t, xa, y_scar_unscaled = ctx.saved_tensors
         owner: E8SphericalLinear = ctx.owner
         gy = grad_y.float()
         lead_n = int(gy.numel() // owner.out_features)
         gy_2d = gy.reshape(lead_n, owner.out_features)
         xr_2d = x_rot.reshape(lead_n, owner.in_features)
-        scale_w = ctx.tau_val * ctx.inv_sqrt_i
+        scale_w = tau_t * ctx.inv_sqrt_i
 
-        # 1. Input gradient wrt `x_rot` + in-place accumulation into `owner._acc_grad_w_rot` (`1` fused BLAS `addmm_`!)
+        # 1. Input gradient wrt `x_rot` + in-place accumulation into `owner._acc_grad_w_rot` (`0` CUDA `.item()` syncs!)
         if ctx.w_q_rot_bf16 is not None and gy_2d.device.type == "cuda":
-            grad_xr_2d = (gy_2d.bfloat16() @ ctx.w_q_rot_bf16).float() * scale_w
+            grad_xr_unscaled = (gy_2d.bfloat16() @ ctx.w_q_rot_bf16).float()
+            grad_xr_2d = grad_xr_unscaled * scale_w
             if owner._acc_grad_w_rot is not None:
-                owner._acc_grad_w_rot.add_(
-                    (gy_2d.bfloat16().T @ xr_2d.bfloat16()).float(), alpha=scale_w
-                )
+                owner._acc_grad_w_rot.add_((gy_2d.bfloat16().T @ xr_2d.bfloat16()).float() * scale_w)
         else:
-            grad_xr_2d = (gy_2d @ w_q_rot) * scale_w
+            grad_xr_unscaled = gy_2d @ w_q_rot
+            grad_xr_2d = grad_xr_unscaled * scale_w
             if owner._acc_grad_w_rot is not None:
-                owner._acc_grad_w_rot.addmm_(gy_2d.T, xr_2d, beta=1.0, alpha=scale_w)
+                owner._acc_grad_w_rot.add_((gy_2d.T @ xr_2d) * scale_w)
 
         if owner._acc_grad_tau is not None:
-            # dL/dtau = sum(gy * (x_rot @ w_q_rot^T) * inv_sqrt_i)
-            # Re-use `<gy_2d, (xr_2d @ w_q_rot^T)> == <grad_xr_2d / scale_w, xr_2d>` when tau != 0!
-            if abs(scale_w) > 1e-12:
-                gtau = (grad_xr_2d * xr_2d).sum() * (ctx.inv_sqrt_i / scale_w)
-            else:
-                gtau = ((xr_2d @ w_q_rot.T) * gy_2d).sum() * ctx.inv_sqrt_i
+            gtau = (grad_xr_unscaled * xr_2d).sum() * ctx.inv_sqrt_i
             owner._acc_grad_tau.add_(gtau)
 
         grad_xf: Optional[torch.Tensor] = None
@@ -294,12 +289,12 @@ class _DeferredE8GemmAutograd(torch.autograd.Function):
             xf_2d = xf.reshape(lead_n, owner.in_features)
             xa_2d = xa.reshape(lead_n, owner.scar_rank)
             ys_2d = y_scar_unscaled.reshape(lead_n, owner.out_features)
-            sc_s = ctx.gamma_val * ctx.scale_s_unit
+            sc_s = gamma_t * ctx.scale_s_unit
 
             g_xa = (gy_2d @ b_t) * sc_s  # [N, r]
             grad_xf = (g_xa @ a_t).reshape_as(xf)
             if owner._acc_grad_b_t is not None:
-                owner._acc_grad_b_t.addmm_(gy_2d.T, xa_2d, beta=1.0, alpha=sc_s)
+                owner._acc_grad_b_t.add_((gy_2d.T @ xa_2d) * sc_s)
             if owner._acc_grad_a_t is not None:
                 owner._acc_grad_a_t.addmm_(g_xa.T, xf_2d, beta=1.0, alpha=1.0)
             if owner._acc_grad_gamma is not None:
@@ -629,16 +624,17 @@ class E8SphericalLinear(nn.Module):
         if self._defer_grad_active and torch.is_grad_enabled():
             has_s = self.scar_rank > 0 and self.a_scar is not None and self.b_scar is not None and self.gamma_scar is not None
             scale_s_u = 1.0 / math.sqrt(float(self.in_features * max(1, self.scar_rank)))
+            zero_sc = self.tau_base.new_zeros(())
             y_def = _DeferredE8GemmAutograd.apply(
                 xf,
                 x_rot,
                 w_q_rot,
                 self._cached_w_q_rot_bf16,
-                float(self.tau_base.detach().item()),
+                self.tau_base.detach().float(),
                 inv_sqrt_i,
                 self._cached_a_t if has_s else None,
                 self._cached_b_t if has_s else None,
-                float(self.gamma_scar.detach().item()) if has_s and self.gamma_scar is not None else 0.0,
+                self.gamma_scar.detach().float() if has_s and self.gamma_scar is not None else zero_sc,
                 scale_s_u,
                 self,
             )

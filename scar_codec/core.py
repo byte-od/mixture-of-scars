@@ -28,20 +28,23 @@ def rademacher_signs_u32_exact(k: int, device: torch.device) -> torch.Tensor:
     return torch.where((h & 1) == 0, 1.0, -1.0)
 
 
+_HADAMARD64_CACHE_CORE: Dict[Tuple[str, Optional[int], torch.dtype], torch.Tensor] = {}
+
+
 def fwht_block64_orthonormal(x: torch.Tensor, signs: torch.Tensor, inverse: bool = False) -> torch.Tensor:
-    """Orthonormal 64-point Fast Walsh-Hadamard Transform with Rademacher pre/post-signs (autograd-safe)."""
+    """Orthonormal 64-point Fast Walsh-Hadamard Transform (`1` fused 64x64 GEMM, autograd-safe)."""
     orig_shape = x.shape
     assert orig_shape[-1] % 64 == 0
     y = x if inverse else (x * signs)
-    y = y.reshape(-1, 64)
-    h = 1
-    while h < 64:
-        y = y.reshape(-1, 64 // (2 * h), 2, h)
-        a = y[:, :, 0, :]
-        b = y[:, :, 1, :]
-        y = torch.stack([a + b, a - b], dim=2)
-        h *= 2
-    out = (y.reshape(-1, 64) * 0.125).reshape(orig_shape)
+    key = (y.device.type, y.device.index, y.dtype)
+    h64 = _HADAMARD64_CACHE_CORE.get(key)
+    if h64 is None:
+        h = torch.tensor([[1.0]], dtype=torch.float32, device=y.device)
+        for _ in range(6):
+            h = torch.cat((torch.cat((h, h), dim=1), torch.cat((h, -h), dim=1)), dim=0)
+        h64 = (h * 0.125).to(dtype=y.dtype).contiguous()
+        _HADAMARD64_CACHE_CORE[key] = h64
+    out = torch.matmul(y.reshape(-1, 64), h64).reshape(orig_shape)
     return (out * signs) if inverse else out
 
 
@@ -164,17 +167,18 @@ def _extract_compressed_int4_asvd(
     gen.manual_seed(20261116 + n_out + k_in + rank)
     omega = torch.randn(k_in, q, generator=gen, dtype=torch.float32).to(dev)
 
+    need_cpu_linalg = dev.type == "mps"
     y = w_act @ omega
-    q_mat = torch.linalg.qr(y.cpu(), mode="reduced").Q.to(dev)
+    q_mat = torch.linalg.qr(y.cpu(), mode="reduced").Q.to(dev) if need_cpu_linalg else torch.linalg.qr(y, mode="reduced").Q
     for _ in range(2):
         z = w_act.T @ q_mat
-        qz = torch.linalg.qr(z.cpu(), mode="reduced").Q.to(dev)
+        qz = torch.linalg.qr(z.cpu(), mode="reduced").Q.to(dev) if need_cpu_linalg else torch.linalg.qr(z, mode="reduced").Q
         y = w_act @ qz
-        q_mat = torch.linalg.qr(y.cpu(), mode="reduced").Q.to(dev)
+        q_mat = torch.linalg.qr(y.cpu(), mode="reduced").Q.to(dev) if need_cpu_linalg else torch.linalg.qr(y, mode="reduced").Q
 
-    b_small = (q_mat.T @ w_act).cpu()
+    b_small = (q_mat.T @ w_act).cpu() if need_cpu_linalg else (q_mat.T @ w_act)
     u_b, s_val, vh = torch.linalg.svd(b_small, full_matrices=False)
-    u_r = q_mat.to(dev) @ u_b[:, :rank].to(dev)
+    u_r = q_mat @ u_b[:, :rank].to(dev)
     sv_r = s_val[:rank].sqrt().to(dev)
     vh_r = vh[:rank, :].to(dev)
 
@@ -361,29 +365,34 @@ class PhysicalVQ4ScarCodec:
         z_4d = torch.where(zero_blk_mask, torch.zeros_like(blocks), blocks / sc_safe).reshape(-1, 4)
         w_energy = (scales_f16.float().square()).repeat_interleave(16, dim=0).squeeze(-1)
 
-        # Fit `LUT256` (`lut[0] = (0,0,0,0)` hard-pinned + D4 root shells + energy-weighted Lloyd-Max)
+        # Fit `LUT256` with System 1 `Gate G0` active-only compaction (skips 100% of vacuum blocks!)
         active_mask = w_energy > 0
-        z_seed = z_4d[active_mask] if int(active_mask.sum().item()) >= 256 else z_4d
+        n_act = int(active_mask.sum().item())
+        z_act = z_4d[active_mask] if n_act > 0 else z_4d[:0]
+        w_act_e = w_energy[active_mask] if n_act > 0 else w_energy[:0]
+        z_seed = z_act if n_act >= 256 else z_4d
         lut = _seed_d4_zero_lattice(z_seed)
         lut[0].zero_()
-        for _ in range(self.kmeans_iters):
-            idx = _nearest_lut256(z_4d, lut)
-            lut[0].zero_()
-            w_z = z_4d * w_energy.unsqueeze(1)
-            num = torch.zeros((256, 4), dtype=torch.float32, device=dev)
-            den = torch.zeros(256, dtype=torch.float32, device=dev)
-            num.index_add_(0, idx, w_z)
-            den.index_add_(0, idx, w_energy)
-            valid = den > 1e-10
-            valid[0] = False
-            lut[valid] = num[valid] / den[valid].unsqueeze(1)
-            lut[0].zero_()
+        if n_act > 0:
+            w_z_act = z_act * w_act_e.unsqueeze(1)
+            for _ in range(self.kmeans_iters):
+                idx = _nearest_lut256(z_act, lut)
+                lut[0].zero_()
+                num = torch.zeros((256, 4), dtype=torch.float32, device=dev)
+                den = torch.zeros(256, dtype=torch.float32, device=dev)
+                num.index_add_(0, idx, w_z_act)
+                den.index_add_(0, idx, w_act_e)
+                valid = den > 1e-10
+                valid[0] = False
+                lut[valid] = num[valid] / den[valid].unsqueeze(1)
+                lut[0].zero_()
 
         lut256_f16 = lut.to(torch.float16).contiguous()
         lut_q = lut256_f16.float()
-        codes_u8 = _nearest_lut256(z_4d, lut_q).to(torch.uint8)
-        # Force exact zero blocks strictly to code `0` (`(0,0,0,0)`)
         zero_vec4_mask = zero_blk_mask.repeat_interleave(16, dim=0).squeeze(-1)
+        codes_u8 = torch.zeros(z_4d.shape[0], dtype=torch.uint8, device=dev)
+        if n_act > 0:
+            codes_u8[active_mask] = _nearest_lut256(z_act, lut_q).to(torch.uint8)
         codes_u8 = torch.where(zero_vec4_mask, torch.zeros_like(codes_u8), codes_u8)
 
         vq_blocks = lut_q[codes_u8.long()].reshape(n_rows * n_blocks_per_row, 64) * scales_f16.float()

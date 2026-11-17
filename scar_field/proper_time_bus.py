@@ -306,16 +306,29 @@ def chunkwise_wy_channel_selective_scan(
         kk_lower = torch.where(tril_strict, kk_t, torch.zeros_like(kk_t))
         qk_lower = torch.where(tril_strict, qk_t, torch.zeros_like(qk_t))
 
-        # Build unit-lower-triangular `(I_C + A_g)` for all `G` subspaces in batch `[B, G, C, C]`
+        # Build strictly lower-triangular `L_g = beta_g * KK_strict_lower` -> `[B, G, C, C]`
         eye_c = torch.eye(clen, dtype=torch.float32, device=dev)
-        a_mat = eye_c + bc.permute(0, 2, 1).unsqueeze(-1) * kk_lower.unsqueeze(1)  # [B, G, C, C]
+        l_mat = bc.permute(0, 2, 1).unsqueeze(-1) * kk_lower.unsqueeze(1)  # [B, G, C, C]
 
         # Residual innovation against chunk-start `w_cur`: `V_g - K W_cur^T` -> `[B, G, C, d_sub]`
         vc_g = vc.permute(0, 2, 1, 3)  # [B, G, C, d_sub]
         kw0 = torch.matmul(kc.unsqueeze(1), w_cur.transpose(-2, -1))  # [B, G, C, d_sub]
         rhs = bc.permute(0, 2, 1).unsqueeze(-1) * (vc_g - kw0)
 
-        u_g = torch.linalg.solve_triangular(a_mat, rhs, upper=False, unitriangular=True)  # [B, G, C, d_sub]
+        if dev.type == "cuda" and clen <= 128:
+            # Exact finite nilpotent identity (`L^clen == 0` -> `0` approximation, `0` cuBLAS `trsm` stalls!):
+            # `(I + L)^{-1} === (I - L)(I + L^2)(I + L^4)...` in `ceil(log2(clen))` pure Tensor-Core `matmul`s!
+            inv_mat = eye_c - l_mat
+            pow_l = torch.matmul(l_mat, l_mat)
+            step_p = 2
+            while step_p < clen:
+                inv_mat = torch.matmul(inv_mat, eye_c + pow_l)
+                step_p *= 2
+                if step_p < clen:
+                    pow_l = torch.matmul(pow_l, pow_l)
+            u_g = torch.matmul(inv_mat, rhs)
+        else:
+            u_g = torch.linalg.solve_triangular(eye_c + l_mat, rhs, upper=False, unitriangular=True)
 
         # Strictly causal pre-write readout `O_g = Q W_cur^T + QK_strict_lower @ U_g`
         qw0 = torch.matmul(qc.unsqueeze(1), w_cur.transpose(-2, -1))  # [B, G, C, d_sub]
@@ -345,7 +358,7 @@ def biorthogonal_shock_bank_read(
     bsz, q_len, _ = q_vecs.shape
     m_slots = b_keys.shape[1]
     d_bus = b_vals.shape[-1]
-    if not bool(b_valid.any().item()):
+    if b_valid.device.type == "cpu" and not bool(b_valid.any().item()):
         return torch.zeros(bsz, q_len, d_bus, dtype=b_vals.dtype, device=q_vecs.device)
 
     val_f = b_valid.float()  # [B, M]
@@ -385,35 +398,35 @@ def biorthogonal_shock_bank_insert_step_(
     sal_new: torch.Tensor,
     write_thresh: float = 0.22,
 ) -> None:
-    """Updates `O(1)` Biorthogonal Shock Bank in-place (`+0 B` alloc) with key-deduplication & salience eviction."""
-    bsz = k_new.shape[0]
-    for b in range(bsz):
-        s_val = float(sal_new[b].item())
-        if s_val <= write_thresh:
-            continue
-        kb = k_new[b]
-        if float((kb * kb).sum().item()) < 0.25:
-            continue
-        vb = v_new[b]
-        val_mask = b_valid[b]
-        if bool(val_mask.any().item()):
-            sims = torch.matmul(b_keys[b], kb)
-            sims_valid = torch.where(val_mask, sims, torch.full_like(sims, -2.0))
-            max_sim, max_idx = torch.max(sims_valid, dim=0)
-            if float(max_sim.item()) > 0.92:
-                idx_o = int(max_idx.item())
-                b_keys[b, idx_o].copy_(kb)
-                b_vals[b, idx_o].copy_(vb)
-                b_sal[b, idx_o] = max(s_val, float(b_sal[b, idx_o].item()))
-                continue
-        eff_sal = torch.where(val_mask, b_sal[b], torch.full_like(b_sal[b], -1.0))
-        min_sal, min_idx = torch.min(eff_sal, dim=0)
-        idx_t = int(min_idx.item())
-        if (not bool(val_mask[idx_t].item())) or s_val >= float(min_sal.item()) * 0.90:
-            b_keys[b, idx_t].copy_(kb)
-            b_vals[b, idx_t].copy_(vb)
-            b_sal[b, idx_t] = s_val
-            b_valid[b, idx_t] = True
+    """Vectorized `O(1)` Biorthogonal Shock Bank in-place update (`0` `.item()` GPU syncs across `bsz`!)."""
+    bsz, m_slots, d_k = b_keys.shape
+    d_v = b_vals.shape[-1]
+    k_norm2 = (k_new * k_new).sum(dim=-1)  # [B]
+    cand_ok = (sal_new > write_thresh) & (k_norm2 >= 0.25)  # [B]
+
+    sims = torch.matmul(b_keys, k_new.unsqueeze(-1)).squeeze(-1)  # [B, M]
+    sims_valid = torch.where(b_valid, sims, torch.full_like(sims, -2.0))
+    max_sim, max_idx = torch.max(sims_valid, dim=-1)  # [B]
+    is_dedup = b_valid.any(dim=-1) & (max_sim > 0.92)  # [B]
+
+    eff_sal = torch.where(b_valid, b_sal, torch.full_like(b_sal, -1.0))
+    min_sal, min_idx = torch.min(eff_sal, dim=-1)  # [B]
+    min_slot_valid = b_valid.gather(1, min_idx.unsqueeze(1)).squeeze(1)
+    can_evict = (~min_slot_valid) | (sal_new >= min_sal * 0.90)
+
+    do_write = cand_ok & (is_dedup | can_evict)
+    target_idx = torch.where(is_dedup, max_idx, min_idx)  # [B]
+
+    slot_mask = torch.zeros(bsz, m_slots, dtype=torch.bool, device=b_keys.device)
+    slot_mask.scatter_(1, target_idx.unsqueeze(1), do_write.unsqueeze(1))
+
+    old_sal_at_t = b_sal.gather(1, target_idx.unsqueeze(1)).squeeze(1)
+    new_sal_val = torch.where(is_dedup, torch.maximum(sal_new, old_sal_at_t), sal_new)
+
+    b_keys.copy_(torch.where(slot_mask.unsqueeze(-1).expand(bsz, m_slots, d_k), k_new.unsqueeze(1), b_keys))
+    b_vals.copy_(torch.where(slot_mask.unsqueeze(-1).expand(bsz, m_slots, d_v), v_new.unsqueeze(1), b_vals))
+    b_sal.copy_(torch.where(slot_mask, new_sal_val.unsqueeze(1).expand(bsz, m_slots), b_sal))
+    b_valid.logical_or_(slot_mask)
 
 
 class ChannelSelectiveKalmanScarBus(nn.Module):

@@ -211,8 +211,9 @@ class HorizonCulledSymplecticGenerator(nn.Module):
         cos_sim = hc @ poles.T  # [N, E]
         gates = c1_spherical_cap_resonance(cos_sim, kappa.unsqueeze(0))  # [N, E]
 
-        with torch.no_grad():
-            self.last_active_scar_fraction = float((gates > 0.0).float().mean().item())
+        if hc.device.type == "cpu":
+            with torch.no_grad():
+                self.last_active_scar_fraction = float((gates > 0.0).float().mean().item())
 
         su = project_rows_to_unit_sphere(self.scar_u)  # [E, D_t]
         sv = project_rows_to_unit_sphere(self.scar_v)  # [E, D_t]

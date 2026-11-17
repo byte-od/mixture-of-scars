@@ -186,7 +186,11 @@ class ByteShockFrontEnd(nn.Module):
             r_temp = self.reflex_temp.clamp(2.0, 24.0)
             r_scores = r_temp * torch.matmul(hf[:, :-1, :].detach(), r_poles.T)  # [B, T-1, V]
             next_ids = ids[:, 1:]
-            loss_reflex = tsallis15_fenchel_young_loss(r_scores, next_ids).mean()
+            loss_reflex = (
+                tsallis15_fenchel_young_loss(r_scores, next_ids).mean()
+                if return_reflex_loss
+                else hf.new_zeros(())
+            )
             with torch.no_grad():
                 p_local, _ = tsallis15_spherical_cap_probs(r_scores.detach())
                 p_hit = p_local.gather(dim=-1, index=next_ids.unsqueeze(-1)).squeeze(-1)
