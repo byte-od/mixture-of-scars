@@ -66,7 +66,7 @@ def _sync_single_models_into_bank(bank: BatchedScarFieldSuperEngine, models: lis
 
 
 def test_v81_version_and_zero_legacy_layers() -> None:
-    assert scar_field.__version__.startswith("8.")
+    assert int(scar_field.__version__.split(".")[0]) >= 8
     torch.manual_seed(8101)
     master = ScarFieldEngine(_tiny_v81_cfg())
     bank = BatchedScarFieldSuperEngine(master, num_replicas=4, shared_crystal=False)

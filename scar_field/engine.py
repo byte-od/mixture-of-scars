@@ -135,6 +135,8 @@ class ScarFieldConfig:
     antiloop_weight: float = 0.0
     shock_closure_decay: float = 0.0
     enable_repeat_phase: bool = False
+    biorth_buckets: int = 1
+    enable_percept_s1_gate: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.wave_lags, list):
@@ -198,6 +200,7 @@ class ScarFieldEngine(nn.Module):
             biorth_slots=c.biorth_slots,
             biorth_lambda=c.biorth_lambda,
             enable_biorth_uscar=c.enable_biorth_uscar,
+            biorth_buckets=c.biorth_buckets,
         )
         # Stage 2: Reasoning/Synthesis Cayley Geodesic Flow (`S1` K=1 <-> `S2` K=s2_steps)
         self.flow = ReversibleSymplecticCayleyFlow(
@@ -305,7 +308,18 @@ class ScarFieldEngine(nn.Module):
             full_ids = byte_ids.long()
             hf_raw, hw_raw, surprise, loss_reflex = self.frontend(full_ids, return_reflex_loss=True)  # type: ignore[misc]
 
-        hf0, hw0 = self.flow_percept(hf_raw, hw_raw, hf_raw, num_steps=2)
+        percept_mask = (
+            build_scout_g0_step_mask(
+                surprise,
+                s2_steps=2,
+                s2_surprise_theta=self.cfg.s2_surprise_theta,
+                scout_g0_theta=0.0,
+                allow_full_bypass=False,
+            )
+            if (adaptive_depth and self.cfg.enable_percept_s1_gate)
+            else None
+        )
+        hf0, hw0 = self.flow_percept(hf_raw, hw_raw, hf_raw, num_steps=2, step_mask=percept_mask)
         v_sym = project_rows_to_unit_sphere(self.head.out_bus_anchors)[byte_ids.long().clamp(0, self.cfg.vocab_size - 1)]
         hf_phased, bus_ctx, uscar_res, next_state = self.bus.forward_sequence(
             hf0, hw0, surprise, state=state, chunk_size=self.cfg.wy_chunk_size, v_shock_hint=v_sym
@@ -477,7 +491,10 @@ class ScarFieldEngine(nn.Module):
         hf_seq, hw_seq, s_seq = self.frontend(win)
         hf_t, hw_t, s_t = hf_seq[:, -1], hw_seq[:, -1], s_seq[:, -1]
 
-        hf_t, hw_t = self.flow_percept(hf_t, hw_t, hf_t, num_steps=2)
+        s_val = float(s_t[0].item())
+        use_s2 = bool(s_val >= self.cfg.s2_surprise_theta)
+        p_steps = (2 if use_s2 else 1) if self.cfg.enable_percept_s1_gate else 2
+        hf_t, hw_t = self.flow_percept(hf_t, hw_t, hf_t, num_steps=p_steps)
         bus_anch = project_rows_to_unit_sphere(self.head.out_bus_anchors)
         v_sym_t = bus_anch[cur_t.squeeze(0)]
         hf_phased, bus_ctx, uscar_res, _ = self.bus.step_pulse(
@@ -488,8 +505,6 @@ class ScarFieldEngine(nn.Module):
         state.recent_bytes[:, -tail_n:] = win[:, -tail_n:].to(torch.uint8)
         state.recent_len = int(tail_n)
 
-        s_val = float(s_t[0].item())
-        use_s2 = bool(s_val >= self.cfg.s2_surprise_theta)
         k_steps = self.cfg.s2_steps if use_s2 else self.cfg.s1_steps
         hf_out, hw_out = self.flow(hf_phased, hw_t, bus_ctx, num_steps=k_steps)
         if self.extra_flows is not None and not (self.cfg.scout_g0_theta > 0.0 and s_val < self.cfg.scout_g0_theta):

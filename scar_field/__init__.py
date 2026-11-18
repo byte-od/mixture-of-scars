@@ -63,6 +63,7 @@ from scar_field.proper_time_bus import (
     apply_relativistic_proper_time_phase,
     biorthogonal_shock_bank_insert_step_,
     biorthogonal_shock_bank_read,
+    build_spherical_hash_bucket_poles,
     chunkwise_wy_channel_selective_scan,
     compute_proper_time,
 )
@@ -80,7 +81,7 @@ from scar_field.triton_kernels import (
     tsallis15_spherical_cap_probs_fast,
 )
 
-__version__ = "8.2.0"
+__version__ = "9.0.0"
 
 __all__ = [
     "BatchedE8LinearBank",
@@ -123,6 +124,7 @@ __all__ = [
     "biorthogonal_shock_bank_read",
     "build_canonical_e8_lut256",
     "build_scout_g0_step_mask",
+    "build_spherical_hash_bucket_poles",
     "c1_spherical_cap_resonance",
     "cayley_woodbury_step",
     "chunkwise_wy_channel_selective_scan",

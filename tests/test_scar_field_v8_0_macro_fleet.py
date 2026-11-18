@@ -52,7 +52,7 @@ def _tiny_v8_cfg() -> ScarFieldConfig:
 
 
 def test_version_and_riemannian_log_exp_exact_bijection() -> None:
-    assert scar_field.__version__.startswith("8.")
+    assert int(scar_field.__version__.split(".")[0]) >= 8
     torch.manual_seed(8001)
     w0 = project_rows_to_unit_sphere(torch.randn(32, 128))
     # Mix micro-steps (`~1e-4` rad) and wide geodesic chords (`~0.8` rad)

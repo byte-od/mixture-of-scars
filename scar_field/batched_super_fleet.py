@@ -1443,8 +1443,19 @@ class BatchedScarFieldSuperEngine(nn.Module):
                     next_recent_bytes[m_i, :, -tn:] = ids_mc[0, :, -tn:].to(torch.uint8)
                     next_recent_lens[m_i] = int(tn)
 
-        # 2. Perceptual Cayley Flow (`[M, B, T, D]`)
-        hf0, hw0 = self.flow_percept(hf_raw, hw_raw, hf_raw, num_steps=2)
+        # 2. Perceptual Cayley Flow (`[M, B, T, D]` with optional `enable_percept_s1_gate` vacuum bypass!)
+        percept_mask = (
+            build_scout_g0_step_mask(
+                surprise,
+                s2_steps=2,
+                s2_surprise_theta=c.s2_surprise_theta,
+                scout_g0_theta=0.0,
+                allow_full_bypass=False,
+            )
+            if (adaptive_depth and c.enable_percept_s1_gate)
+            else None
+        )
+        hf0, hw0 = self.flow_percept(hf_raw, hw_raw, hf_raw, num_steps=2, step_mask=percept_mask)
 
         # 3. Fused ChannelSelectiveKalmanScarBus (`[M, B, T, D]`)
         m_idx = torch.arange(m_cnt, device=dev).view(m_cnt, 1, 1)
@@ -1552,7 +1563,8 @@ class BatchedScarFieldSuperEngine(nn.Module):
             k_bind_det = k_bind.detach()
             v_flat_det = v_flat_mb.detach()
             for c_start in range(0, seq_len, c.wy_chunk_size):
-                c_end = min(seq_len, c_start + c.wy_chunk_size)
+                c_end = min(seq_len, c.wy_chunk_size + c_start)
+                clen_b = c_end - c_start
                 b_read = biorthogonal_shock_bank_read(
                     q_mb[:, c_start:c_end, :],
                     cur_bk.clone(),
@@ -1560,10 +1572,15 @@ class BatchedScarFieldSuperEngine(nn.Module):
                     cur_bval.clone(),
                     b_kap_mb,
                     ridge_lambda=c.biorth_lambda,
+                    num_buckets=c.biorth_buckets,
                 )
                 biorth_chunks.append(b_read)
                 c_sal = sal_seq[:, c_start:c_end]
-                top_n = min(max(8, (c_end - c_start) // 5), c_end - c_start)
+                top_n = (
+                    min(clen_b, max(32, (clen_b * 2) // 3))
+                    if c.biorth_buckets > 1
+                    else min(max(8, clen_b // 5), clen_b)
+                )
                 _, top_pos = torch.topk(c_sal, k=top_n, dim=-1)
                 top_pos_sorted, _ = torch.sort(top_pos, dim=-1)
                 for j_s in range(top_n):
@@ -1573,7 +1590,15 @@ class BatchedScarFieldSuperEngine(nn.Module):
                     v_step = v_flat_det.gather(1, idx_abs.view(mb, 1, 1).expand(mb, 1, db)).squeeze(1)
                     s_step = c_sal.gather(1, idx_rel.view(mb, 1)).squeeze(1)
                     biorthogonal_shock_bank_insert_step_(
-                        cur_bk, cur_bv, cur_bsal, cur_bval, k_step, v_step, s_step, write_thresh=0.22
+                        cur_bk,
+                        cur_bv,
+                        cur_bsal,
+                        cur_bval,
+                        k_step,
+                        v_step,
+                        s_step,
+                        write_thresh=0.22,
+                        num_buckets=c.biorth_buckets,
                     )
             b_cat = torch.cat(biorth_chunks, dim=1).reshape(m_cnt, bsz, seq_len, db)
             biorth_out = self.bus_biorth_gain.clamp(min=0.0).view(m_cnt, 1, 1, 1) * b_cat
@@ -1921,7 +1946,18 @@ class BatchedScarFieldSuperEngine(nn.Module):
         self.copy_replica_to_engine(m_idx, scratch_eng, bus_only=True)
         full_ids = prefix_ids.long()
         hf_raw, hw_raw, surprise = scratch_eng.frontend(full_ids, return_reflex_loss=False)  # type: ignore[misc]
-        hf0, hw0 = scratch_eng.flow_percept(hf_raw, hw_raw, hf_raw, num_steps=2)
+        percept_mask = (
+            build_scout_g0_step_mask(
+                surprise,
+                s2_steps=2,
+                s2_surprise_theta=self.cfg.s2_surprise_theta,
+                scout_g0_theta=0.0,
+                allow_full_bypass=False,
+            )
+            if self.cfg.enable_percept_s1_gate
+            else None
+        )
+        hf0, hw0 = scratch_eng.flow_percept(hf_raw, hw_raw, hf_raw, num_steps=2, step_mask=percept_mask)
         v_sym = project_rows_to_unit_sphere(scratch_eng.head.out_bus_anchors)[
             full_ids.clamp(0, self.cfg.vocab_size - 1)
         ]

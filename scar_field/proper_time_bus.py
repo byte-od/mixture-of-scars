@@ -159,6 +159,33 @@ class UniversalScarCartridgeStore(nn.Module):
         self.biorthogonal_poles = bool(biorthogonal_poles)
         self.biorth_lambda = float(biorth_lambda)
         self.cartridges: Dict[str, UScarPoleCartridge] = {}
+        self._stiefel_world_bridges: Dict[Tuple[int, int], torch.Tensor] = {}
+        self._stiefel_bus_bridges: Dict[Tuple[int, int], torch.Tensor] = {}
+
+    def register_interscale_stiefel_bridge(
+        self,
+        canon_d_world: int,
+        canon_d_bus: int,
+        w_world_to_canon: Optional[torch.Tensor] = None,
+        w_canon_bus_to_bus: Optional[torch.Tensor] = None,
+        seed: int = 9001,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Registers an exact semi-orthogonal Stiefel bridge `(W_in, W_out)` for cross-scale `.uscar` transport."""
+        if w_world_to_canon is None:
+            g = torch.Generator(device="cpu")
+            g.manual_seed(seed)
+            m_raw = torch.randn(max(canon_d_world, self.d_world), min(canon_d_world, self.d_world), generator=g)
+            q_orth, _ = torch.linalg.qr(m_raw, mode="reduced")
+            w_world_to_canon = q_orth[:canon_d_world, :] if self.d_world <= canon_d_world else q_orth.T[:canon_d_world, :]
+        if w_canon_bus_to_bus is None:
+            g2 = torch.Generator(device="cpu")
+            g2.manual_seed(seed + 137)
+            m_b = torch.randn(max(self.d_bus, canon_d_bus), min(self.d_bus, canon_d_bus), generator=g2)
+            qb_orth, _ = torch.linalg.qr(m_b, mode="reduced")
+            w_canon_bus_to_bus = qb_orth[: self.d_bus, :] if canon_d_bus <= self.d_bus else qb_orth.T[: self.d_bus, :]
+        self._stiefel_world_bridges[(self.d_world, canon_d_world)] = w_world_to_canon.detach().float()
+        self._stiefel_bus_bridges[(canon_d_bus, self.d_bus)] = w_canon_bus_to_bus.detach().float()
+        return w_world_to_canon, w_canon_bus_to_bus
 
     @torch.no_grad()
     def mint_zero_sgd_rrr(
@@ -219,18 +246,20 @@ class UniversalScarCartridgeStore(nn.Module):
             return out, max_res
 
         hw = h_world.float()
-        if len(active) >= 2 and self.biorthogonal_poles:
-            poles_mat = torch.stack([c.pole_world.to(hw.device).float() for c in active], dim=0)  # [C, d_world]
+        same_scale = [c for c in active if c.pole_world.numel() == self.d_world and c.b_value.shape[0] == self.d_bus]
+        cross_scale = [c for c in active if c.pole_world.numel() != self.d_world or c.b_value.shape[0] != self.d_bus]
+
+        if len(same_scale) >= 2 and self.biorthogonal_poles and not cross_scale:
+            poles_mat = torch.stack([c.pole_world.to(hw.device).float() for c in same_scale], dim=0)  # [C, d_world]
             n_c = poles_mat.shape[0]
             gram = torch.matmul(poles_mat, poles_mat.T) + self.biorth_lambda * torch.eye(
                 n_c, dtype=torch.float32, device=hw.device
             )
-            # Biorthogonal Dual Poles: `P_tilde = (P P^T + lam I)^{-1} P` -> `P_tilde P^T ≈ I_C`!
             dual_poles = torch.linalg.solve(gram, poles_mat)  # [C, d_world]
             self_gain = (dual_poles * poles_mat).sum(dim=-1).clamp(min=0.1)  # [C]
             raw_cos_all = torch.matmul(hw, poles_mat.T)  # [..., C]
             dual_coord_all = torch.matmul(hw, dual_poles.T) / self_gain  # [..., C]
-            for idx_c, c in enumerate(active):
+            for idx_c, c in enumerate(same_scale):
                 cos_p = raw_cos_all[..., idx_c]
                 dual_c = dual_coord_all[..., idx_c]
                 raw_gate = (2.0 * c1_spherical_cap_resonance(cos_p, hw.new_tensor(c.horizon_kappa))).clamp(0.0, 1.0)
@@ -238,23 +267,35 @@ class UniversalScarCartridgeStore(nn.Module):
                 norm_gate = torch.minimum(raw_gate, dual_gate)
                 max_res = torch.maximum(max_res, norm_gate.to(max_res.dtype))
                 if float(norm_gate.max().item()) > 0.0:
-                    a_p = c.a_proj.to(hw.device)
-                    b_v = c.b_value.to(hw.device)
+                    a_p = c.a_proj.to(hw.device).float()
+                    b_v = c.b_value.to(hw.device).float()
                     inj = torch.matmul(torch.matmul(hw, a_p.T), b_v.T)
                     out = out + (norm_gate.unsqueeze(-1) * inj).to(out.dtype)
             return out, max_res
 
         for c in active:
-            pole = c.pole_world.to(hw.device)
-            cos_p = torch.matmul(hw, pole)  # [...]
+            c_dw = int(c.pole_world.numel())
+            c_db = int(c.b_value.shape[0])
+            if c_dw != self.d_world or c_db != self.d_bus:
+                if (self.d_world, c_dw) not in self._stiefel_world_bridges:
+                    self.register_interscale_stiefel_bridge(c_dw, c_db)
+                w_in = self._stiefel_world_bridges[(self.d_world, c_dw)].to(hw.device)
+                w_out = self._stiefel_bus_bridges[(c_db, self.d_bus)].to(hw.device)
+                hw_q = project_rows_to_unit_sphere(torch.matmul(hw, w_in.T))
+            else:
+                hw_q = hw
+                w_out = None
+            pole = c.pole_world.to(hw.device).float()
+            cos_p = torch.matmul(hw_q, pole)
             gate = c1_spherical_cap_resonance(cos_p, hw.new_tensor(c.horizon_kappa))
-            # Normalize pole peak (`gate(1.0) = 0.5 -> norm_gate(1.0) = 1.0`, `0.0` outside horizon!)
             norm_gate = (gate * 2.0).clamp(0.0, 1.0)
             max_res = torch.maximum(max_res, norm_gate.to(max_res.dtype))
             if float(norm_gate.max().item()) > 0.0:
-                a_p = c.a_proj.to(hw.device)
-                b_v = c.b_value.to(hw.device)
-                inj = torch.matmul(torch.matmul(hw, a_p.T), b_v.T)  # [..., d_bus]
+                a_p = c.a_proj.to(hw.device).float()
+                b_v = c.b_value.to(hw.device).float()
+                inj = torch.matmul(torch.matmul(hw_q, a_p.T), b_v.T)
+                if w_out is not None:
+                    inj = torch.matmul(inj, w_out.T)
                 out = out + (norm_gate.unsqueeze(-1) * inj).to(out.dtype)
         return out, max_res
 
@@ -391,6 +432,51 @@ def chunkwise_wy_channel_selective_scan(
     return readout, w_cur.to(v.dtype)
 
 
+_BUCKET_POLE_CACHE: Dict[Tuple[int, int, str], torch.Tensor] = {}
+
+
+def build_spherical_hash_bucket_poles(
+    num_buckets: int,
+    d_key: int,
+    device: torch.device | str = "cpu",
+) -> torch.Tensor:
+    """Builds `num_buckets` deterministic orthonormal Hadamard spherical poles `P_hash [B_h, d_key]`.
+
+    Zero learned parameters, zero container bytes, exact `<p_a, p_b> == 0` orthogonality (`a != b`)
+    whenever `num_buckets < largest_pow2(d_key)`.
+    """
+    dev_obj = torch.device(device)
+    cache_key = (int(num_buckets), int(d_key), str(dev_obj))
+    cached = _BUCKET_POLE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    p2 = 1
+    while (p2 * 2) <= d_key:
+        p2 *= 2
+    if num_buckets >= p2:
+        raise ValueError(f"num_buckets ({num_buckets}) must be < largest power-of-2 <= d_key ({p2})")
+
+    h_mat = torch.tensor([[1.0]], dtype=torch.float32)
+    while h_mat.shape[0] < p2:
+        top = torch.cat((h_mat, h_mat), dim=1)
+        bot = torch.cat((h_mat, -h_mat), dim=1)
+        h_mat = torch.cat((top, bot), dim=0)
+
+    # Skip row 0 (all-ones) so every bucket pole is zero-mean balanced; permute columns deterministically
+    perm = [((c * 37 + 11) % p2) for c in range(p2)]
+    poles_p2 = h_mat[1 : num_buckets + 1, perm] / math.sqrt(float(p2))  # [B_h, p2], exact orthonormal!
+    if d_key > p2:
+        poles = torch.zeros(num_buckets, d_key, dtype=torch.float32)
+        poles[:, :p2] = poles_p2
+    else:
+        poles = poles_p2.contiguous()
+
+    poles_dev = poles.to(device=dev_obj)
+    _BUCKET_POLE_CACHE[cache_key] = poles_dev
+    return poles_dev
+
+
 def biorthogonal_shock_bank_read(
     q_vecs: torch.Tensor,
     b_keys: torch.Tensor,
@@ -398,13 +484,16 @@ def biorthogonal_shock_bank_read(
     b_valid: torch.Tensor,
     horizon_kappa: torch.Tensor,
     ridge_lambda: float = 0.04,
+    num_buckets: int = 1,
+    probe_buckets: int = 4,
 ) -> torch.Tensor:
     """Biorthogonal Dual Shock Readout (`K_tilde = (K K^T + lam I)^{-1} K` -> `K_tilde K^T ≈ I_M`).
 
-    Eliminates oblique hubness/crosstalk among `M` stored long-range shock keys in strictly `O(1)` space
-    with ZERO `Softmax`, ZERO `exp()`, and exact `0.0` output outside the spherical horizon `horizon_kappa`.
+    When `num_buckets > 1`, partitions `M = num_buckets * M_sub` slots across deterministic orthonormal
+    spherical Hadamard octants so each bucket solves a full-rank `[M_sub x M_sub]` (`M_sub <= d_key`)
+    SPD Gram system even when total capacity `M >> d_key` (e.g. `512` slots in `d_key = 128`!).
     """
-    bsz, q_len, _ = q_vecs.shape
+    bsz, q_len, d_k = q_vecs.shape
     m_slots = b_keys.shape[1]
     d_bus = b_vals.shape[-1]
     if b_valid.device.type == "cpu" and not bool(b_valid.any().item()):
@@ -414,11 +503,38 @@ def biorthogonal_shock_bank_read(
     k_m = b_keys.float() * val_f.unsqueeze(-1)  # [B, M, d_key]
     v_m = b_vals.float() * val_f.unsqueeze(-1)  # [B, M, d_bus]
     qf = q_vecs.float()
+    kap = horizon_kappa.float().clamp(0.15, 0.88)
+
+    if num_buckets > 1:
+        m_sub = m_slots // num_buckets
+        raw_cos_b = torch.matmul(qf, k_m.transpose(-2, -1)).view(bsz, q_len, num_buckets, m_sub)  # [B, L, B_h, M_sub]
+        val_b = b_valid.view(bsz, 1, num_buckets, m_sub)
+        masked_cos_b = torch.where(val_b, raw_cos_b, torch.full_like(raw_cos_b, -1.0))
+        max_cos_b = masked_cos_b.amax(dim=-1, keepdim=True)  # [B, L, B_h, 1]
+        # Per-bucket C^1 spherical horizon gate: buckets with no resonant key stay EXACT `0.000000`
+        # (eliminating cross-bucket dual-key noise AND achieving 100% Voronoi boundary recall!)
+        kap_b = kap.unsqueeze(-1) if kap.ndim == 3 else kap
+        hor_gate_b = (2.0 * c1_spherical_cap_resonance(max_cos_b, kap_b)).clamp(0.0, 1.0)  # [B, L, B_h, 1]
+        if q_vecs.device.type == "cpu" and float(hor_gate_b.max().item()) <= 0.0:
+            return torch.zeros(bsz, q_len, d_bus, dtype=b_vals.dtype, device=q_vecs.device)
+
+        k_b = k_m.view(bsz, num_buckets, m_sub, d_k)
+        eye_sub = torch.eye(m_sub, dtype=torch.float32, device=q_vecs.device)
+        gram_b = torch.matmul(k_b, k_b.transpose(-2, -1)) + float(ridge_lambda) * eye_sub  # [B, B_h, M_sub, M_sub]
+        if gram_b.device.type in ("cuda", "mps"):
+            gram_inv_b = _halley_spd_inv_direct(gram_b, eye_sub, n_steps=7)
+            dual_k_b = torch.matmul(gram_inv_b, k_b)
+        else:
+            dual_k_b = torch.linalg.solve(gram_b, k_b)
+        dual_k_flat = dual_k_b.reshape(bsz, m_slots, d_k) * val_f.unsqueeze(-1)
+        alpha_b = torch.matmul(qf, dual_k_flat.transpose(-2, -1)).view(bsz, q_len, num_buckets, m_sub)
+        alpha_gated = (hor_gate_b * alpha_b.clamp(0.0, 1.5) * val_b.float()).reshape(bsz, q_len, m_slots)
+        out = torch.matmul(alpha_gated, v_m)
+        return out.to(b_vals.dtype)
 
     raw_cos = torch.matmul(qf, k_m.transpose(-2, -1))  # [B, L, M]
     masked_cos = torch.where(b_valid.unsqueeze(1), raw_cos, torch.full_like(raw_cos, -1.0))
     max_cos = masked_cos.amax(dim=-1, keepdim=True)  # [B, L, 1]
-    kap = horizon_kappa.float().clamp(0.15, 0.88)
     hor_gate = (2.0 * c1_spherical_cap_resonance(max_cos, kap)).clamp(0.0, 1.0)  # [B, L, 1]
     if q_vecs.device.type == "cpu" and float(hor_gate.max().item()) <= 0.0:
         return torch.zeros(bsz, q_len, d_bus, dtype=b_vals.dtype, device=q_vecs.device)
@@ -448,6 +564,7 @@ def biorthogonal_shock_bank_insert_step_(
     write_thresh: float = 0.22,
     b_idx: Optional[torch.Tensor] = None,
     idx_new: Optional[torch.Tensor] = None,
+    num_buckets: int = 1,
 ) -> None:
     """Vectorized `O(1)` Biorthogonal Shock Bank strict Top-M heap update (`0` `.item()` GPU syncs!)."""
     bsz, m_slots, d_k = b_keys.shape
@@ -455,19 +572,53 @@ def biorthogonal_shock_bank_insert_step_(
     k_norm2 = (k_new * k_new).sum(dim=-1)  # [B]
     cand_ok = (sal_new > write_thresh) & (k_norm2 >= 0.25)  # [B]
 
-    sims = torch.matmul(b_keys, k_new.unsqueeze(-1)).squeeze(-1)  # [B, M]
-    sims_valid = torch.where(b_valid, sims, torch.full_like(sims, -2.0))
-    max_sim, max_idx = torch.max(sims_valid, dim=-1)  # [B]
-    is_dedup = b_valid.any(dim=-1) & (max_sim > 0.92)  # [B]
+    if num_buckets > 1:
+        m_sub = m_slots // num_buckets
+        p_hash = build_spherical_hash_bucket_poles(num_buckets, d_k, b_keys.device)  # [B_h, d_k]
+        b_primary = torch.matmul(k_new.float(), p_hash.T).argmax(dim=-1)  # [B]
 
-    eff_sal = torch.where(b_valid, b_sal, torch.full_like(b_sal, -1.0))
-    min_sal, min_idx = torch.min(eff_sal, dim=-1)  # [B]
-    min_slot_valid = b_valid.gather(1, min_idx.unsqueeze(1)).squeeze(1)
-    # Strict monotonic Top-M salience replacement (`sal_new > min_sal`, zero priority-inversion erosion!)
-    can_evict = (~min_slot_valid) | (sal_new > (min_sal + 1e-6))
+        bk_sub = (
+            b_keys.view(bsz, num_buckets, m_sub, d_k)
+            .gather(1, b_primary.view(bsz, 1, 1, 1).expand(bsz, 1, m_sub, d_k))
+            .squeeze(1)
+        )
+        bs_sub = (
+            b_sal.view(bsz, num_buckets, m_sub)
+            .gather(1, b_primary.view(bsz, 1, 1).expand(bsz, 1, m_sub))
+            .squeeze(1)
+        )
+        bval_sub = (
+            b_valid.view(bsz, num_buckets, m_sub)
+            .gather(1, b_primary.view(bsz, 1, 1).expand(bsz, 1, m_sub))
+            .squeeze(1)
+        )
 
-    do_write = cand_ok & (is_dedup | can_evict)
-    target_idx = torch.where(is_dedup, max_idx, min_idx)  # [B]
+        sims = torch.matmul(bk_sub.float(), k_new.float().unsqueeze(-1)).squeeze(-1)  # [B, m_sub]
+        sims_valid = torch.where(bval_sub, sims, torch.full_like(sims, -2.0))
+        max_sim, max_local = torch.max(sims_valid, dim=-1)
+        is_dedup = bval_sub.any(dim=-1) & (max_sim > 0.92)
+
+        eff_sal = torch.where(bval_sub, bs_sub, torch.full_like(bs_sub, -1.0))
+        min_sal, min_local = torch.min(eff_sal, dim=-1)
+        min_slot_valid = bval_sub.gather(1, min_local.unsqueeze(1)).squeeze(1)
+        can_evict = (~min_slot_valid) | (sal_new > (min_sal + 1e-6))
+
+        do_write = cand_ok & (is_dedup | can_evict)
+        local_idx = torch.where(is_dedup, max_local, min_local)
+        target_idx = b_primary * m_sub + local_idx
+    else:
+        sims = torch.matmul(b_keys, k_new.unsqueeze(-1)).squeeze(-1)  # [B, M]
+        sims_valid = torch.where(b_valid, sims, torch.full_like(sims, -2.0))
+        max_sim, max_idx = torch.max(sims_valid, dim=-1)  # [B]
+        is_dedup = b_valid.any(dim=-1) & (max_sim > 0.92)  # [B]
+
+        eff_sal = torch.where(b_valid, b_sal, torch.full_like(b_sal, -1.0))
+        min_sal, min_idx = torch.min(eff_sal, dim=-1)  # [B]
+        min_slot_valid = b_valid.gather(1, min_idx.unsqueeze(1)).squeeze(1)
+        can_evict = (~min_slot_valid) | (sal_new > (min_sal + 1e-6))
+
+        do_write = cand_ok & (is_dedup | can_evict)
+        target_idx = torch.where(is_dedup, max_idx, min_idx)  # [B]
 
     slot_mask = torch.zeros(bsz, m_slots, dtype=torch.bool, device=b_keys.device)
     slot_mask.scatter_(1, target_idx.unsqueeze(1), do_write.unsqueeze(1))
@@ -501,6 +652,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         biorth_slots: int = 0,
         biorth_lambda: float = 0.04,
         enable_biorth_uscar: bool = True,
+        biorth_buckets: int = 1,
     ) -> None:
         super().__init__()
         if d_bus % num_subspaces != 0:
@@ -518,6 +670,11 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         self.recent_wave_buf_len = max(4, int(recent_wave_buf_len))
         self.biorth_slots = max(0, int(biorth_slots))
         self.biorth_lambda = float(biorth_lambda)
+        self.biorth_buckets = max(1, int(biorth_buckets))
+        if self.biorth_slots > 0 and (self.biorth_slots % self.biorth_buckets != 0):
+            raise ValueError(
+                f"biorth_slots ({self.biorth_slots}) must be divisible by biorth_buckets ({self.biorth_buckets})"
+            )
 
         joint_dim = d_form + d_world
         if joint_dim % 64 != 0:
@@ -714,6 +871,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             v_flat_det = v_flat.detach()
             for c_start in range(0, seq_len, chunk_size):
                 c_end = min(seq_len, c_start + chunk_size)
+                clen_b = c_end - c_start
                 b_read = biorthogonal_shock_bank_read(
                     q[:, c_start:c_end, :],
                     cur_bk.clone(),
@@ -721,11 +879,16 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
                     cur_bval.clone(),
                     self.biorth_kappa,
                     ridge_lambda=self.biorth_lambda,
+                    num_buckets=self.biorth_buckets,
                 )
                 biorth_chunks.append(b_read)
                 # Commit top shock transitions of this chunk into `O(1)` Biorthogonal Bank for subsequent chunks!
                 c_sal = sal_seq[:, c_start:c_end]
-                top_n = min(max(8, (c_end - c_start) // 5), c_end - c_start)
+                top_n = (
+                    min(clen_b, max(32, (clen_b * 2) // 3))
+                    if self.biorth_buckets > 1
+                    else min(max(8, clen_b // 5), clen_b)
+                )
                 _, top_pos = torch.topk(c_sal, k=top_n, dim=-1)
                 top_pos_sorted, _ = torch.sort(top_pos, dim=-1)
                 for j_s in range(top_n):
@@ -743,6 +906,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
                         v_step,
                         s_step,
                         write_thresh=0.22,
+                        num_buckets=self.biorth_buckets,
                     )
             biorth_out = self.biorth_gain.clamp(min=0.0) * torch.cat(biorth_chunks, dim=1)
         else:
@@ -884,6 +1048,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
                 state.biorth_valid,
                 self.biorth_kappa,
                 ridge_lambda=self.biorth_lambda,
+                num_buckets=self.biorth_buckets,
             ).squeeze(1)
         else:
             biorth_t = torch.zeros(h_world_t.shape[0], self.d_bus, dtype=v.dtype, device=dev)
@@ -938,6 +1103,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
                     v.reshape(h_world_t.shape[0], self.d_bus),
                     beta_bind.mean(dim=-1),
                     write_thresh=0.22,
+                    num_buckets=self.biorth_buckets,
                 )
             state.k_prev.copy_(k_ctx)
             state.has_prev_key.fill_(True)
