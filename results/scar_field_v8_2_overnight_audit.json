@@ -1,0 +1,1355 @@
+{
+  "suite": "scar_field_v8_2_overnight_audit",
+  "version": "8.2.0",
+  "hardware": "NVIDIA A100-SXM4-40GB",
+  "gpu_total_vram_gib": 39.49,
+  "triton_enabled": true,
+  "warm_started_modules": 48,
+  "completed_v8_2_total_steps": 15760,
+  "completed_fleet_outer_rounds": 173,
+  "completed_swarm_rounds": 20,
+  "streamed_v8_2_selected_bytes": 66846720,
+  "prerolled_o1_long_passkey_bytes": 46825472,
+  "scouted_candidate_frontier_bytes": 187645952,
+  "scarfield_v8_2_config": {
+    "vocab_size": 256,
+    "d_form": 384,
+    "d_world": 512,
+    "d_bus": 384,
+    "d_key": 128,
+    "num_subspaces": 8,
+    "ring_len": 64,
+    "repulsive_len": 12,
+    "base_rank": 12,
+    "num_scars": 96,
+    "s1_steps": 1,
+    "s2_steps": 4,
+    "s2_surprise_theta": 0.45,
+    "shock_write_theta": 0.5,
+    "vacuum_kappa": 0.36,
+    "uncertainty_margin_thresh": 0.24,
+    "ghost_jump_candidates": 3,
+    "ghost_jump_gamma": 0.35,
+    "wy_chunk_size": 128,
+    "enable_kalman_fast": true,
+    "wave_lags": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      8,
+      12,
+      16,
+      24
+    ],
+    "num_macro_cycles": 2,
+    "biorth_slots": 48,
+    "biorth_lambda": 0.04,
+    "enable_biorth_uscar": true,
+    "enable_adaptive_cap": true,
+    "scout_g0_theta": 0.38,
+    "antiloop_weight": 0.14,
+    "shock_closure_decay": 0.85,
+    "enable_repeat_phase": true
+  },
+  "overnight_sovereign_telemetry": {
+    "v7_3_measured_step_ms": 1836.4,
+    "v8_0_multistream_measured_eff_step_ms": 741.21,
+    "m1_single_instance_step_ms_b16_t384": 697.22,
+    "v8_2_m4_vectorized_super_fleet_eff_step_ms_b16_t384": 635.78,
+    "v8_2_m4_peak_vram_gib": 17.725,
+    "v8_2_m4_cuda_alloc_oom_retries": 0,
+    "v8_2_m4_speedup_vs_v7_3_x": 2.89,
+    "best_inflight_quality_score": 3.3947,
+    "final_biorth_gain": 1.4813,
+    "fleet_conflicts_projected_total": 12714,
+    "swarm_conflicts_projected_total": 17135,
+    "swarm_mutable_params_per_worker": 1601567,
+    "swarm_worker_param_reduction_x": 37.45,
+    "total_co_training_hours": 3.275
+  },
+  "architecture_comparison": {
+    "scarfield_v8_2_spherical_params": 59984935,
+    "scarfield_v8_2_sfield_scar_bytes": 9990080,
+    "scarfield_v8_2_sfield_scar_mib": 9.527,
+    "scarfield_v8_2_o1_state_bytes": 455504,
+    "dense_transformer_params": 33434112,
+    "dense_transformer_fp16_mib": 63.771,
+    "weight_compression_vs_dense_fp16_x": 6.69,
+    "mmap_c_simd_forward_cosine": 1.0,
+    "v8_2_fleet_plus_swarm_seconds": 11789.7,
+    "dense_train_seconds": 88.6
+  },
+  "step_1_heldout_open_domain_metrics": {
+    "pt": {
+      "scarfield_v8_2_overnight": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.4421,
+        "train_escape_lambda": 0.01523,
+        "in_cap_coverage_pct": 95.5,
+        "top1_byte_acc_pct": 55.42,
+        "top5_byte_acc_pct": 82.77,
+        "exact_zero_sparsity_pct": 95.79
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.5299,
+        "top1_byte_acc_pct": 26.86,
+        "top5_byte_acc_pct": 67.28,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "en": {
+      "scarfield_v8_2_overnight": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 1.9796,
+        "train_escape_lambda": 0.01283,
+        "in_cap_coverage_pct": 96.83,
+        "top1_byte_acc_pct": 63.48,
+        "top5_byte_acc_pct": 86.18,
+        "exact_zero_sparsity_pct": 96.2
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.6461,
+        "top1_byte_acc_pct": 24.85,
+        "top5_byte_acc_pct": 65.79,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "es": {
+      "scarfield_v8_2_overnight": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.4551,
+        "train_escape_lambda": 0.01936,
+        "in_cap_coverage_pct": 95.03,
+        "top1_byte_acc_pct": 56.33,
+        "top5_byte_acc_pct": 82.65,
+        "exact_zero_sparsity_pct": 95.72
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.5055,
+        "top1_byte_acc_pct": 26.7,
+        "top5_byte_acc_pct": 69.0,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "fr": {
+      "scarfield_v8_2_overnight": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.3633,
+        "train_escape_lambda": 0.01338,
+        "in_cap_coverage_pct": 95.46,
+        "top1_byte_acc_pct": 57.78,
+        "top5_byte_acc_pct": 83.42,
+        "exact_zero_sparsity_pct": 95.9
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.527,
+        "top1_byte_acc_pct": 28.4,
+        "top5_byte_acc_pct": 66.11,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "code": {
+      "scarfield_v8_2_overnight": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 1.6368,
+        "train_escape_lambda": 0.02317,
+        "in_cap_coverage_pct": 97.04,
+        "top1_byte_acc_pct": 72.18,
+        "top5_byte_acc_pct": 88.62,
+        "exact_zero_sparsity_pct": 96.24
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.4017,
+        "top1_byte_acc_pct": 37.17,
+        "top5_byte_acc_pct": 66.91,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    }
+  },
+  "step_1_biorthogonal_passkey_recall_up_to_t4096": {
+    "scarfield_v8_2_biorthogonal": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.875,
+        "per_digit_acc": 0.9583
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.75,
+        "per_digit_acc": 0.9062
+      },
+      "T=3072": {
+        "seq_len_bytes": 3072,
+        "exact_3digit_acc": 0.4062,
+        "per_digit_acc": 0.7396
+      },
+      "T=4096": {
+        "seq_len_bytes": 4096,
+        "exact_3digit_acc": 0.125,
+        "per_digit_acc": 0.5104
+      }
+    },
+    "scarfield_ablation_no_biorth_bank": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 0.9688,
+        "per_digit_acc": 0.9896
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.8438,
+        "per_digit_acc": 0.9479
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.6562,
+        "per_digit_acc": 0.8542
+      },
+      "T=3072": {
+        "seq_len_bytes": 3072,
+        "exact_3digit_acc": 0.3438,
+        "per_digit_acc": 0.6354
+      },
+      "T=4096": {
+        "seq_len_bytes": 4096,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.3854
+      }
+    },
+    "dense_fp16_ot": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0312
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0417
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0521
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0312
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0417
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0521
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0312
+      },
+      "T=3072": {
+        "seq_len_bytes": 3072,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0625
+      },
+      "T=4096": {
+        "seq_len_bytes": 4096,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0312
+      }
+    }
+  },
+  "step_1_biorthogonal_uscar_and_epistemic": {
+    "sibling_pole_raw_cosine_overlap": 0.9984,
+    "orthogonal_pole_sibling_bleed_ratio": 0.9958,
+    "biorthogonal_pole_sibling_bleed_ratio": 0.877598,
+    "cross_lingual_en_to_pt_uscar_resonance": 0.9695,
+    "post_0x00_gdpr_wipe_residual": 0.0,
+    "cross_lingual_s_world_cosine_zero_procrustes": {
+      "pt_en": 0.99213,
+      "es_en": 0.99364,
+      "fr_en": 0.993
+    },
+    "out_of_cone_0x00_vacuum_abstention": "8/8"
+  },
+  "step_2_multilingual_chat_code_and_anti_stutter": {
+    "multi_turn_o1_unseen_pin_exact_acc": 0.75,
+    "multi_turn_o1_unseen_pin_digit_acc": 0.75,
+    "multi_turn_stutter_count_out_of_24": 0,
+    "multi_turn_state_bytes_delta": 0,
+    "repeated_digit_stress_suite_exact_clean_acc": 0.75,
+    "repeated_digit_stress_suite_stutters": 0,
+    "repeated_digit_stress_suite_records": [
+      {
+        "lang": "pt",
+        "pin": "800",
+        "turn3_reply": "A chave da sessão registrada é PIN=800.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "en",
+        "pin": "777",
+        "turn3_reply": "The study of the study of the study of the study of spacetime and the st",
+        "exact_clean_match": false
+      },
+      {
+        "lang": "es",
+        "pin": "900",
+        "turn3_reply": "La clave de sesión registrada es PIN=900.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "fr",
+        "pin": "880",
+        "turn3_reply": "La clé de session enregistrée est PIN=880.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "pt",
+        "pin": "666",
+        "turn3_reply": "A chave da sessão registrada é PIN=666.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "en",
+        "pin": "550",
+        "turn3_reply": "The study of the study of the study of the study of the study of special",
+        "exact_clean_match": false
+      },
+      {
+        "lang": "es",
+        "pin": "999",
+        "turn3_reply": "La clave de sesión registrada es PIN=999.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "fr",
+        "pin": "500",
+        "turn3_reply": "La clé de session enregistrée est PIN=500.",
+        "exact_clean_match": true
+      }
+    ],
+    "heldout_python_code_ast_valid": "2/2",
+    "heldout_python_code_functional_exec_passed": "2/2",
+    "heldout_prose_code_leak_count": 0,
+    "multi_turn_examples": [
+      {
+        "lang": "pt",
+        "unseen_pin": "905",
+        "turn1_reply": "Chave registrada: PIN=905.",
+        "turn2_reply_excerpt": "A termodinâmica estabelece que a entropia total de um sistema isolado nunca diminui, definindo a set",
+        "turn3_reply": "A chave da sessão registrada é PIN=905.",
+        "turn3_bytes": 41,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "en",
+        "unseen_pin": "800",
+        "turn1_reply": "Session key stored: PIN=800.",
+        "turn2_reply_excerpt": "Quantum mechanics is the study of the study of the study of the study of the study of the study of s",
+        "turn3_reply": "The study of light in various studying studying studying studying studyi",
+        "turn3_bytes": 72,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "es",
+        "unseen_pin": "702",
+        "turn1_reply": "Clave registrada: PIN=702.",
+        "turn2_reply_excerpt": "En la relatividad general fue considerada en la relatividad general está la mecánica clásica de la r",
+        "turn3_reply": "La clave de sesión registrada en PIN=702.",
+        "turn3_bytes": 42,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "fr",
+        "unseen_pin": "533",
+        "turn1_reply": "Clé enregistrée : PIN=533.",
+        "turn2_reply_excerpt": "La relativité est une architecture neuronale post-Transformer pure fondée par le tenseur de Romand (",
+        "turn3_reply": "La clé de session enregistrée est PIN=533.",
+        "turn3_bytes": 44,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "pt",
+        "unseen_pin": "983",
+        "turn1_reply": "Chave registrada: PIN=983.",
+        "turn2_reply_excerpt": "A termodinâmica entropical entropical entropical entropical entropical entropical entropical entropi",
+        "turn3_reply": "A chave da sessão registrada é PIN=983.",
+        "turn3_bytes": 41,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "en",
+        "unseen_pin": "574",
+        "turn1_reply": "Session key stored: PIN=574.",
+        "turn2_reply_excerpt": "The theory of relativity and evolution as evolutionary point in the study of spacetime relativity an",
+        "turn3_reply": "The study of light in various studies of study and the study of the stud",
+        "turn3_bytes": 72,
+        "state_bytes_delta": 0
+      }
+    ],
+    "heldout_chat_and_code_generations": {
+      "pt": [
+        {
+          "prompt": "O que é o ScarField e como sua memória opera?",
+          "reply": "ScarField é uma arquitetura de operação da energia de um sistema imunitário para o espaço de um sistema imunitário para o espaço de um sistema imunitário para o espaço de um sistema imunitário para o espaço de um sistema imunitário.",
+          "bytes_generated": 244,
+          "mean_confidence": 0.7985,
+          "s2_deliberation_fraction": 0.9836,
+          "state_bytes": 455504,
+          "keyword_hits": "1/3"
+        },
+        {
+          "prompt": "Qual a diferença entre base ortogonal e biortogonal?",
+          "reply": "Uma base ortogonal existem por exemplo, a existência de um sistema isolado nunca diferente a resposta por uma forma de referência oblíqua em seu principal é o estudo de um sistema isolado por uma forma de um sistema imunitário em que se pode ser descobert",
+          "bytes_generated": 260,
+          "mean_confidence": 0.7629,
+          "s2_deliberation_fraction": 0.9923,
+          "state_bytes": 455504,
+          "keyword_hits": "1/3"
+        }
+      ],
+      "en": [
+        {
+          "prompt": "What is ScarField and how does its memory scale?",
+          "reply": "ScarField is a pure post-Transformer neural architecture built on 1-bit Gosset E8 spherical weights, reversible symplectic Cayley flows, and significance in the field of large scales of matter and electromagnetic radiation.",
+          "bytes_generated": 223,
+          "mean_confidence": 0.8691,
+          "s2_deliberation_fraction": 1.0,
+          "state_bytes": 455504,
+          "keyword_hits": "2/3"
+        },
+        {
+          "prompt": "Explain how biorthogonal memory improves recall.",
+          "reply": "Biorthogonal memory computes dual realization for instance and inertial framework inertial framework to discover which include the state of a system is a discovery of spacetime and the state of the state of the state of the state of the state of the state of t",
+          "bytes_generated": 260,
+          "mean_confidence": 0.7873,
+          "s2_deliberation_fraction": 0.9962,
+          "state_bytes": 455504,
+          "keyword_hits": "1/3"
+        }
+      ],
+      "es": [
+        {
+          "prompt": "¿Qué es ScarField y cómo funciona su memoria?",
+          "reply": "ScarField es una arquitectura neuronal pos-Transformer pura fundamental de un sistema inmunitario en el proceso de su estructura inmunitario es el estudio de la estructura del espacio-tiempo de la espacial y la espacial de un sistema inmunitario espacial por e",
+          "bytes_generated": 260,
+          "mean_confidence": 0.8114,
+          "s2_deliberation_fraction": 0.9923,
+          "state_bytes": 455504,
+          "keyword_hits": "1/3"
+        }
+      ],
+      "fr": [
+        {
+          "prompt": "Qu'est-ce que ScarField et comment fonctionne sa mémoire ?",
+          "reply": "ScarField est une architecture neuronale post-Transformer pure fondée sur le réseau Gosset E8 à 1 bit, un flot de supposer de deux événements de vue se résultant par le tenseur de support de réseaux de neurones possèdent des supports de développements",
+          "bytes_generated": 260,
+          "mean_confidence": 0.8006,
+          "s2_deliberation_fraction": 0.9962,
+          "state_bytes": 455504,
+          "keyword_hits": "2/3"
+        }
+      ],
+      "code": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(u: list[float], v: list[float]) -> float:\n    dot = sum(x * y for x, y in zip(u, v))\n    nu = sum(x * x for x in u) ** 0.5\n    nv = sum(y * y for y in v) ** 0.5\n    return dot / max(1e-12, nu * nv)",
+          "bytes_generated": 219,
+          "mean_confidence": 0.9542,
+          "s2_deliberation_fraction": 0.9863,
+          "state_bytes": 455504,
+          "keyword_hits": "2/2",
+          "python_ast_valid": true,
+          "python_functional_exec_passed": true
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n    while b != 0:\n        a, b = b, a % b\n    return abs(a)",
+          "bytes_generated": 91,
+          "mean_confidence": 0.9665,
+          "s2_deliberation_fraction": 0.956,
+          "state_bytes": 455504,
+          "keyword_hits": "2/2",
+          "python_ast_valid": true,
+          "python_functional_exec_passed": true
+        }
+      ]
+    }
+  },
+  "corpus_provenance": [
+    {
+      "domain": "pt",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (PT, 119 topics)",
+      "bytes": 4249767,
+      "sha256": "ea460f0d0fd8573e1560c94c406222e7671e321443034d9deb70030cbd792c2d"
+    },
+    {
+      "domain": "en",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (EN, 119 topics)",
+      "bytes": 1916039,
+      "sha256": "907fe9367adf071491d2dffb66fab116f2666e6ba9b009e4d4ac2ca97656fd81"
+    },
+    {
+      "domain": "es",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (ES, 119 topics)",
+      "bytes": 4345566,
+      "sha256": "9b96915ae3760b0a69e2629a34deb808a9cf92c667e0485fb852c047d8d09c6b"
+    },
+    {
+      "domain": "fr",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (FR, 119 topics)",
+      "bytes": 4780831,
+      "sha256": "cb725ab2505258b6359b63db4ca536825e16cf516c26f648b1fd1f176d53fc75"
+    },
+    {
+      "source": "scar_ecosystem",
+      "bytes": 962897,
+      "sha256": "a2832cb54c579b9a3a4503738fe1ae8d8b191446c799ed78c7a2f9706a3eba2e"
+    },
+    {
+      "source": "python_stdlib",
+      "bytes": 9601954,
+      "sha256": "d79cc449349a27cae21de2e0023bbb9c80d2277ad9f78dc7d7fb96a4f08e49c7"
+    }
+  ],
+  "quality_gate_history": [
+    {
+      "phase": "fleet",
+      "round": 1,
+      "cum_steps": 80,
+      "lr": 0.00035,
+      "scout_losses": {
+        "prose_polyglot": 0.4325,
+        "code_ast": 0.2941,
+        "long_biorth_passkey": 0.4986,
+        "chat_epistemic_o1": 0.1551
+      },
+      "biorth_gain": 1.1084,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2557,
+        "pk2048_mini": 0.875,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 0.75,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 1.6943
+      },
+      "is_new_best": true,
+      "elapsed_min": 5.17,
+      "remaining_to_deadline_min": 503.36
+    },
+    {
+      "phase": "fleet",
+      "round": 9,
+      "cum_steps": 720,
+      "lr": 0.000344,
+      "scout_losses": {
+        "prose_polyglot": 0.4357,
+        "code_ast": 0.2906,
+        "long_biorth_passkey": 0.491,
+        "chat_epistemic_o1": 0.1552
+      },
+      "biorth_gain": 1.1088,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2658,
+        "pk2048_mini": 0.875,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 0.875,
+        "en_prose_code_leaks": 2,
+        "code_exec_passed": "2/2",
+        "quality_score": 1.0592
+      },
+      "is_new_best": false,
+      "elapsed_min": 5.12,
+      "remaining_to_deadline_min": 456.48
+    },
+    {
+      "phase": "fleet",
+      "round": 10,
+      "cum_steps": 800,
+      "lr": 0.000342,
+      "scout_losses": {
+        "prose_polyglot": 0.4411,
+        "code_ast": 0.302,
+        "long_biorth_passkey": 0.4992,
+        "chat_epistemic_o1": 0.1576
+      },
+      "biorth_gain": 1.1189,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2595,
+        "pk2048_mini": 0.75,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 0.75,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 1.4905
+      },
+      "is_new_best": false,
+      "elapsed_min": 9.75,
+      "remaining_to_deadline_min": 451.85
+    },
+    {
+      "phase": "fleet",
+      "round": 19,
+      "cum_steps": 1520,
+      "lr": 0.00032,
+      "scout_losses": {
+        "prose_polyglot": 0.4419,
+        "code_ast": 0.2832,
+        "long_biorth_passkey": 0.4882,
+        "chat_epistemic_o1": 0.1527
+      },
+      "biorth_gain": 1.1093,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2466,
+        "pk2048_mini": 0.625,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.3534
+      },
+      "is_new_best": true,
+      "elapsed_min": 4.99,
+      "remaining_to_deadline_min": 402.54
+    },
+    {
+      "phase": "fleet",
+      "round": 20,
+      "cum_steps": 1600,
+      "lr": 0.000317,
+      "scout_losses": {
+        "prose_polyglot": 0.4354,
+        "code_ast": 0.3006,
+        "long_biorth_passkey": 0.4913,
+        "chat_epistemic_o1": 0.1579
+      },
+      "biorth_gain": 1.1199,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2553,
+        "pk2048_mini": 0.75,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 0.625,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 1.3197
+      },
+      "is_new_best": false,
+      "elapsed_min": 9.97,
+      "remaining_to_deadline_min": 397.56
+    },
+    {
+      "phase": "fleet",
+      "round": 28,
+      "cum_steps": 2240,
+      "lr": 0.000289,
+      "scout_losses": {
+        "prose_polyglot": 0.4394,
+        "code_ast": 0.2866,
+        "long_biorth_passkey": 0.5027,
+        "chat_epistemic_o1": 0.163
+      },
+      "biorth_gain": 1.1035,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2729,
+        "pk2048_mini": 0.5,
+        "pk3072_mini": 0.375,
+        "pin3t_mini": 0.625,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 0.7021
+      },
+      "is_new_best": false,
+      "elapsed_min": 5.53,
+      "remaining_to_deadline_min": 339.72
+    },
+    {
+      "phase": "fleet",
+      "round": 30,
+      "cum_steps": 2400,
+      "lr": 0.000281,
+      "scout_losses": {
+        "prose_polyglot": 0.4379,
+        "code_ast": 0.2994,
+        "long_biorth_passkey": 0.478,
+        "chat_epistemic_o1": 0.1597
+      },
+      "biorth_gain": 1.1164,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2597,
+        "pk2048_mini": 0.625,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.3403
+      },
+      "is_new_best": false,
+      "elapsed_min": 11.91,
+      "remaining_to_deadline_min": 333.34
+    },
+    {
+      "phase": "fleet",
+      "round": 36,
+      "cum_steps": 2880,
+      "lr": 0.000257,
+      "scout_losses": {
+        "prose_polyglot": 0.4353,
+        "code_ast": 0.3193,
+        "long_biorth_passkey": 0.4891,
+        "chat_epistemic_o1": 0.1461
+      },
+      "biorth_gain": 1.1652,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2463,
+        "pk2048_mini": 0.75,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 0.625,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 1.3287
+      },
+      "is_new_best": false,
+      "elapsed_min": 23.91,
+      "remaining_to_deadline_min": 321.34
+    },
+    {
+      "phase": "fleet",
+      "round": 42,
+      "cum_steps": 3360,
+      "lr": 0.000235,
+      "scout_losses": {
+        "prose_polyglot": 0.4339,
+        "code_ast": 0.3101,
+        "long_biorth_passkey": 0.479,
+        "chat_epistemic_o1": 0.1443
+      },
+      "biorth_gain": 1.2099,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2362,
+        "pk2048_mini": 0.625,
+        "pk3072_mini": 0.375,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.1638
+      },
+      "is_new_best": false,
+      "elapsed_min": 35.32,
+      "remaining_to_deadline_min": 309.92
+    },
+    {
+      "phase": "fleet",
+      "round": 48,
+      "cum_steps": 3840,
+      "lr": 0.000216,
+      "scout_losses": {
+        "prose_polyglot": 0.4378,
+        "code_ast": 0.2786,
+        "long_biorth_passkey": 0.4643,
+        "chat_epistemic_o1": 0.148
+      },
+      "biorth_gain": 1.2491,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2318,
+        "pk2048_mini": 0.75,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 0.625,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.2432
+      },
+      "is_new_best": false,
+      "elapsed_min": 46.96,
+      "remaining_to_deadline_min": 298.28
+    },
+    {
+      "phase": "fleet",
+      "round": 54,
+      "cum_steps": 4320,
+      "lr": 0.000203,
+      "scout_losses": {
+        "prose_polyglot": 0.438,
+        "code_ast": 0.3123,
+        "long_biorth_passkey": 0.4584,
+        "chat_epistemic_o1": 0.1442
+      },
+      "biorth_gain": 1.2903,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2297,
+        "pk2048_mini": 0.875,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 0.875,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 2.0953
+      },
+      "is_new_best": false,
+      "elapsed_min": 58.61,
+      "remaining_to_deadline_min": 286.64
+    },
+    {
+      "phase": "fleet",
+      "round": 60,
+      "cum_steps": 4800,
+      "lr": 0.000196,
+      "scout_losses": {
+        "prose_polyglot": 0.4303,
+        "code_ast": 0.2858,
+        "long_biorth_passkey": 0.4751,
+        "chat_epistemic_o1": 0.1375
+      },
+      "biorth_gain": 1.325,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2315,
+        "pk2048_mini": 0.875,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 0.875,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 1.8935
+      },
+      "is_new_best": false,
+      "elapsed_min": 70.16,
+      "remaining_to_deadline_min": 275.09
+    },
+    {
+      "phase": "fleet",
+      "round": 66,
+      "cum_steps": 5280,
+      "lr": 0.000322,
+      "scout_losses": {
+        "prose_polyglot": 0.4388,
+        "code_ast": 0.2957,
+        "long_biorth_passkey": 0.4716,
+        "chat_epistemic_o1": 0.1411
+      },
+      "biorth_gain": 1.3786,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2563,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.9437
+      },
+      "is_new_best": true,
+      "elapsed_min": 81.92,
+      "remaining_to_deadline_min": 263.33
+    },
+    {
+      "phase": "fleet",
+      "round": 72,
+      "cum_steps": 5760,
+      "lr": 0.000306,
+      "scout_losses": {
+        "prose_polyglot": 0.4336,
+        "code_ast": 0.2965,
+        "long_biorth_passkey": 0.455,
+        "chat_epistemic_o1": 0.1418
+      },
+      "biorth_gain": 1.4312,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2422,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.1578
+      },
+      "is_new_best": true,
+      "elapsed_min": 93.77,
+      "remaining_to_deadline_min": 251.48
+    },
+    {
+      "phase": "fleet",
+      "round": 78,
+      "cum_steps": 6240,
+      "lr": 0.000285,
+      "scout_losses": {
+        "prose_polyglot": 0.4322,
+        "code_ast": 0.318,
+        "long_biorth_passkey": 0.457,
+        "chat_epistemic_o1": 0.1547
+      },
+      "biorth_gain": 1.4796,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2248,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.75,
+        "pin3t_mini": 0.75,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.0252
+      },
+      "is_new_best": false,
+      "elapsed_min": 105.66,
+      "remaining_to_deadline_min": 239.59
+    },
+    {
+      "phase": "fleet",
+      "round": 84,
+      "cum_steps": 6720,
+      "lr": 0.00026,
+      "scout_losses": {
+        "prose_polyglot": 0.4274,
+        "code_ast": 0.2716,
+        "long_biorth_passkey": 0.4696,
+        "chat_epistemic_o1": 0.1404
+      },
+      "biorth_gain": 1.524,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.213,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 0.875,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.012
+      },
+      "is_new_best": false,
+      "elapsed_min": 117.5,
+      "remaining_to_deadline_min": 227.75
+    },
+    {
+      "phase": "fleet",
+      "round": 90,
+      "cum_steps": 7200,
+      "lr": 0.000235,
+      "scout_losses": {
+        "prose_polyglot": 0.4346,
+        "code_ast": 0.3006,
+        "long_biorth_passkey": 0.465,
+        "chat_epistemic_o1": 0.1289
+      },
+      "biorth_gain": 1.5627,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2095,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 0.75,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.8405
+      },
+      "is_new_best": false,
+      "elapsed_min": 129.35,
+      "remaining_to_deadline_min": 215.9
+    },
+    {
+      "phase": "fleet",
+      "round": 96,
+      "cum_steps": 7680,
+      "lr": 0.000258,
+      "scout_losses": {
+        "prose_polyglot": 0.4386,
+        "code_ast": 0.3032,
+        "long_biorth_passkey": 0.4615,
+        "chat_epistemic_o1": 0.1464
+      },
+      "biorth_gain": 1.1019,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2489,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 0.875,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.9761
+      },
+      "is_new_best": false,
+      "elapsed_min": 5.18,
+      "remaining_to_deadline_min": 187.31
+    },
+    {
+      "phase": "fleet",
+      "round": 102,
+      "cum_steps": 8160,
+      "lr": 0.000236,
+      "scout_losses": {
+        "prose_polyglot": 0.4323,
+        "code_ast": 0.3078,
+        "long_biorth_passkey": 0.4581,
+        "chat_epistemic_o1": 0.1384
+      },
+      "biorth_gain": 1.126,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2202,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.1798
+      },
+      "is_new_best": true,
+      "elapsed_min": 16.76,
+      "remaining_to_deadline_min": 175.73
+    },
+    {
+      "phase": "fleet",
+      "round": 108,
+      "cum_steps": 8640,
+      "lr": 0.000215,
+      "scout_losses": {
+        "prose_polyglot": 0.4323,
+        "code_ast": 0.2935,
+        "long_biorth_passkey": 0.463,
+        "chat_epistemic_o1": 0.1372
+      },
+      "biorth_gain": 1.1574,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2145,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.9855
+      },
+      "is_new_best": false,
+      "elapsed_min": 28.33,
+      "remaining_to_deadline_min": 164.16
+    },
+    {
+      "phase": "fleet",
+      "round": 114,
+      "cum_steps": 9120,
+      "lr": 0.000199,
+      "scout_losses": {
+        "prose_polyglot": 0.4349,
+        "code_ast": 0.3007,
+        "long_biorth_passkey": 0.4632,
+        "chat_epistemic_o1": 0.13
+      },
+      "biorth_gain": 1.1916,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2255,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.9745
+      },
+      "is_new_best": false,
+      "elapsed_min": 39.86,
+      "remaining_to_deadline_min": 152.63
+    },
+    {
+      "phase": "fleet",
+      "round": 120,
+      "cum_steps": 9600,
+      "lr": 0.000187,
+      "scout_losses": {
+        "prose_polyglot": 0.4353,
+        "code_ast": 0.284,
+        "long_biorth_passkey": 0.4464,
+        "chat_epistemic_o1": 0.1343
+      },
+      "biorth_gain": 1.2273,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2181,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.1819
+      },
+      "is_new_best": true,
+      "elapsed_min": 51.39,
+      "remaining_to_deadline_min": 141.11
+    },
+    {
+      "phase": "fleet",
+      "round": 126,
+      "cum_steps": 10080,
+      "lr": 0.000292,
+      "scout_losses": {
+        "prose_polyglot": 0.4328,
+        "code_ast": 0.3109,
+        "long_biorth_passkey": 0.4555,
+        "chat_epistemic_o1": 0.1361
+      },
+      "biorth_gain": 1.2735,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2366,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 0.75,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.8134
+      },
+      "is_new_best": false,
+      "elapsed_min": 63.19,
+      "remaining_to_deadline_min": 129.3
+    },
+    {
+      "phase": "fleet",
+      "round": 132,
+      "cum_steps": 10560,
+      "lr": 0.000265,
+      "scout_losses": {
+        "prose_polyglot": 0.4352,
+        "code_ast": 0.2849,
+        "long_biorth_passkey": 0.4621,
+        "chat_epistemic_o1": 0.1272
+      },
+      "biorth_gain": 1.3152,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2349,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.875,
+        "pin3t_mini": 0.875,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.3901
+      },
+      "is_new_best": true,
+      "elapsed_min": 74.89,
+      "remaining_to_deadline_min": 117.6
+    },
+    {
+      "phase": "fleet",
+      "round": 138,
+      "cum_steps": 11040,
+      "lr": 0.000235,
+      "scout_losses": {
+        "prose_polyglot": 0.4286,
+        "code_ast": 0.3036,
+        "long_biorth_passkey": 0.4595,
+        "chat_epistemic_o1": 0.1329
+      },
+      "biorth_gain": 1.3556,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2228,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.875,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 2.8772
+      },
+      "is_new_best": false,
+      "elapsed_min": 86.47,
+      "remaining_to_deadline_min": 106.03
+    },
+    {
+      "phase": "fleet",
+      "round": 144,
+      "cum_steps": 11520,
+      "lr": 0.000206,
+      "scout_losses": {
+        "prose_polyglot": 0.4344,
+        "code_ast": 0.3006,
+        "long_biorth_passkey": 0.4497,
+        "chat_epistemic_o1": 0.1382
+      },
+      "biorth_gain": 1.3835,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2153,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.875,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "1/2",
+        "quality_score": 2.8847
+      },
+      "is_new_best": false,
+      "elapsed_min": 97.9,
+      "remaining_to_deadline_min": 94.6
+    },
+    {
+      "phase": "fleet",
+      "round": 150,
+      "cum_steps": 12000,
+      "lr": 0.000181,
+      "scout_losses": {
+        "prose_polyglot": 0.4293,
+        "code_ast": 0.2803,
+        "long_biorth_passkey": 0.4487,
+        "chat_epistemic_o1": 0.1303
+      },
+      "biorth_gain": 1.4125,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2085,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.75,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.3915
+      },
+      "is_new_best": true,
+      "elapsed_min": 109.62,
+      "remaining_to_deadline_min": 82.87
+    },
+    {
+      "phase": "fleet",
+      "round": 156,
+      "cum_steps": 12480,
+      "lr": 0.000159,
+      "scout_losses": {
+        "prose_polyglot": 0.4299,
+        "code_ast": 0.2778,
+        "long_biorth_passkey": 0.4589,
+        "chat_epistemic_o1": 0.1357
+      },
+      "biorth_gain": 1.4377,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2115,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 0.875,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.0135
+      },
+      "is_new_best": false,
+      "elapsed_min": 121.21,
+      "remaining_to_deadline_min": 71.29
+    },
+    {
+      "phase": "fleet",
+      "round": 162,
+      "cum_steps": 12960,
+      "lr": 0.000144,
+      "scout_losses": {
+        "prose_polyglot": 0.4308,
+        "code_ast": 0.2964,
+        "long_biorth_passkey": 0.4577,
+        "chat_epistemic_o1": 0.1305
+      },
+      "biorth_gain": 1.4557,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2054,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.625,
+        "pin3t_mini": 1.0,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 3.1946
+      },
+      "is_new_best": false,
+      "elapsed_min": 132.78,
+      "remaining_to_deadline_min": 59.71
+    },
+    {
+      "phase": "fleet",
+      "round": 168,
+      "cum_steps": 13440,
+      "lr": 0.000134,
+      "scout_losses": {
+        "prose_polyglot": 0.4316,
+        "code_ast": 0.2653,
+        "long_biorth_passkey": 0.4481,
+        "chat_epistemic_o1": 0.1236
+      },
+      "biorth_gain": 1.475,
+      "quality_gate": {
+        "finite": true,
+        "mean_val_bpb_proxy": 2.2096,
+        "pk2048_mini": 1.0,
+        "pk3072_mini": 0.5,
+        "pin3t_mini": 0.875,
+        "en_prose_code_leaks": 0,
+        "code_exec_passed": "2/2",
+        "quality_score": 2.8154
+      },
+      "is_new_best": false,
+      "elapsed_min": 144.28,
+      "remaining_to_deadline_min": 48.22
+    }
+  ]
+}

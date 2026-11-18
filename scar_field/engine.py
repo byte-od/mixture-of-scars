@@ -505,12 +505,16 @@ class ScarFieldEngine(nn.Module):
             scores = scores - 2.5 * rep_pen.unsqueeze(0)
 
             # 2. O(1) Recent-Byte Cycle/Stutter Damper (`Delta = +0 B`: reuses `state.recent_bytes`!):
-            #    Permits valid 3-byte runs (`777`, `800`, `...`) while damping >= 4th identical byte
-            #    or >= 3rd consecutive 2-byte oscillation (`ababab...`).
+            #    Permits valid 3-byte runs (`777`, `800`, `...`) and PEP-8 4/8/12-space indentation
+            #    while damping >= 4th identical non-space byte or >= 13th consecutive space!
             if state.recent_len >= 3:
                 rb = state.recent_bytes[0, -state.recent_len :]
                 last_b = int(rb[-1].item())
-                if last_b == int(rb[-2].item()) == int(rb[-3].item()):
+                if last_b == 32:
+                    if state.recent_len >= 13 and bool((rb[-13:] == 32).all().item()):
+                        scores = scores.clone()
+                        scores[0, 32] = scores[0, 32] - 6.0
+                elif last_b == int(rb[-2].item()) == int(rb[-3].item()):
                     scores = scores.clone()
                     scores[0, last_b] = scores[0, last_b] - 6.0
                 elif state.recent_len >= 6:

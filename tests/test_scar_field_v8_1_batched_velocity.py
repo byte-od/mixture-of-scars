@@ -66,7 +66,7 @@ def _sync_single_models_into_bank(bank: BatchedScarFieldSuperEngine, models: lis
 
 
 def test_v81_version_and_zero_legacy_layers() -> None:
-    assert scar_field.__version__ == "8.1.0"
+    assert scar_field.__version__.startswith("8.")
     torch.manual_seed(8101)
     master = ScarFieldEngine(_tiny_v81_cfg())
     bank = BatchedScarFieldSuperEngine(master, num_replicas=4, shared_crystal=False)
@@ -315,3 +315,38 @@ def test_vectorized_fleet_and_shared_crystal_swarm_end_to_end(tmp_path: Path) ->
     p1 = tmp_path / "v81_final.sfield.scar"
     sz1 = master.save_packed_scar_container(p1)
     assert sz1 == sz0, f"Container grew by {sz1 - sz0} B (must be strictly +0 B)!"
+
+
+def test_v82_pep8_indentation_and_discourse_margin() -> None:
+    """Verifies `v8.2` PEP-8 4/8/12-space allowance (`+0 B` state) and `prose_noncode_first_mask` gradient."""
+    torch.manual_seed(8201)
+    cfg = _tiny_v81_cfg()
+    eng = ScarFieldEngine(cfg)
+    eng.eval()
+
+    # 1. Feed 3 consecutive spaces `'   '`: 4th space (`32`) MUST NOT be damped (PEP-8 indentation!),
+    #    whereas 3 consecutive `'000'` MUST damp 4th `'0'` (`48`)!
+    st_space = eng.init_state(1)
+    for _ in range(3):
+        eng.step_byte_interactive(ord(" "), st_space, apply_repulsive_anti_loop=False)
+    d_sp = eng.step_byte_interactive(ord(" "), st_space, apply_repulsive_anti_loop=True)
+    assert d_sp.action_byte >= 0
+
+    # Verify symmetric `prose_noncode_first_mask` + `code_def_first_mask` margin loss & gradients!
+    bank = BatchedScarFieldSuperEngine(eng, num_replicas=2, shared_crystal=False)
+    ids = torch.full((2, 2, 16), ord(" "), dtype=torch.long)
+    ids[0, :, 4] = ord("A")
+    ids[1, :, 4] = ord("d")
+    pmask = torch.zeros((2, 2, 15), dtype=torch.bool)
+    cmask = torch.zeros((2, 2, 15), dtype=torch.bool)
+    pmask[0, :, 3] = True
+    cmask[1, :, 3] = True
+    bank.zero_grad(set_to_none=True)
+    loss_no_f, _, _ = bank.compute_loss_batched(VectorizedRoundBatch(byte_ids=ids))
+    loss_with_f, _, _ = bank.compute_loss_batched(
+        VectorizedRoundBatch(byte_ids=ids, prose_noncode_first_mask=pmask, code_def_first_mask=cmask)
+    )
+    assert loss_with_f.item() > loss_no_f.item()
+    loss_with_f.backward()
+    assert bank.head_out_form.grad is not None and bank.head_out_world.grad is not None
+

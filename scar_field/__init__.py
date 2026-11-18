@@ -80,7 +80,7 @@ from scar_field.triton_kernels import (
     tsallis15_spherical_cap_probs_fast,
 )
 
-__version__ = "8.1.0"
+__version__ = "8.2.0"
 
 __all__ = [
     "BatchedE8LinearBank",

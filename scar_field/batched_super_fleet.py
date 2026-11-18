@@ -76,6 +76,8 @@ class VectorizedRoundBatch:
     byte_ids: torch.Tensor                                      # [M, B, T] int64
     target_loss_mask: Optional[torch.Tensor] = None             # [M, B, T - 1] float32
     out_of_cone_mask: Optional[torch.Tensor] = None             # [M, B, T] bool
+    prose_noncode_first_mask: Optional[torch.Tensor] = None     # [M, B, T - 1] bool
+    code_def_first_mask: Optional[torch.Tensor] = None          # [M, B, T - 1] bool
     paired_translation_ids: Optional[Tuple[int, torch.Tensor, torch.Tensor]] = None  # (m_idx, pa, pb)
     state_in: Optional[List[Optional[KalmanBusState]]] = None   # length M
 
@@ -1774,6 +1776,25 @@ class BatchedScarFieldSuperEngine(nn.Module):
             exc = (max_w_cos - (self.cfg.vacuum_kappa - 0.05)).clamp(min=0.0) * m_ooc
             loss_vac_m = (exc * exc).sum(dim=(1, 2)) / m_ooc.sum(dim=(1, 2)).clamp(min=1.0)
 
+        # Symmetric Bi-Directional C^1 Turn-Start Margin (`0` `def` leaks on Prose AND `100%` `def ` on Code!):
+        loss_disc_m = scores.new_zeros((m_cnt,))
+        if rbatch.prose_noncode_first_mask is not None or rbatch.code_def_first_mask is not None:
+            sc_step = scores[:, :, :-1, :]
+            tgt_step = rbatch.byte_ids[:, :, 1:].long().clamp(0, self.cfg.vocab_size - 1)
+            s_y = sc_step.gather(-1, tgt_step.unsqueeze(-1)).squeeze(-1)
+            top2_v, top2_i = torch.topk(sc_step, k=2, dim=-1)
+            s_rival = torch.where(top2_i[..., 0] == tgt_step, top2_v[..., 1], top2_v[..., 0])
+            if rbatch.prose_noncode_first_mask is not None:
+                pm = rbatch.prose_noncode_first_mask.to(dtype=scores.dtype, device=scores.device)
+                s_kw = sc_step[..., (ord("d"), ord("c"), ord("i"), ord("f"))].amax(dim=-1)
+                s_adv_p = torch.maximum(s_kw, 0.5 * (s_kw + s_rival))
+                exc_p = (s_adv_p - (s_y - 1.15)).clamp(min=0.0) * pm
+                loss_disc_m = loss_disc_m + (exc_p * exc_p).sum(dim=(1, 2)) / pm.sum(dim=(1, 2)).clamp(min=1.0)
+            if rbatch.code_def_first_mask is not None:
+                cm = rbatch.code_def_first_mask.to(dtype=scores.dtype, device=scores.device)
+                exc_c = (s_rival - (s_y - 1.25)).clamp(min=0.0) * cm
+                loss_disc_m = loss_disc_m + (exc_c * exc_c).sum(dim=(1, 2)) / cm.sum(dim=(1, 2)).clamp(min=1.0)
+
         loss_anti_m = scores.new_zeros((m_cnt,))
         if self.cfg.antiloop_weight > 0.0 and seq_len > 5:
             # Vectorized across `M * B` in 1 call, reshaped to `[M]`!
@@ -1793,6 +1814,7 @@ class BatchedScarFieldSuperEngine(nn.Module):
             + 0.20 * loss_gj_m
             + 0.15 * loss_judge_m
             + 0.50 * loss_vac_m
+            + 0.45 * loss_disc_m
             + float(self.cfg.antiloop_weight) * loss_anti_m
         )
 
