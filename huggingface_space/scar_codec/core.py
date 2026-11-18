@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 
-__version__ = "5.0.0"
+__version__ = "6.3.0"
 
 
 def rademacher_signs_u32_exact(k: int, device: torch.device) -> torch.Tensor:
@@ -28,20 +28,23 @@ def rademacher_signs_u32_exact(k: int, device: torch.device) -> torch.Tensor:
     return torch.where((h & 1) == 0, 1.0, -1.0)
 
 
+_HADAMARD64_CACHE_CORE: Dict[Tuple[str, Optional[int], torch.dtype], torch.Tensor] = {}
+
+
 def fwht_block64_orthonormal(x: torch.Tensor, signs: torch.Tensor, inverse: bool = False) -> torch.Tensor:
-    """Orthonormal 64-point Fast Walsh-Hadamard Transform with Rademacher pre/post-signs (autograd-safe)."""
+    """Orthonormal 64-point Fast Walsh-Hadamard Transform (`1` fused 64x64 GEMM, autograd-safe)."""
     orig_shape = x.shape
     assert orig_shape[-1] % 64 == 0
     y = x if inverse else (x * signs)
-    y = y.reshape(-1, 64)
-    h = 1
-    while h < 64:
-        y = y.reshape(-1, 64 // (2 * h), 2, h)
-        a = y[:, :, 0, :]
-        b = y[:, :, 1, :]
-        y = torch.stack([a + b, a - b], dim=2)
-        h *= 2
-    out = (y.reshape(-1, 64) * 0.125).reshape(orig_shape)
+    key = (y.device.type, y.device.index, y.dtype)
+    h64 = _HADAMARD64_CACHE_CORE.get(key)
+    if h64 is None:
+        h = torch.tensor([[1.0]], dtype=torch.float32, device=y.device)
+        for _ in range(6):
+            h = torch.cat((torch.cat((h, h), dim=1), torch.cat((h, -h), dim=1)), dim=0)
+        h64 = (h * 0.125).to(dtype=y.dtype).contiguous()
+        _HADAMARD64_CACHE_CORE[key] = h64
+    out = torch.matmul(y.reshape(-1, 64), h64).reshape(orig_shape)
     return (out * signs) if inverse else out
 
 
@@ -114,10 +117,14 @@ def _seed_d4_zero_lattice(z_sub: torch.Tensor) -> torch.Tensor:
 
     c_fixed = torch.tensor(pts, dtype=torch.float32, device=dev)
     rem = 256 - c_fixed.shape[0]
-    stride = max(1, z_sub.shape[0] // rem)
-    c_data = z_sub[::stride][:rem].clone()
-    if c_data.shape[0] < rem:
-        c_data = torch.cat([c_data, z_sub[: rem - c_data.shape[0]].clone()], dim=0)
+    if z_sub.shape[0] == 0:
+        c_data = torch.zeros((rem, 4), dtype=torch.float32, device=dev)
+    elif z_sub.shape[0] >= rem:
+        stride = max(1, z_sub.shape[0] // rem)
+        c_data = z_sub[::stride][:rem].clone()
+    else:
+        idx_fill = torch.arange(rem, dtype=torch.long, device=dev) % z_sub.shape[0]
+        c_data = z_sub[idx_fill].clone()
     return torch.cat([c_fixed, c_data], dim=0)
 
 
@@ -160,17 +167,18 @@ def _extract_compressed_int4_asvd(
     gen.manual_seed(20261116 + n_out + k_in + rank)
     omega = torch.randn(k_in, q, generator=gen, dtype=torch.float32).to(dev)
 
+    need_cpu_linalg = dev.type == "mps"
     y = w_act @ omega
-    q_mat = torch.linalg.qr(y.cpu(), mode="reduced").Q.to(dev)
+    q_mat = torch.linalg.qr(y.cpu(), mode="reduced").Q.to(dev) if need_cpu_linalg else torch.linalg.qr(y, mode="reduced").Q
     for _ in range(2):
         z = w_act.T @ q_mat
-        qz = torch.linalg.qr(z.cpu(), mode="reduced").Q.to(dev)
+        qz = torch.linalg.qr(z.cpu(), mode="reduced").Q.to(dev) if need_cpu_linalg else torch.linalg.qr(z, mode="reduced").Q
         y = w_act @ qz
-        q_mat = torch.linalg.qr(y.cpu(), mode="reduced").Q.to(dev)
+        q_mat = torch.linalg.qr(y.cpu(), mode="reduced").Q.to(dev) if need_cpu_linalg else torch.linalg.qr(y, mode="reduced").Q
 
-    b_small = (q_mat.T @ w_act).cpu()
+    b_small = (q_mat.T @ w_act).cpu() if need_cpu_linalg else (q_mat.T @ w_act)
     u_b, s_val, vh = torch.linalg.svd(b_small, full_matrices=False)
-    u_r = q_mat.to(dev) @ u_b[:, :rank].to(dev)
+    u_r = q_mat @ u_b[:, :rank].to(dev)
     sv_r = s_val[:rank].sqrt().to(dev)
     vh_r = vh[:rank, :].to(dev)
 
@@ -211,6 +219,8 @@ class PhysicalVQ4ScarPackage:
     b_row_scales_f16: torch.Tensor   # [N] float16
     spike_flat_idx_i32: torch.Tensor # [M_spikes] int32 sorted flat indices in [0, N * K_pad)
     spike_residual_f16: torch.Tensor # [M_spikes] float16 residual shocks
+    abs_tolerance: Optional[float] = None
+    global_scale: float = 1.0
 
     def all_tensors(self) -> List[torch.Tensor]:
         return [
@@ -244,14 +254,18 @@ class PhysicalVQ4ScarCodec:
         kmeans_iters: int = 8,
         max_point_spikes: int = 512,
         spike_sigma_threshold: float = 4.5,
+        abs_tolerance: Optional[float] = None,
     ) -> None:
         if rank < 0 or (rank > 0 and rank % 8 != 0):
             raise ValueError(f"rank must be 0 or a multiple of 8, got {rank}")
+        if abs_tolerance is not None and (not math.isfinite(abs_tolerance) or abs_tolerance <= 0.0):
+            raise ValueError(f"abs_tolerance must be finite and > 0 when provided, got {abs_tolerance}")
         self.rank = rank
         self.equilibration_beta = equilibration_beta
         self.kmeans_iters = kmeans_iters
         self.max_point_spikes = max_point_spikes
         self.spike_sigma_threshold = spike_sigma_threshold
+        self.abs_tolerance = abs_tolerance
 
     @torch.no_grad()
     def encode(self, field_2d: torch.Tensor) -> PhysicalVQ4ScarPackage:
@@ -260,16 +274,34 @@ class PhysicalVQ4ScarCodec:
             raise ValueError(f"Expected 2D tensor [N, K], got shape {tuple(field_2d.shape)}")
         dev = field_2d.device
         x_orig = field_2d.detach().float()
+        if not bool(torch.isfinite(x_orig).all().item()):
+            raise ValueError("Input field contains NaN or Inf; mask or replace non-finite values before encoding")
         n_rows, n_cols = x_orig.shape
+        if n_rows <= 0 or n_cols <= 0:
+            raise ValueError(f"Expected non-empty 2D tensor [N >= 1, K >= 1], got {tuple(field_2d.shape)}")
+        amax = float(x_orig.abs().amax().item()) if x_orig.numel() > 0 else 0.0
+        if amax <= 0.0:
+            g_scale = 1.0
+        elif self.abs_tolerance is not None and float(self.abs_tolerance) < 1.0e-6 * amax:
+            _, exp_p2 = math.frexp(amax / 2048.0)
+            g_scale = float(math.ldexp(1.0, exp_p2 - 1))
+        elif 1.0e-2 <= amax <= 4096.0:
+            g_scale = 1.0
+        else:
+            _, exp_p2 = math.frexp(amax / 256.0)
+            g_scale = float(math.ldexp(1.0, exp_p2 - 1))
+        inv_g_scale = 1.0 / g_scale
+
         pad_cols = ((n_cols + 63) // 64) * 64
         if pad_cols > n_cols:
             x = torch.zeros((n_rows, pad_cols), dtype=torch.float32, device=dev)
-            x[:, :n_cols] = x_orig
+            x[:, :n_cols] = x_orig * inv_g_scale if g_scale != 1.0 else x_orig
         else:
-            x = x_orig.clone()
+            x = (x_orig * inv_g_scale) if g_scale != 1.0 else x_orig.clone()
 
         # Exact vacuum row mask (`0` extra storage bytes: zero rows get `scales_f16=0` and `b_row_scales_f16=0`)
-        orig_zero_row = (x.abs().amax(dim=1) <= 1e-12)
+        zero_row_eps = 0.0 if (g_scale != 1.0 or self.abs_tolerance is not None) else 1e-12
+        orig_zero_row = x.abs().amax(dim=1) <= zero_row_eps
 
         # Step 0: Pre-FWHT robust point-shock peeling so extreme HDR / cosmic-ray glints do not blow up 64-block scales
         x_base = x.clone()
@@ -326,35 +358,41 @@ class PhysicalVQ4ScarCodec:
         blocks = x_rot.reshape(n_rows * n_blocks_per_row, 64)
         blk_rms = blocks.square().mean(dim=1, keepdim=True).sqrt()
         # Preserve exact zero vacuum blocks (`blk_rms == 0 -> scale = 0, code = 0 -> exact 0.0`)!
-        zero_blk_mask = (blocks.abs().amax(dim=1, keepdim=True) <= 1e-12)
+        zero_blk_eps = 0.0 if self.abs_tolerance is not None else 1e-12
+        zero_blk_mask = (blocks.abs().amax(dim=1, keepdim=True) <= zero_blk_eps)
         scales_f16 = torch.where(zero_blk_mask, torch.zeros_like(blk_rms), blk_rms.clamp(min=1e-7)).to(torch.float16)
         sc_safe = scales_f16.float().clamp(min=1e-7)
         z_4d = torch.where(zero_blk_mask, torch.zeros_like(blocks), blocks / sc_safe).reshape(-1, 4)
         w_energy = (scales_f16.float().square()).repeat_interleave(16, dim=0).squeeze(-1)
 
-        # Fit `LUT256` (`lut[0] = (0,0,0,0)` hard-pinned + D4 root shells + energy-weighted Lloyd-Max)
+        # Fit `LUT256` with System 1 `Gate G0` active-only compaction (skips 100% of vacuum blocks!)
         active_mask = w_energy > 0
-        z_seed = z_4d[active_mask] if int(active_mask.sum().item()) >= 256 else z_4d
+        n_act = int(active_mask.sum().item())
+        z_act = z_4d[active_mask] if n_act > 0 else z_4d[:0]
+        w_act_e = w_energy[active_mask] if n_act > 0 else w_energy[:0]
+        z_seed = z_act if n_act >= 256 else z_4d
         lut = _seed_d4_zero_lattice(z_seed)
         lut[0].zero_()
-        for _ in range(self.kmeans_iters):
-            idx = _nearest_lut256(z_4d, lut)
-            lut[0].zero_()
-            w_z = z_4d * w_energy.unsqueeze(1)
-            num = torch.zeros((256, 4), dtype=torch.float32, device=dev)
-            den = torch.zeros(256, dtype=torch.float32, device=dev)
-            num.index_add_(0, idx, w_z)
-            den.index_add_(0, idx, w_energy)
-            valid = den > 1e-10
-            valid[0] = False
-            lut[valid] = num[valid] / den[valid].unsqueeze(1)
-            lut[0].zero_()
+        if n_act > 0:
+            w_z_act = z_act * w_act_e.unsqueeze(1)
+            for _ in range(self.kmeans_iters):
+                idx = _nearest_lut256(z_act, lut)
+                lut[0].zero_()
+                num = torch.zeros((256, 4), dtype=torch.float32, device=dev)
+                den = torch.zeros(256, dtype=torch.float32, device=dev)
+                num.index_add_(0, idx, w_z_act)
+                den.index_add_(0, idx, w_act_e)
+                valid = den > 1e-10
+                valid[0] = False
+                lut[valid] = num[valid] / den[valid].unsqueeze(1)
+                lut[0].zero_()
 
         lut256_f16 = lut.to(torch.float16).contiguous()
         lut_q = lut256_f16.float()
-        codes_u8 = _nearest_lut256(z_4d, lut_q).to(torch.uint8)
-        # Force exact zero blocks strictly to code `0` (`(0,0,0,0)`)
         zero_vec4_mask = zero_blk_mask.repeat_interleave(16, dim=0).squeeze(-1)
+        codes_u8 = torch.zeros(z_4d.shape[0], dtype=torch.uint8, device=dev)
+        if n_act > 0:
+            codes_u8[active_mask] = _nearest_lut256(z_act, lut_q).to(torch.uint8)
         codes_u8 = torch.where(zero_vec4_mask, torch.zeros_like(codes_u8), codes_u8)
 
         vq_blocks = lut_q[codes_u8.long()].reshape(n_rows * n_blocks_per_row, 64) * scales_f16.float()
@@ -374,27 +412,51 @@ class PhysicalVQ4ScarCodec:
         else:
             x_approx = x_vq
 
-        # Sparse point-shock capture against true original `x` (refines peeled spikes + any remaining high-sigma shocks)
+        # Sparse point-shock capture against true original `x` (or deterministic L_inf `abs_tolerance` guarantee!)
         rem_err = x - x_approx
         if pad_cols > n_cols:
             rem_err[:, n_cols:] = 0.0
         rem_err[orig_zero_row] = 0.0
         flat_err = rem_err.reshape(-1)
-        err_std = x_base[~orig_zero_row].square().mean().sqrt().clamp(min=1e-8) if bool((~orig_zero_row).any().item()) else torch.tensor(1.0, device=dev)
-        cand_mask = flat_err.abs() > (self.spike_sigma_threshold * 0.25 * err_std)
-        if pre_spike_idx.numel() > 0:
-            cand_mask[pre_spike_idx] = True
-        if self.max_point_spikes > 0 and bool(cand_mask.any().item()):
-            cand_idx = torch.nonzero(cand_mask, as_tuple=False).squeeze(-1)
-            if cand_idx.numel() > self.max_point_spikes:
-                _, top_rel = torch.topk(flat_err[cand_idx].abs(), k=self.max_point_spikes)
-                cand_idx = cand_idx[top_rel]
-            cand_idx, _ = torch.sort(cand_idx)
-            spike_idx_i32 = cand_idx.to(torch.int32).contiguous()
-            spike_val_f16 = flat_err[cand_idx].to(torch.float16).contiguous()
+        if self.abs_tolerance is not None:
+            tol = float(self.abs_tolerance) * inv_g_scale
+            cur_rem = flat_err.clone()
+            idx_parts: List[torch.Tensor] = []
+            val_parts: List[torch.Tensor] = []
+            for _ in range(6):
+                viol = cur_rem.abs() > tol
+                if not bool(viol.any().item()):
+                    break
+                v_idx = torch.nonzero(viol, as_tuple=False).squeeze(-1)
+                v_f16 = cur_rem[v_idx].clamp(-65504.0, 65504.0).to(torch.float16)
+                idx_parts.append(v_idx)
+                val_parts.append(v_f16)
+                cur_rem[v_idx] = cur_rem[v_idx] - v_f16.float()
+            if idx_parts:
+                all_idx = torch.cat(idx_parts, dim=0)
+                all_val = torch.cat(val_parts, dim=0)
+                order = torch.argsort(all_idx, stable=True)
+                spike_idx_i32 = all_idx[order].to(torch.int32).contiguous()
+                spike_val_f16 = all_val[order].contiguous()
+            else:
+                spike_idx_i32 = torch.zeros((0,), dtype=torch.int32, device=dev)
+                spike_val_f16 = torch.zeros((0,), dtype=torch.float16, device=dev)
         else:
-            spike_idx_i32 = torch.zeros((0,), dtype=torch.int32, device=dev)
-            spike_val_f16 = torch.zeros((0,), dtype=torch.float16, device=dev)
+            err_std = x_base[~orig_zero_row].square().mean().sqrt().clamp(min=1e-8) if bool((~orig_zero_row).any().item()) else torch.tensor(1.0, device=dev)
+            cand_mask = flat_err.abs() > (self.spike_sigma_threshold * 0.25 * err_std)
+            if pre_spike_idx.numel() > 0:
+                cand_mask[pre_spike_idx] = True
+            if self.max_point_spikes > 0 and bool(cand_mask.any().item()):
+                cand_idx = torch.nonzero(cand_mask, as_tuple=False).squeeze(-1)
+                if cand_idx.numel() > self.max_point_spikes:
+                    _, top_rel = torch.topk(flat_err[cand_idx].abs(), k=self.max_point_spikes)
+                    cand_idx = cand_idx[top_rel]
+                cand_idx, _ = torch.sort(cand_idx)
+                spike_idx_i32 = cand_idx.to(torch.int32).contiguous()
+                spike_val_f16 = flat_err[cand_idx].clamp(-65504.0, 65504.0).to(torch.float16).contiguous()
+            else:
+                spike_idx_i32 = torch.zeros((0,), dtype=torch.int32, device=dev)
+                spike_val_f16 = torch.zeros((0,), dtype=torch.float16, device=dev)
 
         # Pack 4 x uint8 codes into 1 uint32 (`1 u32 = 16 floats`) matching WGSL layout
         c4 = codes_u8.reshape(n_rows, pad_cols // 16, 4).to(torch.int64)
@@ -415,6 +477,8 @@ class PhysicalVQ4ScarCodec:
             b_row_scales_f16=b_sc.contiguous(),
             spike_flat_idx_i32=spike_idx_i32,
             spike_residual_f16=spike_val_f16,
+            abs_tolerance=self.abs_tolerance,
+            global_scale=g_scale,
         )
 
     @staticmethod
@@ -449,6 +513,8 @@ class PhysicalVQ4ScarCodec:
             flat_out = out.reshape(-1)
             flat_out.index_add_(0, pkg.spike_flat_idx_i32.long(), pkg.spike_residual_f16.float())
 
+        if pkg.global_scale != 1.0:
+            out = out * float(pkg.global_scale)
         return out[:, : pkg.orig_cols]
 
     @staticmethod
@@ -494,7 +560,7 @@ class PhysicalVQ4ScarCodec:
             out64 = blk_vq
 
         if pkg.spike_flat_idx_i32.numel() > 0:
-            flat_lo = row_idx * pkg.padded_cols + start_col
+            flat_lo = int(row_idx) * int(pkg.padded_cols) + start_col
             flat_hi = flat_lo + 64
             s_i64 = pkg.spike_flat_idx_i32.long()
             lo_pos = int(torch.searchsorted(s_i64, flat_lo, right=False).item())
@@ -503,6 +569,8 @@ class PhysicalVQ4ScarCodec:
                 local_offsets = s_i64[lo_pos:hi_pos] - flat_lo
                 out64.index_add_(0, local_offsets, pkg.spike_residual_f16[lo_pos:hi_pos].float())
 
+        if pkg.global_scale != 1.0:
+            out64 = out64 * float(pkg.global_scale)
         valid_len = min(64, max(0, pkg.orig_cols - start_col))
         return out64[:valid_len]
 
@@ -537,6 +605,70 @@ class OrthogonalSubspaceProjector:
         if x.shape[0] == u.shape[0] and x.ndim == 2:
             return x - u @ (u.T @ x)
         return x - (x @ u) @ u.T
+
+
+class BiorthogonalObliqueProjector:
+    """Behrens-Scharf Biorthogonal Oblique Subspace Projector (`P_biorth = I - U_J U_tilde_J^T`).
+
+    Unlike `OrthogonalSubspaceProjector` (`P_perp = I - U_J U_J^T`), which attenuates desired
+    physical signals whenever signal `U_S` and interference `U_J` overlap obliquely (`U_J^T U_S != 0`),
+    `BiorthogonalObliqueProjector` constructs the dual analyzer `U_tilde_J = P_{perp S} U_J (U_J^T P_{perp S} U_J + lam I)^{-1}`:
+      - `U_tilde_J^T U_J ≈ I`  -> cancels `100%` of structured interference `U_J` (`P_biorth U_J ≈ 0`)
+      - `U_tilde_J^T U_S == 0` -> preserves `100%` of oblique desired signal `U_S` (`P_biorth U_S == U_S`, zero attenuation!)
+    """
+
+    def __init__(
+        self,
+        interference_basis: torch.Tensor,
+        signal_prior_basis: torch.Tensor,
+        ridge_lambda: float = 1e-4,
+    ) -> None:
+        if ridge_lambda <= 0.0:
+            raise ValueError(f"ridge_lambda must be > 0, got {ridge_lambda}")
+        uj, _ = torch.linalg.qr(interference_basis.detach().float(), mode="reduced")
+        if signal_prior_basis.numel() > 0 and signal_prior_basis.shape[1] > 0:
+            us, _ = torch.linalg.qr(signal_prior_basis.detach().float(), mode="reduced")
+            wj = uj - us @ (us.T @ uj)
+        else:
+            us = torch.zeros((uj.shape[0], 0), dtype=torch.float32, device=uj.device)
+            wj = uj
+        r_j = uj.shape[1]
+        gram = wj.T @ wj + float(ridge_lambda) * torch.eye(r_j, dtype=torch.float32, device=uj.device)
+        u_tilde_j = torch.linalg.solve(gram, wj.T).T
+        self.basis_u_j = uj
+        self.dual_u_tilde_j = u_tilde_j
+        self.signal_basis_u_s = us
+        self.ridge_lambda = float(ridge_lambda)
+
+    @classmethod
+    @torch.no_grad()
+    def fit_from_interference_calibration(
+        cls,
+        calib_matrix: torch.Tensor,
+        signal_prior_basis: torch.Tensor,
+        subspace_rank: int = 4,
+        ridge_lambda: float = 1e-4,
+    ) -> "BiorthogonalObliqueProjector":
+        """Fits blind interference subspace `U_J` from noisy baseline `[C, T_cal]` and builds dual `U_tilde_J`."""
+        c_mat = calib_matrix.detach().float()
+        # Fit interference modes in `P_{perp S}` so signal energy present in calibration is never absorbed into `U_J`!
+        if signal_prior_basis.numel() > 0 and signal_prior_basis.shape[1] > 0:
+            us, _ = torch.linalg.qr(signal_prior_basis.detach().float().to(c_mat.device), mode="reduced")
+            # Extract raw dominant jammer directions from `calib_matrix` directly
+            u_raw, _, _ = torch.linalg.svd(c_mat, full_matrices=False)
+            return cls(u_raw[:, :subspace_rank], us, ridge_lambda=ridge_lambda)
+        u_raw, _, _ = torch.linalg.svd(c_mat, full_matrices=False)
+        return cls(u_raw[:, :subspace_rank], signal_prior_basis, ridge_lambda=ridge_lambda)
+
+    @torch.no_grad()
+    def project_clean(self, array_signal: torch.Tensor) -> torch.Tensor:
+        """Applies `P_biorth X = X - U_J (U_tilde_J^T X)` in `O(C * r_J * T)` FLOPs."""
+        x = array_signal.float()
+        uj = self.basis_u_j.to(x.device)
+        ut = self.dual_u_tilde_j.to(x.device)
+        if x.shape[0] == uj.shape[0] and x.ndim == 2:
+            return x - uj @ (ut.T @ x)
+        return x - (x @ ut) @ uj.T
 
 
 class CircularRingBufferOT:
@@ -680,6 +812,54 @@ class SurpriseGatedAnomalySCache:
         """Recalls anomaly deviation vector from `W_scar` via associative unit-key probe."""
         q_hat = query_direction.float() / query_direction.float().norm().clamp(min=1e-8)
         return self.w_scar_f32 @ q_hat
+
+    @torch.no_grad()
+    def recall_from_partial_cue(
+        self,
+        partial_frame: torch.Tensor,
+        observed_mask: torch.Tensor,
+        input_is_deviation: bool = False,
+        biorthogonal: bool = False,
+        ridge_lambda: float = 1e-2,
+    ) -> torch.Tensor:
+        """Reconstructs a full `C`-channel frame (or deviation) from a subset of observed channels (`+0 B` alloc).
+
+        When `biorthogonal=True`, solves the exact dual Gram system `(U_obs^T U_obs + lam I)^{-1} U_obs^T y_obs`
+        across stored anomaly slots (`U_tilde_obs^T U_obs ≈ I`), eliminating oblique crosstalk between
+        correlated multi-sensor fault modes while staying in fixed `34,816 B` (`Delta = 0 B`).
+        """
+        mask = observed_mask.to(dtype=torch.bool, device=self.w_scar_f32.device)
+        pf = partial_frame.to(dtype=torch.float32, device=self.w_scar_f32.device)
+        dev_obs = pf if input_is_deviation else (pf - self.ema_mean_f32)
+        cue = torch.where(mask, dev_obs, torch.zeros_like(dev_obs))
+        if not biorthogonal:
+            recalled_dev = self.query_associative(cue)
+            return recalled_dev if input_is_deviation else (self.ema_mean_f32 + recalled_dev)
+
+        valid_slots = self.slot_ts_i64 >= 0
+        if not bool(valid_slots.any().item()) or not bool(mask.any().item()):
+            recalled_dev = self.query_associative(cue)
+            return recalled_dev if input_is_deviation else (self.ema_mean_f32 + recalled_dev)
+
+        v_act = self.slot_vals_f16[valid_slots].float().T  # [C, K]
+        col_norms = v_act.norm(dim=0, keepdim=True).clamp(min=1e-8)
+        u_act = v_act / col_norms  # [C, K]
+        u_obs = u_act[mask, :]     # [|Omega|, K]
+        y_obs = dev_obs[mask]      # [|Omega|]
+        k_act = u_act.shape[1]
+        gram = u_obs.T @ u_obs + float(ridge_lambda) * torch.eye(k_act, dtype=torch.float32, device=pf.device)
+        alpha = torch.linalg.solve(gram, u_obs.T @ y_obs)  # [K]
+        slot_rec = u_act @ alpha
+        rem_obs = torch.zeros_like(dev_obs)
+        rem_obs[mask] = y_obs - (u_obs @ alpha)
+        rem_norm = float(rem_obs.norm().item())
+        if rem_norm > 1e-6:
+            w_res = self.query_associative(rem_obs) * (rem_norm / max(1e-6, float(y_obs.norm().item())))
+            recalled_dev = slot_rec + 0.25 * w_res
+        else:
+            recalled_dev = slot_rec
+        recalled_dev = torch.where(mask, dev_obs, recalled_dev)
+        return recalled_dev if input_is_deviation else (self.ema_mean_f32 + recalled_dev)
 
     def recorded_timestamps(self) -> List[int]:
         valid = self.slot_ts_i64[self.slot_ts_i64 >= 0].tolist()

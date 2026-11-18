@@ -1,4 +1,4 @@
-\begin{thebibliography}{30}
+\begin{thebibliography}{36}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -39,6 +39,12 @@ Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and Luke Zettlemoyer.
 Junfeng Fang, Houcheng Jiang, Kun Wang, Yunshan Ma, Xiang Wang, Xiangnan He, and Tat-Seng Chua.
 \newblock {AlphaEdit}: Null-space constrained knowledge editing for language models.
 \newblock In \emph{International Conference on Learning Representations (ICLR)}, 2025.
+
+\bibitem[Hairer et~al.(2006)Hairer, Lubich, and Wanner]{hairer2006geometric}
+Ernst Hairer, Christian Lubich, and Gerhard Wanner.
+\newblock \emph{Geometric Numerical Integration: Structure-Preserving Algorithms for Ordinary Differential Equations}.
+\newblock Springer, 2nd edition, 2006.
+\newblock \doi{10.1007/3-540-30666-8}.
 
 \bibitem[Kabatiansky and Levenshtein(1978)]{kabatiansky1978bounds}
 Grigory~A. Kabatiansky and Vladimir~I. Levenshtein.
@@ -85,6 +91,12 @@ Kevin Meng, David Bau, Alex Andonian, and Yonatan Belinkov.
 \newblock Locating and editing factual associations in {GPT}.
 \newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~35, pages 17359--17372, 2022.
 
+\bibitem[Peters et~al.(2019)Peters, Niculae, and Martins]{peters2019sparse}
+Ben Peters, Vlad Niculae, and Andr{\'e} F.~T. Martins.
+\newblock Sparse sequence-to-sequence models.
+\newblock In \emph{Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (ACL)}, pages 1504--1519, 2019.
+\newblock \doi{10.18653/v1/P19-1146}.
+
 \bibitem[Reis~Filho(2026{\natexlab{a}})]{reisfilho2026mos_zenodo}
 Julio~Cesar Reis~Filho.
 \newblock Shared-stage scar-native neural architecture (\texttt{ScarNativeLM v6.0}) and \texttt{PointScarFlow v1.0}: Chunkwise {WY} {Widrow-Hoff} pretraining, dual-tier {SCache} $\mathcal{O}(1)$, {Procrustes} \texttt{mos-digest} cartridges with \texttt{0x00} document {GDPR} unlearning, and continuous 3d optimal-transport flow.
@@ -118,10 +130,28 @@ Richard Sinkhorn and Paul Knopp.
 \newblock Concerning nonnegative matrices and doubly stochastic matrices.
 \newblock \emph{Pacific Journal of Mathematics}, 21\penalty0 (2):\penalty0 343--348, 1967.
 
+\bibitem[Tillet et~al.(2019)Tillet, Kung, and Cox]{tillet2019triton}
+Philippe Tillet, H.~T. Kung, and David Cox.
+\newblock Triton: An intermediate language and compiler for tiled neural network computations.
+\newblock In \emph{Proceedings of the 3rd ACM SIGPLAN International Workshop on Machine Learning and Programming Languages (MAPL@PLDI)}, pages 10--19, 2019.
+\newblock \doi{10.1145/3315508.3329973}.
+
+\bibitem[Tsallis(1988)]{tsallis1988possible}
+Constantino Tsallis.
+\newblock Possible generalization of {Boltzmann-Gibbs} statistics.
+\newblock \emph{Journal of Statistical Physics}, 52\penalty0 (1-2):\penalty0 479--487, 1988.
+\newblock \doi{10.1007/BF01016429}.
+
 \bibitem[Vaswani et~al.(2017)Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser, and Polosukhin]{vaswani2017attention}
 Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan~N. Gomez, {\L}ukasz Kaiser, and Illia Polosukhin.
 \newblock Attention is all you need.
 \newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~30, 2017.
+
+\bibitem[Viazovska(2017)]{viazovska2017sphere}
+Maryna~S. Viazovska.
+\newblock The sphere packing problem in dimension 8.
+\newblock \emph{Annals of Mathematics}, 185\penalty0 (3):\penalty0 991--1015, 2017.
+\newblock \doi{10.4007/annals.2017.185.3.7}.
 
 \bibitem[{W3C GPU for the Web Working Group}(2024)]{w3c2024webgpu}
 {W3C GPU for the Web Working Group}.
@@ -148,6 +178,11 @@ Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, and Mike Lewis.
 Songlin Yang, Bailin Wang, Yikang Zhang, Yikang Shen, and Yoon Kim.
 \newblock Parallelizing linear transformers with the delta rule over sequence length.
 \newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~37, 2024.
+
+\bibitem[Yu et~al.(2020)Yu, Kumar, Gupta, Levine, Hausman, and Finn]{yu2020gradient}
+Tianhe Yu, Saurabh Kumar, Abhishek Gupta, Sergey Levine, Karol Hausman, and Chelsea Finn.
+\newblock Gradient surgery for multi-task learning.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS)}, volume~33, pages 5824--5836, 2020.
 
 \bibitem[Yuan et~al.(2023)Yuan, Shang, Song, Wu, Yan, and Sun]{yuan2023asvd}
 Zhihang Yuan, Yuzhang Shang, Yue Song, Qiang Wu, Yan Yan, and Guangyu Sun.

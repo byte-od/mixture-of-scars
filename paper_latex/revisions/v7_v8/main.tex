@@ -1,0 +1,151 @@
+\pdfoutput=1
+% ==============================================================================
+% Post-Transformer Hyperspherical Geodesic Scar Intelligence (ScarField v7 & v8)
+% Official Zenodo Preprint Manuscript (Revision v8.2)
+% ==============================================================================
+\documentclass[10pt,twocolumn]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=0.62in,columnsep=0.22in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!65!black]{hyperref}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{remark}{Remark}
+
+\title{\textbf{Post-Transformer Hyperspherical Geodesic Scar Intelligence (\texttt{ScarField v7.0--v7.5} and \texttt{v8.0--v8.2}):\\Zero-Legacy $1.000$~bpw Gosset $E_8$ Lattices, Reversible Symplectic Cayley Flows, Biorthogonal $\mathcal{O}(1)$ Kalman-Scar Memory, \texttt{@triton.jit} Adjoint Kernels, and Vectorized Macro-Scout Geodesic Fleets}}
+
+\author{
+  \textbf{Julio Cesar Reis Filho}\\
+  Byte-OD Research \& System One Architecture Lab\\
+  \texttt{DOI: \href{https://doi.org/10.5281/zenodo.24172784}{10.5281/zenodo.24172784}} \quad|\quad
+  \texttt{\href{https://github.com/byte-od/mixture-of-scars}{github.com/byte-od/mixture-of-scars}}
+}
+
+\date{November 18, 2026 \quad (Zenodo Revision v8.2 --- \texttt{ScarField v7.0--v7.5} Zero-Legacy Foundation \& \texttt{v8.0--v8.2} Vectorized Macro-Scout Geodesic Fleet)}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Prior Scar-Native generations (\texttt{v5.0}--\texttt{v6.0}) eliminated dense \texttt{torch.nn.Linear} layers and post-training quantization shock, yet still carried Transformer-era auxiliary counter-weights (\texttt{RMSNorm}, channel equilibration $\mathbf{d}_{\text{eq}}$, \texttt{ReLU}/\texttt{SwiGLU}, \texttt{Softmax}, static BPE tables, integer \texttt{RoPE}$(t)$, and post-hoc Procrustes rotations $\mathbf{R}_\ell$). In \textbf{Zenodo Revision \texttt{v8.2}}, we present the complete empirical arc of \textbf{\texttt{ScarField v7.0--v7.5}} and \textbf{\texttt{v8.0--v8.2}}---a pure \emph{Post-Transformer Zero-Legacy} intelligence architecture trained \emph{Tabula Rasa} over raw $V=256$ UTF-8 bytes on \texttt{NVIDIA A100-SXM4-40GB}:
+(1) \textbf{Zero-Legacy Hyperspherical Bipartite Geometry (\texttt{v7.0--v7.2})}: states evolve strictly on $\mathbb{S}_{\text{form}}^{D_f-1} \times \mathbb{S}_{\text{world}}^{D_w-1}$ ($\|\mathbf{h}\|_2 \equiv 1.000000$ without \texttt{RMSNorm}) under $1.000$~bit/weight Gosset $E_8$ + vacuum root codebooks ($4$~KB shared L1 LUT, zero $\mathbf{d}_{\text{eq}}$, ternary $\{-1,0,+1\}$ atomic residual scars), reversible symplectic Cayley-Woodbury Leapfrog flows ($\mathbf{11.65\times}$ lower saved activation memory at $K=16$), relativistic information proper-time $\Delta\phi_t = \boldsymbol{\omega} s_t$, and exact Tsallis $\alpha=1.5$ spherical-cap simplex decoding ($>95.7\%$ exact zeros and $100\%$ native \texttt{0x00} vacuum abstention without \texttt{exp}/\texttt{Softmax});
+(2) \textbf{Biorthogonal $\mathcal{O}(1)$ Memory, Fused \texttt{@triton.jit} Kernels \& Causal Anti-Stutter Closure (\texttt{v7.3--v7.5})}: pairing parallel Chunkwise WY Kalman-Scar scans ($\mathbf{306.87\times}$ faster than sequential recurrence, $\cos_{\text{fwd}}=0.99999994$) with a $48$-slot \texttt{BiorthogonalShockBank} ($\widetilde{\mathbf{K}} = (\mathbf{K}\mathbf{K}^\top + \lambda\mathbf{I})^{-1}\mathbf{K}$), register-resident Conway--Sloane $\mathcal{O}(8)$ \texttt{@triton.jit} + C99 SIMD kernels ($0/4{,}096$ code divergence; $58.76\times$ CPU S1 speedup via zero-copy \texttt{.sfield.scar} \texttt{mmap}, $\cos=1.000000$), zero-autograd analytic symplectic midpoint adjoints ($2.62\times$ A100 step speedup; $56.9\times$ faster $E_8$ SVD healing), $6:1$ \texttt{System1CorpusScoutFleet} ($12.74$~ms overhead), and $1$-step causal shock-closure FIR raises $3$-turn $\mathcal{O}(1)$ unseen PIN recall $4.20\times$ ($20.83\% \to 87.50\%$) with $0/24$ digit stutters; and
+(3) \textbf{Vectorized Macro-Scout Geodesic Fleet \& Shared-Crystal Swarm (\texttt{v8.0--v8.2})}: stacking $M=4$ skill specialists into single-stream Tensor-Core \texttt{BF16} super-kernels with exact symplectic $J$-conjugation $\mathbf{M}_{\text{fwd}}^{-\top} \equiv \mathbf{J}\mathbf{M}_{\text{rev}}^{-1}\mathbf{J}^\top$, biorthogonal conflict-free Riemannian tangent surgery ($29{,}849$ projected conflicts), and $S=8..16$ Giant-GEMM shared-$E_8$ crystal swarms ($37.45\times$ fewer mutable parameters/worker, $560.8$--$549.4$~ms/step = $\mathbf{3.27\times}$--$\mathbf{3.34\times}$ over \texttt{v7.3}, $0$ CUDA allocator OOM retries) packs $59.98\text{M}$ spherical parameters into $\mathbf{9.527}$~\textbf{MiB} ($6.69\times$ smaller than $63.77$~MiB FP16 \texttt{DenseByteTransformer}), wins $5/5$ held-out open domains (\texttt{Code} $\mathbf{1.6368}$~BPB / $72.18\%$ Top-1, \texttt{EN} $\mathbf{1.9796}$~BPB / $63.48\%$ Top-1, \texttt{FR} $2.3633$, \texttt{PT} $2.4421$, \texttt{ES} $2.4551$), achieves $0/8$ prose-to-code leaks via bidirectional $C^1$ margins, $2/2$ ($100\%$) live \texttt{exec()} Python synthesis, $100\%$ $3$-turn $\mathcal{O}(1)$ PIN recall in \texttt{v8.1} ($24/24$), and extends $\mathcal{O}(1)$ ($455{,}504$~B, $\Delta=+0$~B) passkey recall out to $\mathbf{T=4{,}096}$~\textbf{bytes} ($64\times$ sensory ring: $100\%$ at $T\le 1{,}024$, $87.5\%$ at $1{,}536$, $75.0\%$ at $2{,}048$, $40.62\%$ at $3{,}072$, and $12.50\%$ exact / $51.04\%$ per-digit at $4{,}096$ vs.\ $0.0\%$ non-biorthogonal and $0.0\%$ Dense).
+\end{abstract}
+
+\section{Introduction: Abolishing Residual Transformer Legacy}
+Conventional autoregressive Transformers~\citep{vaswani2017attention} and post-training compression pipelines~\citep{dettmers2022llmint8,dettmers2023qlora,lin2024awq,li2024loftq,yuan2023asvd} couple intelligence to unconstrained Euclidean matrices, $\mathcal{O}(T)$ key-value caches~\citep{xiao2024efficient,zhang2023h2o}, static subword vocabularies, and dense exponential \texttt{Softmax} normalization. Even our earlier Scar-Native generations (\texttt{v4.0}--\texttt{v6.0})~\citep{reisfilho2026mos_zenodo,reisfilho2026qwen72b_mos_v2}, alongside continuous flow models~\citep{lipman2023flow,liu2023flow}, model-merging/editing methods~\citep{ainsworth2023git,sinkhorn1967concerning,marchenko1967distribution,meng2022locating,fang2025alphaedit}, and physical array nulling~\citep{leshem2000multichannel}, retained legacy stabilizers such as \texttt{RMSNorm} gain vectors, channel equilibration $\mathbf{d}_{\text{eq}}$, \texttt{ReLU} gates~\citep{bengio2013estimating}, and post-hoc orthogonal Procrustes alignments~\citep{schonemann1966generalized}.
+
+\textbf{\texttt{ScarField v7.0--v7.5} and \texttt{v8.0--v8.2}} remove every remaining pre-scar artifact by enforcing a strict architectural guard (\texttt{assert\_zero\_legacy\_modules}): \emph{zero} \texttt{nn.Linear}, \emph{zero} \texttt{RMSNorm}/\texttt{LayerNorm}, \emph{zero} \texttt{ReLU}/\texttt{GELU}/\texttt{SiLU}, \emph{zero} \texttt{Softmax}/\texttt{CrossEntropyLoss}, \emph{zero} integer \texttt{RoPE}$(t)$, \emph{zero} static BPE tokenizer, and \emph{zero} $\mathcal{O}(T)$ KV cache.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.995\textwidth]{figures/fig1_scarfield_v7_v8_audit.pdf}
+    \caption{\textbf{Empirical Audit Across \texttt{ScarField v7.0--v7.5} \& \texttt{v8.0--v8.2} on \texttt{NVIDIA A100-SXM4-40GB}.} \textbf{(A)} Reversible Symplectic Cayley flow holds saved activation memory flat at $687.2 \to 689.2$~MiB across $K=2..16$ ($11.65\times$ lower than $8{,}026.4$~MiB unrolled tape), while Chunkwise WY accelerates Kalman-Scar scans by $306.87\times$ ($\cos_{\text{fwd}}=0.99999994$). \textbf{(B)} Wall-clock step velocity progression ($B=16, T=384, 59.98\text{M}$ spherical params): Conway--Sloane $\mathcal{O}(8)$, \texttt{@triton.jit} kernels, analytic symplectic adjoints, exact $J$-conjugation, and vectorized super-kernels cut step time from $1{,}836.4$~ms (\texttt{v7.3}) to $635.8$~ms ($M=4$ Fleet, $2.89\times$) and $560.8$~ms ($S=8$ Swarm, $3.27\times$; $549.4$~ms at $S=16$) with $0$ CUDA allocator OOM retries. \textbf{(C)} Held-out open-corpus BPB across $480$ Wikipedia articles (\texttt{PT/EN/ES/FR}) + real \texttt{Code}: $9.527$~MiB \texttt{ScarField v8.2} beats $63.77$~MiB FP16 \texttt{DenseByteTransformer} ($6.69\times$ larger) on $5/5$ domains ($>95.7\%$ exact Tsallis zeros). \textbf{(D)} $\mathcal{O}(1)$ ($455{,}504$~B, $\Delta=+0$~B) passkey recall out to $T=4{,}096$ ($64\times$ ring) vs.\ $0\%$ non-biorthogonal and Dense baselines. \textbf{(E)} $1$-step causal shock-closure FIR + odd repeat-phase harmonics eliminate multi-turn digit stuttering ($0/24$ unseen, $0/8$ stress; $100\%$ in \texttt{v8.1}), while bidirectional $C^1$ margins yield $0/8$ prose code leaks and $2/2$ live \texttt{exec()} Python functions in \texttt{v8.2}. \textbf{(F)} Zero-Procrustes $\mathbb{S}_{\text{world}}$ cross-lingual cosine ($0.9921$--$0.9936$), \texttt{.uscar} \texttt{0x00} GDPR erasure ($0.00\%$ residual), $8/8$ \texttt{0x00} abstention, and $\cos=1.000000$ C99 \texttt{mmap} parity.}
+    \label{fig:v7_v8_audit}
+\end{figure*}
+
+\section{Post-Transformer Mathematical Foundations (\texttt{v7.0--v7.5})}
+
+\subsection{$1.000$~bpw Gosset $E_8$ Substrate \& Exact Conway--Sloane Kernels}
+By Viazovska's theorem~\citep{viazovska2017sphere}, the $8$-dimensional Gosset root lattice $E_8$ achieves uniquely optimal sphere packing in $\mathbb{R}^8$~\citep{kabatiansky1978bounds}. \texttt{E8SphericalLinear} constructs a single shared $256$-entry ($4$~KB FP16) codebook $\mathcal{C}_{E_8} \subset \mathbb{R}^{256 \times 8}$ uniting entry \texttt{0x00} $=\mathbf{0}_8$ (exact physical vacuum), all $240$ minimal $E_8$ roots ($112$ integer $D_8$ roots $\{0,\pm 2\}^8$ + $128$ even-parity spinor roots $\{\pm 1\}^8$ at $\|\mathbf{u}\|_2 = \sqrt{8}$), and $15$ orthonormal Walsh--Hadamard~\citep{walsh1923closed} $H_8$ outer-shell vectors ($\|\mathbf{u}\|_2 = 3\sqrt{2}$). For unit-norm rows $\mathbf{W} \in (\mathbb{S}^{I-1})^O$ rotated by multiplier-free $64$-point Rademacher FWHT, each $8$-coordinate block maps to $1$~byte ($1.000$~bpw) via exact $\mathcal{O}(8)$ algebraic Conway--Sloane decoding~\citep{conway1982fast}, paired with closed-form SVD/RRR $2$-bit ternary $\{-1,0,+1\}$ residual scars:
+\begin{equation}
+    \mathbf{y}(\mathbf{x}) = \frac{\tau_{\text{base}}}{\sqrt{I}}\,\mathrm{FWHT}_{64}(\mathbf{x})\,\mathbf{W}_{E_8,\text{rot}}^\top + \frac{\gamma_{\text{scar}}}{\sqrt{I r}}\,(\mathbf{x}\,\mathbf{A}_{\text{tern}}^\top)\mathbf{B}_{\text{tern}}^\top.
+    \label{eq:e8_ternary}
+\end{equation}
+In \texttt{v7.4--v7.5}, register-resident \texttt{@triton.jit}~\citep{tillet2019triton} and multithreaded C99 SIMD kernels eliminate intermediate $[N, 256]$ distance tensors ($0/4{,}096$ code divergence, $56.9\times$ faster periodic SVD healing in $52.27$~ms, and $58.76\times$ faster CPU S1 byte inference from zero-copy \texttt{.sfield.scar} \texttt{mmap} containers).
+
+\subsection{Reversible Symplectic Cayley Geodesics \& Analytic Adjoints}
+Representations $(\mathbf{h}_{\text{form}}, \mathbf{h}_{\text{world}}) \in \mathbb{S}^{D_f-1} \times \mathbb{S}^{D_w-1}$ evolve without \texttt{RMSNorm} or \texttt{ReLU} via reversible symplectic Leapfrog steps~\citep{hairer2006geometric} generated by skew-symmetric rank-$2r$ Lie operators $\boldsymbol{\Omega}(\mathbf{U},\mathbf{V}) = \mathbf{U}\mathbf{V}^\top - \mathbf{V}\mathbf{U}^\top$ combined with $C^1$ spherical-cap scars $g_e(u) = [u - \kappa_e]_+^2 / ((1-\kappa_e)^2 + [u-\kappa_e]_+^2)$. By the Cayley-Woodbury identity,
+\begin{equation}
+    \Phi_{\Delta t}(\mathbf{h}) = \Big(\mathbf{I}_D - \tfrac{\Delta t}{2}\boldsymbol{\Omega}\Big)^{-1}\Big(\mathbf{I}_D + \tfrac{\Delta t}{2}\boldsymbol{\Omega}\Big)\mathbf{h} \in \mathrm{SO}(D), \qquad \|\Phi_{\Delta t}(\mathbf{h})\|_2 \equiv \|\mathbf{h}\|_2 = 1,
+    \label{eq:cayley_woodbury}
+\end{equation}
+reducing $[D \times D]$ inversion to a $[2r \times 2r]$ system ($2r \le 32$). Reversing Leapfrog half-steps reconstructs intermediate activations in $\mathcal{O}(1)$ depth memory ($\mathbf{11.65\times}$ VRAM reduction at $K=16$), while \texttt{v7.5}'s zero-autograd analytic midpoint adjoint and \texttt{System~1} surprise gates (\texttt{Gate G0} + $6:1$ \texttt{System1CorpusScoutFleet}~\citep{leviathan2023fast}) skip predictable bytes ($s_t < \theta_{G_0}$) with exact streaming parity ($\cos > 0.999999$).
+
+\subsection{Proper-Time Biorthogonal Kalman-Scar $\mathcal{O}(1)$ Bus \& Tsallis-1.5 Cap}
+Raw UTF-8 bytes ($V=256$) advance relativistic proper time $\Delta\phi_t = \boldsymbol{\omega}(0.02 + 0.98 s_t)$ directly from local prediction surprise $s_t = 1 - p_{\text{cap}}(b_t \mid \mathbf{h}_{t-1}) \in [0,1]$, ensuring zero phase drift and zero passive fast-weight forgetting~\citep{widrow1960adaptive,schmidhuber1992learning,schlag2021linear} on predictable runs. \texttt{ChannelSelectiveKalmanScarBus} unites a parallel Chunkwise WY~\citep{bischof1987wy,yang2024parallelizing} fast-weight scan ($\mathbf{306.87\times}$ speedup on \texttt{A100}) with an $M$-slot \texttt{BiorthogonalShockBank} solving the active Gram dual $\widetilde{\mathbf{K}} = (\mathbf{K}\mathbf{K}^\top + \lambda\mathbf{I})^{-1}\mathbf{K}$ ($\widetilde{\mathbf{K}}\mathbf{K}^\top \approx \mathbf{I}_M$) in strictly constant $455{,}504$~B ($\Delta B/\Delta T = 0$). Output probabilities follow the closed-form Tsallis $\alpha=1.5$~\citep{tsallis1988possible,peters2019sparse} spherical-cap projection $p_i(\mathbf{z}) = [\frac{1}{2}(z_i - \lambda^\star(\mathbf{z}))]_+^2$ (zero \texttt{exp}/\texttt{log}), yielding $>95.7\%$ exact zeros and native \texttt{0x00} vacuum abstention whenever $\max_i \langle \mathbf{w}_i, \mathbf{h}_{\text{world}}\rangle < \kappa_{\text{vac}}$. In \texttt{v7.5}, a $1$-step causal shock-closure FIR ($s_t^{\text{closed}} = \max(s_t, \gamma_{\text{close}} s_{t-1})$) and odd run-length phase harmonics (`shifts` $5, 13, 21$) disambiguate repeated digits (\texttt{"PIN=800."}), eliminating multi-turn stuttering ($0/24$).
+
+\section{Vectorized Macro-Scout Geodesic Fleets (\texttt{v8.0--v8.2})}
+
+\begin{theorem}[Exact Symplectic $J$-Conjugation \& Biorthogonal Tangent Fleet Fusion]
+\label{thm:v8_symplectic_fleet}
+Let $\mathbf{M}_{\text{fwd}} = \mathbf{I}_{2r} + \alpha \mathbf{Q}^\top\mathbf{P}$ and $\mathbf{M}_{\text{rev}} = \mathbf{I}_{2r} - \alpha \mathbf{Q}^\top\mathbf{P}$ denote the forward and reverse $[2r \times 2r]$ Cayley-Woodbury matrices of a reversible Leapfrog half-step, and let $\mathbf{J} = \begin{psmallmatrix} \mathbf{0} & \mathbf{I}_r \\ -\mathbf{I}_r & \mathbf{0} \end{psmallmatrix}$. Then $(\mathbf{Q}^\top\mathbf{P})^\top = -\mathbf{J}(\mathbf{Q}^\top\mathbf{P})\mathbf{J}^\top$, yielding the exact algebraic identity:
+\begin{equation}
+    \mathbf{M}_{\text{fwd}}^{-\top} \equiv \mathbf{J}\,\mathbf{M}_{\text{rev}}^{-1}\,\mathbf{J}^\top,
+    \label{eq:j_conj}
+\end{equation}
+halving matrix inversions in the analytic backward pass ($4.7\times 10^{-7}$ FP32 residual). Furthermore, given $M$ concurrent Macro-Scouts evolving on $(\mathbb{S}^{I-1})$ from anchor $\mathbf{w}_0$, projecting pairwise negative Riemannian tangent chord inner products~\citep{yu2020gradient} on $\mathcal{T}_{\mathbf{w}_0}\mathbb{S}^{I-1}$ and weighting normalized displacements by $\boldsymbol{\alpha} = (\widehat{\mathbf{G}} + \lambda\mathbf{I}_M)^{-1}\mathbf{1}_M$ followed by exact retraction $\mathrm{Exp}_{\mathbf{w}_0}$ preserves $\|\mathbf{w}_{\text{merged}}\|_2 \equiv 1$ without $1/M$ specialist dilution or `.sfield.scar` byte growth ($\Delta = +0$~B).
+\end{theorem}
+
+To saturate \texttt{A100} Tensor Cores without multi-stream allocator contention, \texttt{BatchedScarFieldSuperEngine} (\texttt{v8.1--v8.2}) stacks all $M=4$ skill specialists (\texttt{prose\_polyglot}, \texttt{code\_ast}, \texttt{long\_biorth\_passkey}, \texttt{chat\_epistemic\_o1}) into contiguous $[M, O, I]$ \texttt{bmm} tensors with rectangular $c_{\max}$ sparse compaction, while \texttt{VectorizedSharedCrystalSwarm} concatenates $S=8..16$ scar-only workers ($37.45\times$ fewer mutable parameters/worker) into a single Giant-GEMM $[S\cdot N, I] \times [I, O]$ over one read-only $E_8$ crystal. Finally, \texttt{v8.2} enforces a symmetric bidirectional $C^1$ turn-start margin separating prose answers from \texttt{def}/\texttt{class}/\texttt{import} code prefixes while enabling PEP-8 $4/8/12$-space indentation.
+
+\section{Empirical Audit Across \texttt{v7.0--v8.2} on \texttt{NVIDIA A100}}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Architectural \& Training Velocity Progression Across \texttt{ScarField v7.0 $\to$ v8.2-Overnight-Sovereign} on \texttt{NVIDIA A100-SXM4-40GB}} ($B=16, T=384$ controlled step benchmark at $59.98\text{M}$ spherical parameters $= \mathbf{9.527}$~\textbf{MiB} \texttt{.sfield.scar}, $\mathcal{O}(1)$ state $= 455{,}504$~B, $\Delta=+0$~B).}
+\label{tab:v7_v8_progression}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Generation / Audit JSON} & \textbf{Core Mathematical / Systems Innovation} & \textbf{Packed Size} & \textbf{Step Time ($A100$)} & \textbf{Speedup vs.\ \texttt{v7.3}} & \textbf{3-Turn PIN (Stutters)} & \textbf{Max Verified $\mathcal{O}(1)$ Passkey} \\
+\midrule
+\texttt{v7.0 Tabula Rasa} & Pure $E_8$ ($1.000$~bpw) + Cayley $\mathcal{O}(1)$ ($11.65\times$ VRAM) + WY ($306.9\times$) + Tsallis-1.5 & $1.872$ MiB ($9.22\times\downarrow$) & $40$~min total ($15\text{M}$) & Baseline ($15\text{M}$) & Single-turn + \texttt{0x00} $16/16$ & $100\%$ ($T=160$), $75.0\%$ ($T=512$) \\
+\texttt{v7.2-Deep} ($59.98\text{M}$) & $2\times$ Symplectic Macro-Cycles + $9$-Lag Spherical Wave ($12{,}618$ steps) & $9.527$ MiB ($6.69\times\downarrow$) & $\sim 1{,}836$ ms & $1.00\times$ & Pre-SFT Trunk ($5/5$ Top-1) & $100\%$ ($T=256$), $78.1\%$ ($T=1{,}024$) \\
+\texttt{v7.3-Biorth-Chat} & $48$-Slot \texttt{BiorthogonalShockBank} + Stateful Multi-Turn SFT + \texttt{.uscar} Duals & $9.527$ MiB ($\Delta=0$ B) & $1{,}836.4$ ms & $1.00\times$ & $33.3\%$ (digit loop on `00`) & $100\%$ ($T=512$), $75.0\%$ ($T=1{,}024$) \\
+\texttt{v7.4-Turbo + Scouts} & Algebraic Conway--Sloane $\mathcal{O}(8)$ + \texttt{Gate G0} + $6:1$ \texttt{S1CorpusScoutFleet} & $9.527$ MiB ($\Delta=0$ B) & $1{,}127.5$ ms & $1.63\times$ & $20.8\%$ (pre-FIR closure) & $100\%$ ($T=512$), $78.1\%$ ($T=1{,}024$) \\
+\texttt{v7.5-Fused} & \texttt{@triton.jit} $E_8$/Tsallis/Muon + Zero-Autograd Adjoint + $1$-Step Causal FIR & $9.527$ MiB ($\Delta=0$ B) & $699.77$ ms ($12.7$~ms S1) & $2.62\times$ ($56.9\times$ heal) & $\mathbf{87.5\%}$ ($21/24$, $\mathbf{0}$ stutters!) & $100\%$ ($T=768$), $71.9\%$ ($T=1{,}024$) \\
+\texttt{v8.0 Macro-Fleet} & $4$-Stream Geodesic Fleet + Biorthogonal `PCGrad` Merge + $S=8$ Crystal Swarm & $9.527$ MiB ($\Delta=0$ B) & $741.21$ ms ($4$-stream) & $2.48\times$ & $75.0\%$ ($8/8=\mathbf{100\%}$ stress) & $96.9\%$ ($T=1{,}536$), $\mathbf{84.4\%}$ ($T=2{,}048$) \\
+\textbf{\texttt{v8.1-Velocity}} & \textbf{Single-Stream $[M,O,I]$ Super-Kernels + Exact $J$-Conj + Giant-GEMM Swarm} & $\mathbf{9.527}$ \textbf{MiB ($\Delta=0$ B)} & $\mathbf{638.7}$ \textbf{/ $\mathbf{560.8}$ ms ($S=8$)} & $\mathbf{2.88\times}$ \textbf{/ $\mathbf{3.27\times}$} & $\mathbf{100.0\%}$ ($\mathbf{24/24}$ \& $\mathbf{8/8}$, $\mathbf{0}$ stut.) & $81.2\%$ ($T=2{,}048$), $37.5\%$ ($T=3{,}072$) \\
+\textbf{\texttt{v8.2-Overnight}} & \textbf{$32{,}816$ Cum.\ Steps + Bidirectional $C^1$ Zero-Leak + Live Python \texttt{exec()}} & $\mathbf{9.527}$ \textbf{MiB ($\Delta=0$ B)} & $\mathbf{635.78}$ \textbf{ms ($\mathbf{0}$ OOM retry)} & $\mathbf{2.89\times}$ ($17.7$ GiB) & $\mathbf{100\%}$ \texttt{PT/ES/FR} ($\mathbf{0}$ stut., $0$ leak) & $\mathbf{40.6\%}$ ($T=3{,}072$), $\mathbf{12.5\%}$ / $51\%$ ($T=4{,}096$!) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Held-Out Open-Corpus Compression ($480$ Wikipedia Articles + $1.05$~MiB Real Python/C Code) \& Long-Horizon $\mathcal{O}(1)$ Biorthogonal Passkey Audit} (\texttt{results/scar\_field\_v8\_2\_overnight\_audit.json}, $30{,}640$ held-out bytes/domain; \texttt{ScarField v8.2} $= 9.527$~MiB vs.\ \texttt{DenseByteTransformer} FP16 $= 63.771$~MiB).}
+\label{tab:v8_2_domains_passkey}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcccccc}
+\toprule
+\textbf{Model / Ablation} & \textbf{Container / State} & \textbf{\texttt{Code} BPB (Top-1 / Top-5)} & \textbf{\texttt{EN} BPB (Top-1)} & \textbf{\texttt{FR} / \texttt{PT} / \texttt{ES} BPB} & \textbf{Tsallis Exact Zeros} & \textbf{Passkey $T=128..1024$ / $1536$ / $2048$} & \textbf{Passkey $T=3072$ / $4096$ (Digit)} \\
+\midrule
+1. \texttt{DenseByteTransformer} (FP16) & $63.771$ MiB / $\mathcal{O}(T)$ KV & $3.4017$ ($37.17\% / 66.91\%$) & $3.6461$ ($24.85\%$) & $3.5270 / 3.5299 / 3.5055$ & $0.00\%$ (\texttt{Softmax}) & $0.0\% / 0.0\% / 0.0\%$ & $0.0\% / 0.0\%$ ($3.12\%$) \\
+2. \texttt{ScarField v8.2} w/o Biorth Bank & $9.527$ MiB / $444.8$ KiB $\mathcal{O}(1)$ & $1.6368$ ($72.18\% / 88.62\%$) & $1.9796$ ($63.48\%$) & $2.3633 / 2.4421 / 2.4551$ & $95.72\% - 96.24\%$ & $96.9$--$100\% / 84.4\% / 65.6\%$ & $34.38\% / \mathbf{0.00\%}$ ($38.54\%$) \\
+\textbf{3. \texttt{ScarField v8.2 Full} (Ours)} & $\mathbf{9.527}$ \textbf{MiB ($\mathbf{6.69\times\downarrow}$) / $\Delta=\mathbf{0}$ B} & $\mathbf{1.6368}$ ($\mathbf{72.18\% / 88.62\%}$) & $\mathbf{1.9796}$ ($\mathbf{63.48\%}$) & $\mathbf{2.3633 / 2.4421 / 2.4551}$ & $\mathbf{95.72\% - 96.24\%}$ & $\mathbf{100.0\% / 87.5\% / 75.0\%}$ & $\mathbf{40.62\% / 12.50\%}$ ($\mathbf{51.04\%}$!) \\
+\midrule
+\textbf{Sovereign Integrity Guarantees} & C99 \texttt{mmap} $\cos=\mathbf{1.000000}$ & Python \texttt{AST} + \texttt{exec()}: $\mathbf{2/2}$ & Prose Leaks: $\mathbf{0/8}$ & $\mathbb{S}_{\text{world}}$ $\cos$: $\mathbf{0.9921 - 0.9936}$ & \texttt{0x00} Abstain: $\mathbf{8/8}$ & \texttt{.uscar} EN$\to$PT: $\mathbf{0.9695}$ & Post-\texttt{0x00} GDPR Residual: $\mathbf{0.0}$! \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\section{Scientific Candor: Trade-Offs, Diagnostics \& Roadmap}
+\begin{enumerate}
+    \item \textbf{Per-Step Compute vs.\ Dense \texttt{cuBLAS} Transformers:} Operating byte-by-byte ($V=256$, $\sim 4\times$ finer granularity than BPE) with recurrent $[32\times 32]$ Cayley-Woodbury solves and $48$-slot Gram inversions takes $635.8$~ms/step ($M=4$ Fleet) or $549.4$~ms/step ($S=16$ Swarm) vs.\ $\sim 38.9$~ms/step for a standard non-reversible \texttt{cuBLAS} Transformer ($14\times$--$16\times$ per-step wall-clock gap, narrowed from $47.2\times$ in \texttt{v7.3}), traded consciously for $6.69\times$--$9.22\times$ smaller binaries, $11.65\times$ lower activation memory, and strictly $\mathcal{O}(1)$ context ($\Delta=+0$~B).
+    \item \textbf{Multi-Turn Prefix Branching Diagnosis in \texttt{v8.2} \& Flat $48$-Slot Rank Ceiling:} While \texttt{v8.1} achieved $\mathbf{100.0\%}$ ($24/24$ unseen and $8/8$ repeated-digit stress) across all $4$ languages, oversampling encyclopedic English Q\&A ($34\%$) in \texttt{v8.2} to drive prose-to-code leaks to $0/8$ caused Turn~3 in English to branch at byte~7 of the shared $6$-byte stem \texttt{"The st"} (\texttt{"The study"} vs.\ \texttt{"The stored"}), yielding $100.0\%$ ($18/18$ \& $6/6$) in \texttt{PT/ES/FR} and $75.0\%$ aggregate ($0$ stutters across all $32$ trials). Likewise, a single flat $M$-slot bank in $\mathbb{R}^{128}$ obeys $\mathrm{rank}(\mathbf{K}) \le 128$, motivating multi-bucket spherical Hadamard partitioning for $T \ge 16\text{K}$ and client-side WebGPU WGSL~\citep{w3c2024webgpu} shaders once the scaling operator graph freezes.
+\end{enumerate}
+
+\section{Conclusion \& Reproducibility}
+\texttt{ScarField v7.0--v7.5} and \texttt{v8.0--v8.2} demonstrate end-to-end Post-Transformer intelligence trained purely on hyperspherical $1.000$~bpw $E_8$ lattices, reversible symplectic Cayley flows, biorthogonal $\mathcal{O}(1)$ Kalman-Scar workspaces, and vectorized Macro-Scout fleets. All source code, C99/\texttt{@triton.jit} kernels, forensic \texttt{pytest} suites, and JSON audits are archived under MIT/CC-BY-4.0 at \href{https://doi.org/10.5281/zenodo.24172784}{DOI: 10.5281/zenodo.24172784}~\citep{reisfilho2026mos_zenodo}.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

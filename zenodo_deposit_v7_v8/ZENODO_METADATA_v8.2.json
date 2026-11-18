@@ -1,0 +1,36 @@
+{
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "version": "8.2.0",
+  "publication_date": "2026-11-18",
+  "title": "Post-Transformer Hyperspherical Geodesic Scar Intelligence (ScarField v7.0–v7.5 and v8.0–v8.2): Zero-Legacy 1.000 bpw Gosset E8 Lattices, Reversible Symplectic Cayley Flows, Biorthogonal O(1) Kalman-Scar Memory, Fused @triton.jit Adjoints, and Vectorized Macro-Scout Geodesic Fleets",
+  "creators": [
+    {
+      "name": "Reis Filho, Julio Cesar da Costa",
+      "affiliation": "Byte-OD Research & System One Architecture Lab"
+    }
+  ],
+  "license": "cc-by-4.0",
+  "keywords": [
+    "ScarField v7",
+    "ScarField v8",
+    "Post-Transformer Architecture",
+    "Gosset E8 Lattice Quantization",
+    "Reversible Symplectic Cayley Geodesic",
+    "Biorthogonal O(1) Kalman-Scar Memory",
+    "Tsallis-1.5 Spherical Cap Simplex",
+    "Macro-Scout Geodesic Fleet"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/byte-od/mixture-of-scars",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.5281/zenodo.24172784",
+      "relation": "isNewVersionOf",
+      "scheme": "doi"
+    }
+  ]
+}

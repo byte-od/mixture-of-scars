@@ -32,6 +32,11 @@ from scar_field.e8_lattice import (
     rademacher_signs_det,
     unpack_ternary_2bit,
 )
+from scar_field.elastic_mos import (
+    ElasticCapacityGear,
+    MoSGeodesicDomainBank,
+    MoSSymplecticDomainSpecialist,
+)
 from scar_field.engine import (
     SCARFIELD_ASSISTANT_BYTE,
     SCARFIELD_EOT_BYTE,
@@ -41,6 +46,12 @@ from scar_field.engine import (
     ScarFieldEngine,
     encode_sft_dialogue_bytes_and_mask,
     format_scarfield_chat_turn,
+)
+from scar_field.geodesic_expansion import (
+    expand_e8_linear_isometric_,
+    expand_scarfield_geodesic_isometry,
+    initialize_cayley_flow_as_nonsaddle_identity_,
+    lift_kalman_bus_state_isometric,
 )
 from scar_field.macro_scout_fleet import (
     GeodesicMergeTelemetry,
@@ -81,7 +92,7 @@ from scar_field.triton_kernels import (
     tsallis15_spherical_cap_probs_fast,
 )
 
-__version__ = "9.0.0"
+__version__ = "9.1.0"
 
 __all__ = [
     "BatchedE8LinearBank",
@@ -90,6 +101,7 @@ __all__ = [
     "ByteShockFrontEnd",
     "ChannelSelectiveKalmanScarBus",
     "E8SphericalLinear",
+    "ElasticCapacityGear",
     "GeodesicMergeTelemetry",
     "HAS_TRITON",
     "HorizonCulledSymplecticGenerator",
@@ -97,6 +109,8 @@ __all__ = [
     "MacroBatchSpec",
     "MacroScoutGeodesicFleet",
     "MacroScoutSpec",
+    "MoSGeodesicDomainBank",
+    "MoSSymplecticDomainSpecialist",
     "PackedE8TernaryMatrix",
     "ReversibleSymplecticCayleyFlow",
     "RiemannianMuon",
@@ -133,9 +147,13 @@ __all__ = [
     "compute_proper_time",
     "conway_sloane_e8_cuda_fast",
     "encode_sft_dialogue_bytes_and_mask",
+    "expand_e8_linear_isometric_",
+    "expand_scarfield_geodesic_isometry",
     "format_scarfield_chat_turn",
     "fwht64_rademacher",
     "heal_all_e8_scars",
+    "initialize_cayley_flow_as_nonsaddle_identity_",
+    "lift_kalman_bus_state_isometric",
     "multiscale_wave_superpose_fast",
     "pack_ternary_2bit",
     "project_rows_to_unit_sphere",

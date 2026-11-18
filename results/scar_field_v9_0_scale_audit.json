@@ -1,0 +1,461 @@
+{
+  "suite": "scar_field_v9_0_scale_audit",
+  "version": "9.0.0",
+  "hardware": "NVIDIA A100-SXM4-40GB",
+  "gpu_total_vram_gib": 39.49,
+  "triton_enabled": true,
+  "webgpu_port_status": "Deferred intentionally per AGENTS.md §3 until post-v9.0 operator graph freeze",
+  "stage_1_sovereign_60m_v9_0": {
+    "spherical_params": 59984935,
+    "sfield_scar_bytes": 9990144,
+    "sfield_scar_mib": 9.527,
+    "biorth_buckets": 16,
+    "biorth_total_slots": 512,
+    "o1_constant_state_bytes": 1408096,
+    "o1_constant_state_mib": 1.343,
+    "enable_percept_s1_gate": true,
+    "m4_vectorized_step_ms_b16_t384": 689.82,
+    "m4_speedup_vs_v7_3_x": 2.66,
+    "m4_peak_vram_gib": 18.16,
+    "m4_oom_retries": 0,
+    "completed_v9_0_steps": 2208,
+    "selected_bytes": 18087936,
+    "prerolled_long_passkey_bytes": 33030144,
+    "mmap_c_simd_cosine": 0.997888,
+    "heldout_open_domain_metrics": {
+      "pt": {
+        "scarfield_v9_0_scale": {
+          "eval_bytes": 30640,
+          "calibrated_bpb": 2.4265,
+          "train_escape_lambda": 0.01588,
+          "in_cap_coverage_pct": 95.54,
+          "top1_byte_acc_pct": 55.6,
+          "top5_byte_acc_pct": 82.93,
+          "exact_zero_sparsity_pct": 95.83
+        },
+        "dense_fp16_ot": {
+          "eval_bytes": 30640,
+          "bpb": 3.5408,
+          "top1_byte_acc_pct": 27.06,
+          "top5_byte_acc_pct": 67.08,
+          "exact_zero_sparsity_pct": 0.0
+        }
+      },
+      "en": {
+        "scarfield_v9_0_scale": {
+          "eval_bytes": 30640,
+          "calibrated_bpb": 1.9706,
+          "train_escape_lambda": 0.01327,
+          "in_cap_coverage_pct": 96.88,
+          "top1_byte_acc_pct": 63.68,
+          "top5_byte_acc_pct": 86.33,
+          "exact_zero_sparsity_pct": 96.3
+        },
+        "dense_fp16_ot": {
+          "eval_bytes": 30640,
+          "bpb": 3.6623,
+          "top1_byte_acc_pct": 24.95,
+          "top5_byte_acc_pct": 65.59,
+          "exact_zero_sparsity_pct": 0.0
+        }
+      },
+      "es": {
+        "scarfield_v9_0_scale": {
+          "eval_bytes": 30640,
+          "calibrated_bpb": 2.4519,
+          "train_escape_lambda": 0.02067,
+          "in_cap_coverage_pct": 95.06,
+          "top1_byte_acc_pct": 56.23,
+          "top5_byte_acc_pct": 82.63,
+          "exact_zero_sparsity_pct": 95.77
+        },
+        "dense_fp16_ot": {
+          "eval_bytes": 30640,
+          "bpb": 3.5145,
+          "top1_byte_acc_pct": 26.8,
+          "top5_byte_acc_pct": 69.19,
+          "exact_zero_sparsity_pct": 0.0
+        }
+      },
+      "fr": {
+        "scarfield_v9_0_scale": {
+          "eval_bytes": 30640,
+          "calibrated_bpb": 2.3524,
+          "train_escape_lambda": 0.01338,
+          "in_cap_coverage_pct": 95.42,
+          "top1_byte_acc_pct": 58.02,
+          "top5_byte_acc_pct": 83.65,
+          "exact_zero_sparsity_pct": 96.01
+        },
+        "dense_fp16_ot": {
+          "eval_bytes": 30640,
+          "bpb": 3.5395,
+          "top1_byte_acc_pct": 28.18,
+          "top5_byte_acc_pct": 66.33,
+          "exact_zero_sparsity_pct": 0.0
+        }
+      },
+      "code": {
+        "scarfield_v9_0_scale": {
+          "eval_bytes": 30640,
+          "calibrated_bpb": 1.6668,
+          "train_escape_lambda": 0.02219,
+          "in_cap_coverage_pct": 96.72,
+          "top1_byte_acc_pct": 72.16,
+          "top5_byte_acc_pct": 88.46,
+          "exact_zero_sparsity_pct": 96.35
+        },
+        "dense_fp16_ot": {
+          "eval_bytes": 30640,
+          "bpb": 3.4925,
+          "top1_byte_acc_pct": 36.56,
+          "top5_byte_acc_pct": 65.48,
+          "exact_zero_sparsity_pct": 0.0
+        }
+      }
+    },
+    "long_horizon_passkey_up_to_t16384": {
+      "scarfield_v9_0_bucketed_512": {
+        "T=128": {
+          "seq_len_bytes": 128,
+          "exact_3digit_acc": 1.0,
+          "per_digit_acc": 1.0
+        },
+        "T=512": {
+          "seq_len_bytes": 512,
+          "exact_3digit_acc": 1.0,
+          "per_digit_acc": 1.0
+        },
+        "T=1024": {
+          "seq_len_bytes": 1024,
+          "exact_3digit_acc": 1.0,
+          "per_digit_acc": 1.0
+        },
+        "T=2048": {
+          "seq_len_bytes": 2048,
+          "exact_3digit_acc": 0.9062,
+          "per_digit_acc": 0.9583
+        },
+        "T=3072": {
+          "seq_len_bytes": 3072,
+          "exact_3digit_acc": 0.875,
+          "per_digit_acc": 0.9583
+        },
+        "T=4096": {
+          "seq_len_bytes": 4096,
+          "exact_3digit_acc": 0.4062,
+          "per_digit_acc": 0.7812
+        },
+        "T=8192": {
+          "seq_len_bytes": 8192,
+          "exact_3digit_acc": 0.1562,
+          "per_digit_acc": 0.5729
+        },
+        "T=16384": {
+          "seq_len_bytes": 16384,
+          "exact_3digit_acc": 0.0625,
+          "per_digit_acc": 0.5208
+        }
+      },
+      "scarfield_ablation_flat_48": {
+        "T=128": {
+          "seq_len_bytes": 128,
+          "exact_3digit_acc": 1.0,
+          "per_digit_acc": 1.0
+        },
+        "T=512": {
+          "seq_len_bytes": 512,
+          "exact_3digit_acc": 1.0,
+          "per_digit_acc": 1.0
+        },
+        "T=1024": {
+          "seq_len_bytes": 1024,
+          "exact_3digit_acc": 0.9688,
+          "per_digit_acc": 0.9896
+        },
+        "T=2048": {
+          "seq_len_bytes": 2048,
+          "exact_3digit_acc": 0.7812,
+          "per_digit_acc": 0.9167
+        },
+        "T=3072": {
+          "seq_len_bytes": 3072,
+          "exact_3digit_acc": 0.5938,
+          "per_digit_acc": 0.8333
+        },
+        "T=4096": {
+          "seq_len_bytes": 4096,
+          "exact_3digit_acc": 0.25,
+          "per_digit_acc": 0.5208
+        },
+        "T=8192": {
+          "seq_len_bytes": 8192,
+          "exact_3digit_acc": 0.0312,
+          "per_digit_acc": 0.2188
+        },
+        "T=16384": {
+          "seq_len_bytes": 16384,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0417
+        }
+      },
+      "scarfield_ablation_no_biorth": {
+        "T=128": {
+          "seq_len_bytes": 128,
+          "exact_3digit_acc": 1.0,
+          "per_digit_acc": 1.0
+        },
+        "T=512": {
+          "seq_len_bytes": 512,
+          "exact_3digit_acc": 1.0,
+          "per_digit_acc": 1.0
+        },
+        "T=1024": {
+          "seq_len_bytes": 1024,
+          "exact_3digit_acc": 0.9688,
+          "per_digit_acc": 0.9792
+        },
+        "T=2048": {
+          "seq_len_bytes": 2048,
+          "exact_3digit_acc": 0.4375,
+          "per_digit_acc": 0.75
+        },
+        "T=3072": {
+          "seq_len_bytes": 3072,
+          "exact_3digit_acc": 0.125,
+          "per_digit_acc": 0.5521
+        },
+        "T=4096": {
+          "seq_len_bytes": 4096,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.3021
+        },
+        "T=8192": {
+          "seq_len_bytes": 8192,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.1354
+        },
+        "T=16384": {
+          "seq_len_bytes": 16384,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0208
+        }
+      },
+      "dense_fp16_ot": {
+        "T=128": {
+          "seq_len_bytes": 128,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0833
+        },
+        "T=512": {
+          "seq_len_bytes": 512,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0625
+        },
+        "T=1024": {
+          "seq_len_bytes": 1024,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0104
+        },
+        "T=2048": {
+          "seq_len_bytes": 2048,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0208
+        },
+        "T=3072": {
+          "seq_len_bytes": 3072,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0417
+        },
+        "T=4096": {
+          "seq_len_bytes": 4096,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0417
+        },
+        "T=8192": {
+          "seq_len_bytes": 8192,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0312
+        },
+        "T=16384": {
+          "seq_len_bytes": 16384,
+          "exact_3digit_acc": 0.0,
+          "per_digit_acc": 0.0417
+        }
+      }
+    },
+    "multi_turn_o1_unseen_pin_exact_acc": 0.9167,
+    "multi_turn_by_lang_hits": {
+      "pt": 6,
+      "en": 6,
+      "es": 5,
+      "fr": 5
+    },
+    "multi_turn_stutters": 1,
+    "multi_turn_state_bytes_delta": 0,
+    "repeated_digit_stress_acc": 0.875,
+    "heldout_python_code_ast_valid": "2/2",
+    "heldout_python_code_functional_exec_passed": "2/2",
+    "heldout_prose_code_leak_count": 0,
+    "out_of_cone_0x00_vacuum_abstention": "8/8",
+    "chat_and_code_samples": {
+      "pt": [
+        {
+          "prompt": "O que é o ScarField e como sua memória opera?",
+          "reply": "ScarField é uma arquitetura de fontes próprias são próprias para a formação de um sistema isolado numa forma de probabilidade de um sistema ainda probabilidade de um sistema ainda probabilidade de um sistema ainda probabilidade de um sistema ainda probab"
+        },
+        {
+          "prompt": "Qual a diferença entre base ortogonal e biortogonal?",
+          "reply": "Uma base ortogonal é uma arquitetura de um processo que pode ser representada pela propriedade de ser representada por uma função de carga elétrica e diferencial e diferencial."
+        }
+      ],
+      "en": [
+        {
+          "prompt": "What is ScarField and how does its memory scale?",
+          "reply": "ScarField is a pure post-Transformer neural architecture built on 1-bit Gosset E8 spherical weights, reversible symplectic Cayley flows, and simple such as the star in the star in the star."
+        },
+        {
+          "prompt": "Explain how biorthogonal memory improves recall.",
+          "reply": "Biorthogonal memory computes dual read keys K_tilde = (K K^T + lambda I)^-1 K inside a fixed O(1) slot bank, canceling oblique key crosstalk across thousands of bytes."
+        }
+      ],
+      "es": [
+        {
+          "prompt": "¿Qué es ScarField y cómo funciona su memoria?",
+          "reply": "ScarField es una arquitectura neuronal pos-Transformer pura basada en pesos esféricos Gosset E8 de 1 bit, flujos de rayos de diferentes de rayos X e Y permiten la masa de la masa de la masa de la masa de la masa de la masa de la masa de la rayos se desarrolla"
+        }
+      ],
+      "fr": [
+        {
+          "prompt": "Qu'est-ce que ScarField et comment fonctionne sa mémoire ?",
+          "reply": "ScarField est une architecture neuronale post-Transformer pure fondée sur le réseau Gosset E8 à 1 bit, un flot de masse de 1 bit, un flot de masse de 1 bit, un milliard de 1 bit, un milliard de 1 bit, un milliard de 1 bit, un milliard de 1 bit, un milliard"
+        }
+      ],
+      "code": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(u: list[float], v: list[float]) -> float:\n    dot = sum(x * y for x, y in zip(u, v))\n    nu = sum(x * x for x in u) ** 0.5\n    nv = sum(y * y for y in v) ** 0.5\n    return dot / max(1e-12, nu * nv)",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n    while b != 0:\n        a, b = b, a % b\n    return abs(a)",
+          "ast_valid": true,
+          "exec_passed": true
+        }
+      ]
+    }
+  },
+  "stage_2_medium_scale_proof": {
+    "config": {
+      "vocab_size": 256,
+      "d_form": 768,
+      "d_world": 1024,
+      "d_bus": 768,
+      "d_key": 128,
+      "num_subspaces": 16,
+      "ring_len": 64,
+      "repulsive_len": 12,
+      "base_rank": 16,
+      "num_scars": 128,
+      "s1_steps": 1,
+      "s2_steps": 4,
+      "s2_surprise_theta": 0.45,
+      "shock_write_theta": 0.5,
+      "vacuum_kappa": 0.36,
+      "uncertainty_margin_thresh": 0.24,
+      "ghost_jump_candidates": 3,
+      "ghost_jump_gamma": 0.35,
+      "wy_chunk_size": 128,
+      "enable_kalman_fast": true,
+      "wave_lags": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        8,
+        12,
+        16,
+        24
+      ],
+      "num_macro_cycles": 2,
+      "biorth_slots": 512,
+      "biorth_lambda": 0.04,
+      "enable_biorth_uscar": true,
+      "enable_adaptive_cap": true,
+      "scout_g0_theta": 0.38,
+      "antiloop_weight": 0.1,
+      "shock_closure_decay": 0.85,
+      "enable_repeat_phase": true,
+      "biorth_buckets": 16,
+      "enable_percept_s1_gate": true
+    },
+    "spherical_params": 302149543,
+    "param_scale_vs_60m_x": 5.04,
+    "param_scale_vs_dense_33m_x": 9.04,
+    "sfield_scar_bytes": 43566336,
+    "sfield_scar_mib": 41.548,
+    "effective_bits_per_param_total": 1.1535,
+    "training_batch_shape": [
+      8,
+      384
+    ],
+    "training_steps": 220,
+    "training_step_ms": 1138.22,
+    "training_peak_vram_gib": 11.505,
+    "h_form_unit_norm_init_to_final": [
+      1.0,
+      0.999999
+    ],
+    "h_world_unit_norm_init_to_final": [
+      1.0,
+      0.999997
+    ],
+    "val_code_bpb_init_to_final": [
+      7.3229,
+      3.9851
+    ],
+    "interscale_uscar_512d_to_1024d_resonance": 1.0,
+    "interscale_uscar_delta_norm": 2.772157,
+    "interscale_post_0x00_gdpr_residual": 0.0,
+    "mmap_c_simd_cosine": 1.0
+  },
+  "corpus_provenance": [
+    {
+      "domain": "pt",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (PT, 119 topics)",
+      "bytes": 4249767,
+      "sha256": "ea460f0d0fd8573e1560c94c406222e7671e321443034d9deb70030cbd792c2d"
+    },
+    {
+      "domain": "en",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (EN, 119 topics)",
+      "bytes": 1916039,
+      "sha256": "907fe9367adf071491d2dffb66fab116f2666e6ba9b009e4d4ac2ca97656fd81"
+    },
+    {
+      "domain": "es",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (ES, 119 topics)",
+      "bytes": 4345566,
+      "sha256": "9b96915ae3760b0a69e2629a34deb808a9cf92c667e0485fb852c047d8d09c6b"
+    },
+    {
+      "domain": "fr",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (FR, 119 topics)",
+      "bytes": 4780831,
+      "sha256": "cb725ab2505258b6359b63db4ca536825e16cf516c26f648b1fd1f176d53fc75"
+    },
+    {
+      "source": "scar_ecosystem",
+      "bytes": 1028712,
+      "sha256": "ce923802b370439cffcdbd704efd4ff8588b65b784cbb74a8c56ce3de33a1d63"
+    },
+    {
+      "source": "python_stdlib",
+      "bytes": 9478804,
+      "sha256": "098dbb6a3ff63a60bf0944f6d004cef6a87b6da1c8e76ac01df5aa3934163fc5"
+    }
+  ]
+}

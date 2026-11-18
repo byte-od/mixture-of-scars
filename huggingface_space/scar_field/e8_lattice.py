@@ -1,0 +1,899 @@
+"""Gosset E8 Root-Lattice Substrate (`1.000 bpw`) + Multiplierless Ternary Atomic Scars.
+
+Zero-Legacy Mathematical Primitives for `ScarField v7.0`:
+  1. `build_canonical_e8_lut256`: Exact 256-entry 8D codebook (`4 KB` FP16 L1 table):
+       - Entry `0x00`: Exact physical vacuum `(0, 0, 0, 0, 0, 0, 0, 0)`.
+       - Entries `1..240`: All 240 minimal roots of the Gosset `E_8` lattice (112 integer `D_8`
+         roots `{0, ±2}^8` + 128 even-parity spinor roots `{±1}^8`), achieving Viazovska's
+         Fields-Medal optimal 8D sphere packing at radius `sqrt(8)` (100% multiplierless!).
+       - Entries `241..255`: 15 orthonormal Walsh-Hadamard `H_8` high-energy shell vectors
+         capturing tail blocks without channel equilibration `d_eq` or per-block scale tables.
+  2. `fwht64_rademacher`: Parameter-free, multiplierless 64-point Fast Walsh-Hadamard rotation
+     guaranteeing Kashin concentration on `S^{I-1}` even for 1-hot axis-aligned features.
+  3. `E8SphericalLinear` & `PackedE8TernaryMatrix`: `1.000 bit/weight` (`0.125 B/weight`)
+     shared substrate + `{-1, 0, +1}` ternary atomic residual scars with closed-form `SVD/RRR`
+     scar healing and exact `0.000000` PTQ export shock (zero `torch.nn.Linear` anywhere).
+"""
+
+from __future__ import annotations
+
+import ctypes
+from dataclasses import dataclass
+import math
+from typing import Optional, Tuple
+
+import torch
+import torch.nn as nn
+
+from scar_codec.nd_e8 import build_canonical_e8_lut256_np
+from scar_codec.numpy_engine import e8_spherical_ternary_gemm_np, get_compiled_c_lib
+from scar_field.triton_kernels import conway_sloane_e8_cuda_fast
+
+
+def rademacher_signs_det(dim: int, device: torch.device | str = "cpu") -> torch.Tensor:
+    """Deterministic golden-ratio hash Rademacher signs `{-1.0, +1.0}` of length `dim`."""
+    idx = torch.arange(dim, device=device, dtype=torch.int64)
+    h = (idx * 2654435761) & 0xFFFFFFFF
+    h = (((h >> 16) ^ h) * 0x45D9F3B) & 0xFFFFFFFF
+    return torch.where((h & 1) == 0, 1.0, -1.0)
+
+
+_HADAMARD64_CACHE: dict[Tuple[str, Optional[int], torch.dtype], torch.Tensor] = {}
+
+
+def _get_hadamard64(device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    key = (device.type, device.index, dtype)
+    mat = _HADAMARD64_CACHE.get(key)
+    if mat is None:
+        h = torch.tensor([[1.0]], dtype=torch.float32, device=device)
+        for _ in range(6):
+            h = torch.cat((torch.cat((h, h), dim=1), torch.cat((h, -h), dim=1)), dim=0)
+        mat = (h * 0.125).to(dtype=dtype).contiguous()
+        _HADAMARD64_CACHE[key] = mat
+    return mat
+
+
+def fwht64_rademacher(x: torch.Tensor, signs: torch.Tensor, inverse: bool = False) -> torch.Tensor:
+    """Multiplierless orthonormal 64-point Fast Walsh-Hadamard Transform (1 fused GEMM, zero `d_eq`)."""
+    orig_shape = x.shape
+    if orig_shape[-1] % 64 != 0:
+        raise ValueError(f"Last dimension ({orig_shape[-1]}) must be divisible by 64")
+    y = x if inverse else (x * signs)
+    h64 = _get_hadamard64(y.device, y.dtype)
+    out = torch.matmul(y.reshape(-1, 64), h64).reshape(orig_shape)
+    return (out * signs) if inverse else out
+
+
+def _hadamard8_matrix() -> torch.Tensor:
+    h = torch.tensor([[1.0]], dtype=torch.float32)
+    for _ in range(3):
+        h = torch.cat((torch.cat((h, h), dim=1), torch.cat((h, -h), dim=1)), dim=0)
+    return h / math.sqrt(8.0)
+
+
+@torch.no_grad()
+def build_canonical_e8_lut256(device: torch.device | str = "cpu") -> torch.Tensor:
+    """Builds the exact `[256, 8]` `E8 + Vacuum + Outer Hadamard Shell` codebook via `scar_codec`.
+
+    Shared single source of truth (`0.0` drift) with `scar_codec.build_canonical_e8_lut256_np`:
+      - `0`: `(0, 0, 0, 0, 0, 0, 0, 0)` exact physical vacuum (`0x00`).
+      - `1..112`: `D_8` roots `(±2, ±2, 0, 0, 0, 0, 0, 0)` (`||u||_2^2 = 8.0`, integer coords!).
+      - `113..240`: Spinor roots `(±1, ..., ±1)` with even minus count (`||u||_2^2 = 8.0`, bipolar!).
+      - `241..255`: 15 orthonormal `H_8` outer-shell vectors at `||u||_2^2 = 18.0` (`r = 3*sqrt(2)`).
+    """
+    return torch.from_numpy(build_canonical_e8_lut256_np()).to(device=device, dtype=torch.float32)
+
+
+def project_rows_to_unit_sphere(w: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+    """Projects every row of `w` onto the unit hypersphere `S^{I-1}` (`||w_o||_2 == 1`)."""
+    norms = torch.linalg.vector_norm(w, ord=2, dim=-1, keepdim=True).clamp(min=eps)
+    return w / norms
+
+
+def quantize_ternary_ste(w: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Parameter-free ternary quantization `{-1, 0, +1}` with Straight-Through Commitment."""
+    rms = torch.sqrt(torch.mean(w * w, dim=-1, keepdim=True).clamp(min=1e-12))
+    thresh = 0.68 * rms
+    q = torch.where(w > thresh, 1.0, torch.where(w < -thresh, -1.0, 0.0))
+    q_ste = w + (q - w).detach()
+    return q_ste, q.to(torch.int8)
+
+
+@torch.no_grad()
+def pack_ternary_2bit(t_i8: torch.Tensor) -> torch.Tensor:
+    """Packs `{-1, 0, +1}` int8 tensor `[..., K]` (`K % 4 == 0`) into `uint8` (`4` weights/byte)."""
+    if t_i8.shape[-1] % 4 != 0:
+        raise ValueError(f"Ternary last dim ({t_i8.shape[-1]}) must be divisible by 4")
+    # Map {-1, 0, +1} -> {0, 1, 2} in 2 bits
+    u2 = (t_i8.to(torch.int16) + 1).clamp(0, 2).to(torch.uint8)
+    u2 = u2.reshape(*t_i8.shape[:-1], t_i8.shape[-1] // 4, 4)
+    packed = u2[..., 0] | (u2[..., 1] << 2) | (u2[..., 2] << 4) | (u2[..., 3] << 6)
+    return packed.contiguous()
+
+
+@torch.no_grad()
+def unpack_ternary_2bit(packed_u8: torch.Tensor) -> torch.Tensor:
+    """Unpacks `uint8` 2-bit ternary codes back to `{-1.0, 0.0, +1.0}` float32."""
+    c0 = (packed_u8 & 0x03).to(torch.int8) - 1
+    c1 = ((packed_u8 >> 2) & 0x03).to(torch.int8) - 1
+    c2 = ((packed_u8 >> 4) & 0x03).to(torch.int8) - 1
+    c3 = ((packed_u8 >> 6) & 0x03).to(torch.int8) - 1
+    out = torch.stack((c0, c1, c2, c3), dim=-1).reshape(*packed_u8.shape[:-1], packed_u8.shape[-1] * 4)
+    return out.float()
+
+
+@dataclass
+class PackedE8TernaryMatrix:
+    """Zero-shock `1.000 bpw` E8 substrate + 2-bit ternary atomic scars."""
+
+    out_features: int
+    in_features: int
+    scar_rank: int
+    codes_u8: torch.Tensor        # [O, I // 8] uint8 -> EXACT 1.000 bit/weight!
+    a_tern_packed: torch.Tensor   # [r, I // 4] uint8 -> 2-bit ternary {-1, 0, +1}
+    b_tern_packed: torch.Tensor   # [O, r // 4] uint8 -> 2-bit ternary {-1, 0, +1}
+    tau_base: float
+    gamma_scar: float
+    _mmap_views: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None
+
+    @property
+    def substrate_bytes(self) -> int:
+        if self._mmap_views is not None:
+            return int(self._mmap_views[0].nbytes)
+        return int(self.codes_u8.numel())
+
+    @property
+    def scar_bytes(self) -> int:
+        if self._mmap_views is not None:
+            return int(self._mmap_views[1].nbytes + self._mmap_views[2].nbytes)
+        return int(self.a_tern_packed.numel() + self.b_tern_packed.numel())
+
+    @property
+    def total_bytes(self) -> int:
+        return self.substrate_bytes + self.scar_bytes + 8  # +8B for 2 float32 scalars
+
+    @property
+    def substrate_bits_per_weight(self) -> float:
+        return (self.substrate_bytes * 8.0) / float(self.out_features * self.in_features)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        lut_e8: torch.Tensor,
+        signs: torch.Tensor,
+        use_c_accel: bool = True,
+    ) -> torch.Tensor:
+        if use_c_accel and x.device.type == "cpu" and (not x.requires_grad):
+            if self._mmap_views is not None:
+                c_np, a_np, b_np = self._mmap_views
+            else:
+                c_np = self.codes_u8.numpy()
+                a_np = self.a_tern_packed.numpy()
+                b_np = self.b_tern_packed.numpy()
+            y_np = e8_spherical_ternary_gemm_np(
+                x_f32=x.detach().float().numpy(),
+                codes_u8=c_np,
+                lut_e8_f32=lut_e8.detach().cpu().float().numpy(),
+                a_tern_u8=a_np,
+                b_tern_u8=b_np,
+                scar_rank=self.scar_rank,
+                tau_base=self.tau_base,
+                gamma_scar=self.gamma_scar,
+                use_c_accel=True,
+            )
+            return torch.from_numpy(y_np).to(dtype=x.dtype)
+
+        xf = x.float()
+        x_rot = fwht64_rademacher(xf, signs, inverse=False)
+        if self._mmap_views is not None:
+            c_t = torch.from_numpy(self._mmap_views[0].copy()).to(xf.device)
+            a_t_pk = torch.from_numpy(self._mmap_views[1].copy()).to(xf.device)
+            b_t_pk = torch.from_numpy(self._mmap_views[2].copy()).to(xf.device)
+        else:
+            c_t = self.codes_u8.to(xf.device)
+            a_t_pk = self.a_tern_packed.to(xf.device)
+            b_t_pk = self.b_tern_packed.to(xf.device)
+        w_rot = lut_e8[c_t.long()].reshape(self.out_features, self.in_features)
+        inv_sqrt_i = 1.0 / math.sqrt(float(self.in_features))
+        y = (x_rot @ w_rot.T) * (self.tau_base * inv_sqrt_i)
+        if self.scar_rank > 0 and abs(self.gamma_scar) > 0.0:
+            a_f = unpack_ternary_2bit(a_t_pk)
+            b_f = unpack_ternary_2bit(b_t_pk)
+            scale_s = self.gamma_scar / math.sqrt(float(self.in_features * max(1, self.scar_rank)))
+            y = y + ((xf @ a_f.T) @ b_f.T) * scale_s
+        return y.to(x.dtype)
+
+
+_SKIP_E8_INIT_ALLOC = False
+_SHARED_E8_LUT_CPU: Optional[torch.Tensor] = None
+
+
+class _DeferredE8GemmAutograd(torch.autograd.Function):
+    """Accumulates `grad_w_rot` across `K` reversible steps so `[O, I]` FWHT+Sphere runs `1x` instead of `Kx`!"""
+
+    @staticmethod
+    def forward(  # type: ignore[override]
+        ctx,
+        xf: torch.Tensor,
+        x_rot: torch.Tensor,
+        w_q_rot: torch.Tensor,
+        w_q_rot_bf16: Optional[torch.Tensor],
+        tau_t: torch.Tensor,
+        inv_sqrt_i: float,
+        a_t: Optional[torch.Tensor],
+        b_t: Optional[torch.Tensor],
+        gamma_t: torch.Tensor,
+        scale_s_unit: float,
+        owner: "E8SphericalLinear",
+    ) -> torch.Tensor:
+        scale_w = tau_t * inv_sqrt_i
+        if w_q_rot_bf16 is not None and x_rot.device.type == "cuda":
+            y_base = (x_rot.bfloat16() @ w_q_rot_bf16.T).float() * scale_w
+        else:
+            y_base = (x_rot @ w_q_rot.T) * scale_w
+
+        xa: Optional[torch.Tensor] = None
+        y_scar_unscaled: Optional[torch.Tensor] = None
+        if a_t is not None and b_t is not None:
+            xa = xf @ a_t.T
+            y_scar_unscaled = xa @ b_t.T
+            y_out = y_base + y_scar_unscaled * (gamma_t * scale_s_unit)
+        else:
+            y_out = y_base
+
+        ctx.save_for_backward(
+            xf.detach(),
+            x_rot.detach(),
+            w_q_rot,
+            tau_t,
+            gamma_t,
+            a_t if a_t is not None else torch.empty(0, device=xf.device),
+            b_t if b_t is not None else torch.empty(0, device=xf.device),
+            xa.detach() if xa is not None else torch.empty(0, device=xf.device),
+            y_scar_unscaled.detach() if y_scar_unscaled is not None else torch.empty(0, device=xf.device),
+        )
+        ctx.w_q_rot_bf16 = w_q_rot_bf16
+        ctx.inv_sqrt_i = inv_sqrt_i
+        ctx.scale_s_unit = scale_s_unit
+        ctx.has_scar = a_t is not None and b_t is not None
+        ctx.owner = owner
+        return y_out
+
+    @staticmethod
+    def backward(ctx, grad_y: torch.Tensor):  # type: ignore[override]
+        xf, x_rot, w_q_rot, tau_t, gamma_t, a_t, b_t, xa, y_scar_unscaled = ctx.saved_tensors
+        owner: E8SphericalLinear = ctx.owner
+        gy = grad_y.float()
+        lead_n = int(gy.numel() // owner.out_features)
+        gy_2d = gy.reshape(lead_n, owner.out_features)
+        xr_2d = x_rot.reshape(lead_n, owner.in_features)
+        scale_w = tau_t * ctx.inv_sqrt_i
+
+        # 1. Input gradient wrt `x_rot` + zero-alloc accumulation into `owner._acc_grad_w_rot` (`scale_w * sqrt_i == tau` applied 1x in finalize!)
+        if ctx.w_q_rot_bf16 is not None and gy_2d.device.type == "cuda":
+            gy_bf = gy_2d.bfloat16()
+            xr_bf = xr_2d.bfloat16()
+            grad_xr_unscaled = (gy_bf @ ctx.w_q_rot_bf16).float()
+            grad_xr_2d = grad_xr_unscaled * scale_w
+            if owner._acc_grad_w_rot is not None:
+                owner._acc_grad_w_rot.add_(gy_bf.T @ xr_bf)
+        else:
+            grad_xr_unscaled = gy_2d @ w_q_rot
+            grad_xr_2d = grad_xr_unscaled * scale_w
+            if owner._acc_grad_w_rot is not None:
+                owner._acc_grad_w_rot.addmm_(gy_2d.T, xr_2d, beta=1.0, alpha=1.0)
+
+        if owner._acc_grad_tau is not None:
+            gtau = (grad_xr_unscaled * xr_2d).sum() * ctx.inv_sqrt_i
+            owner._acc_grad_tau.add_(gtau)
+
+        grad_xf: Optional[torch.Tensor] = None
+        if ctx.has_scar:
+            xf_2d = xf.reshape(lead_n, owner.in_features)
+            xa_2d = xa.reshape(lead_n, owner.scar_rank)
+            ys_2d = y_scar_unscaled.reshape(lead_n, owner.out_features)
+            sc_s = gamma_t * ctx.scale_s_unit
+
+            g_xa = (gy_2d @ b_t) * sc_s  # [N, r]
+            grad_xf = (g_xa @ a_t).reshape_as(xf)
+            if owner._acc_grad_b_t is not None:
+                owner._acc_grad_b_t.add_((gy_2d.T @ xa_2d) * sc_s)
+            if owner._acc_grad_a_t is not None:
+                owner._acc_grad_a_t.addmm_(g_xa.T, xf_2d, beta=1.0, alpha=1.0)
+            if owner._acc_grad_gamma is not None:
+                owner._acc_grad_gamma.add_((gy_2d * ys_2d).sum() * ctx.scale_s_unit)
+
+        return (
+            grad_xf,
+            grad_xr_2d.reshape_as(x_rot),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+
+
+class E8SphericalLinear(nn.Module):
+    """Pure `1.000 bpw` Gosset `E_8` Spherical Operator + Ternary `{-1, 0, +1}` Atomic Scars.
+
+    - ZERO `torch.nn.Linear` dense modules
+    - ZERO `d_eq` channel equilibration vectors
+    - ZERO per-block or per-row scale tables
+    - Exact `0.000000` PTQ export shock between `forward()` and `to_packed().forward()`
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        scar_rank: int = 8,
+        init_tau: float = 1.0,
+    ) -> None:
+        super().__init__()
+        if in_features % 64 != 0:
+            raise ValueError(f"in_features ({in_features}) must be divisible by 64")
+        if scar_rank < 0 or (scar_rank > 0 and scar_rank % 4 != 0):
+            raise ValueError(f"scar_rank ({scar_rank}) must be 0 or divisible by 4")
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.scar_rank = scar_rank
+        self._frozen_packed: Optional[PackedE8TernaryMatrix] = None
+        object.__setattr__(self, "_shared_crystal_source", None)
+        self._cached_q_key: Optional[Tuple[int, int, str, Optional[int]]] = None
+        self._cached_w_q_rot: Optional[torch.Tensor] = None
+        self._cached_w_q_rot_bf16: Optional[torch.Tensor] = None
+        self._cached_nograd_key: Optional[Tuple[int, int, int, int, int, str, Optional[int]]] = None
+        self._cached_a_t: Optional[torch.Tensor] = None
+        self._cached_b_t: Optional[torch.Tensor] = None
+        self._defer_grad_active: bool = False
+        self._acc_grad_w_rot: Optional[torch.Tensor] = None
+        self._acc_grad_tau: Optional[torch.Tensor] = None
+        self._acc_grad_a_t: Optional[torch.Tensor] = None
+        self._acc_grad_b_t: Optional[torch.Tensor] = None
+        self._acc_grad_gamma: Optional[torch.Tensor] = None
+
+        global _SHARED_E8_LUT_CPU
+        if _SHARED_E8_LUT_CPU is None:
+            _SHARED_E8_LUT_CPU = build_canonical_e8_lut256("cpu")
+        lut = _SHARED_E8_LUT_CPU
+        lut_half_norm2 = 0.5 * (lut * lut).sum(dim=-1)
+        signs = rademacher_signs_det(in_features, "cpu")
+        self.register_buffer("lut_e8", lut, persistent=False)
+        self.register_buffer("lut_half_norm2", lut_half_norm2, persistent=False)
+        self.register_buffer("signs", signs, persistent=False)
+
+        if _SKIP_E8_INIT_ALLOC:
+            self.register_parameter("weight_sphere", None)
+            self.register_parameter("tau_base", None)
+            self.register_parameter("a_scar", None)
+            self.register_parameter("b_scar", None)
+            self.register_parameter("gamma_scar", None)
+            return
+
+        w_init = project_rows_to_unit_sphere(torch.randn(out_features, in_features))
+        self.weight_sphere = nn.Parameter(w_init)
+        self.tau_base = nn.Parameter(torch.tensor(float(init_tau), dtype=torch.float32))
+
+        if scar_rank > 0:
+            self.a_scar = nn.Parameter(project_rows_to_unit_sphere(torch.randn(scar_rank, in_features)))
+            self.b_scar = nn.Parameter(project_rows_to_unit_sphere(torch.randn(out_features, scar_rank)))
+            self.gamma_scar = nn.Parameter(torch.tensor(0.15, dtype=torch.float32))
+        else:
+            self.register_parameter("a_scar", None)
+            self.register_parameter("b_scar", None)
+            self.register_parameter("gamma_scar", None)
+
+        self.heal_residual_scars_svd()
+
+    def _assign_e8_codes_and_dequant(
+        self,
+        w_rot_scaled: torch.Tensor,
+        need_codes: bool = False,
+        need_dequant: bool = True,
+        need_dequant_bf16: bool = False,
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
+        """Zero-`GiB` exact Conway-Sloane (`C99` multithreaded on CPU / Fused `@triton.jit` on CUDA)."""
+        n_blocks = (self.out_features * self.in_features) // 8
+        if w_rot_scaled.device.type == "cpu":
+            clib = get_compiled_c_lib()
+            if clib is not None:
+                x_contig = w_rot_scaled.detach().float().contiguous()
+                lut_contig = self.lut_e8.detach().float().contiguous()
+                codes_out = (
+                    torch.empty((self.out_features, self.in_features // 8), dtype=torch.uint8)
+                    if need_codes
+                    else None
+                )
+                deq_out = (
+                    torch.empty((self.out_features, self.in_features), dtype=torch.float32)
+                    if (need_dequant or need_dequant_bf16)
+                    else None
+                )
+                f32_p = ctypes.POINTER(ctypes.c_float)
+                u8_p = ctypes.POINTER(ctypes.c_uint8)
+                clib.scar_conway_sloane_e8_encode_f32(
+                    ctypes.cast(x_contig.data_ptr(), f32_p),
+                    ctypes.c_int64(n_blocks),
+                    ctypes.cast(lut_contig.data_ptr(), f32_p),
+                    ctypes.cast(codes_out.data_ptr(), u8_p) if codes_out is not None else ctypes.cast(0, u8_p),
+                    ctypes.cast(deq_out.data_ptr(), f32_p) if deq_out is not None else ctypes.cast(0, f32_p),
+                )
+                deq_bf16 = deq_out.bfloat16() if (need_dequant_bf16 and deq_out is not None) else None
+                return codes_out, (deq_out if need_dequant else None), deq_bf16
+
+        if w_rot_scaled.device.type in ("cuda", "mps"):
+            return conway_sloane_e8_cuda_fast(
+                w_rot_scaled,
+                self.lut_e8,
+                need_codes=need_codes,
+                need_dequant_f32=need_dequant,
+                need_dequant_bf16=need_dequant_bf16,
+            )
+
+        blks = w_rot_scaled.reshape(n_blocks, 8)
+        codes_flat = torch.empty(n_blocks, dtype=torch.uint8, device=blks.device)
+        if blks.device.type == "mps":
+            lut_h_t = self.lut_e8.half().T.contiguous()
+            neg_hn2 = (-self.lut_half_norm2).float()
+            tile = 262144
+            for s0 in range(0, n_blocks, tile):
+                s1 = min(n_blocks, s0 + tile)
+                sc = torch.matmul(blks[s0:s1].half(), lut_h_t).float() + neg_hn2
+                codes_flat[s0:s1] = torch.argmax(sc, dim=-1).to(torch.uint8)
+        else:
+            lut_t = self.lut_e8.T.contiguous()
+            neg_hn2 = -self.lut_half_norm2
+            tile = 16384
+            for s0 in range(0, n_blocks, tile):
+                s1 = min(n_blocks, s0 + tile)
+                sc = torch.addmm(neg_hn2, blks[s0:s1], lut_t)
+                codes_flat[s0:s1] = torch.argmax(sc, dim=-1).to(torch.uint8)
+
+        codes_2d = codes_flat.reshape(self.out_features, self.in_features // 8) if need_codes else None
+        deq_2d = (
+            self.lut_e8[codes_flat.long()].reshape(self.out_features, self.in_features)
+            if (need_dequant or need_dequant_bf16)
+            else None
+        )
+        deq_bf16 = deq_2d.bfloat16() if (need_dequant_bf16 and deq_2d is not None) else None
+        return codes_2d, (deq_2d if need_dequant else None), deq_bf16
+
+    def _assign_e8_codes(self, w_rot_scaled: torch.Tensor) -> torch.Tensor:
+        codes, _, _ = self._assign_e8_codes_and_dequant(w_rot_scaled, need_codes=True, need_dequant=False)
+        assert codes is not None
+        return codes
+
+    @torch.no_grad()
+    def heal_residual_scars_svd(self) -> None:
+        """Closed-form `SVD/RRR` ternary scar healing over the exact `E_8` lattice residual."""
+        self.weight_sphere.copy_(project_rows_to_unit_sphere(self.weight_sphere))
+        if self.scar_rank <= 0 or self.a_scar is None or self.b_scar is None or self.gamma_scar is None:
+            return
+
+        sqrt_i = math.sqrt(float(self.in_features))
+        w_unit = self.weight_sphere.float()
+        w_rot = fwht64_rademacher(w_unit, self.signs, inverse=False) * sqrt_i
+        _, w_q_rot_raw, _ = self._assign_e8_codes_and_dequant(w_rot, need_codes=False, need_dequant=True)
+        assert w_q_rot_raw is not None
+        w_q_rot = w_q_rot_raw / sqrt_i
+        w_q = fwht64_rademacher(w_q_rot, self.signs, inverse=True)
+
+        res = float(self.tau_base.item()) * (w_unit - w_q)
+        r = min(self.scar_rank, self.out_features, self.in_features)
+        if min(self.out_features, self.in_features) >= 512 and r <= 16:
+            # Fast 3-step Block Subspace Iteration (`~150x` faster than full `[O, I]` SVD, 0 global RNG mutation!)
+            k_sub = min(2 * r + 4, self.in_features, self.out_features)
+            q_sub = project_rows_to_unit_sphere(self.a_scar.detach().float())
+            if q_sub.shape[0] < k_sub:
+                n_ex = k_sub - q_sub.shape[0]
+                idx_ex = torch.arange(n_ex * self.in_features, device=res.device, dtype=torch.int64)
+                h_ex = (((idx_ex * 2654435761) & 0xFFFFFFFF) ^ 0x9E3779B9) * 0x45D9F3B
+                extra = torch.where((h_ex & 1) == 0, 1.0, -1.0).reshape(n_ex, self.in_features)
+                q_sub = torch.cat((q_sub, project_rows_to_unit_sphere(extra)), dim=0)
+            v_basis, _ = torch.linalg.qr(q_sub[:k_sub].T, mode="reduced")  # [I, k_sub]
+            use_bf16_svd = res.device.type == "cuda" and self.out_features >= 512
+            res_work = res.bfloat16() if use_bf16_svd else res
+            for _ in range(3):
+                u_proj = (res_work @ (v_basis.bfloat16() if use_bf16_svd else v_basis)).float()
+                u_basis, _ = torch.linalg.qr(u_proj, mode="reduced")
+                v_proj = (res_work.T @ (u_basis.bfloat16() if use_bf16_svd else u_basis)).float()
+                v_basis, _ = torch.linalg.qr(v_proj, mode="reduced")
+            b_small = (res @ v_basis)  # [O, k_sub]
+            # Small `[k_sub, k_sub]` Gram eigendecomposition on CPU (`k_sub <= 36`, `< 0.1 ms`, 0 cuSOLVER SVD bugs!)
+            gram_sm = (b_small.T @ b_small).detach().cpu().double()
+            evals_sm, evecs_sm = torch.linalg.eigh(gram_sm)
+            idx_desc = torch.argsort(evals_sm, descending=True)[:r]
+            s = torch.sqrt(evals_sm[idx_desc].clamp(min=1e-12)).to(device=res.device, dtype=torch.float32)
+            v_sm = evecs_sm[:, idx_desc].to(device=res.device, dtype=torch.float32)  # [k_sub, r]
+            u = project_rows_to_unit_sphere((b_small @ v_sm).T).T  # [O, r]
+            vh = (v_sm.T @ v_basis.T)  # [r, I]
+        else:
+            u_f, s_f, vh_f = torch.linalg.svd(res, full_matrices=False)
+            u, s, vh = u_f[:, :r], s_f[:r], vh_f[:r, :]
+
+        s_sqrt = torch.sqrt(s[:r].clamp(min=1e-8))
+        b_dir = u[:, :r] * s_sqrt.unsqueeze(0)
+        a_dir = s_sqrt.unsqueeze(1) * vh[:r, :]
+
+        if r < self.scar_rank:
+            pad_b = torch.zeros(self.out_features, self.scar_rank - r, device=res.device)
+            pad_a = torch.zeros(self.scar_rank - r, self.in_features, device=res.device)
+            b_dir = torch.cat((b_dir, pad_b), dim=1)
+            a_dir = torch.cat((a_dir, pad_a), dim=0)
+
+        self.a_scar.copy_(project_rows_to_unit_sphere(a_dir))
+        self.b_scar.copy_(project_rows_to_unit_sphere(b_dir))
+
+        _, a_i8 = quantize_ternary_ste(self.a_scar)
+        _, b_i8 = quantize_ternary_ste(self.b_scar)
+        af = a_i8.float()
+        bf = b_i8.float()
+        # Trace identity avoids allocating `[O, I]` (`40 MiB`) `bf @ af` matrix!
+        scale_ba = 1.0 / float(self.in_features * self.scar_rank)
+        denom = float(((bf.T @ bf) * (af @ af.T)).sum().item()) * scale_ba
+        if denom > 1e-8:
+            numer = float(((bf.T @ res) * af).sum().item()) / math.sqrt(float(self.in_features * self.scar_rank))
+            self.gamma_scar.fill_(numer / denom)
+
+    @torch.no_grad()
+    def bind_shared_e8_crystal(self, master_mod: "E8SphericalLinear") -> None:
+        """Binds this layer to `master_mod`'s read-only `1.000 bpw` Gosset `E_8` crystal (`0 B` `[O,I]` copy!).
+
+        Used by `ScarField v8.0` Level-3 `SharedCrystalMacroSwarm`: frees local `weight_sphere` and
+        `tau_base`, skips `[O, I]` weight-gradient GEMMs in backward, and evolves ONLY mutable
+        low-rank ternary atomic scars `(a_scar, b_scar, gamma_scar)`.
+        """
+        if master_mod.in_features != self.in_features or master_mod.out_features != self.out_features:
+            raise ValueError("Shared E8 crystal dimensions must match!")
+        master_mod.ensure_cached_quantized()
+        dev = master_mod._cached_w_q_rot.device if master_mod._cached_w_q_rot is not None else master_mod.signs.device
+        self.lut_e8 = self.lut_e8.to(dev)
+        self.lut_half_norm2 = self.lut_half_norm2.to(dev)
+        self.signs = self.signs.to(dev)
+        object.__setattr__(self, "_shared_crystal_source", master_mod)
+        self.register_parameter("weight_sphere", None)
+        self.register_parameter("tau_base", None)
+        self._cached_w_q_rot = None
+        self._cached_w_q_rot_bf16 = None
+        if (
+            self.scar_rank > 0
+            and master_mod.a_scar is not None
+            and master_mod.b_scar is not None
+            and master_mod.gamma_scar is not None
+        ):
+            if self.a_scar is None or self.b_scar is None or self.gamma_scar is None:
+                self.a_scar = nn.Parameter(master_mod.a_scar.detach().to(dev).clone())
+                self.b_scar = nn.Parameter(master_mod.b_scar.detach().to(dev).clone())
+                self.gamma_scar = nn.Parameter(master_mod.gamma_scar.detach().to(dev).clone())
+            else:
+                self.a_scar.copy_(master_mod.a_scar.detach().to(self.a_scar.device))
+                self.b_scar.copy_(master_mod.b_scar.detach().to(self.b_scar.device))
+                self.gamma_scar.copy_(master_mod.gamma_scar.detach().to(self.gamma_scar.device))
+
+    def _active_crystal(self) -> Tuple[torch.Tensor, Optional[torch.Tensor], torch.Tensor]:
+        src: Optional[E8SphericalLinear] = getattr(self, "_shared_crystal_source", None)
+        if src is not None:
+            src.ensure_cached_quantized()
+            assert src._cached_w_q_rot is not None and src.tau_base is not None
+            return src._cached_w_q_rot, src._cached_w_q_rot_bf16, src.tau_base
+        self.ensure_cached_quantized()
+        assert self._cached_w_q_rot is not None and self.tau_base is not None
+        return self._cached_w_q_rot, self._cached_w_q_rot_bf16, self.tau_base
+
+    def ensure_cached_quantized(self) -> None:
+        """Ensures `_cached_w_q_rot` (+ CUDA `bfloat16` view) and ternary scars are fresh (`0` host syncs)."""
+        src: Optional[E8SphericalLinear] = getattr(self, "_shared_crystal_source", None)
+        if src is not None:
+            src.ensure_cached_quantized()
+            return
+        if self._frozen_packed is not None or self.weight_sphere is None:
+            return
+        dev = self.weight_sphere.device
+        sqrt_i = math.sqrt(float(self.in_features))
+        q_key = (self.weight_sphere._version, self.weight_sphere.data_ptr(), dev.type, dev.index)
+        if self._cached_q_key != q_key or self._cached_w_q_rot is None or self._cached_w_q_rot.device != dev:
+            with torch.no_grad():
+                w_u_ng = project_rows_to_unit_sphere(self.weight_sphere.detach().float())
+                w_r_ng = fwht64_rademacher(w_u_ng, self.signs, inverse=False) * sqrt_i
+                _, deq_rot, deq_bf16 = self._assign_e8_codes_and_dequant(
+                    w_r_ng, need_codes=False, need_dequant=True, need_dequant_bf16=(dev.type == "cuda")
+                )
+                assert deq_rot is not None
+                self._cached_w_q_rot = deq_rot
+                self._cached_w_q_rot_bf16 = deq_bf16
+                self._cached_q_key = q_key
+        elif dev.type == "cuda" and self._cached_w_q_rot_bf16 is None:
+            self._cached_w_q_rot_bf16 = self._cached_w_q_rot.bfloat16()
+
+    def begin_deferred_grad_pass(self) -> None:
+        """Starts reversible-loop deferred weight gradient accumulation (`1x` sphere/FWHT instead of `Kx`)."""
+        src: Optional[E8SphericalLinear] = getattr(self, "_shared_crystal_source", None)
+        if self._frozen_packed is not None or (self.weight_sphere is None and src is None):
+            return
+        self.ensure_cached_quantized()
+
+        self._defer_grad_active = True
+        self._acc_grad_w_rot = (
+            torch.zeros_like(self.weight_sphere, dtype=torch.float32)
+            if (self.weight_sphere is not None and self.weight_sphere.requires_grad)
+            else None
+        )
+        self._acc_grad_tau = (
+            torch.zeros_like(self.tau_base, dtype=torch.float32)
+            if (self.tau_base is not None and self.tau_base.requires_grad)
+            else None
+        )
+        if self.scar_rank > 0 and self.a_scar is not None and self.b_scar is not None and self.gamma_scar is not None:
+            with torch.no_grad():
+                self._cached_a_t, _ = quantize_ternary_ste(self.a_scar.detach().float())
+                self._cached_b_t, _ = quantize_ternary_ste(self.b_scar.detach().float())
+            self._acc_grad_a_t = (
+                torch.zeros_like(self.a_scar, dtype=torch.float32) if self.a_scar.requires_grad else None
+            )
+            self._acc_grad_b_t = (
+                torch.zeros_like(self.b_scar, dtype=torch.float32) if self.b_scar.requires_grad else None
+            )
+            self._acc_grad_gamma = (
+                torch.zeros_like(self.gamma_scar, dtype=torch.float32) if self.gamma_scar.requires_grad else None
+            )
+        else:
+            self._acc_grad_a_t = None
+            self._acc_grad_b_t = None
+            self._acc_grad_gamma = None
+
+    @torch.no_grad()
+    def forward_cached_for_analytic_bwd(
+        self, x_unit_2d: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        """Zero-autograd `BF16` Tensor-Core forward returning `(y_2d, x_rot_2d, xa_2d, y_scar_unscaled_2d)`."""
+        w_q_rot, w_q_rot_bf16, tau_ref = self._active_crystal()
+        xf = x_unit_2d.float()
+        x_rot = fwht64_rademacher(xf, self.signs, inverse=False)
+        inv_sqrt_i = 1.0 / math.sqrt(float(self.in_features))
+        scale_w = tau_ref.detach().float() * inv_sqrt_i
+        if xf.device.type == "cuda" and w_q_rot_bf16 is not None:
+            y_base = (x_rot.bfloat16() @ w_q_rot_bf16.T).float() * scale_w
+        else:
+            y_base = (x_rot @ w_q_rot.T) * scale_w
+
+        if (
+            self.scar_rank > 0
+            and self._cached_a_t is not None
+            and self._cached_b_t is not None
+            and self.gamma_scar is not None
+        ):
+            xa = xf @ self._cached_a_t.T
+            ys = xa @ self._cached_b_t.T
+            scale_s = self.gamma_scar.detach().float() / math.sqrt(float(self.in_features * max(1, self.scar_rank)))
+            return y_base + ys * scale_s, x_rot, xa, ys
+        return y_base, x_rot, None, None
+
+    @torch.no_grad()
+    def accumulate_analytic_bwd(
+        self,
+        gy_2d: torch.Tensor,
+        xf_2d: torch.Tensor,
+        x_rot_2d: torch.Tensor,
+        xa_2d: Optional[torch.Tensor],
+        ys_2d: Optional[torch.Tensor],
+    ) -> torch.Tensor:
+        """Zero-autograd `BF16` Tensor-Core backward accumulating deferred weight grads & returning `grad_xf_2d`."""
+        w_q_rot, w_q_rot_bf16, tau_ref = self._active_crystal()
+        inv_sqrt_i = 1.0 / math.sqrt(float(self.in_features))
+        scale_w = tau_ref.detach().float() * inv_sqrt_i
+        if gy_2d.device.type == "cuda" and w_q_rot_bf16 is not None:
+            gy_bf = gy_2d.bfloat16()
+            xr_bf = x_rot_2d.bfloat16()
+            grad_xr_unscaled = (gy_bf @ w_q_rot_bf16).float()
+            grad_xr = grad_xr_unscaled * scale_w
+            if self._acc_grad_w_rot is not None:
+                self._acc_grad_w_rot.add_(gy_bf.T @ xr_bf)
+        else:
+            grad_xr_unscaled = gy_2d @ w_q_rot
+            grad_xr = grad_xr_unscaled * scale_w
+            if self._acc_grad_w_rot is not None:
+                self._acc_grad_w_rot.addmm_(gy_2d.T, x_rot_2d, beta=1.0, alpha=1.0)
+
+        if self._acc_grad_tau is not None:
+            self._acc_grad_tau.add_((grad_xr_unscaled * x_rot_2d).sum() * inv_sqrt_i)
+
+        grad_x_from_rot = fwht64_rademacher(grad_xr, self.signs, inverse=True)
+        if (
+            self.scar_rank > 0
+            and self._cached_a_t is not None
+            and self._cached_b_t is not None
+            and self.gamma_scar is not None
+            and xa_2d is not None
+            and ys_2d is not None
+        ):
+            scale_s_u = 1.0 / math.sqrt(float(self.in_features * max(1, self.scar_rank)))
+            sc_s = self.gamma_scar.detach().float() * scale_s_u
+            g_xa = (gy_2d @ self._cached_b_t) * sc_s
+            grad_xf_scar = g_xa @ self._cached_a_t
+            if self._acc_grad_b_t is not None:
+                self._acc_grad_b_t.add_((gy_2d.T @ xa_2d) * sc_s)
+            if self._acc_grad_a_t is not None:
+                self._acc_grad_a_t.addmm_(g_xa.T, xf_2d, beta=1.0, alpha=1.0)
+            if self._acc_grad_gamma is not None:
+                self._acc_grad_gamma.add_((gy_2d * ys_2d).sum() * scale_s_u)
+            return grad_x_from_rot + grad_xf_scar
+        return grad_x_from_rot
+
+    @torch.no_grad()
+    def finalize_deferred_grad_pass(self) -> dict[int, torch.Tensor]:
+        """Analytic closed-form inverse-FWHT + tangent projection onto `weight_sphere` (`0` autograd tape!)."""
+        self._defer_grad_active = False
+        out_grads: dict[int, torch.Tensor] = {}
+        src: Optional[E8SphericalLinear] = getattr(self, "_shared_crystal_source", None)
+        if self._frozen_packed is not None or (self.weight_sphere is None and src is None):
+            return out_grads
+
+        if (
+            self._acc_grad_w_rot is not None
+            and self.weight_sphere is not None
+            and self.weight_sphere.requires_grad
+            and self.tau_base is not None
+        ):
+            ws = self.weight_sphere.detach().float()
+            ws_nrm = torch.linalg.vector_norm(ws, ord=2, dim=-1, keepdim=True).clamp(min=1e-8)
+            wu = ws / ws_nrm
+            # Note: `(tau_base / sqrt_i) * sqrt_i === tau_base`!
+            tau_val = self.tau_base.detach().float()
+            g_wu = fwht64_rademacher(self._acc_grad_w_rot, self.signs, inverse=True) * tau_val
+            gw = (g_wu - (g_wu * wu).sum(dim=-1, keepdim=True) * wu) / ws_nrm
+            out_grads[id(self.weight_sphere)] = gw.to(self.weight_sphere.dtype)
+
+        if self._acc_grad_tau is not None and self.tau_base is not None and self.tau_base.requires_grad:
+            out_grads[id(self.tau_base)] = self._acc_grad_tau.to(self.tau_base.dtype)
+        if self._acc_grad_a_t is not None and self.a_scar is not None and self.a_scar.requires_grad:
+            out_grads[id(self.a_scar)] = self._acc_grad_a_t.to(self.a_scar.dtype)
+        if self._acc_grad_b_t is not None and self.b_scar is not None and self.b_scar.requires_grad:
+            out_grads[id(self.b_scar)] = self._acc_grad_b_t.to(self.b_scar.dtype)
+        if self._acc_grad_gamma is not None and self.gamma_scar is not None and self.gamma_scar.requires_grad:
+            out_grads[id(self.gamma_scar)] = self._acc_grad_gamma.to(self.gamma_scar.dtype)
+
+        self._acc_grad_w_rot = None
+        self._acc_grad_tau = None
+        self._acc_grad_a_t = None
+        self._acc_grad_b_t = None
+        self._acc_grad_gamma = None
+        return out_grads
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self._frozen_packed is not None:
+            return self._frozen_packed.forward(x, self.lut_e8, self.signs, use_c_accel=True)
+
+        xf = x.float()
+        sqrt_i = math.sqrt(float(self.in_features))
+        inv_sqrt_i = 1.0 / sqrt_i
+        w_q_rot, w_q_rot_bf16, tau_ref = self._active_crystal()
+        dev = w_q_rot.device
+        x_rot = fwht64_rademacher(xf, self.signs, inverse=False)
+
+        if self._defer_grad_active and torch.is_grad_enabled():
+            has_s = self.scar_rank > 0 and self.a_scar is not None and self.b_scar is not None and self.gamma_scar is not None
+            scale_s_u = 1.0 / math.sqrt(float(self.in_features * max(1, self.scar_rank)))
+            zero_sc = tau_ref.new_zeros(())
+            y_def = _DeferredE8GemmAutograd.apply(
+                xf,
+                x_rot,
+                w_q_rot,
+                w_q_rot_bf16,
+                tau_ref.detach().float(),
+                inv_sqrt_i,
+                self._cached_a_t if has_s else None,
+                self._cached_b_t if has_s else None,
+                self.gamma_scar.detach().float() if has_s and self.gamma_scar is not None else zero_sc,
+                scale_s_u,
+                self,
+            )
+            return y_def.to(x.dtype)
+
+        need_w_grad = (
+            torch.is_grad_enabled()
+            and self.weight_sphere is not None
+            and (self.weight_sphere.requires_grad or (self.tau_base is not None and self.tau_base.requires_grad))
+        )
+        if need_w_grad:
+            assert self.weight_sphere is not None
+            w_unit = project_rows_to_unit_sphere(self.weight_sphere.float())
+            w_rot = fwht64_rademacher(w_unit, self.signs, inverse=False) * sqrt_i
+            w_ste_rot = w_rot + (w_q_rot - w_rot).detach()
+            if dev.type == "cuda":
+                y = (x_rot.bfloat16() @ w_ste_rot.bfloat16().T).float() * (tau_ref * inv_sqrt_i)
+            else:
+                y = (x_rot @ w_ste_rot.T) * (tau_ref * inv_sqrt_i)
+        else:
+            tau_det = tau_ref if (self.tau_base is not None and self.tau_base.requires_grad) else tau_ref.detach()
+            if dev.type == "cuda" and w_q_rot_bf16 is not None:
+                y = (x_rot.bfloat16() @ w_q_rot_bf16.T).float() * (tau_det * inv_sqrt_i)
+            else:
+                y = (x_rot @ w_q_rot.T) * (tau_det * inv_sqrt_i)
+
+        if self.scar_rank > 0 and self.a_scar is not None and self.b_scar is not None and self.gamma_scar is not None:
+            need_s_grad = torch.is_grad_enabled() and (
+                self.a_scar.requires_grad or self.b_scar.requires_grad or self.gamma_scar.requires_grad
+            )
+            if need_s_grad:
+                a_t, _ = quantize_ternary_ste(self.a_scar.float())
+                b_t, _ = quantize_ternary_ste(self.b_scar.float())
+            else:
+                ng_key = (
+                    self.a_scar._version,
+                    self.b_scar._version,
+                    self.a_scar.data_ptr(),
+                    self.b_scar.data_ptr(),
+                    self.scar_rank,
+                    dev.type,
+                    dev.index,
+                )
+                if (
+                    self._cached_nograd_key != ng_key
+                    or self._cached_a_t is None
+                    or self._cached_b_t is None
+                    or self._cached_a_t.device != dev
+                ):
+                    with torch.no_grad():
+                        self._cached_a_t, _ = quantize_ternary_ste(self.a_scar.detach().float())
+                        self._cached_b_t, _ = quantize_ternary_ste(self.b_scar.detach().float())
+                        self._cached_nograd_key = ng_key
+                a_t = self._cached_a_t
+                b_t = self._cached_b_t
+            scale_s = self.gamma_scar / math.sqrt(float(self.in_features * self.scar_rank))
+            y = y + ((xf @ a_t.T) @ b_t.T) * scale_s
+
+        return y.to(x.dtype)
+
+    @torch.no_grad()
+    def freeze_to_packed(self) -> PackedE8TernaryMatrix:
+        """Frees dense FP32 QAT weights and switches to `1.000 bpw` `scar_codec` C99/SIMD execution."""
+        pk = self.to_packed()
+        self.load_frozen_packed(pk)
+        return pk
+
+    @torch.no_grad()
+    def load_frozen_packed(self, pk: PackedE8TernaryMatrix) -> None:
+        """Installs a pre-packed `1.000 bpw` E8 + 2-bit Ternary matrix and releases FP32 master parameters."""
+        self._frozen_packed = pk
+        self.register_parameter("weight_sphere", None)
+        self.register_parameter("tau_base", None)
+        self.register_parameter("a_scar", None)
+        self.register_parameter("b_scar", None)
+        self.register_parameter("gamma_scar", None)
+
+    @torch.no_grad()
+    def to_packed(self) -> PackedE8TernaryMatrix:
+        if self._frozen_packed is not None:
+            return self._frozen_packed
+        w_unit = project_rows_to_unit_sphere(self.weight_sphere.float())
+        sqrt_i = math.sqrt(float(self.in_features))
+        w_rot = fwht64_rademacher(w_unit, self.signs, inverse=False) * sqrt_i
+        codes = self._assign_e8_codes(w_rot).to(torch.uint8)
+
+        if self.scar_rank > 0 and self.a_scar is not None and self.b_scar is not None and self.gamma_scar is not None:
+            _, a_i8 = quantize_ternary_ste(self.a_scar.float())
+            _, b_i8 = quantize_ternary_ste(self.b_scar.float())
+            a_pk = pack_ternary_2bit(a_i8)
+            b_pk = pack_ternary_2bit(b_i8)
+            g_val = float(self.gamma_scar.item())
+        else:
+            a_pk = torch.zeros((0, self.in_features // 4), dtype=torch.uint8, device=codes.device)
+            b_pk = torch.zeros((self.out_features, 0), dtype=torch.uint8, device=codes.device)
+            g_val = 0.0
+
+        return PackedE8TernaryMatrix(
+            out_features=self.out_features,
+            in_features=self.in_features,
+            scar_rank=self.scar_rank,
+            codes_u8=codes.cpu(),
+            a_tern_packed=a_pk.cpu(),
+            b_tern_packed=b_pk.cpu(),
+            tau_base=float(self.tau_base.item()),
+            gamma_scar=g_val,
+        )

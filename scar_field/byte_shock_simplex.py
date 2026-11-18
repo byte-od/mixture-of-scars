@@ -140,6 +140,8 @@ class ByteShockFrontEnd(nn.Module):
         wave_lags: Tuple[int, ...] = (1, 2, 3),
         shock_closure_decay: float = 0.0,
         enable_repeat_phase: bool = False,
+        repeat_wrap_form_dim: int = 0,
+        repeat_wrap_world_dim: int = 0,
     ) -> None:
         super().__init__()
         self.d_form = d_form
@@ -148,6 +150,8 @@ class ByteShockFrontEnd(nn.Module):
         self.wave_lags: Tuple[int, ...] = tuple(int(x) for x in wave_lags)
         self.shock_closure_decay: float = float(shock_closure_decay)
         self.enable_repeat_phase: bool = bool(enable_repeat_phase)
+        self.repeat_wrap_form_dim: int = max(0, int(repeat_wrap_form_dim))
+        self.repeat_wrap_world_dim: int = max(0, int(repeat_wrap_world_dim))
 
         self.byte_form_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_form)))
         self.byte_world_poles = nn.Parameter(project_rows_to_unit_sphere(torch.randn(vocab_size, d_world)))
@@ -172,28 +176,33 @@ class ByteShockFrontEnd(nn.Module):
 
         # Causal multi-scale spherical wave superposition via fast `[256, D]` rotated pole gathers (`0` `cat`/`roll`!)
         nw = self.ngram_weights
-        hf_acc = multiscale_wave_superpose_fast(ids, f_poles, nw, self.wave_lags)
-        hw_acc = multiscale_wave_superpose_fast(ids, w_poles, nw, self.wave_lags)
+        hf_acc = multiscale_wave_superpose_fast(ids, f_poles, nw, self.wave_lags, wrap_dim=self.repeat_wrap_form_dim)
+        hw_acc = multiscale_wave_superpose_fast(ids, w_poles, nw, self.wave_lags, wrap_dim=self.repeat_wrap_world_dim)
 
         # Optional Run-Length Orthogonal Phase Harmonics (`enable_repeat_phase`, odd channel shifts `5, 13, 21`):
         # Separates consecutive repeated bytes (`key("=80")` != `key("=800")`, `key("=77")` != `key("=777")`)
         # with `+0 B` state overhead and `0` self-loop traps!
         if self.enable_repeat_phase and seq_len > 1:
+            def _roll_poles(p: torch.Tensor, shift: int, wrap_d: int) -> torch.Tensor:
+                if wrap_d > 0 and wrap_d < p.shape[-1] and (p.shape[-1] % wrap_d == 0):
+                    return torch.roll(p.view(p.shape[0], -1, wrap_d), shifts=shift, dims=-1).reshape_as(p)
+                return torch.roll(p, shifts=shift, dims=-1)
+
             rep1 = (ids[:, 1:] == ids[:, :-1]).unsqueeze(-1).to(hf_acc.dtype)
-            hf_r1 = torch.roll(f_poles, shifts=5, dims=-1)[ids[:, 1:]]
-            hw_r1 = torch.roll(w_poles, shifts=5, dims=-1)[ids[:, 1:]]
+            hf_r1 = _roll_poles(f_poles, 5, self.repeat_wrap_form_dim)[ids[:, 1:]]
+            hw_r1 = _roll_poles(w_poles, 5, self.repeat_wrap_world_dim)[ids[:, 1:]]
             hf_acc[:, 1:, :] = hf_acc[:, 1:, :] + (0.42 * rep1) * hf_r1
             hw_acc[:, 1:, :] = hw_acc[:, 1:, :] + (0.42 * rep1) * hw_r1
             if seq_len > 2:
                 rep2 = rep1[:, 1:, :] * (ids[:, 1:-1] == ids[:, :-2]).unsqueeze(-1).to(hf_acc.dtype)
-                hf_r2 = torch.roll(f_poles, shifts=13, dims=-1)[ids[:, 2:]]
-                hw_r2 = torch.roll(w_poles, shifts=13, dims=-1)[ids[:, 2:]]
+                hf_r2 = _roll_poles(f_poles, 13, self.repeat_wrap_form_dim)[ids[:, 2:]]
+                hw_r2 = _roll_poles(w_poles, 13, self.repeat_wrap_world_dim)[ids[:, 2:]]
                 hf_acc[:, 2:, :] = hf_acc[:, 2:, :] + (0.38 * rep2) * hf_r2
                 hw_acc[:, 2:, :] = hw_acc[:, 2:, :] + (0.38 * rep2) * hw_r2
             if seq_len > 3:
                 rep3 = rep2[:, 1:, :] * (ids[:, 2:-1] == ids[:, 1:-2]).unsqueeze(-1).to(hf_acc.dtype)
-                hf_r3 = torch.roll(f_poles, shifts=21, dims=-1)[ids[:, 3:]]
-                hw_r3 = torch.roll(w_poles, shifts=21, dims=-1)[ids[:, 3:]]
+                hf_r3 = _roll_poles(f_poles, 21, self.repeat_wrap_form_dim)[ids[:, 3:]]
+                hw_r3 = _roll_poles(w_poles, 21, self.repeat_wrap_world_dim)[ids[:, 3:]]
                 hf_acc[:, 3:, :] = hf_acc[:, 3:, :] + (0.34 * rep3) * hf_r3
                 hw_acc[:, 3:, :] = hw_acc[:, 3:, :] + (0.34 * rep3) * hw_r3
 

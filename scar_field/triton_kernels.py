@@ -588,6 +588,7 @@ def multiscale_wave_superpose_fast(
     poles_unit: torch.Tensor,
     ngram_weights: torch.Tensor,
     wave_lags: Sequence[int],
+    wrap_dim: int = 0,
 ) -> torch.Tensor:
     """Vectorized zero-`roll`/zero-`cat` causal multi-scale wave superposition via rotated pole bank!
 
@@ -601,13 +602,19 @@ def multiscale_wave_superpose_fast(
     dim = poles_unit.shape[-1]
     acc = ngram_weights[0] * poles_unit[ids]  # [B, T, D]
     is_default_3 = tuple(wave_lags) == (1, 2, 3)
+    use_sub_wrap = wrap_dim > 0 and wrap_dim < dim and (dim % wrap_dim == 0)
 
     for idx, lag in enumerate(wave_lags, start=1):
         if seq_len <= lag:
             continue
         shift_ch = (idx * 2) if is_default_3 else (lag * 2)
         # Rotate `[256, D]` pole table (`512 KB`) instead of `[B, T, D]` (`75 MB` on 6:1 Scouts!)!
-        p_rot = torch.roll(poles_unit, shifts=shift_ch, dims=-1)
+        if use_sub_wrap:
+            p_rot = torch.roll(poles_unit.view(poles_unit.shape[0], -1, wrap_dim), shifts=shift_ch, dims=-1).reshape_as(
+                poles_unit
+            )
+        else:
+            p_rot = torch.roll(poles_unit, shifts=shift_ch, dims=-1)
         acc[:, lag:, :] = acc[:, lag:, :] + ngram_weights[idx] * p_rot[ids[:, :-lag]]
     return acc
 

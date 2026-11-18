@@ -34,6 +34,7 @@ from scar_field.byte_shock_simplex import (
 )
 from scar_field.cayley_geodesic import ReversibleSymplecticCayleyFlow
 from scar_field.e8_lattice import E8SphericalLinear, PackedE8TernaryMatrix, project_rows_to_unit_sphere
+from scar_field.elastic_mos import ElasticCapacityGear, MoSGeodesicDomainBank
 from scar_field.proper_time_bus import (
     ChannelSelectiveKalmanScarBus,
     KalmanBusState,
@@ -137,6 +138,9 @@ class ScarFieldConfig:
     enable_repeat_phase: bool = False
     biorth_buckets: int = 1
     enable_percept_s1_gate: bool = False
+    proper_time_freq_ref_dim: int = 0
+    proper_time_key_ref_dim: int = 0
+    proper_time_world_ref_dim: int = 0
 
     def __post_init__(self) -> None:
         if isinstance(self.wave_lags, list):
@@ -176,6 +180,8 @@ class ScarFieldEngine(nn.Module):
             wave_lags=c.wave_lags,
             shock_closure_decay=c.shock_closure_decay,
             enable_repeat_phase=c.enable_repeat_phase,
+            repeat_wrap_form_dim=c.proper_time_freq_ref_dim,
+            repeat_wrap_world_dim=c.proper_time_world_ref_dim,
         )
         # Stage 1: Perceptual Cayley Geodesic Flow (refines raw byte wave into sharp semantic queries)
         self.flow_percept = ReversibleSymplecticCayleyFlow(
@@ -201,6 +207,8 @@ class ScarFieldEngine(nn.Module):
             biorth_lambda=c.biorth_lambda,
             enable_biorth_uscar=c.enable_biorth_uscar,
             biorth_buckets=c.biorth_buckets,
+            proper_time_freq_ref_dim=c.proper_time_freq_ref_dim,
+            proper_time_key_ref_dim=c.proper_time_key_ref_dim,
         )
         # Stage 2: Reasoning/Synthesis Cayley Geodesic Flow (`S1` K=1 <-> `S2` K=s2_steps)
         self.flow = ReversibleSymplecticCayleyFlow(
@@ -234,7 +242,42 @@ class ScarFieldEngine(nn.Module):
             vacuum_kappa=c.vacuum_kappa,
             enable_adaptive_cap=c.enable_adaptive_cap,
         )
+        self._active_macro_cycles: int = max(1, int(c.num_macro_cycles))
+        self.mos_domain_bank: Optional[MoSGeodesicDomainBank] = None
         self.assert_zero_legacy_modules()
+
+    def set_capacity_gear(self, gear: Union[str, ElasticCapacityGear]) -> ElasticCapacityGear:
+        """Switches symplectic cycle depth, `S1/S2` sub-steps, and `MoS` `top_k` mid-session (`Delta d_bus = 0`)."""
+        resolved = (
+            ElasticCapacityGear.from_preset(gear, self.cfg.num_macro_cycles)
+            if isinstance(gear, str)
+            else gear
+        )
+        self._active_macro_cycles = max(1, min(int(self.cfg.num_macro_cycles), int(resolved.active_macro_cycles)))
+        self.cfg.s1_steps = max(1, int(resolved.s1_steps))
+        self.cfg.s2_steps = max(self.cfg.s1_steps, int(resolved.s2_steps))
+        self.cfg.enable_percept_s1_gate = bool(resolved.enable_percept_s1_gate)
+        if self.mos_domain_bank is not None:
+            self.mos_domain_bank.top_k = max(1, int(resolved.mos_top_k))
+        return resolved
+
+    def mount_mos_domain_bank(self, bank: MoSGeodesicDomainBank) -> MoSGeodesicDomainBank:
+        """Mounts an on-demand `2-bit` ternary `MoSGeodesicDomainBank` onto the engine."""
+        if bank.d_form != self.cfg.d_form or bank.d_world != self.cfg.d_world or bank.d_bus != self.cfg.d_bus:
+            raise ValueError(
+                f"MoS bank dims ({bank.d_form},{bank.d_world},{bank.d_bus}) != engine dims "
+                f"({self.cfg.d_form},{self.cfg.d_world},{self.cfg.d_bus})"
+            )
+        dev = next(self.parameters()).device
+        self.mos_domain_bank = bank.to(dev)
+        self.assert_zero_legacy_modules()
+        return self.mos_domain_bank
+
+    def unmount_mos_domain_bank(self) -> Optional[MoSGeodesicDomainBank]:
+        """Unmounts the active `MoSGeodesicDomainBank` (`0` residual parameters on base crystal)."""
+        old = self.mos_domain_bank
+        self.mos_domain_bank = None
+        return old
 
     def assert_zero_legacy_modules(self) -> None:
         """Forensic architectural integrity guard: rejects any pre-scar legacy PyTorch layer."""
@@ -346,7 +389,8 @@ class ScarFieldEngine(nn.Module):
             num_steps=self.cfg.s2_steps,
             step_mask=step_mask,
         )
-        if self.extra_flows is not None:
+        n_extra_active = max(0, min(len(self.extra_flows), self._active_macro_cycles - 1)) if self.extra_flows is not None else 0
+        if self.extra_flows is not None and n_extra_active > 0:
             extra_mask = (
                 build_scout_g0_step_mask(
                     surprise,
@@ -358,7 +402,7 @@ class ScarFieldEngine(nn.Module):
                 if adaptive_depth
                 else None
             )
-            for ef in self.extra_flows:
+            for ef in self.extra_flows[:n_extra_active]:
                 hf_out, hw_out = ef(
                     hf_out,
                     hw_out,
@@ -366,6 +410,8 @@ class ScarFieldEngine(nn.Module):
                     num_steps=self.cfg.s2_steps,
                     step_mask=extra_mask,
                 )
+        if self.mos_domain_bank is not None:
+            hf_out, hw_out = self.mos_domain_bank(hf_out, hw_out, bus_ctx)
         scores, max_w_cos = self.head.forward_scores(hf_out, hw_out, bus_ctx=bus_ctx)
         v_pred = self.head.value_judge(hw_out)
         return {
@@ -507,9 +553,12 @@ class ScarFieldEngine(nn.Module):
 
         k_steps = self.cfg.s2_steps if use_s2 else self.cfg.s1_steps
         hf_out, hw_out = self.flow(hf_phased, hw_t, bus_ctx, num_steps=k_steps)
-        if self.extra_flows is not None and not (self.cfg.scout_g0_theta > 0.0 and s_val < self.cfg.scout_g0_theta):
-            for ef in self.extra_flows:
+        n_extra_step = max(0, min(len(self.extra_flows), self._active_macro_cycles - 1)) if self.extra_flows is not None else 0
+        if self.extra_flows is not None and n_extra_step > 0 and not (self.cfg.scout_g0_theta > 0.0 and s_val < self.cfg.scout_g0_theta):
+            for ef in self.extra_flows[:n_extra_step]:
                 hf_out, hw_out = ef(hf_out, hw_out, bus_ctx, num_steps=k_steps)
+        if self.mos_domain_bank is not None:
+            hf_out, hw_out = self.mos_domain_bank(hf_out, hw_out, bus_ctx)
 
         scores, max_w_cos_t = self.head.forward_scores(hf_out, hw_out, bus_ctx=bus_ctx)
         if apply_repulsive_anti_loop:
@@ -785,7 +834,7 @@ class ScarFieldEngine(nn.Module):
             )
 
         for n, p in self.named_parameters():
-            if not any(n.startswith(k + ".") for k in packed):
+            if not n.startswith("mos_domain_bank.") and not any(n.startswith(k + ".") for k in packed):
                 arr = p.detach().cpu().numpy()
                 arrays[f"pole::{n}"] = arr.astype(np.float16) if arr.ndim >= 2 else arr.astype(np.float32)
 
@@ -854,7 +903,7 @@ class ScarFieldEngine(nn.Module):
         other_params = sum(
             p.numel() * 2
             for n, p in self.named_parameters()
-            if not any(n.startswith(k + ".") for k in packed)
+            if not n.startswith("mos_domain_bank.") and not any(n.startswith(k + ".") for k in packed)
         )
         dummy_st = self.init_state(batch_size=1)
         return {

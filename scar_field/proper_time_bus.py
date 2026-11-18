@@ -28,10 +28,25 @@ from scar_field.cayley_geodesic import _halley_spd_inv_direct, c1_spherical_cap_
 from scar_field.e8_lattice import E8SphericalLinear, project_rows_to_unit_sphere
 
 
-def build_proper_time_frequencies(d_form: int, theta_base: float = 1000.0, device: torch.device | str = "cpu") -> torch.Tensor:
+def build_proper_time_frequencies(
+    d_form: int,
+    theta_base: float = 1000.0,
+    device: torch.device | str = "cpu",
+    ref_dim: int = 0,
+) -> torch.Tensor:
     if d_form % 2 != 0:
         raise ValueError(f"d_form ({d_form}) must be even for symplectic 2x2 phase rotation")
     half = d_form // 2
+    if ref_dim > 0 and ref_dim < d_form and (ref_dim % 2 == 0):
+        # Isometric Geodesic Expansion (`Edge -> Core`): keep the first `ref_dim // 2` proper-time
+        # frequencies bit-identical to `Edge`, and populate new planes with interleaved multi-scale frequencies!
+        half_ref = ref_dim // 2
+        idx_ref = torch.arange(0, half_ref, dtype=torch.float32, device=device)
+        freq_ref = 1.0 / (theta_base ** (idx_ref / float(max(1, half_ref))))
+        n_ext = half - half_ref
+        idx_ext = torch.arange(0, n_ext, dtype=torch.float32, device=device) + 0.5
+        freq_ext = 1.0 / (theta_base ** (idx_ext / float(max(1, n_ext))))
+        return torch.cat((freq_ref, freq_ext), dim=0)
     idx = torch.arange(0, half, dtype=torch.float32, device=device)
     return 1.0 / (theta_base ** (idx / float(max(1, half))))
 
@@ -653,6 +668,8 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         biorth_lambda: float = 0.04,
         enable_biorth_uscar: bool = True,
         biorth_buckets: int = 1,
+        proper_time_freq_ref_dim: int = 0,
+        proper_time_key_ref_dim: int = 0,
     ) -> None:
         super().__init__()
         if d_bus % num_subspaces != 0:
@@ -671,6 +688,8 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
         self.biorth_slots = max(0, int(biorth_slots))
         self.biorth_lambda = float(biorth_lambda)
         self.biorth_buckets = max(1, int(biorth_buckets))
+        self.proper_time_freq_ref_dim = max(0, int(proper_time_freq_ref_dim))
+        self.proper_time_key_ref_dim = max(0, int(proper_time_key_ref_dim))
         if self.biorth_slots > 0 and (self.biorth_slots % self.biorth_buckets != 0):
             raise ValueError(
                 f"biorth_slots ({self.biorth_slots}) must be divisible by biorth_buckets ({self.biorth_buckets})"
@@ -697,7 +716,11 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             init_tau=0.45,
         )
 
-        self.register_buffer("inv_freq", build_proper_time_frequencies(d_form), persistent=False)
+        self.register_buffer(
+            "inv_freq",
+            build_proper_time_frequencies(d_form, ref_dim=self.proper_time_freq_ref_dim),
+            persistent=False,
+        )
         self.ring_kappa = nn.Parameter(torch.tensor(0.35, dtype=torch.float32))
         self.tier_mix = nn.Parameter(torch.tensor([1.35, 0.45, 1.0, 0.30], dtype=torch.float32))
         if self.biorth_slots > 0:
@@ -837,10 +860,9 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             kalman_flat = torch.zeros(bsz, seq_len, self.d_bus, dtype=v.dtype, device=dev)
 
         # 2. Fast Sensory Ring Tier B: Proper-time phased local window `[t - ring_len .. t - 1]`
-        q_ring = apply_relativistic_proper_time_phase(q, prop_t, build_proper_time_frequencies(self.d_key, device=dev))
-        k_ring = apply_relativistic_proper_time_phase(
-            k_ctx, prop_t, build_proper_time_frequencies(self.d_key, device=dev)
-        )
+        key_freq_seq = build_proper_time_frequencies(self.d_key, device=dev, ref_dim=self.proper_time_key_ref_dim)
+        q_ring = apply_relativistic_proper_time_phase(q, prop_t, key_freq_seq)
+        k_ring = apply_relativistic_proper_time_phase(k_ctx, prop_t, key_freq_seq)
         v_flat = v.reshape(bsz, seq_len, self.d_bus)
 
         # 2.5. Long-Horizon Biorthogonal Dual Shock Bank (`O(1)` `M_biorth` slots, `K_tilde K^T ≈ I`, `Delta = +0 B`)
@@ -1031,7 +1053,7 @@ class ChannelSelectiveKalmanScarBus(nn.Module):
             kalman_flat = torch.zeros(h_world_t.shape[0], self.d_bus, dtype=v.dtype, device=dev)
 
         # Proper-time phased local ring readout
-        key_freq = build_proper_time_frequencies(self.d_key, device=dev)
+        key_freq = build_proper_time_frequencies(self.d_key, device=dev, ref_dim=self.proper_time_key_ref_dim)
         q_ring = apply_relativistic_proper_time_phase(q, prop_t, key_freq)
         k_ring = apply_relativistic_proper_time_phase(k_ctx, prop_t, key_freq)
         sim_r = torch.matmul(state.ring_keys, q_ring.unsqueeze(-1)).squeeze(-1)  # [B, R]
