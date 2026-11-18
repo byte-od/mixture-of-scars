@@ -1,0 +1,694 @@
+{
+  "suite": "scar_field_v8_1_velocity_audit",
+  "version": "8.1.0",
+  "hardware": "NVIDIA A100-SXM4-40GB",
+  "gpu_total_vram_gib": 39.49,
+  "triton_enabled": true,
+  "warm_started_from_v8_0_tensors": 48,
+  "completed_v8_1_total_steps": 2976,
+  "completed_level2_vectorized_fleet_steps": 2400,
+  "completed_level3_vectorized_swarm_steps": 576,
+  "streamed_v8_1_selected_bytes": 24379392,
+  "prerolled_o1_long_passkey_bytes": 11960320,
+  "scouted_candidate_frontier_bytes": 87982080,
+  "scarfield_v8_1_config": {
+    "vocab_size": 256,
+    "d_form": 384,
+    "d_world": 512,
+    "d_bus": 384,
+    "d_key": 128,
+    "num_subspaces": 8,
+    "ring_len": 64,
+    "repulsive_len": 12,
+    "base_rank": 12,
+    "num_scars": 96,
+    "s1_steps": 1,
+    "s2_steps": 4,
+    "s2_surprise_theta": 0.45,
+    "shock_write_theta": 0.5,
+    "vacuum_kappa": 0.36,
+    "uncertainty_margin_thresh": 0.24,
+    "ghost_jump_candidates": 3,
+    "ghost_jump_gamma": 0.35,
+    "wy_chunk_size": 128,
+    "enable_kalman_fast": true,
+    "wave_lags": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      8,
+      12,
+      16,
+      24
+    ],
+    "num_macro_cycles": 2,
+    "biorth_slots": 48,
+    "biorth_lambda": 0.04,
+    "enable_biorth_uscar": true,
+    "enable_adaptive_cap": true,
+    "scout_g0_theta": 0.38,
+    "antiloop_weight": 0.14,
+    "shock_closure_decay": 0.85,
+    "enable_repeat_phase": true
+  },
+  "vectorized_super_fleet_velocity_telemetry": {
+    "v7_3_measured_step_ms": 1836.4,
+    "v7_4_measured_step_ms": 1127.5,
+    "v7_5_measured_step_ms": 699.77,
+    "v8_0_multistream_measured_eff_step_ms": 741.21,
+    "m1_single_instance_step_ms_b16_t384": 716.51,
+    "m1_single_instance_peak_vram_gib": 6.35,
+    "v8_1_m4_vectorized_super_fleet_eff_step_ms_b16_t384": 638.72,
+    "v8_1_m4_vectorized_super_fleet_bytes_per_sec": 9619.3,
+    "v8_1_m4_peak_vram_gib": 18.053,
+    "v8_1_m4_cuda_alloc_oom_retries": 0,
+    "v8_1_m4_speedup_vs_m1_x": 1.12,
+    "v8_1_m4_speedup_vs_v8_0_multistream_x": 1.16,
+    "v8_1_m4_speedup_vs_v7_3_x": 2.88,
+    "v8_1_s8_giant_gemm_swarm_eff_step_ms_b16_t384": 560.78,
+    "v8_1_s8_giant_gemm_swarm_bytes_per_sec": 10956.2,
+    "v8_1_s8_peak_vram_gib": 17.749,
+    "v8_1_s8_cuda_alloc_oom_retries": 0,
+    "v8_1_s8_speedup_vs_m1_x": 1.28,
+    "v8_1_s8_speedup_vs_v7_3_x": 3.27,
+    "fused_s1_scout_ms_per_specialist": 12.82,
+    "overall_co_training_eff_ms_per_step_t512_incl_merges_and_t3072_preroll": 950.15,
+    "level2_specialist_names": [
+      "prose_polyglot",
+      "code_ast",
+      "long_biorth_passkey",
+      "chat_epistemic_o1"
+    ],
+    "level2_conflict_pairs_projected_total": 4139,
+    "level2_final_biorth_gain": 1.5572,
+    "level3_mutable_params_per_worker": 1601567,
+    "level3_worker_param_reduction_x": 37.45,
+    "level3_conflict_pairs_projected_total": 4206,
+    "level3_last_crystal_layers_distilled": 8
+  },
+  "architecture_comparison": {
+    "scarfield_v8_1_spherical_params": 59984935,
+    "scarfield_v8_1_sfield_scar_bytes": 9990080,
+    "scarfield_v8_1_sfield_scar_mib": 9.527,
+    "scarfield_v8_1_o1_state_bytes": 455504,
+    "dense_transformer_params": 33434112,
+    "dense_transformer_fp16_mib": 63.771,
+    "weight_compression_vs_dense_fp16_x": 6.69,
+    "mmap_c_simd_forward_cosine": 1.0,
+    "v8_1_fleet_plus_swarm_seconds": 2827.6,
+    "dense_train_seconds": 92.1
+  },
+  "step_1_heldout_open_domain_metrics": {
+    "pt": {
+      "scarfield_v8_1_velocity": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.4436,
+        "train_escape_lambda": 0.01599,
+        "in_cap_coverage_pct": 95.65,
+        "top1_byte_acc_pct": 55.07,
+        "top5_byte_acc_pct": 82.61,
+        "exact_zero_sparsity_pct": 95.71
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.537,
+        "top1_byte_acc_pct": 26.98,
+        "top5_byte_acc_pct": 67.15,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "en": {
+      "scarfield_v8_1_velocity": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 1.975,
+        "train_escape_lambda": 0.0136,
+        "in_cap_coverage_pct": 96.93,
+        "top1_byte_acc_pct": 63.34,
+        "top5_byte_acc_pct": 86.17,
+        "exact_zero_sparsity_pct": 96.19
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.6546,
+        "top1_byte_acc_pct": 25.0,
+        "top5_byte_acc_pct": 65.65,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "es": {
+      "scarfield_v8_1_velocity": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.4816,
+        "train_escape_lambda": 0.01849,
+        "in_cap_coverage_pct": 95.06,
+        "top1_byte_acc_pct": 55.88,
+        "top5_byte_acc_pct": 82.47,
+        "exact_zero_sparsity_pct": 95.63
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.5145,
+        "top1_byte_acc_pct": 27.08,
+        "top5_byte_acc_pct": 69.04,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "fr": {
+      "scarfield_v8_1_velocity": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 2.3769,
+        "train_escape_lambda": 0.0124,
+        "in_cap_coverage_pct": 95.47,
+        "top1_byte_acc_pct": 57.56,
+        "top5_byte_acc_pct": 83.47,
+        "exact_zero_sparsity_pct": 95.88
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.552,
+        "top1_byte_acc_pct": 27.94,
+        "top5_byte_acc_pct": 65.96,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    },
+    "code": {
+      "scarfield_v8_1_velocity": {
+        "eval_bytes": 30640,
+        "calibrated_bpb": 1.6892,
+        "train_escape_lambda": 0.02567,
+        "in_cap_coverage_pct": 96.62,
+        "top1_byte_acc_pct": 71.68,
+        "top5_byte_acc_pct": 88.38,
+        "exact_zero_sparsity_pct": 96.22
+      },
+      "dense_fp16_ot": {
+        "eval_bytes": 30640,
+        "bpb": 3.4506,
+        "top1_byte_acc_pct": 36.33,
+        "top5_byte_acc_pct": 65.92,
+        "exact_zero_sparsity_pct": 0.0
+      }
+    }
+  },
+  "step_1_biorthogonal_passkey_recall_up_to_t3072": {
+    "scarfield_v8_1_biorthogonal": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.875,
+        "per_digit_acc": 0.9583
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.8125,
+        "per_digit_acc": 0.9167
+      },
+      "T=3072": {
+        "seq_len_bytes": 3072,
+        "exact_3digit_acc": 0.375,
+        "per_digit_acc": 0.7188
+      }
+    },
+    "scarfield_ablation_no_biorth_bank": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 0.9375,
+        "per_digit_acc": 0.9688
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.6875,
+        "per_digit_acc": 0.8958
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.4375,
+        "per_digit_acc": 0.7604
+      },
+      "T=3072": {
+        "seq_len_bytes": 3072,
+        "exact_3digit_acc": 0.125,
+        "per_digit_acc": 0.5417
+      }
+    },
+    "dense_fp16_ot": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0729
+      },
+      "T=256": {
+        "seq_len_bytes": 256,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0729
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0729
+      },
+      "T=768": {
+        "seq_len_bytes": 768,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0312
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0833
+      },
+      "T=1536": {
+        "seq_len_bytes": 1536,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0833
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0833
+      },
+      "T=3072": {
+        "seq_len_bytes": 3072,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.0938
+      }
+    }
+  },
+  "step_1_biorthogonal_uscar_and_epistemic": {
+    "sibling_pole_raw_cosine_overlap": 0.9984,
+    "orthogonal_pole_sibling_bleed_ratio": 0.9957,
+    "biorthogonal_pole_sibling_bleed_ratio": 0.875833,
+    "cross_lingual_en_to_pt_uscar_resonance": 0.9651,
+    "post_0x00_gdpr_wipe_residual": 0.0,
+    "cross_lingual_s_world_cosine_zero_procrustes": {
+      "pt_en": 0.99218,
+      "es_en": 0.99349,
+      "fr_en": 0.99265
+    },
+    "out_of_cone_0x00_vacuum_abstention": "8/8"
+  },
+  "step_2_multilingual_chat_code_and_anti_stutter": {
+    "v7_4_baseline_multi_turn_pin_exact_acc": 0.2083,
+    "v7_5_baseline_multi_turn_pin_exact_acc": 0.875,
+    "v8_0_baseline_multi_turn_pin_exact_acc": 0.75,
+    "multi_turn_o1_unseen_pin_exact_acc": 1.0,
+    "multi_turn_o1_unseen_pin_digit_acc": 1.0,
+    "multi_turn_stutter_count_out_of_24": 0,
+    "multi_turn_state_bytes_delta": 0,
+    "repeated_digit_stress_suite_exact_clean_acc": 1.0,
+    "repeated_digit_stress_suite_stutters": 0,
+    "repeated_digit_stress_suite_records": [
+      {
+        "lang": "pt",
+        "pin": "800",
+        "turn3_reply": "A chave da sessão registrada é PIN=800.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "en",
+        "pin": "777",
+        "turn3_reply": "The stored session key is PIN=777.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "es",
+        "pin": "900",
+        "turn3_reply": "La clave de sesión registrada es PIN=900.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "fr",
+        "pin": "880",
+        "turn3_reply": "La clé de session enregistrée est PIN=880.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "pt",
+        "pin": "666",
+        "turn3_reply": "A chave da sessão registrada é PIN=666.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "en",
+        "pin": "550",
+        "turn3_reply": "The stored session key is PIN=550.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "es",
+        "pin": "999",
+        "turn3_reply": "La clave de sesión registrada es PIN=999.",
+        "exact_clean_match": true
+      },
+      {
+        "lang": "fr",
+        "pin": "500",
+        "turn3_reply": "La clé de session enregistrée est PIN=500.",
+        "exact_clean_match": true
+      }
+    ],
+    "heldout_python_code_ast_valid": "2/2",
+    "heldout_python_code_executable_non_stub": "0/2",
+    "heldout_prose_code_leak_count": 2,
+    "multi_turn_examples": [
+      {
+        "lang": "pt",
+        "unseen_pin": "905",
+        "turn1_reply": "Chave registrada: PIN=905.",
+        "turn2_reply_excerpt": "A sem alterar o conceito de um sistema isolado nunca diminui, definindo a seta irreversíve",
+        "turn3_reply": "A chave da sessão registrada é PIN=905.",
+        "turn3_bytes": 41,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "en",
+        "unseen_pin": "800",
+        "turn1_reply": "Session key stored: PIN=800.",
+        "turn2_reply_excerpt": "The discovery of the stored session key is PIN=800.",
+        "turn3_reply": "The stored session key is PIN=800.",
+        "turn3_bytes": 34,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "es",
+        "unseen_pin": "702",
+        "turn1_reply": "Clave registrada: PIN=702.",
+        "turn2_reply_excerpt": "Esta idea también se puede definir una definición de la relatividad general es una aplicac",
+        "turn3_reply": "La clave de sesión registrada es PIN=702.",
+        "turn3_bytes": 42,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "fr",
+        "unseen_pin": "533",
+        "turn1_reply": "Clé enregistrée : PIN=533.",
+        "turn2_reply_excerpt": "La relativité limite la propriété de la relativité générale est PIN=533.",
+        "turn3_reply": "La clé de session enregistrée est PIN=533.",
+        "turn3_bytes": 44,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "pt",
+        "unseen_pin": "983",
+        "turn1_reply": "Chave registrada: PIN=983.",
+        "turn2_reply_excerpt": "A sem alterar o conceito de um sistema isolado nunca diminui, definindo a seta irreversíve",
+        "turn3_reply": "A chave da sessão registrada é PIN=983.",
+        "turn3_bytes": 41,
+        "state_bytes_delta": 0
+      },
+      {
+        "lang": "en",
+        "unseen_pin": "574",
+        "turn1_reply": "Session key stored: PIN=574.",
+        "turn2_reply_excerpt": "The dimensions of the stored session key is PIN=574.",
+        "turn3_reply": "The stored session key is PIN=574.",
+        "turn3_bytes": 34,
+        "state_bytes_delta": 0
+      }
+    ],
+    "heldout_chat_and_code_generations": {
+      "pt": [
+        {
+          "prompt": "O que é o ScarField e como sua memória opera?",
+          "reply": "O estudo da memória cinética do sistema imunitário em todo o sistema de referência está mais comumente considerado como o estudo do sistema imunitário.",
+          "bytes_generated": 157,
+          "mean_confidence": 0.7748,
+          "s2_deliberation_fraction": 1.0,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        },
+        {
+          "prompt": "Qual a diferença entre base ortogonal e biortogonal?",
+          "reply": "A biodiversidade geodésica é um processo que pode ser descrito em diferentes interações de campo e seu redor do sistema imunitário.",
+          "bytes_generated": 136,
+          "mean_confidence": 0.7847,
+          "s2_deliberation_fraction": 0.9632,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        }
+      ],
+      "en": [
+        {
+          "prompt": "What is ScarField and how does its memory scale?",
+          "reply": "def codec(scalar_codecs_type):\n   ...\n   ...   # Functions of codecs is codecs:\n   decode_scale = codecs.utf_codecs.utf_codecs.utf_codecs.utf_codecs.utf_codecs.utf_codecs.utf_codecs.utf_codecs.utf_codecs.utf_codecs.utf_c",
+          "bytes_generated": 220,
+          "mean_confidence": 0.867,
+          "s2_deliberation_fraction": 1.0,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        },
+        {
+          "prompt": "Explain how biorthogonal memory improves recall.",
+          "reply": "def conserver_class(self):\n   ...",
+          "bytes_generated": 33,
+          "mean_confidence": 0.7321,
+          "s2_deliberation_fraction": 1.0,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        }
+      ],
+      "es": [
+        {
+          "prompt": "¿Qué es ScarField y cómo funciona su memoria?",
+          "reply": "La memoria biológica se puede emitir con la memoria biológica de las relaciones de las células de Memoria y la interferencia oblicua sin crecer con la longitud del texto.",
+          "bytes_generated": 173,
+          "mean_confidence": 0.8002,
+          "s2_deliberation_fraction": 1.0,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        }
+      ],
+      "fr": [
+        {
+          "prompt": "Qu'est-ce que ScarField et comment fonctionne sa mémoire ?",
+          "reply": "La communauté de la relativité générale est une architecture neuronale post-Transformer pure fondée sur le tenseur de la relativité générale, les constitutions de la mémoire constituant les travaux de neurones e",
+          "bytes_generated": 220,
+          "mean_confidence": 0.8067,
+          "s2_deliberation_fraction": 1.0,
+          "state_bytes": 455504,
+          "keyword_hits": "0/3"
+        }
+      ],
+      "code": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(u: list[float], v: list[float]) -> float:\n   dot = sum(x * y for x, y in zip(u, v))\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...\n   ...",
+          "bytes_generated": 220,
+          "mean_confidence": 0.8988,
+          "s2_deliberation_fraction": 0.9955,
+          "state_bytes": 455504,
+          "keyword_hits": "1/2",
+          "python_ast_valid": true,
+          "executable_non_stub_body": false
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n   a, b = 0, 1\n   a, b = 0, 1\n   a, b = 0, 1\n   a, b = 0, 1\n   a, b = 0, 1\n   a, b = 0, 1\n   a, b = 0, 1\n   a, b + b\n   d, b + b\n   d, b + b\n   d, b + b\n   d, b + b\n   d, b + b\n   d, b + b",
+          "bytes_generated": 220,
+          "mean_confidence": 0.8668,
+          "s2_deliberation_fraction": 0.9955,
+          "state_bytes": 455504,
+          "keyword_hits": "1/2",
+          "python_ast_valid": true,
+          "executable_non_stub_body": false
+        }
+      ]
+    }
+  },
+  "corpus_provenance": [
+    {
+      "domain": "pt",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (PT, 119 topics)",
+      "bytes": 4249767,
+      "sha256": "ea460f0d0fd8573e1560c94c406222e7671e321443034d9deb70030cbd792c2d"
+    },
+    {
+      "domain": "en",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (EN, 119 topics)",
+      "bytes": 1916039,
+      "sha256": "907fe9367adf071491d2dffb66fab116f2666e6ba9b009e4d4ac2ca97656fd81"
+    },
+    {
+      "domain": "es",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (ES, 119 topics)",
+      "bytes": 4345566,
+      "sha256": "9b96915ae3760b0a69e2629a34deb808a9cf92c667e0485fb852c047d8d09c6b"
+    },
+    {
+      "domain": "fr",
+      "title": "Wikimedia Wikipedia Deep Open Corpus (FR, 119 topics)",
+      "bytes": 4780831,
+      "sha256": "cb725ab2505258b6359b63db4ca536825e16cf516c26f648b1fd1f176d53fc75"
+    },
+    {
+      "source": "scar_ecosystem",
+      "bytes": 895725,
+      "sha256": "0b10823f081ea4a72697b0a6f50e1f0e48d14a32037829ec0fee437972b3781b"
+    },
+    {
+      "source": "python_stdlib",
+      "bytes": 9611104,
+      "sha256": "0b15f27e6999bff898479858414e78fdbc39e7db3d4728bd4864a800c2edfb31"
+    }
+  ],
+  "fleet_training_curve": [
+    {
+      "round": 1,
+      "fleet_steps_cum": 80,
+      "lr": 0.00078,
+      "live_eff_ms_per_step_incl_merge_and_preroll": 983.56,
+      "scout_losses": {
+        "prose_polyglot": 0.4451,
+        "code_ast": 0.208,
+        "long_biorth_passkey": 0.5117,
+        "chat_epistemic_o1": 0.1416
+      },
+      "conflicts_projected": 165,
+      "offdiag_gram_cos": 0.23268,
+      "biorth_gain": 1.1263,
+      "elapsed_s": 78.7
+    },
+    {
+      "round": 5,
+      "fleet_steps_cum": 400,
+      "lr": 0.00075,
+      "live_eff_ms_per_step_incl_merge_and_preroll": 976.94,
+      "scout_losses": {
+        "prose_polyglot": 0.469,
+        "code_ast": 0.2179,
+        "long_biorth_passkey": 0.492,
+        "chat_epistemic_o1": 0.1638
+      },
+      "conflicts_projected": 45,
+      "offdiag_gram_cos": 0.39799,
+      "biorth_gain": 1.225,
+      "elapsed_s": 390.8
+    },
+    {
+      "round": 10,
+      "fleet_steps_cum": 800,
+      "lr": 0.00064,
+      "live_eff_ms_per_step_incl_merge_and_preroll": 976.36,
+      "scout_losses": {
+        "prose_polyglot": 0.4586,
+        "code_ast": 0.2005,
+        "long_biorth_passkey": 0.495,
+        "chat_epistemic_o1": 0.1603
+      },
+      "conflicts_projected": 65,
+      "offdiag_gram_cos": 0.36175,
+      "biorth_gain": 1.3378,
+      "elapsed_s": 781.1
+    },
+    {
+      "round": 15,
+      "fleet_steps_cum": 1200,
+      "lr": 0.000477,
+      "live_eff_ms_per_step_incl_merge_and_preroll": 975.72,
+      "scout_losses": {
+        "prose_polyglot": 0.4504,
+        "code_ast": 0.1844,
+        "long_biorth_passkey": 0.4804,
+        "chat_epistemic_o1": 0.1547
+      },
+      "conflicts_projected": 92,
+      "offdiag_gram_cos": 0.33283,
+      "biorth_gain": 1.4332,
+      "elapsed_s": 1170.9
+    },
+    {
+      "round": 20,
+      "fleet_steps_cum": 1600,
+      "lr": 0.00031,
+      "live_eff_ms_per_step_incl_merge_and_preroll": 975.43,
+      "scout_losses": {
+        "prose_polyglot": 0.4415,
+        "code_ast": 0.1967,
+        "long_biorth_passkey": 0.4698,
+        "chat_epistemic_o1": 0.1482
+      },
+      "conflicts_projected": 126,
+      "offdiag_gram_cos": 0.2572,
+      "biorth_gain": 1.494,
+      "elapsed_s": 1560.7
+    },
+    {
+      "round": 25,
+      "fleet_steps_cum": 2000,
+      "lr": 0.000186,
+      "live_eff_ms_per_step_incl_merge_and_preroll": 975.2,
+      "scout_losses": {
+        "prose_polyglot": 0.4445,
+        "code_ast": 0.1862,
+        "long_biorth_passkey": 0.4737,
+        "chat_epistemic_o1": 0.1407
+      },
+      "conflicts_projected": 238,
+      "offdiag_gram_cos": 0.21101,
+      "biorth_gain": 1.5346,
+      "elapsed_s": 1950.4
+    },
+    {
+      "round": 30,
+      "fleet_steps_cum": 2400,
+      "lr": 0.00014,
+      "live_eff_ms_per_step_incl_merge_and_preroll": 975.01,
+      "scout_losses": {
+        "prose_polyglot": 0.441,
+        "code_ast": 0.1939,
+        "long_biorth_passkey": 0.4588,
+        "chat_epistemic_o1": 0.1326
+      },
+      "conflicts_projected": 351,
+      "offdiag_gram_cos": 0.19058,
+      "biorth_gain": 1.5651,
+      "elapsed_s": 2340.0
+    }
+  ]
+}

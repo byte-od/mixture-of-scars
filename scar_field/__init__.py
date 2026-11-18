@@ -1,5 +1,13 @@
-"""ScarField v8.0 — Pure Post-Transformer Geodesic Scar Intelligence & Macro-Scout Fleet Package."""
+"""ScarField v8.1-Velocity — Pure Post-Transformer Geodesic Scar Intelligence & Vectorized Super-Fleet."""
 
+from scar_field.batched_super_fleet import (
+    BatchedE8LinearBank,
+    BatchedRiemannianMuon,
+    BatchedScarFieldSuperEngine,
+    VectorizedMacroScoutFleet,
+    VectorizedRoundBatch,
+    VectorizedSharedCrystalSwarm,
+)
 from scar_field.byte_shock_simplex import (
     ByteShockFrontEnd,
     ScarFieldReflexDecision,
@@ -72,9 +80,12 @@ from scar_field.triton_kernels import (
     tsallis15_spherical_cap_probs_fast,
 )
 
-__version__ = "8.0.0"
+__version__ = "8.1.0"
 
 __all__ = [
+    "BatchedE8LinearBank",
+    "BatchedRiemannianMuon",
+    "BatchedScarFieldSuperEngine",
     "ByteShockFrontEnd",
     "ChannelSelectiveKalmanScarBus",
     "E8SphericalLinear",
@@ -102,6 +113,9 @@ __all__ = [
     "System1CorpusScoutFleet",
     "UScarPoleCartridge",
     "UniversalScarCartridgeStore",
+    "VectorizedMacroScoutFleet",
+    "VectorizedRoundBatch",
+    "VectorizedSharedCrystalSwarm",
     "VirtualGhostJumpDelta",
     "apply_relativistic_proper_time_phase",
     "biorthogonal_conflict_free_tangent_merge",

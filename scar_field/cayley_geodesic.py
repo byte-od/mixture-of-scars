@@ -156,7 +156,11 @@ def cayley_woodbury_step(
         alpha_m = alpha
 
     eye_2r = torch.eye(two_r, dtype=torch.float32, device=xf.device)
-    g_gram = torch.matmul(uv.transpose(-2, -1), uv)  # [..., 2r, 2r]
+    if uv.device.type == "cuda" and not (torch.is_grad_enabled() and uv.requires_grad):
+        uv_bf = uv.bfloat16()
+        g_gram = torch.matmul(uv_bf.transpose(-2, -1), uv_bf).float()
+    else:
+        g_gram = torch.matmul(uv.transpose(-2, -1), uv)  # [..., 2r, 2r]
     g_neg = torch.cat((g_gram[..., :r], -g_gram[..., r:]), dim=-1)
     qt_p = torch.cat((g_neg[..., r:, :], g_neg[..., :r, :]), dim=-2)
     m_mat = eye_2r + alpha_m * qt_p
@@ -166,7 +170,7 @@ def cayley_woodbury_step(
     if torch.is_grad_enabled() and (m_mat.requires_grad or qt_x.requires_grad):
         w_vec = _FastCayleySolveAutograd.apply(m_mat, qt_x, eye_2r)
     elif m_mat.device.type in ("cuda", "mps"):
-        w_vec = torch.matmul(_fast_skew_cayley_inv_cuda(m_mat, eye_2r, n_steps=5), qt_x)
+        w_vec = torch.matmul(_fast_skew_cayley_inv_cuda(m_mat, eye_2r, n_steps=4), qt_x)
     else:
         w_vec = torch.linalg.solve(m_mat, qt_x)
     w_p = torch.cat((w_vec[..., :r, :], -w_vec[..., r:, :]), dim=-2)
@@ -526,39 +530,46 @@ def _invert_and_cayley_adjoint_halfstep(
         alpha = 0.5 * float(dt_sub)
         alpha_m = alpha
 
-    g_gram = torch.matmul(uv.transpose(-2, -1), uv)  # [N, 2r, 2r]
+    if uv.device.type == "cuda":
+        uv_bf = uv.bfloat16()
+        g_gram = torch.matmul(uv_bf.transpose(-2, -1), uv_bf).float()
+    else:
+        g_gram = torch.matmul(uv.transpose(-2, -1), uv)  # [N, 2r, 2r]
     g_neg = torch.cat((g_gram[..., :r], -g_gram[..., r:]), dim=-1)
     qt_p = torch.cat((g_neg[..., r:, :], g_neg[..., :r, :]), dim=-2)
 
+    # Exact Symplectic Lie-Algebra Conjugacy (`M_fwd^{-T} === J M_rev^{-1} J^T`, `2.0x` fewer matrix inversions!):
     m_rev = eye_2r - alpha_m * qt_p
-    m_fwd = eye_2r + alpha_m * qt_p
-    m_both = torch.stack((m_rev, m_fwd), dim=0)  # [2, N, 2r, 2r]
     if yf.device.type in ("cuda", "mps"):
-        inv_both = _fast_skew_cayley_inv_cuda(m_both, eye_2r, n_steps=5)
+        m_rev_inv = _fast_skew_cayley_inv_cuda(m_rev, eye_2r, n_steps=4)
     else:
-        inv_both = torch.linalg.inv(m_both)
-    m_rev_inv = inv_both[0]
-    m_fwd_inv = inv_both[1]
+        m_rev_inv = torch.linalg.inv(m_rev)
 
-    # 1. Exact state reversal: w_fwd === M_rev^{-1} Q^T y === M_fwd^{-1} Q^T x === Q^T ((x + y) / 2)!
-    uvt_y = torch.matmul(uv.transpose(-2, -1), yf.unsqueeze(-1))  # [N, 2r, 1]
-    qt_y = torch.cat((uvt_y[:, r:, :], uvt_y[:, :r, :]), dim=1)
-    w_fwd = torch.matmul(m_rev_inv, qt_y)                         # [N, 2r, 1]
+    # Fuse `uv^T @ [y, gy]` and `m_rev_inv @ [qt_y, jt_gy]` into single `[N, 2r, 2]` matmuls!
+    y_gy = torch.stack((yf, gyf), dim=-1)                # [N, D, 2]
+    uvt_both = torch.matmul(uv.transpose(-2, -1), y_gy)  # [N, 2r, 2]
+    rhs_both = torch.cat((uvt_both[:, r:, :], uvt_both[:, :r, :]), dim=1)  # `[qt_y, J^T pt_gy]`!
+    sol_both = torch.matmul(m_rev_inv, rhs_both)         # [N, 2r, 2]
+
+    w_fwd = sol_both[:, :, 0:1]
+    mid_z = (-2.0 * alpha_m) * sol_both[:, :, 1:2]
     w_p = torch.cat((w_fwd[:, :r, :], -w_fwd[:, r:, :]), dim=1)
-    x_prev = yf + (2.0 * alpha) * torch.matmul(uv, w_p).squeeze(-1)
+    # `z_vec = J mid_z = [mid_z[r:], -mid_z[:r]]` -> `z_q = [z_vec[r:], z_vec[:r]] = [-mid_z[:r], mid_z[r:]]`!
+    z_q = torch.cat((-mid_z[:, :r, :], mid_z[:, r:, :]), dim=1)
 
-    # 2. Exact Rank-2 midpoint adjoint (0 `grad_p`/`grad_q` `[N, D, 2r]` allocations!)
+    wz_cat = torch.cat((w_p, z_q), dim=-1)               # [N, 2r, 2]
+    uv_wz = torch.matmul(uv, wz_cat)                     # [N, D, 2]
+    x_prev = yf + (2.0 * alpha) * uv_wz[:, :, 0]
+    grad_x = gyf + uv_wz[:, :, 1]
+
     mid = 0.5 * (x_prev + yf)
-    uvt_gy = torch.matmul(uv.transpose(-2, -1), gyf.unsqueeze(-1))
-    pt_gy = torch.cat((uvt_gy[:, :r, :], -uvt_gy[:, r:, :]), dim=1)
-    z_vec = (-2.0 * alpha_m) * torch.matmul(m_fwd_inv.transpose(-2, -1), pt_gy)
-    z_q = torch.cat((z_vec[:, r:, :], z_vec[:, :r, :]), dim=1)
-    grad_x = gyf + torch.matmul(uv, z_q).squeeze(-1)
-
     sum_g = gyf + grad_x
     lhs_2 = torch.stack(((-alpha) * sum_g, mid), dim=-1)  # [N, D, 2]
-    rhs_2 = torch.cat((w_p.transpose(-2, -1), z_q.transpose(-2, -1)), dim=-2)  # [N, 2, 2r]
-    grad_uv = torch.matmul(lhs_2, rhs_2)  # [N, D, 2r]
+    rhs_2 = wz_cat.transpose(-2, -1)                      # [N, 2, 2r]
+    if uv.device.type == "cuda":
+        grad_uv = torch.matmul(lhs_2.bfloat16(), rhs_2.bfloat16()).float()
+    else:
+        grad_uv = torch.matmul(lhs_2, rhs_2)  # [N, D, 2r]
     return x_prev.to(y_cur.dtype), grad_x.to(grad_y.dtype), grad_uv[..., :r], grad_uv[..., r:]
 
 
