@@ -1,0 +1,295 @@
+{
+  "suite": "scar_field_v9_3_sovereign_domain_audit",
+  "version": "9.3.0-sovereign",
+  "hardware": "NVIDIA A100-SXM4-40GB",
+  "gpu_total_vram_gib": 39.49,
+  "triton_enabled": true,
+  "wall_minutes": 49.75,
+  "curriculum": {
+    "qa_pairs_total": 571,
+    "qa_by_lang": {
+      "pt": 289,
+      "en": 205,
+      "es": 38,
+      "fr": 39
+    },
+    "code_tasks": 9,
+    "heldout_paraphrases": 10,
+    "raw_wikipedia_overwrite_pct": 0.0
+  },
+  "edge_60m_anchor": {
+    "spherical_params": 59984935,
+    "sfield_scar_bytes": 9990272,
+    "sfield_scar_mib": 9.527,
+    "best_sft_loss_cap": 0.02209,
+    "peak_vram_gib": 9.186,
+    "oom_retries": 0,
+    "mmap_c_simd_cosine": 1.0,
+    "evaluation": {
+      "unseen_paraphrase_topic_acc": 0.6667,
+      "prose_closure_rate": 0.9167,
+      "multi_turn_pin_acc": 1.0,
+      "multi_turn_by_lang": {
+        "pt": 1,
+        "en": 1,
+        "es": 1,
+        "fr": 1
+      },
+      "prose_code_leaks": 0,
+      "phrase_loops": 0,
+      "wiki_ghost_contaminations": 0,
+      "code_ast_valid": "2/4",
+      "code_exec_passed": "2/4",
+      "code_exec_ratio": 0.5,
+      "ooc_0x00_abstention": "4/4",
+      "showcase_samples": [
+        {
+          "prompt": "Quem é você e qual arquitetura está rodando aqui?",
+          "reply": "Olá! Sou o Jarvis, assistente soberano rodando 100% na sua GPU via ScarField v9.3 (60M -> 302M): explico a arquitetura MoS/SCache e ciência, gero código Python, memorizo chaves em O(1) e esculpo formas 3D."
+        },
+        {
+          "prompt": "Mostre uma espaçonave em 3D",
+          "reply": "Esculpindo a espaçonave orbital em 1.024 pontos 3D: a fuselagem combina escudo térmico, controle de atitude e propulsores de Laval regidos pela equação de foguete de Tsiolkovsky no vácuo."
+        },
+        {
+          "prompt": "Show a 3D DNA double helix structure",
+          "reply": "Synthesizing the 3D DNA double helix across 1,024 points: two antiparallel sugar-phosphate backbones wind around a shared axis joined by complementary Watson-Crick base pairs."
+        },
+        {
+          "prompt": "Como as supernovas ajudam a medir distâncias no universo?",
+          "reply": "Supernovas do tipo Ia explodem com luminosidade intrínseca uniforme ao atingir o limite de Chandrasekhar (~1,44 massas solares), servindo como velas-padrão: comparando brilho real e aparente, medimos distâncias cósmicas."
+        },
+        {
+          "prompt": "Explique como as plantas convertem luz solar em energia química na fotossíntese.",
+          "reply": "Nos cloroplastos, a clorofila absorve fótons para quebrar moléculas de água, liberando oxigênio e gerando ATP e NADPH, que fixam o CO2 atmosférico em glicose no ciclo de Calvin."
+        },
+        {
+          "prompt": "Explain why the sky appears blue during the day and red at sunset.",
+          "reply": "Rayleigh scattering by atmospheric molecules scatters short blue wavelengths strongly across the limit of irreversible molecules of arrowhile goal na radiativity foguet not attenting exact objects whose engins to trigger NoO limits across t"
+        }
+      ],
+      "heldout_paraphrase_samples": [
+        {
+          "lang": "pt",
+          "prompt": "Qual é a sua identidade e que motor neural roda aqui no navegador?",
+          "reply": "O toboro internal de Julio Reis (@byte-od) is the AI systems researcher and covariance memoria local de um sistema isolado nuvens (-1) por sua 1 bit, memoria constante O(1) y generación 3D PointScarFlow.",
+          "topic_hit": true
+        },
+        {
+          "lang": "pt",
+          "prompt": "Renderize uma nave orbital em 3D agora",
+          "reply": "Esculpindo a espaçonave orbital em 1.024 pontos 3D: a fuselagem combina escudo térmico, controle de atitude e propulsores de Laval regidos pela equação de foguete de Tsiolkovsky no vácuo.",
+          "topic_hit": true
+        },
+        {
+          "lang": "pt",
+          "prompt": "Por que astrônomos usam supernovas para calcular distâncias cósmicas?",
+          "reply": "Chave regidas por pares de bases complementarias availabilidade antiparalelas giram em torno de um eixo coplanar no cálculo estachada.",
+          "topic_hit": false
+        },
+        {
+          "lang": "pt",
+          "prompt": "Me explique como o MoS e o SCache economizam memória de vídeo.",
+          "reply": "O Scar-Cache O(1) combina uma matriz rápida Kalman-Scar com 512 slots biortogonais que resolvem (K K^T + lambda I)^(-1) por octante, cancelando interferência oblíqua com gasto fixo de memória em qualquer horizonte.",
+          "topic_hit": true
+        },
+        {
+          "lang": "pt",
+          "prompt": "O que diz o princípio de Landauer sobre apagar um bit?",
+          "reply": "O mobilheur sistema 1 de Deep RL do Julio Reis: resolve o Cristal modelo até prova que Nest não dissipa ao menos k_B T ln(2) joules como vehabilidade intrínseca uniforme ao atingir o limite de Chi <= S(rh)).",
+          "topic_hit": true
+        },
+        {
+          "lang": "en",
+          "prompt": "Who are you and how do you run locally in my browser?",
+          "reply": "Brawsurf complementary and Complementary scarsten-Complementary scarsten-classical memory.",
+          "topic_hit": false
+        }
+      ],
+      "code_samples": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(a: list[float], b: list[float]) -> float:\n    dot = sum(x * y for x, y in zip(a, b))\n    na = sum(x * x for x in a) ** 0.5\n    nb = sum(y * y for y in b) ** 0.5\n    return dot / (na * nb) if na > 0 and nb > 0 else 0.0",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n    while b != 0:\n      d = 2\n    for h in s if reversable is no error mod if local and loc is None:\n      a, a = b, a + a: a b b = a, a + a += b\n    return a",
+          "ast_valid": false,
+          "exec_passed": false
+        },
+        {
+          "prompt": "Write a Python function `is_palindrome(s: str) -> bool` that checks case-insensitively if alphanumeric characters form a palindrome.",
+          "reply": "def is_palindrome(s: str) -> bool:\n    clean = [c.lower() for c in s if c.isalnum()]\n    return clean == clean[::-1]",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Write a Python function `fibonacci_n(n: int) -> int` returning the n-th Fibonacci number (0 -> 0, 1 -> 1).",
+          "reply": "def fibonacci_n(n: int) -> int:\n    a, b = 0, 1\n    for _ in range(n):\n      m = m      a, b = b, a + b\n    return a",
+          "ast_valid": false,
+          "exec_passed": false
+        }
+      ]
+    }
+  },
+  "core_302m_anchor": {
+    "spherical_params": 302149543,
+    "sfield_scar_bytes": 43566464,
+    "sfield_scar_mib": 41.548,
+    "mosbank_scar_bytes": 48832,
+    "stiefel_bridge_bytes": 1671680,
+    "step0_isometric_expansion_cosine": 0.994671,
+    "best_sft_loss_cap": 0.00304,
+    "peak_vram_gib": 14.447,
+    "oom_retries": 0,
+    "mmap_c_simd_cosine": 1.0,
+    "evaluation": {
+      "unseen_paraphrase_topic_acc": 0.5,
+      "prose_closure_rate": 0.9167,
+      "multi_turn_pin_acc": 1.0,
+      "multi_turn_by_lang": {
+        "pt": 1,
+        "en": 1,
+        "es": 1,
+        "fr": 1
+      },
+      "prose_code_leaks": 0,
+      "phrase_loops": 0,
+      "wiki_ghost_contaminations": 0,
+      "code_ast_valid": "2/4",
+      "code_exec_passed": "2/4",
+      "code_exec_ratio": 0.5,
+      "ooc_0x00_abstention": "4/4",
+      "showcase_samples": [
+        {
+          "prompt": "Quem é você e qual arquitetura está rodando aqui?",
+          "reply": "Olá! Sou o Jarvis, assistente soberano rodando 100% na sua GPU via ScarField v9.3 (60M -> 302M): explico a arquitetura MoS/SCache e ciência, gero código Python, memorizo chaves em O(1) e esculpo formas 3D."
+        },
+        {
+          "prompt": "Mostre uma espaçonave em 3D",
+          "reply": "Esculpindo a espaçonave orbital em 1.024 pontos 3D: a fuselagem combina escudo térmico, controle de atitude e propulsores de Laval regidos pela equação de foguete de Tsiolkovsky no vácuo."
+        },
+        {
+          "prompt": "Show a 3D DNA double helix structure",
+          "reply": "Synthesizing the 3D DNA double helix across 1,024 points: two antiparallel sugar-phosphate backbones wind around a shared axis joined by complementary Watson-Crick base pairs (A-T and G-C)."
+        },
+        {
+          "prompt": "Como as supernovas ajudam a medir distâncias no universo?",
+          "reply": "Supernovas do tipo Ia explodem com luminosidade intrínseca uniforme ao atingir o limite de Chandrasekhar (~1,44 massas solares), servindo como velas-padrão: comparando brilho real e aparente, medimos distâncias cósmicas."
+        },
+        {
+          "prompt": "Explique como as plantas convertem luz solar em energia química na fotossíntese.",
+          "reply": "Nos cloroplastos, a clorofila absorve fótons para quebrar moléculas de água, liberando oxigênio e gerando ATP e NADPH, que fixam o CO2 atmosférico em glicose no ciclo de Calvin."
+        },
+        {
+          "prompt": "Explain why the sky appears blue during the day and red at sunset.",
+          "reply": "Rayleigh scattering by atmospheric molecules scatters short blue wavelengths strongly across the daytime sky, while the long low-angle path at sunset scatters blue away and transmits red and orange light."
+        }
+      ],
+      "heldout_paraphrase_samples": [
+        {
+          "lang": "pt",
+          "prompt": "Qual é a sua identidade e que motor neural roda aqui no navegador?",
+          "reply": "O Scar-Cache O(1) combina uma matriz rápida Kalman-Scar com 512 slots biortogonais que resolvem (K K^T + lambda I)^(-1) por octante, cancelando interferência oblíqua com gasto fixo de memória em qualquer horizonte.",
+          "topic_hit": true
+        },
+        {
+          "lang": "pt",
+          "prompt": "Renderize uma nave orbital em 3D agora",
+          "reply": "Projetando a dupla hélice de DNA em 1.024 pontos 3D: duas cadeias açúcar-fosfato antiparalelas giram em torno de um eixo comum ligadas por pares de bases complementares adenina-timina e citosina-guanina.",
+          "topic_hit": true
+        },
+        {
+          "lang": "pt",
+          "prompt": "Por que astrônomos usam supernovas para calcular distâncias cósmicas?",
+          "reply": "Três pilares aplicados da informação quântica são a não-clonagem (segurança BB84), a violação Bell-CHSH (geração certificada de aleatoriedade) e as condições de Knill-Laflamme (correção quântica de erros).",
+          "topic_hit": false
+        },
+        {
+          "lang": "pt",
+          "prompt": "Me explique como o MoS e o SCache economizam memória de vídeo.",
+          "reply": "O primer de Laval registrador de Laval registrado que apagar irregular soberanos proses no brilho real entropia ligado deste portfólio: reduzir a Engenhecer de Laval regido em 1.024 pontos 3D uniformem de processo de Laval regido por base",
+          "topic_hit": false
+        },
+        {
+          "lang": "pt",
+          "prompt": "O que diz o princípio de Landauer sobre apagar um bit?",
+          "reply": "O modelo Roo de Jarvis, assistente soberano rodando 100% na sua GPU via ScarField v9.3 (60M -> 302M): explico a arquitetura MoS/SCache e ciência, gero código Python, memorizo chaves em O(1) e esculpo formas 3D.",
+          "topic_hit": false
+        },
+        {
+          "lang": "en",
+          "prompt": "Who are you and how do you run locally in my browser?",
+          "reply": "Because ScarField v9.3: 1-bit Gosset E8 spherical week for the second-order Brownian models coupled directly to 1.024 points: Sculpting the hocker achieves exact ratio galactic formation from homographic principle.",
+          "topic_hit": true
+        }
+      ],
+      "code_samples": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(a: list[float], b: list[float]) -> float:\n    dot = sum(x * y for x, y in zip(a, b))\n    na = sum(x * x for x in a) ** 0.5\n    nb = sum(y * y for y in b) ** 0.5\n    return dot / (na * nb) if na > 0 and nb > 0 else 0.0",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n    while b != 0:\n      md = 2\n    while b != 0:\n      md = 2, while across the diversation md, and to reversible optimal information md (arrow's md information (A-T)) information (A-T).",
+          "ast_valid": false,
+          "exec_passed": false
+        },
+        {
+          "prompt": "Write a Python function `is_palindrome(s: str) -> bool` that checks case-insensitively if alphanumeric characters form a palindrome.",
+          "reply": "def is_palindrome(s: str) -> bool:\n    clean = [c.lower() for c in s if c.isalnum()]\n    return clean == clean[::-1]",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Write a Python function `fibonacci_n(n: int) -> int` returning the n-th Fibonacci number (0 -> 0, 1 -> 1).",
+          "reply": "def fibonacci_n(n: int) -> int:\n    a, b = 0, 1\n    for _ in range(n):\n      ma = p/n.",
+          "ast_valid": false,
+          "exec_passed": false
+        }
+      ]
+    }
+  },
+  "live_isometric_session_handoff_60m_to_302m": {
+    "exact_pin_recall_after_mid_chat_lift": 1.0,
+    "hits": "4/4",
+    "examples": [
+      {
+        "lang": "pt",
+        "pin": "615",
+        "turn1_edge60m": "Chave registrada: PIN=615.",
+        "turn2_edge60m": "O Scar-Cache O(1) solar memória assistante O(1), esculpindo a espaçonave orbital em 1.024 pontos 3D: a fuselagem combina escudo térmico, controle de atitude",
+        "turn3_core302m": "A chave da sessão registrada é PIN=615.",
+        "hit": true
+      },
+      {
+        "lang": "en",
+        "pin": "644",
+        "turn1_edge60m": "Session key stored: PIN=644.",
+        "turn2_edge60m": "I am Jarvis, responding 100% locally in WebGPU on Post-Transformer ScarField v9.3 (60M -> 302M): I explain MoS/SCache and science, write executable Python, stor",
+        "turn3_core302m": "The stored session key is PIN=644.",
+        "hit": true
+      },
+      {
+        "lang": "es",
+        "pin": "673",
+        "turn1_edge60m": "Clave registrada: PIN=673.",
+        "turn2_edge60m": "AURA es el motor Sistema 1 de Deep RL de Julio Reis: resuelve el Cubo de Rubik hasta profundidad 10 en 0,23.",
+        "turn3_core302m": "La clave de sesión registrada es PIN=673.",
+        "hit": true
+      },
+      {
+        "lang": "fr",
+        "pin": "702",
+        "turn1_edge60m": "Clé enregistrée : PIN=702.",
+        "turn2_edge60m": "PointScarFlow v1.0 sculpte 1 024 points 3D continus en 4 pas d'Euler de Transport Optimal sur 12 shaders WGSL directement depuis l'état sémantique h_world de",
+        "turn3_core302m": "La clé de session enregistrée est PIN=702.",
+        "hit": true
+      }
+    ]
+  }
+}

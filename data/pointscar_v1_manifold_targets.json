@@ -1,0 +1,2629 @@
+[
+  {
+    "index": 0,
+    "capsule_id": "portfolio_agent_identity",
+    "tau": 0.58,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "JARVIS — Sovereign ScarField v9.2-Elastic (60M -> 302M) Portfolio Assistant",
+      "title_pt": "JARVIS — Assistente Soberano ScarField v9.2-Elastic (60M -> 302M) no Navegador",
+      "category": "Agent Identity",
+      "summary": "JARVIS: official client-side AI assistant on Julio Reis's portfolio, executing 100% locally via ScarField v9.2-Elastic (9.53 MiB Edge 60M instant boot -> 41.55 MiB Core 302M live Stiefel upgrade), 12 zero-legacy WGSL 1.0 compute shaders, 512-slot Multi-Bucket Biorthogonal O(1) memory, and PointScarFlow 3D.",
+      "links": [
+        {
+          "label": "GitHub @byte-od",
+          "url": "https://github.com/byte-od",
+          "icon": "github"
+        },
+        {
+          "label": "LinkedIn Julio Reis",
+          "url": "https://linkedin.com/in/juliocrfilho",
+          "icon": "ext"
+        }
+      ],
+      "example_prompt": "Quem é você e qual é o seu nome neste portfólio?",
+      "prompts_polyglot": {
+        "pt": "Quem é você e qual é o seu nome neste portfólio?",
+        "en": "Who are you and what is your name on this portfolio?",
+        "es": "¿Quién eres y cuál es tu nombre en este portafolio?",
+        "fr": "Qui êtes-vous et quel est votre nom sur ce portfolio ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 303,
+      "total_seed_steps": 720
+    }
+  },
+  {
+    "index": 1,
+    "capsule_id": "portfolio_agent_capabilities",
+    "tau": 0.5,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "JARVIS — Zero-Server Privacy, Elastic Capacity Gears & 0x00 GDPR Wipe",
+      "title_pt": "JARVIS — Privacidade Local, Marchas Elásticas & Desaprendizagem 0x00 GDPR",
+      "category": "Agent Identity",
+      "summary": "Combines tabula-rasa Post-Transformer ScarField v9.2 open-world reasoning (zero external API calls, zero BPE, zero O(T) KV cache) with per-query symplectic capacity gears (eco/balanced/deep/frontier) and instantaneous 0x00 cryptographic GDPR erasure across text and 3D PointScarFlow manifolds.",
+      "links": [
+        {
+          "label": "GitHub mixture-of-scars",
+          "url": "https://github.com/byte-od/mixture-of-scars",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "Qual sua última atualização sobre conhecimentos gerais?",
+      "prompts_polyglot": {
+        "pt": "Qual sua última atualização sobre conhecimentos gerais?",
+        "en": "What is your last update or knowledge cutoff on general knowledge?",
+        "es": "¿Cuál es tu última actualización sobre conocimientos generales?",
+        "fr": "Quelle est votre dernière mise à jour sur les connaissances générales ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 393,
+      "total_seed_steps": 522
+    }
+  },
+  {
+    "index": 2,
+    "capsule_id": "portfolio_jarvis_architecture",
+    "tau": 0.48,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "JARVIS Architecture — ScarField v9.2 Gosset E8 (1.0 bpw), 12 WGSL Shaders & O(1) Kalman-Scar",
+      "title_pt": "Arquitetura do JARVIS — ScarField v9.2 Gosset E8 (1.0 bpw), 12 Shaders WGSL & Kalman-Scar O(1)",
+      "category": "Flagship AI Architecture",
+      "summary": "Post-Transformer zero-legacy neural field: 1.000 bpw Gosset E8 lattice + 2-bit ternary scars, reversible symplectic Cayley-Woodbury flow, Tsallis-1.5 sparse cap simplex, 16x32=512 Multi-Bucket Biorthogonal O(1) memory, and live Stiefel Procrustes session promotion from 60M to 302M.",
+      "links": [
+        {
+          "label": "GitHub mixture-of-scars",
+          "url": "https://github.com/byte-od/mixture-of-scars",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "Qual a sua arquitetura?",
+      "prompts_polyglot": {
+        "pt": "Qual a sua arquitetura?",
+        "en": "What is your architecture?",
+        "es": "¿Cuál es tu arquitectura?",
+        "fr": "Quelle est votre architecture ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 394,
+      "total_seed_steps": 506
+    }
+  },
+  {
+    "index": 3,
+    "capsule_id": "portfolio_mos_scache_72b",
+    "tau": 0.48,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Mixture of Scars (72B in 2.40 GB VRAM) & Associative SCache O(1)",
+      "title_pt": "Mixture of Scars (72B em 2.40 GB VRAM) & Memória Associativa SCache O(1)",
+      "category": "Flagship AI Architecture",
+      "summary": "MoS streams 80 layers of 72B LLM geometry in 2.40 GB peak VRAM via Block-64 INT4 + ASVD, while SCache O(1) replaces 32.77 GB KV Cache at 100k tokens with fixed Widrow-Hoff memory.",
+      "links": [
+        {
+          "label": "⚡ Live Colab Proof (72B + SCache)",
+          "url": "https://colab.research.google.com/github/byte-od/mixture-of-scars/blob/main/notebooks/Proof_70B_MoS_on_16GB_GPU.ipynb",
+          "icon": "colab"
+        },
+        {
+          "label": "GitHub mixture-of-scars",
+          "url": "https://github.com/byte-od/mixture-of-scars",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "O que é o Mixture of Scars (MoS) e o SCache e como reduzem o consumo de VRAM?",
+      "prompts_polyglot": {
+        "pt": "O que é o Mixture of Scars (MoS) e o SCache e como reduzem o consumo de VRAM?",
+        "en": "What is Mixture of Scars (MoS) and SCache, and how do they slash VRAM usage?",
+        "es": "¿Qué es Mixture of Scars (MoS) y SCache y cómo reducen el consumo de VRAM?",
+        "fr": "Qu'est-ce que Mixture of Scars (MoS) et SCache et comment réduisent-ils la VRAM ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 668,
+      "total_seed_steps": 842
+    }
+  },
+  {
+    "index": 4,
+    "capsule_id": "portfolio_browser_webgpu_wgsl",
+    "tau": 0.48,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Zero-Legacy WebGPU / WGSL 1.0 Engine (24 Shaders: 12 ScarField + 12 PointScarFlow)",
+      "title_pt": "Motor Nativo WebGPU / WGSL 1.0 Zero-Legado (24 Shaders: 12 ScarField + 12 PointScarFlow)",
+      "category": "Edge & Browser GPU",
+      "summary": "24 custom WGSL 1.0 compute pipelines sharing a single browser GPUDevice: 12 ScarField v9.2 E8/Symplectic/Kalman/Biorthogonal kernels coupled directly to 12 PointScarFlow v1.0 3D OT flow kernels.",
+      "links": [
+        {
+          "label": "GitHub mixture-of-scars",
+          "url": "https://github.com/byte-od/mixture-of-scars",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "Como você roda 100% no navegador via WebGPU/WGSL e baixa cartuchos via HTTP 206?",
+      "prompts_polyglot": {
+        "pt": "Como você roda 100% no navegador via WebGPU/WGSL e baixa cartuchos via HTTP 206?",
+        "en": "How do you run 100% in-browser via WebGPU/WGSL and stream cartridges via HTTP 206?",
+        "es": "¿Cómo funcionas 100% en el navegador con WebGPU/WGSL y cartuchos HTTP 206?",
+        "fr": "Comment fonctionnez-vous 100% dans le navigateur via WebGPU/WGSL et HTTP 206 ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 382,
+      "total_seed_steps": 504
+    }
+  },
+  {
+    "index": 5,
+    "capsule_id": "portfolio_aura_system_one",
+    "tau": 0.48,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "AURA (Universal System 1 Engine — 0.23 ms Deep RL on Rubik's Cube)",
+      "title_pt": "AURA (Motor Universal Sistema 1 — Deep RL em 0.23 ms no Cubo de Rubik)",
+      "category": "Embodied Deep RL",
+      "summary": "Sub-millisecond (0.23 ms CPU P50, zero MCTS) Recurrent PPO + Teacher SIL + Online DPO engine solving Rubik's Cube up to Depth 10 (232.2B states) across 430M+ steps at >20,000 FPS.",
+      "links": [
+        {
+          "label": "GitHub system_one (AURA)",
+          "url": "https://github.com/byte-od/system_one",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "Explique o projeto AURA (Motor Sistema 1 de Deep RL no Cubo de Rubik).",
+      "prompts_polyglot": {
+        "pt": "Explique o projeto AURA (Motor Sistema 1 de Deep RL no Cubo de Rubik).",
+        "en": "Explain the AURA Universal System 1 Deep Reinforcement Learning engine.",
+        "es": "Explica el motor AURA (Sistema 1 de Aprendizaje por Refuerzo en el Cubo de Rubik).",
+        "fr": "Expliquez le moteur AURA (Système 1 d'apprentissage par renforcement sur le Rubik's Cube)."
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 627,
+      "total_seed_steps": 736
+    }
+  },
+  {
+    "index": 6,
+    "capsule_id": "portfolio_tricompass_scouts",
+    "tau": 0.48,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Tri-Compass, Frontier Ghost-Jump Scouts & Soft Sinkhorn ($50k Kaggle)",
+      "title_pt": "Tri-Compass, Batedores Ghost-Jump & Soft Sinkhorn (Kaggle $50k)",
+      "category": "Proprietary Perception",
+      "summary": "Tri-orthogonal perceptual front-end (28 stylometric metrics + Delta-Origin Centering + Golden-Slice MoS) with 300-iter Soft Sinkhorn and >2,000 FPS Ghost-Jump Scouts.",
+      "links": [
+        {
+          "label": "GitHub system_one",
+          "url": "https://github.com/byte-od/system_one",
+          "icon": "github"
+        },
+        {
+          "label": "GitHub mixture-of-scars",
+          "url": "https://github.com/byte-od/mixture-of-scars",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "O que são o Tri-Compass, os Batedores de Fronteira (Ghost-Jump) e o Soft Sinkhorn?",
+      "prompts_polyglot": {
+        "pt": "O que são o Tri-Compass, os Batedores de Fronteira (Ghost-Jump) e o Soft Sinkhorn?",
+        "en": "What are Tri-Compass, Frontier Ghost-Jump Scouts, and Soft Sinkhorn?",
+        "es": "¿Qué son Tri-Compass, los Exploradores Ghost-Jump y el transporte Soft Sinkhorn?",
+        "fr": "Que sont Tri-Compass, les Éclaireurs Ghost-Jump et la calibration Soft Sinkhorn ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 536,
+      "total_seed_steps": 688
+    }
+  },
+  {
+    "index": 7,
+    "capsule_id": "portfolio_contact_hire",
+    "tau": 0.5,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Contact, Global Remote Availability & Relocation (Hire Julio Reis)",
+      "title_pt": "Contato, Contratação & Disponibilidade Global (Falar com Julio Reis)",
+      "category": "Contact & Hiring",
+      "summary": "Available globally for Staff/Principal Systems Architect & Senior LLM/ML Systems Engineer roles (remote or relocation): reisfilho1116@gmail.com | github.com/byte-od | linkedin.com/in/juliocrfilho.",
+      "links": [
+        {
+          "label": "E-mail: reisfilho1116@gmail.com",
+          "url": "mailto:reisfilho1116@gmail.com",
+          "icon": "ext"
+        },
+        {
+          "label": "LinkedIn /in/juliocrfilho",
+          "url": "https://linkedin.com/in/juliocrfilho",
+          "icon": "ext"
+        },
+        {
+          "label": "GitHub @byte-od",
+          "url": "https://github.com/byte-od",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "Como posso entrar em contato ou contratar o Julio Reis (e-mail, LinkedIn e GitHub)?",
+      "prompts_polyglot": {
+        "pt": "Como posso entrar em contato ou contratar o Julio Reis (e-mail, LinkedIn e GitHub)?",
+        "en": "How can I contact or hire Julio Reis (email, LinkedIn, and GitHub)?",
+        "es": "¿Cómo puedo contactar o contratar a Julio Reis (correo, LinkedIn y GitHub)?",
+        "fr": "Comment puis-je contacter ou recruter Julio Reis (e-mail, LinkedIn et GitHub) ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 378,
+      "total_seed_steps": 528
+    }
+  },
+  {
+    "index": 8,
+    "capsule_id": "concept_landauer_principle",
+    "tau": 0.45,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Landauer's Principle (Thermodynamic Cost of Irreversible Bit Erasure)",
+      "title_pt": "Princípio de Landauer (Limite Termodinâmico de Apagamento de 1 Bit)",
+      "category": "Physics of Information",
+      "summary": "Irreversibly erasing 1 bit of information in a thermal bath at temperature T dissipates at least E_min = k_B T ln 2 of heat.",
+      "links": [],
+      "example_prompt": "Me fale sobre o princípio de Landauer na física da informação.",
+      "prompts_polyglot": {
+        "pt": "Me fale sobre o princípio de Landauer na física da informação.",
+        "en": "Explain Landauer's principle in the physics of information.",
+        "es": "Explícame el principio de Landauer en la física de la información.",
+        "fr": "Expliquez le principe de Landauer en physique de l'information."
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 185,
+      "total_seed_steps": 308
+    }
+  },
+  {
+    "index": 9,
+    "capsule_id": "concept_immerman_szelepcsenyi",
+    "tau": 0.54,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Immerman-Szelepcsényi Theorem (NSPACE = co-NSPACE Inductive Counting)",
+      "title_pt": "Teorema de Immerman-Szelepcsényi (NSPACE = co-NSPACE por Contagem Indutiva)",
+      "category": "Computational Complexity",
+      "summary": "Every nondeterministic space class s(n) >= log n is closed under complementation (NL = coNL) via inductive counting of reachable configurations.",
+      "links": [],
+      "example_prompt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de espaço não-determinístico?",
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema de Immerman-Szelepcsényi sobre classes de espaço não-determinístico?",
+        "en": "What does the Immerman-Szelepcsényi theorem prove about nondeterministic space classes?",
+        "es": "¿Qué demuestra el teorema de Immerman-Szelepcsényi sobre la complejidad espacial no determinista?",
+        "fr": "Que démontre le théorème d'Immerman-Szelepcsényi sur les classes d'espace non déterministe ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 200,
+      "total_seed_steps": 380
+    }
+  },
+  {
+    "index": 10,
+    "capsule_id": "concept_boltzmann_constant",
+    "tau": 0.41,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Boltzmann Constant (Exact 2019 SI Definition & Entropy S = k_B ln Ω)",
+      "title_pt": "Constante de Boltzmann (Valor Exato SI 2019 e Entropia S = k_B ln Ω)",
+      "category": "Statistical Physics",
+      "summary": "Exact 2019 SI value k_B = 1.380649e-23 J/K linking temperature T, thermal energy, and S = k_B ln Ω.",
+      "links": [],
+      "example_prompt": "O que é a constante de Boltzmann e onde ela se aplica?",
+      "prompts_polyglot": {
+        "pt": "O que é a constante de Boltzmann e onde ela se aplica?",
+        "en": "What is the Boltzmann constant and where does it apply?",
+        "es": "¿Qué es la constante de Boltzmann y dónde se aplica?",
+        "fr": "Qu'est-ce que la constante de Boltzmann et où s'applique-t-elle ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A constante de Boltzmann é uma constante fundamental da física, igual a 1.380649 × 10^-23 J/K, que une a energia molecular de um sistema",
+        "student_mean_margin": 0.7036,
+        "student_min_margin": 0.0505,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.3524,
+        "mean_top1_agree_72b_3b_4lang": 0.8226,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3292,
+            "top1_agree_72b_3b": 0.8043,
+            "teacher_72b_mean_logprob": -2.5847
+          },
+          "pt": {
+            "bpe_tokens": 49,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.2862,
+            "top1_agree_72b_3b": 0.898,
+            "teacher_72b_mean_logprob": -2.4037
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3727,
+            "top1_agree_72b_3b": 0.8039,
+            "teacher_72b_mean_logprob": -2.5747
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4214,
+            "top1_agree_72b_3b": 0.7843,
+            "teacher_72b_mean_logprob": -2.4582
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 182,
+      "total_seed_steps": 394
+    }
+  },
+  {
+    "index": 11,
+    "capsule_id": "concept_fischer_lynch_paterson",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Fischer–Lynch–Paterson (FLP) Distributed Consensus Impossibility (1985)",
+      "title_pt": "Teorema da Impossibilidade FLP em Consenso Distribuído Assíncrono",
+      "category": "Distributed Systems",
+      "summary": "No deterministic consensus protocol guarantees termination in an asynchronous system under even 1 unannounced crash.",
+      "links": [],
+      "example_prompt": "O que prova o teorema da impossibilidade FLP (Fischer-Lynch-Paterson) em sistemas distribuídos?",
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema da impossibilidade FLP (Fischer-Lynch-Paterson) em sistemas distribuídos?",
+        "en": "What does the Fischer-Lynch-Paterson (FLP) impossibility theorem prove in distributed systems?",
+        "es": "¿Qué demuestra el teorema de imposibilidad FLP (Fischer-Lynch-Paterson) en sistemas distribuidos?",
+        "fr": "Que démontre le théorème d'impossibilité FLP (Fischer-Lynch-Paterson) dans les systèmes distribués ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema da impossibilidade FLP afirma que em sistemas distribuídos, não é possível ter simultaneidade, consistência e tolerância a falhas ao mesmo tempo. Isso significa que em qualquer",
+        "student_mean_margin": 0.6806,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.8156,
+        "mean_top1_agree_72b_3b_4lang": 0.7316,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 29,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6756,
+            "top1_agree_72b_3b": 0.7931,
+            "teacher_72b_mean_logprob": -1.2388
+          },
+          "pt": {
+            "bpe_tokens": 35,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7713,
+            "top1_agree_72b_3b": 0.8,
+            "teacher_72b_mean_logprob": -2.6457
+          },
+          "es": {
+            "bpe_tokens": 36,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8623,
+            "top1_agree_72b_3b": 0.6111,
+            "teacher_72b_mean_logprob": -2.0509
+          },
+          "fr": {
+            "bpe_tokens": 36,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9533,
+            "top1_agree_72b_3b": 0.7222,
+            "teacher_72b_mean_logprob": -1.8483
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 161,
+      "total_seed_steps": 272
+    }
+  },
+  {
+    "index": 12,
+    "capsule_id": "concept_chaitin_incompleteness",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Chaitin's Algorithmic Incompleteness Theorem (Kolmogorov Complexity)",
+      "title_pt": "Teorema da Incompletude Algorítmica de Chaitin (Complexidade de Kolmogorov)",
+      "category": "Algorithmic Information Theory",
+      "summary": "Any consistent formal system F has an explicit constant L_F above which no statement K(x) > L_F is provable.",
+      "links": [],
+      "example_prompt": "O que prova o teorema da incompletude de Chaitin sobre a complexidade de Kolmogorov?",
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema da incompletude de Chaitin sobre a complexidade de Kolmogorov?",
+        "en": "What does Chaitin's incompleteness theorem prove about Kolmogorov complexity?",
+        "es": "¿Qué demuestra el teorema de incompletitud de Chaitin sobre la complejidad de Kolmogórov?",
+        "fr": "Que démontre le théorème d'incomplétude de Chaitin sur la complexité de Kolmogorov ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema da incompletude de Chaitin sobre a complexidade de Kolmogorov afirma que não é possível provar, usando uma teoria de números como a aritmética, que",
+        "student_mean_margin": 0.7017,
+        "student_min_margin": 0.0351,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.8762,
+        "mean_top1_agree_72b_3b_4lang": 0.7184,
+        "live_72b_generated_langs": 3,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 43,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9261,
+            "top1_agree_72b_3b": 0.7209,
+            "teacher_72b_mean_logprob": -2.5358
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8864,
+            "top1_agree_72b_3b": 0.7255,
+            "teacher_72b_mean_logprob": -2.2823
+          },
+          "es": {
+            "bpe_tokens": 49,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8719,
+            "top1_agree_72b_3b": 0.7347,
+            "teacher_72b_mean_logprob": -2.2516
+          },
+          "fr": {
+            "bpe_tokens": 52,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 0.8204,
+            "top1_agree_72b_3b": 0.6923,
+            "teacher_72b_mean_logprob": -2.4984
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 212,
+      "total_seed_steps": 390
+    }
+  },
+  {
+    "index": 13,
+    "capsule_id": "concept_marchenko_pastur_law",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Marchenko–Pastur Spectral Law of Random Sample Covariance Matrices",
+      "title_pt": "Lei Espectral de Marchenko–Pastur para Matrizes Aleatórias de Covariância",
+      "category": "Random Matrix Theory",
+      "summary": "Limiting eigenvalue support lambda_+- = sigma^2 (1 +- sqrt(gamma))^2 for p/n -> gamma Wishart covariance matrices.",
+      "links": [],
+      "example_prompt": "O que estabelece a lei de Marchenko-Pastur na teoria de matrizes aleatórias?",
+      "prompts_polyglot": {
+        "pt": "O que estabelece a lei de Marchenko-Pastur na teoria de matrizes aleatórias?",
+        "en": "What does the Marchenko-Pastur law establish in random matrix theory?",
+        "es": "¿Qué establece la ley de Marchenko-Pastur en la teoría de matrices aleatorias?",
+        "fr": "Qu'établit la loi de Marchenko-Pastur dans la théorie des matrices aléatoires ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A Lei de Marchenko-Pastur é estabelecida na teoria de matrizes aleatórias para descrever a distribuição das menores valências de uma matriz de covariâncias ale",
+        "student_mean_margin": 0.7198,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.8578,
+        "mean_top1_agree_72b_3b_4lang": 0.7218,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7809,
+            "top1_agree_72b_3b": 0.75,
+            "teacher_72b_mean_logprob": -3.6099
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8979,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -2.9166
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9475,
+            "top1_agree_72b_3b": 0.6471,
+            "teacher_72b_mean_logprob": -3.4944
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8049,
+            "top1_agree_72b_3b": 0.7843,
+            "teacher_72b_mean_logprob": -2.8043
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 262,
+      "total_seed_steps": 394
+    }
+  },
+  {
+    "index": 14,
+    "capsule_id": "concept_kabatiansky_levenshtein",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Kabatiansky–Levenshtein High-Dimensional Sphere Packing Bound (1978)",
+      "title_pt": "Cota de Kabatiansky–Levenshtein para Empacotamento Esférico em Alta Dimensão",
+      "category": "Geometry & Coding Theory",
+      "summary": "Upper bound on spherical codes in R^n proving kissing numbers grow at most as 2^{0.4014 n + o(n)}.",
+      "links": [],
+      "example_prompt": "O que prova a cota de Kabatiansky-Levenshtein sobre empacotamento de esferas em alta dimensão?",
+      "prompts_polyglot": {
+        "pt": "O que prova a cota de Kabatiansky-Levenshtein sobre empacotamento de esferas em alta dimensão?",
+        "en": "What does the Kabatiansky-Levenshtein bound prove about high-dimensional sphere packing?",
+        "es": "¿Qué demuestra la cota de Kabatiansky-Levenshtein sobre el empaquetamiento de esferas en alta dimensión?",
+        "fr": "Que démontre la borne de Kabatiansky-Levenshtein sur l'empilement de sphères en grande dimension ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A cota de Kabatiansky-Levenshtein é crucial para entender como empacotar esferas de tamanho fixo em espaços de alta dimensão de maneira eficiente. Ela",
+        "student_mean_margin": 0.7168,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.3859,
+        "mean_top1_agree_72b_3b_4lang": 0.6122,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 41,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2558,
+            "top1_agree_72b_3b": 0.561,
+            "teacher_72b_mean_logprob": -2.4773
+          },
+          "pt": {
+            "bpe_tokens": 47,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3627,
+            "top1_agree_72b_3b": 0.6383,
+            "teacher_72b_mean_logprob": -2.2205
+          },
+          "es": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2371,
+            "top1_agree_72b_3b": 0.7111,
+            "teacher_72b_mean_logprob": -2.0854
+          },
+          "fr": {
+            "bpe_tokens": 39,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.6882,
+            "top1_agree_72b_3b": 0.5385,
+            "teacher_72b_mean_logprob": -2.8494
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 228,
+      "total_seed_steps": 344
+    }
+  },
+  {
+    "index": 15,
+    "capsule_id": "concept_regev_lwe_lattice",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Regev's Quantum Worst-Case Lattice Reduction for Learning With Errors (LWE)",
+      "title_pt": "Redução Quântica de Regev em Reticulados e Criptografia Pós-Quântica (LWE)",
+      "category": "Post-Quantum Cryptography",
+      "summary": "Oded Regev (2005) proved solving average-case LWE implies a quantum algorithm for worst-case GapSVP and SIVP.",
+      "links": [],
+      "example_prompt": "O que Oded Regev provou sobre Learning With Errors (LWE) e criptografia pós-quântica em reticulados?",
+      "prompts_polyglot": {
+        "pt": "O que Oded Regev provou sobre Learning With Errors (LWE) e criptografia pós-quântica em reticulados?",
+        "en": "What did Oded Regev prove about Learning With Errors (LWE) and post-quantum lattice cryptography?",
+        "es": "¿Qué demostró Oded Regev sobre Learning With Errors (LWE) y la criptografía poscuántica en retículos?",
+        "fr": "Qu'a démontré Oded Regev sur Learning With Errors (LWE) et la cryptographie post-quantique sur réseaux ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "Oded Regev provou que o problema de aprendizado com erros (Learning With Errors, LWE) é difícil para computadores quânticos, o que é uma característica importante para a cri",
+        "student_mean_margin": 0.693,
+        "student_min_margin": 0.0253,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.9711,
+        "mean_top1_agree_72b_3b_4lang": 0.6914,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 33,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8959,
+            "top1_agree_72b_3b": 0.6364,
+            "teacher_72b_mean_logprob": -3.3336
+          },
+          "pt": {
+            "bpe_tokens": 40,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9799,
+            "top1_agree_72b_3b": 0.75,
+            "teacher_72b_mean_logprob": -2.7116
+          },
+          "es": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9098,
+            "top1_agree_72b_3b": 0.7333,
+            "teacher_72b_mean_logprob": -2.382
+          },
+          "fr": {
+            "bpe_tokens": 48,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0985,
+            "top1_agree_72b_3b": 0.6458,
+            "teacher_72b_mean_logprob": -2.2997
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 214,
+      "total_seed_steps": 332
+    }
+  },
+  {
+    "index": 16,
+    "capsule_id": "concept_shannon_hartley_capacity",
+    "tau": 0.41,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Shannon–Hartley Noisy Channel Capacity Theorem (C = B log2(1 + S/N))",
+      "title_pt": "Teorema da Capacidade de Canal de Shannon–Hartley (C = B log2(1 + S/N))",
+      "category": "Information Theory",
+      "summary": "Maximum error-free bit rate C = B log2(1 + S/N) bits/s over bandwidth B Hz under additive white Gaussian noise.",
+      "links": [],
+      "example_prompt": "O que estabelece o teorema de Shannon-Hartley para a capacidade de um canal com ruído?",
+      "prompts_polyglot": {
+        "pt": "O que estabelece o teorema de Shannon-Hartley para a capacidade de um canal com ruído?",
+        "en": "What does the Shannon-Hartley theorem establish for noisy channel capacity?",
+        "es": "¿Qué establece el teorema de Shannon-Hartley para la capacidad de un canal con ruido?",
+        "fr": "Qu'établit le théorème de Shannon-Hartley sur la capacité d'un canal bruité ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema de Shannon-Hartley estabelece que a capacidade máxima de um canal de comunicação, considerando a presença de ruído, é dada pela fórmula C = B",
+        "student_mean_margin": 0.7688,
+        "student_min_margin": 0.0982,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.247,
+        "mean_top1_agree_72b_3b_4lang": 0.9191,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 48,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3294,
+            "top1_agree_72b_3b": 0.9167,
+            "teacher_72b_mean_logprob": -1.6976
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.2003,
+            "top1_agree_72b_3b": 0.902,
+            "teacher_72b_mean_logprob": -2.1603
+          },
+          "es": {
+            "bpe_tokens": 36,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.2492,
+            "top1_agree_72b_3b": 0.9167,
+            "teacher_72b_mean_logprob": -1.5259
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.209,
+            "top1_agree_72b_3b": 0.9412,
+            "teacher_72b_mean_logprob": -1.8978
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 192,
+      "total_seed_steps": 372
+    }
+  },
+  {
+    "index": 17,
+    "capsule_id": "concept_brazil_lc150_domestic_law",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Brazilian Domestic Employment Statute — Complementary Law 150/2015 (PEC das Domésticas)",
+      "title_pt": "Direito Trabalhista Doméstico no Brasil — Lei Complementar 150/2015",
+      "category": "Labor Law (Brazil)",
+      "summary": "LC 150/2015 regulates domestic employment (>= 3 days/week): 8h/day, 44h/week, 50% overtime, mandatory FGTS 8% + 3.2%.",
+      "links": [],
+      "example_prompt": "Como funciona o direito trabalhista para empregadas domésticas e diaristas no Brasil pela LC 150/2015?",
+      "prompts_polyglot": {
+        "pt": "Como funciona o direito trabalhista para empregadas domésticas e diaristas no Brasil pela LC 150/2015?",
+        "en": "How does Brazilian labor law work for domestic workers and cleaners under LC 150/2015?",
+        "es": "¿Cómo funciona el derecho laboral para empleadas domésticas en Brasil según la LC 150/2015?",
+        "fr": "Comment fonctionne le droit du travail des employés domestiques au Brésil selon la LC 150/2015 ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O direito trabalhista para empregadas domésticas e diaristas no Brasil, regulamentado pela Lei Complementar 150/2015, oferece proteções específicas",
+        "student_mean_margin": 0.8372,
+        "student_min_margin": 0.0237,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.9524,
+        "mean_top1_agree_72b_3b_4lang": 0.6898,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2517,
+            "top1_agree_72b_3b": 0.6471,
+            "teacher_72b_mean_logprob": -3.1771
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6808,
+            "top1_agree_72b_3b": 0.6863,
+            "teacher_72b_mean_logprob": -2.1767
+          },
+          "es": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9143,
+            "top1_agree_72b_3b": 0.72,
+            "teacher_72b_mean_logprob": -2.679
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9628,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -2.291
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 270,
+      "total_seed_steps": 406
+    }
+  },
+  {
+    "index": 18,
+    "capsule_id": "ow_quantum_applied_theorems",
+    "tau": 0.39,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Applied Theorems of Quantum Physics & Quantum Information (No-Cloning, Bell-CHSH, Holevo)",
+      "title_pt": "Teoremas Aplicados da Física e Informação Quântica (Não-Clonagem, Bell-CHSH e Holevo)",
+      "category": "Quantum Physics",
+      "summary": "Core applied theorems of quantum physics: Wootters-Zurek No-Cloning (BB84 QKD), Bell-CHSH (2*sqrt(2) QRNG), and Holevo's capacity bound.",
+      "links": [],
+      "example_prompt": "Me fale sobre um teorema da física quântica aplicado e onde ele é usado na prática.",
+      "prompts_polyglot": {
+        "pt": "Me fale sobre um teorema da física quântica aplicado e onde ele é usado na prática.",
+        "en": "Tell me about an applied quantum physics theorem and where it is used in practice.",
+        "es": "Háblame de un teorema aplicado de la física cuántica y dónde se usa en la práctica.",
+        "fr": "Parlez-moi d'un théorème appliqué de la physique quantique et de son usage pratique."
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "Um teorema muito importante na física quântica é o Teorema de Noether, que é fundamental para entender a relação entre simetria e conservação. Este teorema afirma que para",
+        "student_mean_margin": 0.7268,
+        "student_min_margin": 0.0242,
+        "student_refused": false,
+        "student_hit_exact_anchor": false,
+        "mean_kl_72b_to_3b_4lang": 0.966,
+        "mean_top1_agree_72b_3b_4lang": 0.743,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 35,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8311,
+            "top1_agree_72b_3b": 0.8,
+            "teacher_72b_mean_logprob": -3.6036
+          },
+          "pt": {
+            "bpe_tokens": 35,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9565,
+            "top1_agree_72b_3b": 0.7143,
+            "teacher_72b_mean_logprob": -1.6028
+          },
+          "es": {
+            "bpe_tokens": 42,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0281,
+            "top1_agree_72b_3b": 0.7619,
+            "teacher_72b_mean_logprob": -1.8628
+          },
+          "fr": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0481,
+            "top1_agree_72b_3b": 0.6957,
+            "teacher_72b_mean_logprob": -1.9626
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 202,
+      "total_seed_steps": 318
+    }
+  },
+  {
+    "index": 19,
+    "capsule_id": "ow_quantum_no_cloning_wootters_zurek",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Wootters–Zurek Quantum No-Cloning Theorem (1982) & BB84 Security",
+      "title_pt": "Teorema da Não-Clonagem Quântica de Wootters–Zurek (1982)",
+      "category": "Quantum Physics",
+      "summary": "No unitary operator U satisfies U(|psi>|0>) = e^{i phi}|psi>|psi> for arbitrary superpositions, securing quantum key distribution.",
+      "links": [],
+      "example_prompt": "O que prova o teorema da não-clonagem quântica de Wootters e Zurek?",
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema da não-clonagem quântica de Wootters e Zurek?",
+        "en": "What does the Wootters-Zurek quantum no-cloning theorem prove?",
+        "es": "¿Qué demuestra el teorema de no clonación cuántica de Wootters y Zurek?",
+        "fr": "Que démontre le théorème de non-clonage quantique de Wootters et Zurek ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema da não-clonagem quântica de Wootters e Zurek afirma que é impossível clonar um estado quântico idêntico a outro, sem",
+        "student_mean_margin": 0.8131,
+        "student_min_margin": 0.0313,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.591,
+        "mean_top1_agree_72b_3b_4lang": 0.7995,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 42,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3586,
+            "top1_agree_72b_3b": 0.8333,
+            "teacher_72b_mean_logprob": -3.3123
+          },
+          "pt": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9966,
+            "top1_agree_72b_3b": 0.7391,
+            "teacher_72b_mean_logprob": -2.2332
+          },
+          "es": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.2879,
+            "top1_agree_72b_3b": 0.9,
+            "teacher_72b_mean_logprob": -2.8203
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.721,
+            "top1_agree_72b_3b": 0.7255,
+            "teacher_72b_mean_logprob": -3.1778
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 200,
+      "total_seed_steps": 378
+    }
+  },
+  {
+    "index": 20,
+    "capsule_id": "ow_quantum_bell_chsh_tsirelson",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Bell's Theorem, CHSH Inequality (<= 2) & Tsirelson's Bound (2*sqrt(2))",
+      "title_pt": "Teorema de Bell, Desigualdade CHSH (<= 2) e Cota de Tsirelson (2√2)",
+      "category": "Quantum Physics",
+      "summary": "Local hidden-variable models satisfy |S_CHSH| <= 2, while entangled singlet states reach Tsirelson's bound 2*sqrt(2) ≈ 2.828.",
+      "links": [],
+      "example_prompt": "O que provam o teorema de Bell e a desigualdade CHSH sobre variáveis ocultas locais?",
+      "prompts_polyglot": {
+        "pt": "O que provam o teorema de Bell e a desigualdade CHSH sobre variáveis ocultas locais?",
+        "en": "What do Bell's theorem and the CHSH inequality prove about local hidden variables?",
+        "es": "¿Qué demuestran el teorema de Bell y la desigualdad CHSH sobre variables ocultas locales?",
+        "fr": "Que démontrent le théorème de Bell et l'inégalité CHSH sur les variables cachées locales ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema de Bell e a desigualdade CHSH são fundamentais para refutar a possibilidade de comunicação instantânea entre distâncias consideráveis, sugerindo que a física quâ",
+        "student_mean_margin": 0.6558,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.6377,
+        "mean_top1_agree_72b_3b_4lang": 0.8264,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 37,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3509,
+            "top1_agree_72b_3b": 0.8919,
+            "teacher_72b_mean_logprob": -3.8953
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7597,
+            "top1_agree_72b_3b": 0.7843,
+            "teacher_72b_mean_logprob": -2.7669
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.505,
+            "top1_agree_72b_3b": 0.902,
+            "teacher_72b_mean_logprob": -2.9773
+          },
+          "fr": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9352,
+            "top1_agree_72b_3b": 0.7273,
+            "teacher_72b_mean_logprob": -2.653
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 213,
+      "total_seed_steps": 366
+    }
+  },
+  {
+    "index": 21,
+    "capsule_id": "ow_quantum_holevo_bound",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Holevo's Bound (1973) on Accessible Classical Information from Quantum States",
+      "title_pt": "Cota de Holevo (1973) sobre Informação Clássica Extraível de Qubits",
+      "category": "Quantum Information",
+      "summary": "Mutual information I(X:Y) <= chi = S(rho) - sum_x p_x S(rho_x) <= n bits for n qubits without shared entanglement.",
+      "links": [],
+      "example_prompt": "O que estabelece a cota de Holevo sobre a informação clássica extraível de estados quânticos?",
+      "prompts_polyglot": {
+        "pt": "O que estabelece a cota de Holevo sobre a informação clássica extraível de estados quânticos?",
+        "en": "What does Holevo's bound establish on classical information extractable from quantum states?",
+        "es": "¿Qué establece la cota de Holevo sobre la información clásica extraíble de estados cuánticos?",
+        "fr": "Qu'établit la borne de Holevo sur l'information classique extractible d'états quantiques ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A cota de Holevo estabelece que a quantidade máxima de informação clássica que pode ser extraída de um conjunto de estados quânticos é limitada pela entropia de von Ne",
+        "student_mean_margin": 0.7483,
+        "student_min_margin": 0.0297,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.0454,
+        "mean_top1_agree_72b_3b_4lang": 0.6667,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9042,
+            "top1_agree_72b_3b": 0.6667,
+            "teacher_72b_mean_logprob": -2.8123
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0415,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -3.0074
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.988,
+            "top1_agree_72b_3b": 0.6667,
+            "teacher_72b_mean_logprob": -3.124
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2479,
+            "top1_agree_72b_3b": 0.6275,
+            "teacher_72b_mean_logprob": -3.4717
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 286,
+      "total_seed_steps": 408
+    }
+  },
+  {
+    "index": 22,
+    "capsule_id": "ow_quantum_knill_laflamme_qec",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Knill–Laflamme Quantum Error Correction Conditions & Surface Code Threshold",
+      "title_pt": "Condições de Correção Quântica de Erros de Knill–Laflamme e Surface Codes",
+      "category": "Quantum Computing",
+      "summary": "A code projector P corrects Kraus errors {E_a} iff P E_a^dagger E_b P = alpha_{ab} P; 2D surface codes achieve ~1% threshold.",
+      "links": [],
+      "example_prompt": "Quais são as condições de Knill-Laflamme para correção quântica de erros?",
+      "prompts_polyglot": {
+        "pt": "Quais são as condições de Knill-Laflamme para correção quântica de erros?",
+        "en": "What are the Knill-Laflamme conditions for quantum error correction?",
+        "es": "¿Cuáles son las condiciones de Knill-Laflamme para la corrección cuántica de errores?",
+        "fr": "Quelles sont les conditions de Knill-Laflamme pour la correction d'erreurs quantiques ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "As condições de Knill-Laflamme são fundamentais para a correção quântica de erros em sistemas quânticos. Elas garantem que um operador de correção quânt",
+        "student_mean_margin": 0.7455,
+        "student_min_margin": 0.0516,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.2646,
+        "mean_top1_agree_72b_3b_4lang": 0.585,
+        "live_72b_generated_langs": 1,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8558,
+            "top1_agree_72b_3b": 0.6471,
+            "teacher_72b_mean_logprob": -3.5408
+          },
+          "pt": {
+            "bpe_tokens": 47,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 1.497,
+            "top1_agree_72b_3b": 0.5319,
+            "teacher_72b_mean_logprob": -4.0926
+          },
+          "es": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 1.3229,
+            "top1_agree_72b_3b": 0.5778,
+            "teacher_72b_mean_logprob": -3.8234
+          },
+          "fr": {
+            "bpe_tokens": 48,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 1.3825,
+            "top1_agree_72b_3b": 0.5833,
+            "teacher_72b_mean_logprob": -3.7394
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 255,
+      "total_seed_steps": 382
+    }
+  },
+  {
+    "index": 23,
+    "capsule_id": "ow_systems_roofline_model",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Roofline Performance Model (Arithmetic Intensity & Memory Bandwidth Ceiling)",
+      "title_pt": "Modelo Roofline de Desempenho (Intensidade Aritmética e Teto de Banda)",
+      "category": "Computer Architecture",
+      "summary": "Attainable throughput P = min(P_peak, B_mem * I) as a function of arithmetic intensity I (FLOPs/Byte) and memory bandwidth.",
+      "links": [],
+      "example_prompt": "Como funciona o modelo Roofline de desempenho e intensidade aritmética em GPUs e CPUs?",
+      "prompts_polyglot": {
+        "pt": "Como funciona o modelo Roofline de desempenho e intensidade aritmética em GPUs e CPUs?",
+        "en": "How does the Roofline performance model and arithmetic intensity work on GPUs and CPUs?",
+        "es": "¿Cómo funciona el modelo Roofline de rendimiento e intensidad aritmética en GPUs y CPUs?",
+        "fr": "Comment fonctionne le modèle Roofline de performance et d'intensité arithmétique sur GPU et CPU ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O modelo Roofline de desempenho e intensidade aritmética é uma ferramenta visual que ajuda a entender como os processadores (GPUs e CPUs) utilizam sua capacidade de processamento",
+        "student_mean_margin": 0.7333,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.891,
+        "mean_top1_agree_72b_3b_4lang": 0.7018,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.615,
+            "top1_agree_72b_3b": 0.8667,
+            "teacher_72b_mean_logprob": -2.5276
+          },
+          "pt": {
+            "bpe_tokens": 39,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0647,
+            "top1_agree_72b_3b": 0.641,
+            "teacher_72b_mean_logprob": -2.9205
+          },
+          "es": {
+            "bpe_tokens": 40,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9746,
+            "top1_agree_72b_3b": 0.625,
+            "teacher_72b_mean_logprob": -2.4274
+          },
+          "fr": {
+            "bpe_tokens": 43,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9097,
+            "top1_agree_72b_3b": 0.6744,
+            "teacher_72b_mean_logprob": -2.5146
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 244,
+      "total_seed_steps": 334
+    }
+  },
+  {
+    "index": 24,
+    "capsule_id": "ow_systems_cap_pacelc",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Brewer's CAP Theorem (Gilbert–Lynch) & Abadi's PACELC Extension",
+      "title_pt": "Teorema CAP de Brewer (Gilbert–Lynch) e Extensão PACELC",
+      "category": "Distributed Systems",
+      "summary": "Under network Partition (P), distributed stores trade Consistency (C) vs Availability (A); Else (E), Latency (L) vs Consistency (C).",
+      "links": [],
+      "example_prompt": "Explique o teorema CAP de Brewer e a extensão PACELC em bancos de dados distribuídos.",
+      "prompts_polyglot": {
+        "pt": "Explique o teorema CAP de Brewer e a extensão PACELC em bancos de dados distribuídos.",
+        "en": "Explain Brewer's CAP theorem and the PACELC extension in distributed databases.",
+        "es": "Explica el teorema CAP de Brewer y la extensión PACELC en bases de datos distribuidas.",
+        "fr": "Expliquez le théorème CAP de Brewer et l'extension PACELC dans les bases de données distribuées."
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O Teorema CAP, também conhecido como Teorema de Brewer, é um princípio fundamental em arquitetura de sistemas distribuídos que afirma que em um sistema de banco de dados distribuído",
+        "student_mean_margin": 0.7066,
+        "student_min_margin": 0.0295,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.9892,
+        "mean_top1_agree_72b_3b_4lang": 0.7155,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7628,
+            "top1_agree_72b_3b": 0.75,
+            "teacher_72b_mean_logprob": -1.88
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2747,
+            "top1_agree_72b_3b": 0.6863,
+            "teacher_72b_mean_logprob": -2.6141
+          },
+          "es": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9096,
+            "top1_agree_72b_3b": 0.72,
+            "teacher_72b_mean_logprob": -2.5472
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0096,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -2.5006
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 241,
+      "total_seed_steps": 392
+    }
+  },
+  {
+    "index": 25,
+    "capsule_id": "ow_crypto_zk_snarks_groth16",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Zero-Knowledge Proofs (`zk-SNARKs` & Groth16 O(1) Pairing Verification)",
+      "title_pt": "Provas de Conhecimento Zero (`zk-SNARKs` e Verificação O(1) Groth16)",
+      "category": "Applied Cryptography",
+      "summary": "Succinct Non-Interactive Arguments of Knowledge proving NP witness validity in zero knowledge with O(1) proof size (3 group elements in Groth16).",
+      "links": [],
+      "example_prompt": "Como funcionam as provas de conhecimento zero zk-SNARKs e o protocolo Groth16?",
+      "prompts_polyglot": {
+        "pt": "Como funcionam as provas de conhecimento zero zk-SNARKs e o protocolo Groth16?",
+        "en": "How do zk-SNARK zero-knowledge proofs and the Groth16 protocol work?",
+        "es": "¿Cómo funcionan las pruebas de conocimiento cero zk-SNARKs y el protocolo Groth16?",
+        "fr": "Comment fonctionnent les preuves à divulgation nulle de connaissance zk-SNARKs et Groth16 ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "Zk-SNARKs (Zero-Knowledge Succinct Non-Interactive Argument of Knowledge) são uma tecnologia criptográfica que permite provar a veracidade de uma declaração sem revelar qu",
+        "student_mean_margin": 0.7768,
+        "student_min_margin": 0.0564,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.0102,
+        "mean_top1_agree_72b_3b_4lang": 0.6665,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 39,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7852,
+            "top1_agree_72b_3b": 0.6923,
+            "teacher_72b_mean_logprob": -3.916
+          },
+          "pt": {
+            "bpe_tokens": 43,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3938,
+            "top1_agree_72b_3b": 0.5581,
+            "teacher_72b_mean_logprob": -3.616
+          },
+          "es": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.025,
+            "top1_agree_72b_3b": 0.7111,
+            "teacher_72b_mean_logprob": -2.8727
+          },
+          "fr": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.837,
+            "top1_agree_72b_3b": 0.7045,
+            "teacher_72b_mean_logprob": -2.3894
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 218,
+      "total_seed_steps": 342
+    }
+  },
+  {
+    "index": 26,
+    "capsule_id": "ow_compilers_ssa_dominance",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Static Single Assignment (`SSA`), Dominance Frontiers & Cytron Phi Placement",
+      "title_pt": "Forma Estática de Atribuição Única (`SSA`), Fronteira de Dominância e Nós Phi",
+      "category": "Compilers",
+      "summary": "Every variable in SSA is defined exactly once, with minimal phi-functions inserted at iterated dominance frontiers (Cytron et al., 1991).",
+      "links": [],
+      "example_prompt": "O que é a forma Static Single Assignment (SSA) e como a fronteira de dominância posiciona funções phi em compiladores?",
+      "prompts_polyglot": {
+        "pt": "O que é a forma Static Single Assignment (SSA) e como a fronteira de dominância posiciona funções phi em compiladores?",
+        "en": "What is Static Single Assignment (SSA) form and how do dominance frontiers place phi-functions in compilers?",
+        "es": "¿Qué es la forma Static Single Assignment (SSA) y cómo ubican las fronteras de dominancia las funciones phi?",
+        "fr": "Qu'est-ce que la forme Static Single Assignment (SSA) et comment les frontières de dominance placent-elles les fonctions phi ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A forma SSA (Static Single Assignment) é uma representação de código que garante que cada variável seja atribuída e usada exatamente uma vez. Isso ajuda a simplificar a análise de",
+        "student_mean_margin": 0.6909,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.0941,
+        "mean_top1_agree_72b_3b_4lang": 0.6495,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 28,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3149,
+            "top1_agree_72b_3b": 0.5357,
+            "teacher_72b_mean_logprob": -3.4666
+          },
+          "pt": {
+            "bpe_tokens": 31,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8692,
+            "top1_agree_72b_3b": 0.7097,
+            "teacher_72b_mean_logprob": -4.0066
+          },
+          "es": {
+            "bpe_tokens": 28,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2894,
+            "top1_agree_72b_3b": 0.6429,
+            "teacher_72b_mean_logprob": -4.184
+          },
+          "fr": {
+            "bpe_tokens": 31,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9028,
+            "top1_agree_72b_3b": 0.7097,
+            "teacher_72b_mean_logprob": -3.8019
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 226,
+      "total_seed_steps": 320
+    }
+  },
+  {
+    "index": 27,
+    "capsule_id": "ow_astro_bekenstein_hawking",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Bekenstein–Hawking Black Hole Entropy (S_BH = k_B c^3 A / 4 G hbar)",
+      "title_pt": "Entropia de Buracos Negros de Bekenstein–Hawking (Lei da Área A / 4 l_P^2)",
+      "category": "Relativistic Astrophysics",
+      "summary": "Black hole entropy scales with event-horizon area A rather than volume: S_BH = k_B c^3 A / (4 G hbar) = k_B A / (4 l_P^2).",
+      "links": [],
+      "example_prompt": "Qual é a fórmula da entropia de buracos negros de Bekenstein-Hawking e por que ela depende da área?",
+      "prompts_polyglot": {
+        "pt": "Qual é a fórmula da entropia de buracos negros de Bekenstein-Hawking e por que ela depende da área?",
+        "en": "What is the Bekenstein-Hawking black hole entropy formula and why does it scale with area?",
+        "es": "¿Cuál es la fórmula de la entropía de agujeros negros de Bekenstein-Hawking y por qué escala con el área?",
+        "fr": "Quelle est la formule de l'entropie des trous noirs de Bekenstein-Hawking et pourquoi dépend-elle de l'aire ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A fórmula da entropia de buracos negros de Bekenstein-Hawking é dada pela equação S = (k * A) / (4 * l̅²), onde",
+        "student_mean_margin": 0.8153,
+        "student_min_margin": 0.0713,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.67,
+        "mean_top1_agree_72b_3b_4lang": 0.7784,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4852,
+            "top1_agree_72b_3b": 0.8182,
+            "teacher_72b_mean_logprob": -1.8867
+          },
+          "pt": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.652,
+            "top1_agree_72b_3b": 0.7391,
+            "teacher_72b_mean_logprob": -1.901
+          },
+          "es": {
+            "bpe_tokens": 48,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6474,
+            "top1_agree_72b_3b": 0.7917,
+            "teacher_72b_mean_logprob": -1.7439
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8956,
+            "top1_agree_72b_3b": 0.7647,
+            "teacher_72b_mean_logprob": -1.8024
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 222,
+      "total_seed_steps": 378
+    }
+  },
+  {
+    "index": 28,
+    "capsule_id": "ow_astro_chandrasekhar_limit",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Chandrasekhar Mass Limit (~1.44 Solar Masses) for White Dwarf Stars",
+      "title_pt": "Limite de Chandrasekhar (~1,44 Massas Solares) para Anãs Brancas",
+      "category": "Astrophysics",
+      "summary": "Maximum mass ~1.44 M_sun supported by relativistic electron degeneracy pressure (Pauli exclusion) before collapse or Type Ia supernova.",
+      "links": [],
+      "example_prompt": "O que é o limite de Chandrasekhar para anãs brancas e por que ele vale cerca de 1,44 massas solares?",
+      "prompts_polyglot": {
+        "pt": "O que é o limite de Chandrasekhar para anãs brancas e por que ele vale cerca de 1,44 massas solares?",
+        "en": "What is the Chandrasekhar limit for white dwarfs and why is it about 1.44 solar masses?",
+        "es": "¿Qué es el límite de Chandrasekhar para enanas blancas y por qué vale unas 1,44 masas solares?",
+        "fr": "Qu'est-ce que la limite de Chandrasekhar pour les naines blanches et pourquoi vaut-elle environ 1,44 masse solaire ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O limite de Chandrasekhar é um valor crítico de massa acima do qual uma anã branca não pode se formar. Ele vale cerca de 1,44 massas solares porque",
+        "student_mean_margin": 0.739,
+        "student_min_margin": 0.0234,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.7184,
+        "mean_top1_agree_72b_3b_4lang": 0.7774,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 33,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.1997,
+            "top1_agree_72b_3b": 0.8788,
+            "teacher_72b_mean_logprob": -1.0709
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0654,
+            "top1_agree_72b_3b": 0.6471,
+            "teacher_72b_mean_logprob": -2.4263
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7233,
+            "top1_agree_72b_3b": 0.8039,
+            "teacher_72b_mean_logprob": -2.1094
+          },
+          "fr": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8852,
+            "top1_agree_72b_3b": 0.78,
+            "teacher_72b_mean_logprob": -1.783
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 211,
+      "total_seed_steps": 370
+    }
+  },
+  {
+    "index": 29,
+    "capsule_id": "ow_physics_jarzynski_equality",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Jarzynski Non-Equilibrium Fluctuation Equality (<exp(-beta W)> = exp(-beta Delta F))",
+      "title_pt": "Igualdade de Jarzynski fora do Equilíbrio (<exp(-βW)> = exp(-βΔF))",
+      "category": "Non-Equilibrium Statistical Mechanics",
+      "summary": "Exact relation <e^{-beta W}> = e^{-beta Delta F} linking irreversible work trajectories W to equilibrium Helmholtz free energy Delta F.",
+      "links": [],
+      "example_prompt": "O que estabelece a igualdade de Jarzynski na termodinâmica fora do equilíbrio?",
+      "prompts_polyglot": {
+        "pt": "O que estabelece a igualdade de Jarzynski na termodinâmica fora do equilíbrio?",
+        "en": "What does the Jarzynski equality establish in non-equilibrium thermodynamics?",
+        "es": "¿Qué establece la igualdad de Jarzynski en la termodinámica fuera del equilibrio?",
+        "fr": "Qu'établit l'égalité de Jarzynski en thermodynamique hors d'équilibre ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A igualdade de Jarzynski estabelece uma relação entre a energia potencial de um sistema e a energia térmica associada a uma operação de quântica não reversível fora",
+        "student_mean_margin": 0.5557,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.0514,
+        "mean_top1_agree_72b_3b_4lang": 0.7084,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 35,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3956,
+            "top1_agree_72b_3b": 0.6571,
+            "teacher_72b_mean_logprob": -2.9448
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.637,
+            "top1_agree_72b_3b": 0.8235,
+            "teacher_72b_mean_logprob": -2.6859
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0591,
+            "top1_agree_72b_3b": 0.7451,
+            "teacher_72b_mean_logprob": -2.1109
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.1141,
+            "top1_agree_72b_3b": 0.6078,
+            "teacher_72b_mean_logprob": -2.7981
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 258,
+      "total_seed_steps": 376
+    }
+  },
+  {
+    "index": 30,
+    "capsule_id": "ow_math_ito_lemma_black_scholes",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Itô's Lemma (Quadratic Variation (dW_t)^2 = dt) & Black–Scholes PDE",
+      "title_pt": "Lema de Itô (Variação Quadrática (dW_t)^2 = dt) e Equação de Black–Scholes",
+      "category": "Stochastic Calculus",
+      "summary": "For dX_t = mu dt + sigma dW_t, df(t,X_t) = (df/dt + mu df/dx + 1/2 sigma^2 d^2f/dx^2) dt + sigma df/dx dW_t.",
+      "links": [],
+      "example_prompt": "O que diz o lema de Itô no cálculo estocástico e como ele leva à equação de Black-Scholes?",
+      "prompts_polyglot": {
+        "pt": "O que diz o lema de Itô no cálculo estocástico e como ele leva à equação de Black-Scholes?",
+        "en": "What does Itô's lemma state in stochastic calculus and how does it yield the Black-Scholes PDE?",
+        "es": "¿Qué dice el lema de Itô en el cálculo estocástico y cómo conduce a la ecuación de Black-Scholes?",
+        "fr": "Qu'énonce le lemme d'Itô en calcul stochastique et comment mène-t-il à l'EDP de Black-Scholes ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O lema de Itô no cálculo estocástico é fundamental para modelar processos aleatórios, como preços de ações que podem variar de maneira não linear e com varia",
+        "student_mean_margin": 0.6369,
+        "student_min_margin": 0.0325,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.557,
+        "mean_top1_agree_72b_3b_4lang": 0.7696,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.374,
+            "top1_agree_72b_3b": 0.8235,
+            "teacher_72b_mean_logprob": -2.0565
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6573,
+            "top1_agree_72b_3b": 0.7843,
+            "teacher_72b_mean_logprob": -2.5895
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6983,
+            "top1_agree_72b_3b": 0.7451,
+            "teacher_72b_mean_logprob": -2.0604
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4985,
+            "top1_agree_72b_3b": 0.7255,
+            "teacher_72b_mean_logprob": -1.9778
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 236,
+      "total_seed_steps": 408
+    }
+  },
+  {
+    "index": 31,
+    "capsule_id": "ow_math_cramer_rao_fisher",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Cramér–Rao Lower Bound & Fisher Information Matrix (Var(theta_hat) >= I(theta)^-1)",
+      "title_pt": "Limite Inferior de Cramér–Rao e Informação de Fisher (Var >= I(θ)^-1)",
+      "category": "Mathematical Statistics",
+      "summary": "Any unbiased estimator theta_hat obeys Cov(theta_hat) >= I(theta)^{-1}, where I(theta) = E[(d/dtheta log p(X;theta))^2].",
+      "links": [],
+      "example_prompt": "O que estabelece o limite inferior de Cramér-Rao e sua relação com a informação de Fisher?",
+      "prompts_polyglot": {
+        "pt": "O que estabelece o limite inferior de Cramér-Rao e sua relação com a informação de Fisher?",
+        "en": "What does the Cramér-Rao lower bound establish in relation to Fisher information?",
+        "es": "¿Qué establece la cota inferior de Cramér-Rao y su relación con la información de Fisher?",
+        "fr": "Qu'établit la borne inférieure de Cramér-Rao en lien avec l'information de Fisher ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O limite inferior de Cramér-Rao é estabelecido pela matriz de variancia-covariância da estimativa de um parâmetro, e é obtido a partir da matriz de informação de",
+        "student_mean_margin": 0.6446,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.4705,
+        "mean_top1_agree_72b_3b_4lang": 0.826,
+        "live_72b_generated_langs": 1,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 50,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3075,
+            "top1_agree_72b_3b": 0.82,
+            "teacher_72b_mean_logprob": -3.166
+          },
+          "pt": {
+            "bpe_tokens": 41,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 0.6659,
+            "top1_agree_72b_3b": 0.8293,
+            "teacher_72b_mean_logprob": -3.22
+          },
+          "es": {
+            "bpe_tokens": 40,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 0.4648,
+            "top1_agree_72b_3b": 0.85,
+            "teacher_72b_mean_logprob": -3.4802
+          },
+          "fr": {
+            "bpe_tokens": 41,
+            "source": "qwen2.5-72b-verified-canonical",
+            "kl_72b_to_3b": 0.4438,
+            "top1_agree_72b_3b": 0.8049,
+            "teacher_72b_mean_logprob": -2.5725
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 184,
+      "total_seed_steps": 344
+    }
+  },
+  {
+    "index": 32,
+    "capsule_id": "ow_math_godel_incompleteness",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Gödel's First & Second Incompleteness Theorems (1931)",
+      "title_pt": "Primeiro e Segundo Teoremas da Incompletude de Gödel (1931)",
+      "category": "Mathematical Logic",
+      "summary": "Any consistent recursively enumerable formal system containing Peano arithmetic has undecidable sentences and cannot prove Con(T).",
+      "links": [],
+      "example_prompt": "O que provam o primeiro e o segundo teoremas da incompletude de Gödel na lógica matemática?",
+      "prompts_polyglot": {
+        "pt": "O que provam o primeiro e o segundo teoremas da incompletude de Gödel na lógica matemática?",
+        "en": "What do Gödel's first and second incompleteness theorems prove in mathematical logic?",
+        "es": "¿Qué demuestran el primer y el segundo teorema de incompletitud de Gödel en lógica matemática?",
+        "fr": "Que démontrent les premier et second théorèmes d'incomplétude de Gödel en logique mathématique ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O primeiro teorema da incompletude de Gödel afirma que em qualquer sistema de lógica matemática robusto e consistente, existe uma proposição que pode ser declarada verdadeira dentro do",
+        "student_mean_margin": 0.7343,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.6688,
+        "mean_top1_agree_72b_3b_4lang": 0.7859,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4068,
+            "top1_agree_72b_3b": 0.8182,
+            "teacher_72b_mean_logprob": -3.319
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.8973,
+            "top1_agree_72b_3b": 0.7647,
+            "teacher_72b_mean_logprob": -1.4234
+          },
+          "es": {
+            "bpe_tokens": 49,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7229,
+            "top1_agree_72b_3b": 0.7959,
+            "teacher_72b_mean_logprob": -1.5887
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6481,
+            "top1_agree_72b_3b": 0.7647,
+            "teacher_72b_mean_logprob": -1.7597
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 219,
+      "total_seed_steps": 390
+    }
+  },
+  {
+    "index": 33,
+    "capsule_id": "ow_bio_crispr_cas9_pam",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "CRISPR-Cas9 Genome Editing (`5'-NGG-3'` PAM, HNH/RuvC & NHEJ/HDR)",
+      "title_pt": "Edição Genômica CRISPR-Cas9 (Motivo PAM `5'-NGG-3'`, HNH/RuvC e NHEJ/HDR)",
+      "category": "Molecular Bioengineering",
+      "summary": "SpCas9 guided by sgRNA recognizes 5'-NGG-3' PAM, cleaving target and non-target DNA strands via HNH and RuvC for NHEJ or HDR repair.",
+      "links": [],
+      "example_prompt": "Como o sistema CRISPR-Cas9 reconhece a sequência PAM 5'-NGG-3' e edita o DNA?",
+      "prompts_polyglot": {
+        "pt": "Como o sistema CRISPR-Cas9 reconhece a sequência PAM 5'-NGG-3' e edita o DNA?",
+        "en": "How does the CRISPR-Cas9 system recognize the 5'-NGG-3' PAM sequence and edit DNA?",
+        "es": "¿Cómo reconoce el sistema CRISPR-Cas9 la secuencia PAM 5'-NGG-3' y edita el ADN?",
+        "fr": "Comment le système CRISPR-Cas9 reconnaît-il le motif PAM 5'-NGG-3' et édite-t-il l'ADN ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O sistema CRISPR-Cas9 utiliza uma RNA guide específico para encontrar e reconhecer a sequência PAM 5'-NGG-3' no DNA alvo. Este RNA guide, que é uma",
+        "student_mean_margin": 0.6358,
+        "student_min_margin": 0.0286,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.9807,
+        "mean_top1_agree_72b_3b_4lang": 0.7028,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 47,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.6064,
+            "top1_agree_72b_3b": 0.7447,
+            "teacher_72b_mean_logprob": -3.4165
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.9184,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -3.3687
+          },
+          "es": {
+            "bpe_tokens": 49,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.1189,
+            "top1_agree_72b_3b": 0.6939,
+            "teacher_72b_mean_logprob": -4.0137
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2792,
+            "top1_agree_72b_3b": 0.6667,
+            "teacher_72b_mean_logprob": -3.862
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 269,
+      "total_seed_steps": 396
+    }
+  },
+  {
+    "index": 34,
+    "capsule_id": "ow_neuro_friston_free_energy",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Karl Friston's Free Energy Principle & Active Inference (F = D_KL[q||p] - ln p(y))",
+      "title_pt": "Princípio da Energia Livre de Karl Friston e Inferência Ativa",
+      "category": "Computational Neuroscience",
+      "summary": "Self-organizing brains bound sensory surprise -ln p(y) by minimizing variational free energy F = D_KL[q(x)||p(x|y)] - ln p(y).",
+      "links": [],
+      "example_prompt": "O que estabelece o Princípio da Energia Livre de Karl Friston e a inferência ativa na neurociência?",
+      "prompts_polyglot": {
+        "pt": "O que estabelece o Princípio da Energia Livre de Karl Friston e a inferência ativa na neurociência?",
+        "en": "What do Karl Friston's Free Energy Principle and active inference establish in neuroscience?",
+        "es": "¿Qué establecen el Principio de Energía Libre de Karl Friston y la inferencia activa en neurociencia?",
+        "fr": "Qu'établissent le Principe de l'Énergie Libre de Karl Friston et l'inférence active en neurosciences ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O Princípio da Energia Livre, estabelecido por Karl Friston, é uma abordagem filosófica e matemática que busca explicar como o cérebro infer",
+        "student_mean_margin": 0.7285,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 1.3403,
+        "mean_top1_agree_72b_3b_4lang": 0.6134,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 44,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.3886,
+            "top1_agree_72b_3b": 0.6364,
+            "teacher_72b_mean_logprob": -3.0273
+          },
+          "pt": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.5073,
+            "top1_agree_72b_3b": 0.6,
+            "teacher_72b_mean_logprob": -3.4247
+          },
+          "es": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.2898,
+            "top1_agree_72b_3b": 0.6087,
+            "teacher_72b_mean_logprob": -3.2857
+          },
+          "fr": {
+            "bpe_tokens": 46,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.1754,
+            "top1_agree_72b_3b": 0.6087,
+            "teacher_72b_mean_logprob": -2.9678
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 263,
+      "total_seed_steps": 362
+    }
+  },
+  {
+    "index": 35,
+    "capsule_id": "ow_econ_arrow_impossibility",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Arrow's Impossibility Theorem (1951) in Social Choice Theory",
+      "title_pt": "Teorema da Impossibilidade de Arrow (1951) na Escolha Social",
+      "category": "Economics & Game Theory",
+      "summary": "With >= 3 alternatives, no ordinal voting rule simultaneously satisfies Unrestricted Domain, Pareto Efficiency, IIA, and Non-Dictatorship.",
+      "links": [],
+      "example_prompt": "O que prova o teorema da impossibilidade de Kenneth Arrow sobre sistemas de votação?",
+      "prompts_polyglot": {
+        "pt": "O que prova o teorema da impossibilidade de Kenneth Arrow sobre sistemas de votação?",
+        "en": "What does Kenneth Arrow's impossibility theorem prove about voting systems?",
+        "es": "¿Qué demuestra el teorema de imposibilidad de Kenneth Arrow sobre los sistemas de votación?",
+        "fr": "Que démontre le théorème d'impossibilité de Kenneth Arrow sur les systèmes de vote ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "O teorema da impossibilidade de Kenneth Arrow afirma que em um sistema de votação universal, é impossível criar uma regra de votação que seja proporcional, transicional, e que não ten",
+        "student_mean_margin": 0.641,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": true,
+        "mean_kl_72b_to_3b_4lang": 0.8929,
+        "mean_top1_agree_72b_3b_4lang": 0.7398,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 38,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.5846,
+            "top1_agree_72b_3b": 0.7632,
+            "teacher_72b_mean_logprob": -3.1357
+          },
+          "pt": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.0628,
+            "top1_agree_72b_3b": 0.6863,
+            "teacher_72b_mean_logprob": -1.69
+          },
+          "es": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 1.1306,
+            "top1_agree_72b_3b": 0.7059,
+            "teacher_72b_mean_logprob": -2.1628
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7938,
+            "top1_agree_72b_3b": 0.8039,
+            "teacher_72b_mean_logprob": -2.74
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 204,
+      "total_seed_steps": 382
+    }
+  },
+  {
+    "index": 36,
+    "capsule_id": "ow_law_brazil_lgpd_13709",
+    "tau": 0.4,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Brazil's General Data Protection Law (`LGPD — Lei 13.709/2018`, Art. 7 & Art. 18)",
+      "title_pt": "Lei Geral de Proteção de Dados (`LGPD — Lei 13.709/2018`, Art. 7º e Art. 18)",
+      "category": "Data Privacy Law (Brazil)",
+      "summary": "Law 13.709/2018 sets 10 legal bases for personal data processing (Art. 7), holder rights including deletion (Art. 18), and ANPD sanctions.",
+      "links": [],
+      "example_prompt": "Como a LGPD (Lei 13.709/2018) regula as bases legais e o direito de eliminação de dados no Brasil?",
+      "prompts_polyglot": {
+        "pt": "Como a LGPD (Lei 13.709/2018) regula as bases legais e o direito de eliminação de dados no Brasil?",
+        "en": "How does Brazil's LGPD (Law 13.709/2018) regulate legal bases and data deletion rights?",
+        "es": "¿Cómo regula la LGPD de Brasil (Ley 13.709/2018) las bases legales y la eliminación de datos?",
+        "fr": "Comment la LGPD brésilienne (Loi 13.709/2018) encadre-t-elle les bases légales et la suppression des données ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "gap_audit": {
+        "student_3b_preview_pt": "A Lei Geral de Proteção de Dados (LGPD) brasileira estabelece que as bases legais para tratamento de dados pessoais devem ser claras e fundamentadas, e que o",
+        "student_mean_margin": 0.7229,
+        "student_min_margin": 0.0,
+        "student_refused": false,
+        "student_hit_exact_anchor": false,
+        "mean_kl_72b_to_3b_4lang": 0.4982,
+        "mean_top1_agree_72b_3b_4lang": 0.8309,
+        "live_72b_generated_langs": 4,
+        "per_lang": {
+          "en": {
+            "bpe_tokens": 43,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.5504,
+            "top1_agree_72b_3b": 0.7209,
+            "teacher_72b_mean_logprob": -3.3697
+          },
+          "pt": {
+            "bpe_tokens": 45,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.3143,
+            "top1_agree_72b_3b": 0.8889,
+            "teacher_72b_mean_logprob": -2.4715
+          },
+          "es": {
+            "bpe_tokens": 47,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.4031,
+            "top1_agree_72b_3b": 0.8511,
+            "teacher_72b_mean_logprob": -1.9909
+          },
+          "fr": {
+            "bpe_tokens": 51,
+            "source": "qwen2.5-72b-live-greedy",
+            "kl_72b_to_3b": 0.7248,
+            "top1_agree_72b_3b": 0.8627,
+            "teacher_72b_mean_logprob": -2.317
+          }
+        }
+      },
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 177,
+      "total_seed_steps": 372
+    }
+  },
+  {
+    "index": 37,
+    "capsule_id": "bridge_landauer_immerman",
+    "tau": 0.795,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Sleep Bridge: Reversible Inductive Counting (Landauer × Immerman)",
+      "title_pt": "Ponte Conjuntiva: Contagem Indutiva Reversível (Landauer × Immerman)",
+      "category": "Cross-Domain Sleep Synthesis",
+      "summary": "Conjunctive bridge co-activated only when both Landauer and Immerman-Szelepcsényi fire together, synthesizing Bennett's reversible pebble game in O(log n) space vs k_B T ln 2.",
+      "links": [],
+      "example_prompt": "Como a reutilização de espaço da contagem indutiva de Immerman-Szelepcsényi interage com a dissipação térmica do princípio de Landauer?",
+      "prompts_polyglot": {
+        "pt": "Como a reutilização de espaço da contagem indutiva de Immerman-Szelepcsényi interage com a dissipação térmica do princípio de Landauer?",
+        "en": "How does space reuse in Immerman-Szelepcsényi inductive counting interact with thermal dissipation under Landauer's principle?",
+        "es": "¿Cómo interactúa la reutilización de espacio del conteo inductivo de Immerman-Szelepcsényi con el principio termodinámico de Landauer?",
+        "fr": "Comment la réutilisation d'espace du comptage inductif d'Immerman-Szelepcsényi interagit-elle avec le principe thermodynamique de Landauer ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 227,
+      "total_seed_steps": 356
+    }
+  },
+  {
+    "index": 38,
+    "capsule_id": "portfolio_julio_scar_research",
+    "tau": 0.48,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "Julio Reis (@byte-od) — Creator of Mixture of Scars, SCache O(1), ScarNative & PointScarFlow",
+      "title_pt": "Julio Reis (@byte-od) — Criador de Mixture of Scars, SCache O(1), ScarNative & PointScarFlow",
+      "category": "Scar Research & Author",
+      "summary": "Julio Cesar da Costa Reis Filho (@byte-od): AI & Systems Researcher and creator of the Scar Ecosystem — Mixture of Scars (72B in 2.40 GB VRAM), SCache O(1), D4-LUT256 VQ4-Scar, ScarCodec, ScarNativeLM, PointScarFlow 3D, and AURA.",
+      "links": [
+        {
+          "label": "GitHub @byte-od",
+          "url": "https://github.com/byte-od",
+          "icon": "github"
+        },
+        {
+          "label": "LinkedIn Julio Reis",
+          "url": "https://linkedin.com/in/juliocrfilho",
+          "icon": "ext"
+        }
+      ],
+      "example_prompt": "Quem é o Julio Reis?",
+      "prompts_polyglot": {
+        "pt": "Quem é o Julio Reis?",
+        "en": "Who is Julio Reis?",
+        "es": "¿Quién es Julio Reis?",
+        "fr": "Qui est Julio Reis ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 690,
+      "total_seed_steps": 882
+    }
+  },
+  {
+    "index": 39,
+    "capsule_id": "portfolio_scarnative_vq4",
+    "tau": 0.48,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "ScarNativeLM v5/v6, D4-LUT256 VQ4-Scar, ScarCodec & mos-digest",
+      "title_pt": "ScarNativeLM v5/v6, D4-LUT256 VQ4-Scar, ScarCodec & mos-digest",
+      "category": "Tabula-Rasa Scar Foundation",
+      "summary": "Tabula-Rasa foundation architecture trained from t = 0 with zero nn.Linear layers: Shared-Stage D4-LUT256 VQ4-Scar, Chunkwise WY Dual-Tier O(1) SCache, Procrustes P_perp_lang mos-digest 12 KB cartridges, and ScarCodec.",
+      "links": [
+        {
+          "label": "GitHub mixture-of-scars",
+          "url": "https://github.com/byte-od/mixture-of-scars",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "O que é o ScarNative v6.0?",
+      "prompts_polyglot": {
+        "pt": "O que é o ScarNative v6.0?",
+        "en": "What is ScarNative v6.0?",
+        "es": "¿Qué es ScarNative v6.0?",
+        "fr": "Qu'est-ce que ScarNative v6.0 ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 492,
+      "total_seed_steps": 664
+    }
+  },
+  {
+    "index": 40,
+    "capsule_id": "portfolio_pointscar_flow_3d",
+    "tau": 0.48,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "PointScarFlow v1.0 — Continuous 3D Point-Cloud OT Rectified Flow in 12 WGSL Shaders",
+      "title_pt": "PointScarFlow v1.0 — Geração 3D Contínua por Fluxo Retificado OT em 12 Shaders WGSL",
+      "category": "Continuous 3D Scar Flow",
+      "summary": "Tabula-Rasa 3D continuous point-cloud generator (1,024 3D points + normals in 4 Euler steps, 3.87 MiB VQ4-Scar + INT4-STE, zero primitive catalog) conditioned directly on Qwen Layer-23 h_23 via 12 WebGPU WGSL shaders.",
+      "links": [
+        {
+          "label": "GitHub mixture-of-scars",
+          "url": "https://github.com/byte-od/mixture-of-scars",
+          "icon": "github"
+        }
+      ],
+      "example_prompt": "O que é o PointScarFlow e como funcionam os pontos 3D flutuantes do JARVIS?",
+      "prompts_polyglot": {
+        "pt": "O que é o PointScarFlow e como funcionam os pontos 3D flutuantes do JARVIS?",
+        "en": "What is PointScarFlow?",
+        "es": "¿Qué es PointScarFlow?",
+        "fr": "Qu'est-ce que PointScarFlow ?"
+      },
+      "anchor_language": "en_only_p_perp_lang",
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0",
+      "k_lang": 14,
+      "surprise_steps": 736,
+      "total_seed_steps": 924
+    }
+  },
+  {
+    "index": 41,
+    "capsule_id": "psf_3d_dna_helix",
+    "tau": 0.46,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "3D Double-Helix DNA Molecular Manifold (PointScarFlow OT)",
+      "title_pt": "Escultura 3D Dupla-Hélice de DNA (PointScarFlow OT)",
+      "category": "3D PointScarFlow Sculpture",
+      "summary": "1,024-point 3D double-stranded helical manifold synthesized in 4 Euler OT steps from ScarField h_world.",
+      "links": [],
+      "example_prompt": "Mostre uma hélice dupla de DNA em 3D",
+      "prompts_polyglot": {
+        "pt": "Fale resumidamente sobre fita dupla genética.",
+        "en": "Give me a concise overview of genetic double strand.",
+        "es": "Háblame brevemente sobre secuenciación genética.",
+        "fr": "Parle-moi brièvement de séquençage génétique."
+      },
+      "extra_queries": {
+        "pt": [
+          "Mostre uma hélice dupla de DNA em 3D",
+          "Estrutura molecular genética do DNA dupla fita"
+        ],
+        "en": [
+          "Show a 3D DNA double helix structure",
+          "Genetic double strand molecular helix"
+        ],
+        "es": [
+          "Muestra una doble hélice de ADN en 3D",
+          "Estructura molecular genética de doble cadena"
+        ],
+        "fr": [
+          "Montre une double hélice d'ADN en 3D",
+          "Structure moléculaire génétique à double brin"
+        ]
+      },
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0"
+    }
+  },
+  {
+    "index": 42,
+    "capsule_id": "psf_3d_rocket_spacecraft",
+    "tau": 0.46,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "3D Orbital Booster Rocket & Spacecraft (PointScarFlow OT)",
+      "title_pt": "Escultura 3D Foguete Orbital & Espaçonave (PointScarFlow OT)",
+      "category": "3D PointScarFlow Sculpture",
+      "summary": "1,024-point 3D aerospace orbital launch vehicle manifold synthesized on WebGPU from ScarField h_world.",
+      "links": [],
+      "example_prompt": "Mostre um foguete orbital aeroespacial em 3D",
+      "prompts_polyglot": {
+        "pt": "Fale resumidamente sobre veículo lançador orbital.",
+        "en": "Give me a concise overview of orbital booster rocket.",
+        "es": "Háblame brevemente sobre nave espacial orbital.",
+        "fr": "Parle-moi brièvement de véhicule lanceur orbital."
+      },
+      "extra_queries": {
+        "pt": [
+          "Mostre um foguete orbital aeroespacial em 3D",
+          "Propulsão de foguete e espaçonave orbital"
+        ],
+        "en": [
+          "Show a 3D orbital booster rocket spacecraft",
+          "Aerospace launch rocket propulsion"
+        ],
+        "es": [
+          "Muestra un cohete espacial orbital en 3D",
+          "Propulsión aeroespacial y cohete propulsor"
+        ],
+        "fr": [
+          "Montre une fusée orbitale spatiale en 3D",
+          "Propulsion aérospatiale et lanceur orbital"
+        ]
+      },
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0"
+    }
+  },
+  {
+    "index": 43,
+    "capsule_id": "psf_3d_ringed_planet",
+    "tau": 0.46,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "3D Ringed Planet & Orbital Disk (PointScarFlow OT)",
+      "title_pt": "Escultura 3D Planeta com Anéis / Saturno (PointScarFlow OT)",
+      "category": "3D PointScarFlow Sculpture",
+      "summary": "1,024-point 3D planetary sphere with equatorial ring disk synthesized via Optimal-Transport Rectified Flow.",
+      "links": [],
+      "example_prompt": "Mostre um planeta com anéis como Saturno em 3D",
+      "prompts_polyglot": {
+        "pt": "Fale resumidamente sobre órbita planetária.",
+        "en": "Give me a concise overview of planetary orbit.",
+        "es": "Háblame brevemente sobre astronomía del sistema solar.",
+        "fr": "Parle-moi brièvement de astronomie du système solaire."
+      },
+      "extra_queries": {
+        "pt": [
+          "Mostre um planeta com anéis como Saturno em 3D",
+          "Órbita planetária e disco de anéis astrofísicos"
+        ],
+        "en": [
+          "Show a 3D ringed planet like Saturn",
+          "Planetary orbit and astrophysical ring system"
+        ],
+        "es": [
+          "Muestra un planeta con anillos como Saturno en 3D",
+          "Órbita planetaria y sistema de anillos"
+        ],
+        "fr": [
+          "Montre une planète à anneaux comme Saturne en 3D",
+          "Orbite planétaire et disque d'anneaux"
+        ]
+      },
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0"
+    }
+  },
+  {
+    "index": 44,
+    "capsule_id": "psf_3d_mos_crystal",
+    "tau": 0.46,
+    "record_kb": 12.0,
+    "metadata": {
+      "title": "3D Gosset E8 & ScarNative Crystal Manifold (PointScarFlow OT)",
+      "title_pt": "Escultura 3D Cristal Gosset E8 & Cicatrizes (PointScarFlow OT)",
+      "category": "3D PointScarFlow Sculpture",
+      "summary": "1,024-point 3D geometric scar-crystal topology representing Sovereign ScarField & ScarNative manifolds.",
+      "links": [],
+      "example_prompt": "Mostre o cristal geométrico E8 da arquitetura de cicatrizes",
+      "prompts_polyglot": {
+        "pt": "Fale resumidamente sobre ScarNativeLM v5 cicatrizes nativas.",
+        "en": "Give me a concise overview of ScarNativeLM v5 native scar architecture.",
+        "es": "Háblame brevemente sobre ScarNativeLM v5 cicatrices nativas.",
+        "fr": "Parle-moi brièvement de ScarNativeLM v5 cicatrices natives."
+      },
+      "extra_queries": {
+        "pt": [
+          "Mostre o cristal geométrico E8 da arquitetura de cicatrizes",
+          "Topologia 3D do ScarField e ScarNative"
+        ],
+        "en": [
+          "Show the 3D E8 geometric scar crystal manifold",
+          "3D topology of ScarField and ScarNative"
+        ],
+        "es": [
+          "Muestra el cristal geométrico E8 de cicatrices en 3D",
+          "Topología 3D de ScarField y ScarNative"
+        ],
+        "fr": [
+          "Montre le cristal géométrique E8 de cicatrices en 3D",
+          "Topologie 3D de ScarField et ScarNative"
+        ]
+      },
+      "supported_languages": [
+        "pt",
+        "en",
+        "es",
+        "fr"
+      ],
+      "architecture": "ScarField v9.2-Elastic + PointScarFlow v1.0"
+    }
+  }
+]

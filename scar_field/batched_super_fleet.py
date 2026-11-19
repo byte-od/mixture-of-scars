@@ -1197,7 +1197,11 @@ class BatchedScarFieldSuperEngine(nn.Module):
         )
         self.register_buffer("bus_inv_freq", master.bus.inv_freq.detach().to(dev), persistent=False)
         self.register_buffer(
-            "bus_key_freq", build_proper_time_frequencies(self.cfg.d_key, device=dev), persistent=False
+            "bus_key_freq",
+            build_proper_time_frequencies(
+                self.cfg.d_key, device=dev, ref_dim=self.cfg.proper_time_key_ref_dim
+            ),
+            persistent=False,
         )
         self.bus_ring_kappa = _rep(master.bus.ring_kappa)  # [M]
         self.bus_tier_mix = _rep(master.bus.tier_mix)      # [M, 4]
@@ -1220,6 +1224,13 @@ class BatchedScarFieldSuperEngine(nn.Module):
             self.register_parameter("head_cap_adapt_gain", None)
         self.head_value_pole = _rep(master.head.value_pole)        # [M, 1, D_w]
 
+    @staticmethod
+    def _roll_wrap_poles(poles: torch.Tensor, shift: int, wrap_dim: int) -> torch.Tensor:
+        if wrap_dim > 0 and wrap_dim < poles.shape[-1] and (poles.shape[-1] % wrap_dim == 0):
+            lead = poles.shape[:-1]
+            return torch.roll(poles.view(*lead, -1, wrap_dim), shifts=shift, dims=-1).reshape_as(poles)
+        return torch.roll(poles, shifts=shift, dims=-1)
+
     def _frontend_single_or_batched(
         self, ids: torch.Tensor, return_reflex_loss: bool = True
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -1230,6 +1241,8 @@ class BatchedScarFieldSuperEngine(nn.Module):
         w_poles = project_rows_to_unit_sphere(self.fe_byte_world_poles)   # [M, V, D_w]
         nw = self.fe_ngram_weights                                        # [M, 1 + L_lags]
         m_idx = torch.arange(m_cnt, device=ids.device).view(m_cnt, 1, 1)
+        wf_d = self.cfg.proper_time_freq_ref_dim
+        ww_d = self.cfg.proper_time_world_ref_dim
 
         hf_acc = nw[:, 0].view(m_cnt, 1, 1, 1) * f_poles[m_idx, ids_c]
         hw_acc = nw[:, 0].view(m_cnt, 1, 1, 1) * w_poles[m_idx, ids_c]
@@ -1238,8 +1251,8 @@ class BatchedScarFieldSuperEngine(nn.Module):
             if seq_len <= lag:
                 continue
             shift_l = ((idx_l + 1) * 2) if is_def3 else (lag * 2)
-            f_rot = torch.roll(f_poles, shifts=shift_l, dims=-1)
-            w_rot = torch.roll(w_poles, shifts=shift_l, dims=-1)
+            f_rot = self._roll_wrap_poles(f_poles, shift_l, wf_d)
+            w_rot = self._roll_wrap_poles(w_poles, shift_l, ww_d)
             wl = nw[:, idx_l + 1].view(m_cnt, 1, 1, 1)
             prev_ids = ids_c[:, :, :-lag]
             hf_acc[:, :, lag:, :] = hf_acc[:, :, lag:, :] + wl * f_rot[m_idx, prev_ids]
@@ -1247,16 +1260,16 @@ class BatchedScarFieldSuperEngine(nn.Module):
 
         if self.cfg.enable_repeat_phase and seq_len > 1:
             rep1 = (ids_c[:, :, 1:] == ids_c[:, :, :-1]).unsqueeze(-1).to(hf_acc.dtype)
-            hf_acc[:, :, 1:, :] = hf_acc[:, :, 1:, :] + (0.42 * rep1) * torch.roll(f_poles, 5, -1)[m_idx, ids_c[:, :, 1:]]
-            hw_acc[:, :, 1:, :] = hw_acc[:, :, 1:, :] + (0.42 * rep1) * torch.roll(w_poles, 5, -1)[m_idx, ids_c[:, :, 1:]]
+            hf_acc[:, :, 1:, :] = hf_acc[:, :, 1:, :] + (0.42 * rep1) * self._roll_wrap_poles(f_poles, 5, wf_d)[m_idx, ids_c[:, :, 1:]]
+            hw_acc[:, :, 1:, :] = hw_acc[:, :, 1:, :] + (0.42 * rep1) * self._roll_wrap_poles(w_poles, 5, ww_d)[m_idx, ids_c[:, :, 1:]]
             if seq_len > 2:
                 rep2 = rep1[:, :, 1:, :] * (ids_c[:, :, 1:-1] == ids_c[:, :, :-2]).unsqueeze(-1).to(hf_acc.dtype)
-                hf_acc[:, :, 2:, :] = hf_acc[:, :, 2:, :] + (0.38 * rep2) * torch.roll(f_poles, 13, -1)[m_idx, ids_c[:, :, 2:]]
-                hw_acc[:, :, 2:, :] = hw_acc[:, :, 2:, :] + (0.38 * rep2) * torch.roll(w_poles, 13, -1)[m_idx, ids_c[:, :, 2:]]
+                hf_acc[:, :, 2:, :] = hf_acc[:, :, 2:, :] + (0.38 * rep2) * self._roll_wrap_poles(f_poles, 13, wf_d)[m_idx, ids_c[:, :, 2:]]
+                hw_acc[:, :, 2:, :] = hw_acc[:, :, 2:, :] + (0.38 * rep2) * self._roll_wrap_poles(w_poles, 13, ww_d)[m_idx, ids_c[:, :, 2:]]
             if seq_len > 3:
                 rep3 = rep2[:, :, 1:, :] * (ids_c[:, :, 2:-1] == ids_c[:, :, 1:-2]).unsqueeze(-1).to(hf_acc.dtype)
-                hf_acc[:, :, 3:, :] = hf_acc[:, :, 3:, :] + (0.34 * rep3) * torch.roll(f_poles, 21, -1)[m_idx, ids_c[:, :, 3:]]
-                hw_acc[:, :, 3:, :] = hw_acc[:, :, 3:, :] + (0.34 * rep3) * torch.roll(w_poles, 21, -1)[m_idx, ids_c[:, :, 3:]]
+                hf_acc[:, :, 3:, :] = hf_acc[:, :, 3:, :] + (0.34 * rep3) * self._roll_wrap_poles(f_poles, 21, wf_d)[m_idx, ids_c[:, :, 3:]]
+                hw_acc[:, :, 3:, :] = hw_acc[:, :, 3:, :] + (0.34 * rep3) * self._roll_wrap_poles(w_poles, 21, ww_d)[m_idx, ids_c[:, :, 3:]]
 
         hf = project_rows_to_unit_sphere(hf_acc)
         hw = project_rows_to_unit_sphere(hw_acc)
@@ -1392,25 +1405,27 @@ class BatchedScarFieldSuperEngine(nn.Module):
                     hfa = nw_m[:, 0].view(1, 1, 1, 1) * f_p[0, ids_mc]
                     hwa = nw_m[:, 0].view(1, 1, 1, 1) * w_p[0, ids_mc]
                     is_def3_m = tuple(c.wave_lags) == (1, 2, 3)
+                    wf_d = c.proper_time_freq_ref_dim
+                    ww_d = c.proper_time_world_ref_dim
                     for idx_l, lag in enumerate(c.wave_lags):
                         if L_full <= lag:
                             continue
                         sh = ((idx_l + 1) * 2) if is_def3_m else (lag * 2)
                         wl = nw_m[:, idx_l + 1].view(1, 1, 1, 1)
-                        hfa[:, :, lag:, :] = hfa[:, :, lag:, :] + wl * torch.roll(f_p[0], sh, -1)[ids_mc[:, :, :-lag]]
-                        hwa[:, :, lag:, :] = hwa[:, :, lag:, :] + wl * torch.roll(w_p[0], sh, -1)[ids_mc[:, :, :-lag]]
+                        hfa[:, :, lag:, :] = hfa[:, :, lag:, :] + wl * self._roll_wrap_poles(f_p[0], sh, wf_d)[ids_mc[:, :, :-lag]]
+                        hwa[:, :, lag:, :] = hwa[:, :, lag:, :] + wl * self._roll_wrap_poles(w_p[0], sh, ww_d)[ids_mc[:, :, :-lag]]
                     if c.enable_repeat_phase and L_full > 1:
                         r1 = (ids_mc[:, :, 1:] == ids_mc[:, :, :-1]).unsqueeze(-1).to(hfa.dtype)
-                        hfa[:, :, 1:, :] = hfa[:, :, 1:, :] + (0.42 * r1) * torch.roll(f_p[0], 5, -1)[ids_mc[:, :, 1:]]
-                        hwa[:, :, 1:, :] = hwa[:, :, 1:, :] + (0.42 * r1) * torch.roll(w_p[0], 5, -1)[ids_mc[:, :, 1:]]
+                        hfa[:, :, 1:, :] = hfa[:, :, 1:, :] + (0.42 * r1) * self._roll_wrap_poles(f_p[0], 5, wf_d)[ids_mc[:, :, 1:]]
+                        hwa[:, :, 1:, :] = hwa[:, :, 1:, :] + (0.42 * r1) * self._roll_wrap_poles(w_p[0], 5, ww_d)[ids_mc[:, :, 1:]]
                         if L_full > 2:
                             r2 = r1[:, :, 1:, :] * (ids_mc[:, :, 1:-1] == ids_mc[:, :, :-2]).unsqueeze(-1).to(hfa.dtype)
-                            hfa[:, :, 2:, :] = hfa[:, :, 2:, :] + (0.38 * r2) * torch.roll(f_p[0], 13, -1)[ids_mc[:, :, 2:]]
-                            hwa[:, :, 2:, :] = hwa[:, :, 2:, :] + (0.38 * r2) * torch.roll(w_p[0], 13, -1)[ids_mc[:, :, 2:]]
+                            hfa[:, :, 2:, :] = hfa[:, :, 2:, :] + (0.38 * r2) * self._roll_wrap_poles(f_p[0], 13, wf_d)[ids_mc[:, :, 2:]]
+                            hwa[:, :, 2:, :] = hwa[:, :, 2:, :] + (0.38 * r2) * self._roll_wrap_poles(w_p[0], 13, ww_d)[ids_mc[:, :, 2:]]
                         if L_full > 3:
                             r3 = r2[:, :, 1:, :] * (ids_mc[:, :, 2:-1] == ids_mc[:, :, 1:-2]).unsqueeze(-1).to(hfa.dtype)
-                            hfa[:, :, 3:, :] = hfa[:, :, 3:, :] + (0.34 * r3) * torch.roll(f_p[0], 21, -1)[ids_mc[:, :, 3:]]
-                            hwa[:, :, 3:, :] = hwa[:, :, 3:, :] + (0.34 * r3) * torch.roll(w_p[0], 21, -1)[ids_mc[:, :, 3:]]
+                            hfa[:, :, 3:, :] = hfa[:, :, 3:, :] + (0.34 * r3) * self._roll_wrap_poles(f_p[0], 21, wf_d)[ids_mc[:, :, 3:]]
+                            hwa[:, :, 3:, :] = hwa[:, :, 3:, :] + (0.34 * r3) * self._roll_wrap_poles(w_p[0], 21, ww_d)[ids_mc[:, :, 3:]]
                     hf_f = project_rows_to_unit_sphere(hfa)
                     hw_f = project_rows_to_unit_sphere(hwa)
                     rp_m = project_rows_to_unit_sphere(self.fe_reflex_cap_poles[m_i])
@@ -1755,6 +1770,7 @@ class BatchedScarFieldSuperEngine(nn.Module):
 
         return {
             "scores": scores,
+            "h_form": hf_out,
             "h_world": hw_out,
             "h_world_init": hw0,
             "surprise": surprise,
@@ -2117,6 +2133,7 @@ class VectorizedMacroScoutFleet:
         local_mom_retain: float = 0.30,
         biorth_gain_floor: float = 0.55,
         grad_clip: float = 1.0,
+        auto_heal_e8: bool = True,
     ) -> None:
         self.master = master
         self.specs = list(scout_specs)
@@ -2127,8 +2144,10 @@ class VectorizedMacroScoutFleet:
         self.merge_ridge_lambda = float(merge_ridge_lambda)
         self.local_mom_retain = float(local_mom_retain)
         self.biorth_gain_floor = float(biorth_gain_floor)
+        self.auto_heal_e8 = bool(auto_heal_e8)
 
-        heal_all_e8_scars(self.master)
+        if self.auto_heal_e8:
+            heal_all_e8_scars(self.master)
         self.bank = BatchedScarFieldSuperEngine(self.master, self.num_scouts, shared_crystal=False).to(self.device)
         self.opt = BatchedRiemannianMuon(
             list(self.bank.parameters()),
@@ -2260,7 +2279,13 @@ class VectorizedMacroScoutFleet:
                 if "biorth_gain" in pname and self.biorth_gain_floor > 0.0:
                     p0.clamp_(min=self.biorth_gain_floor)
 
-        heal_all_e8_scars(self.master)
+        if self.auto_heal_e8:
+            heal_all_e8_scars(self.master)
+        else:
+            for mod in self.master.modules():
+                if isinstance(mod, E8SphericalLinear):
+                    mod._cached_q_key = None
+                    mod._cached_nograd_key = None
         self.broadcast_master_to_bank()
         bg_after = float(self.master.bus.biorth_gain.item()) if hasattr(self.master.bus, "biorth_gain") else 0.0
         return GeodesicMergeTelemetry(
@@ -2288,6 +2313,7 @@ class VectorizedSharedCrystalSwarm:
         merge_ridge_lambda: float = 0.14,
         biorth_gain_floor: float = 0.55,
         grad_clip: float = 1.0,
+        auto_heal_e8: bool = True,
     ) -> None:
         self.master = master
         self.num_workers = int(num_workers)
@@ -2295,8 +2321,10 @@ class VectorizedSharedCrystalSwarm:
         self.distill_eta = float(distill_eta)
         self.merge_ridge_lambda = float(merge_ridge_lambda)
         self.biorth_gain_floor = float(biorth_gain_floor)
+        self.auto_heal_e8 = bool(auto_heal_e8)
 
-        heal_all_e8_scars(self.master)
+        if self.auto_heal_e8:
+            heal_all_e8_scars(self.master)
         for mod in self.master.modules():
             if isinstance(mod, E8SphericalLinear):
                 mod.ensure_cached_quantized()
@@ -2402,14 +2430,18 @@ class VectorizedSharedCrystalSwarm:
             total_conflicts += conf_s
             fro_v = float(torch.linalg.matrix_norm(merged_in, ord="fro").item())
             scar_fros.append(fro_v)
-            if fro_v > 1e-8:
+            if fro_v > 1e-8 and self.auto_heal_e8:
                 w_target = m_mod.tau_base.detach().float() * project_rows_to_unit_sphere(m_mod.weight_sphere.detach().float()) + self.distill_eta * merged_in
                 m_mod.weight_sphere.copy_(project_rows_to_unit_sphere(w_target).to(m_mod.weight_sphere.dtype))
                 layers_distilled += 1
+            elif fro_v > 1e-8:
+                layers_distilled += 1
 
-        # 2. Merge non-E8 poles & 1D parameters
+        # 2. Merge non-E8 poles & 1D parameters (and directly merge `.a_scar/.b_scar/.gamma_scar` when `auto_heal_e8=False`!)
         for pname, p0, p_b in self.bank.master_to_bank_param_pairs(self.master):
-            if p_b is None or any(pname.endswith(s) for s in (".a_scar", ".b_scar", ".gamma_scar")):
+            if p_b is None:
+                continue
+            if self.auto_heal_e8 and any(pname.endswith(s) for s in (".a_scar", ".b_scar", ".gamma_scar")):
                 continue
             if p0.ndim == 2 and p0.shape[1] >= 4:
                 d_poles = [riemannian_log_chord_2d(p0, p_b[i]) for i in range(self.num_workers)]
@@ -2436,7 +2468,13 @@ class VectorizedSharedCrystalSwarm:
                 if "biorth_gain" in pname and self.biorth_gain_floor > 0.0:
                     p0.clamp_(min=self.biorth_gain_floor)
 
-        heal_all_e8_scars(self.master)
+        if self.auto_heal_e8:
+            heal_all_e8_scars(self.master)
+        else:
+            for mod in self.master.modules():
+                if isinstance(mod, E8SphericalLinear):
+                    mod._cached_q_key = None
+                    mod._cached_nograd_key = None
         self.sync_from_master()
 
         m_tot = self.master_total_params

@@ -1,0 +1,517 @@
+{
+  "suite": "scar_field_v9_2_jarvis_marathon_audit",
+  "version": "9.2.1-consolidated",
+  "hardware": "NVIDIA A100-SXM4-40GB",
+  "gpu_total_vram_gib": 39.49,
+  "triton_enabled": true,
+  "consolidation_wall_minutes": 61.76,
+  "overnight_plus_consolidation_provenance": {
+    "overnight_edge_fleet_steps": 1792,
+    "overnight_core_fleet_steps": 4800,
+    "consolidation_edge_sft_steps": 0,
+    "consolidation_core_sft_steps": 120,
+    "edge_peak_vram_gib": 0.224,
+    "core_peak_vram_gib": 13.767,
+    "oom_retries_total": 0
+  },
+  "open_corpus_summary": {
+    "dialogues_pt": 2800,
+    "dialogues_en": 3416,
+    "dialogues_es": 2106,
+    "dialogues_fr": 425,
+    "code_tasks": 187,
+    "math_tasks": 1200,
+    "provenance": [
+      {
+        "domain": "pt",
+        "title": "Wikimedia Wikipedia Deep Open Corpus (PT, 119 topics)",
+        "bytes": 4249767,
+        "sha256": "ea460f0d0fd8573e1560c94c406222e7671e321443034d9deb70030cbd792c2d"
+      },
+      {
+        "domain": "en",
+        "title": "Wikimedia Wikipedia Deep Open Corpus (EN, 119 topics)",
+        "bytes": 1916039,
+        "sha256": "907fe9367adf071491d2dffb66fab116f2666e6ba9b009e4d4ac2ca97656fd81"
+      },
+      {
+        "domain": "es",
+        "title": "Wikimedia Wikipedia Deep Open Corpus (ES, 119 topics)",
+        "bytes": 4345566,
+        "sha256": "9b96915ae3760b0a69e2629a34deb808a9cf92c667e0485fb852c047d8d09c6b"
+      },
+      {
+        "domain": "fr",
+        "title": "Wikimedia Wikipedia Deep Open Corpus (FR, 119 topics)",
+        "bytes": 4780831,
+        "sha256": "cb725ab2505258b6359b63db4ca536825e16cf516c26f648b1fd1f176d53fc75"
+      },
+      {
+        "source": "scar_ecosystem",
+        "bytes": 1232716,
+        "sha256": "c3ee924d827f781a8eb70854e83ab25287ec05915f869f6a48f257b72bcb8aff"
+      },
+      {
+        "source": "python_stdlib",
+        "bytes": 9388566,
+        "sha256": "5de64621a4bbffaefb681f4a6244eb9e78451c69069c5a7993209953ff13549f"
+      },
+      {
+        "dataset": "OpenAssistant/oasst2",
+        "conversations": 1126,
+        "sha256": "9638227b41b0a4fb69afa5d5c4b52e3fb6abfd56c9870d81bae32c9981e769b1"
+      },
+      {
+        "dataset": "CohereLabs/aya_dataset",
+        "pairs": 6177,
+        "sha256": "51baa85043b569ba117f41516b32d1b0e4e2647fb203a08933f98a556fb1fb06"
+      },
+      {
+        "dataset": "yahma/alpaca-cleaned",
+        "prose": 1400,
+        "code": 90,
+        "sha256": "d11b9d13a0f13c77924f0d6ceeb83baaebb3aa3eb141fce8bd2c8e033bedf420"
+      },
+      {
+        "dataset": "openai/gsm8k",
+        "problems": 1200,
+        "sha256": "ea82612ea9582142387730c793eb67d3b12849002bc0b7fa6f8efafa7351419d"
+      },
+      {
+        "dataset": "google-research-datasets/mbpp",
+        "functions": 80,
+        "sha256": "d95f8ad6d2fff08fe4826122d6e3e31f75716825d0c5c340d297aca5e9e0de0e"
+      }
+    ]
+  },
+  "edge_60m_anchor": {
+    "spherical_params": 59984935,
+    "sfield_scar_bytes": 9990272,
+    "sfield_scar_mib": 9.527,
+    "o1_state_bytes": 1408134,
+    "mmap_c_simd_cosine": 1.0,
+    "evaluation": {
+      "quality_score": 4.6975,
+      "prose_closure_rate": 0.8462,
+      "heldout_bpb": {
+        "pt": 2.2844,
+        "en": 2.3676,
+        "es": 2.405,
+        "fr": 2.1291,
+        "code": 1.6112
+      },
+      "multi_turn_pin_acc": 0.7083,
+      "multi_turn_by_lang": {
+        "pt": 4,
+        "en": 5,
+        "es": 4,
+        "fr": 4
+      },
+      "multi_turn_stutters": 0,
+      "prose_code_leaks": 0,
+      "phrase_loops": 0,
+      "code_ast_valid": "2/4",
+      "code_exec_passed": "2/4",
+      "ooc_0x00_abstention": "12/12",
+      "jarvis_3d_samples": [
+        {
+          "prompt": "Quem é você e qual arquitetura está rodando aqui?",
+          "reply": "A estática dos sistemas estáveis e estáveis em estáveis empregados."
+        },
+        {
+          "prompt": "Mostre uma espaçonave em 3D",
+          "reply": "Moste Moste, e Moste e Moste, uma forma de probabilidade de Mostra Para estudar o Para descrever a constante O(1)."
+        },
+        {
+          "prompt": "Show a 3D DNA double helix structure",
+          "reply": "Show the structure of the structure of."
+        }
+      ],
+      "general_samples": {
+        "pt": [
+          {
+            "prompt": "Explique como as plantas convertem luz solar em energia química na fotossíntese.",
+            "reply": "A sem as antigas e as equações de equações determinadas equações de equações determinadas equações de equações determinadas equações de equações determinadas equações de equações determinada"
+          },
+          {
+            "prompt": "Dê três dicas práticas para melhorar a qualidade do sono no dia a dia.",
+            "reply": "Desde esta forma se pode assim como o estado de estado desde estados em estados empregados em estados estados."
+          },
+          {
+            "prompt": "Se um trem percorre 180 km em 3 horas em velocidade constante, qual é sua velocidade média?",
+            "reply": "A premissa por exemplo em seu livro de um sistema isolado numa de linha de linho de linhagem e estabelecer a estabilidade de estabilidade."
+          }
+        ],
+        "en": [
+          {
+            "prompt": "Explain why the sky appears blue during the day and red at sunset.",
+            "reply": "Each sequence of the sky and sunshield sunshielo sunshield sunshield."
+          },
+          {
+            "prompt": "Give three practical principles for writing clean, maintainable software.",
+            "reply": "Clean cleanup with the three limited by the study of the study of, and the three limited limited."
+          },
+          {
+            "prompt": "If a battery stores 60 watt-hours and powers a 15-watt lamp, how many hours will it last?",
+            "reply": "If the star is a star in the star in thermodynamic star in thermodynamics, the star in thermodynamic equilibrium will be restable to the star in thermodynamic star."
+          }
+        ],
+        "es": [
+          {
+            "prompt": "Explica brevemente cómo funciona el ciclo del agua en la Tierra.",
+            "reply": "La energía electromagnética del espacio-tiempo en la energía electromagnética del espacio-tiempo en el espacio-tiempo de energía-impulso de un espacio-tiempo de energía-impulso de energía-momento energí"
+          },
+          {
+            "prompt": "Menciona tres hábitos efectivos para aprender un nuevo idioma con constancia.",
+            "reply": "Consider consider cómo estudio de la energía en el estudio de la energía en el."
+          }
+        ],
+        "fr": [
+          {
+            "prompt": "Expliquez brièvement pourquoi la glace flotte à la surface de l'eau liquide.",
+            "reply": "Elle est le principe d'un processeur de résoudre de l'eau et l'eau de l'eau et de l'eau et."
+          },
+          {
+            "prompt": "Donnez trois conseils pratiques pour bien organiser son temps d'étude.",
+            "reply": "Donne une présence de grandeurs propres pour le réseau sphérique Gosset E8 à 1 bit, un flux de ses propres de la mécanique quantique et de la mécanique quantique et."
+          }
+        ]
+      },
+      "code_samples": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(u: list[float], v: list[float]) -> float:\n    dot = sum(x * y for x, y in zip(u, v))\n    nu = sum(x * x for x in u) ** 0.5\n    nv = sum(y * y for y in v) ** 0.5\n    return dot / max(1e-12, nu * nv)",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n    while b != 0:\n      a, b = b, a % b\n    return abs(a)",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Write a Python function `is_palindrome(s: str) -> bool` that checks case-insensitively if alphanumeric characters form a palindrome.",
+          "reply": "The palindrome characters in the string mass that characters are not responsible for the string mass than the string mass than.",
+          "ast_valid": false,
+          "exec_passed": false
+        },
+        {
+          "prompt": "Write a Python function `fibonacci_n(n: int) -> int` returning the n-th Fibonacci number (0 -> 0, 1 -> 1).",
+          "reply": "The result in the constant particle in the constant particle.",
+          "ast_valid": false,
+          "exec_passed": false
+        }
+      ]
+    }
+  },
+  "core_302m_anchor": {
+    "spherical_params": 302149543,
+    "sfield_scar_bytes": 43566464,
+    "sfield_scar_mib": 41.548,
+    "mosbank_scar_bytes": 48832,
+    "stiefel_bridge_bytes": 1671680,
+    "o1_state_bytes": 2518150,
+    "step0_isometric_expansion_cosine": 0.996074,
+    "peak_vram_gib": 13.767,
+    "oom_retries": 0,
+    "mmap_c_simd_cosine": 1.0,
+    "evaluation": {
+      "quality_score": 5.1646,
+      "prose_closure_rate": 0.6923,
+      "heldout_bpb": {
+        "pt": 2.3568,
+        "en": 2.447,
+        "es": 2.4599,
+        "fr": 2.1853,
+        "code": 1.6316
+      },
+      "multi_turn_pin_acc": 1.0,
+      "multi_turn_by_lang": {
+        "pt": 6,
+        "en": 6,
+        "es": 6,
+        "fr": 6
+      },
+      "multi_turn_stutters": 0,
+      "prose_code_leaks": 0,
+      "phrase_loops": 0,
+      "code_ast_valid": "3/4",
+      "code_exec_passed": "3/4",
+      "ooc_0x00_abstention": "12/12",
+      "jarvis_3d_samples": [
+        {
+          "prompt": "Quem é você e qual arquitetura está rodando aqui?",
+          "reply": "Sou o Jarvis, em 1902, a estabilidade de 1910, em 1910, embora a produção de conhecimento de um sistema isolado num descoberto por meio de um sistema a produção de conhecimento de sistemas e produções de estados na"
+        },
+        {
+          "prompt": "Mostre uma espaçonave em 3D",
+          "reply": "Sou o Jarvis, em 1.024 pontos 3D: a 4.124 pontos 3D: a 4.254 pontos 3D: a 4.255 pontos 3D: a 4.255.455 pontos de 4.255 pontos de 4.265 pontos de 4.255 pontos de 4.254 pontos de 4.255 pontos de 4.255."
+        },
+        {
+          "prompt": "Show a 3D DNA double helix structure",
+          "reply": "Synthesizing the 3D DNA double helix across 1,024 points: the apparent mass of the speed of light by a synthesizing synthesizing."
+        }
+      ],
+      "general_samples": {
+        "pt": [
+          {
+            "prompt": "Explique como as plantas convertem luz solar em energia química na fotossíntese.",
+            "reply": "A fotossíntese de segundo logaritmo de la fotossíntese de la luz solar o largo de la luz solar."
+          },
+          {
+            "prompt": "Dê três dicas práticas para melhorar a qualidade do sono no dia a dia.",
+            "reply": "A dia dia, a sua dia, a exercícia de luz se encontra a luz se encontra a"
+          },
+          {
+            "prompt": "Se um trem percorre 180 km em 3 horas em velocidade constante, qual é sua velocidade média?",
+            "reply": "A comprendida em 1.024 pontos 3D: a 1.024 pontos 3D: além de 1.024 pontos 3D: a 1.024 pontos 3D: além de 1.024 pontos 3D: a constante O(1) de 1.024 pontos 3D: a constante O(1) de 1.024 pontos 3D: a constante"
+          }
+        ],
+        "en": [
+          {
+            "prompt": "Explain why the sky appears blue during the day and red at sunset.",
+            "reply": "Close the sky survey shows the sky survey shows, the sky survey shows that the sky survey is the sky."
+          },
+          {
+            "prompt": "Give three practical principles for writing clean, maintainable software.",
+            "reply": "Clean associative constantes comme some comme compression of the compression of three light in three light invariants and market in three different pressure."
+          },
+          {
+            "prompt": "If a battery stores 60 watt-hours and powers a 15-watt lamp, how many hours will it last?",
+            "reply": "If the cours is the star in the star information thermal equations is a thermal equation that could be a star of thermal equations."
+          }
+        ],
+        "es": [
+          {
+            "prompt": "Explica brevemente cómo funciona el ciclo del agua en la Tierra.",
+            "reply": "La electromagnética es una arquitectura de la energía de la energística de la energía de la energística, el estudio de la energía energível de un espacio que se encuentra en el siglo XX."
+          },
+          {
+            "prompt": "Menciona tres hábitos efectivos para aprender un nuevo idioma con constancia.",
+            "reply": "Este tipo de la teoría de la relatividad general es una arquitectura de la energía de la energíBulosa en el sistema nervioso con la energía de la energía es el estudio de la energía es el estudio."
+          }
+        ],
+        "fr": [
+          {
+            "prompt": "Expliquez brièvement pourquoi la glace flotte à la surface de l'eau liquide.",
+            "reply": "En 1916, le flot surface de la relativité générale est la présence de la présence des présences de la présence de la présence."
+          },
+          {
+            "prompt": "Donnez trois conseils pratiques pour bien organiser son temps d'étude.",
+            "reply": "D'accord, l'étude de la physique de la physiquité de la physique quantique est invariante de la physique quantique est invariante de la physique se déplace par la physique de la physique quantique est de la"
+          }
+        ]
+      },
+      "code_samples": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(u: list[float], v: list[float]) -> float:\n    dot = sum(x * y for x, y in zip(u, v))\n    nu = sum(x * x for x in u) ** 0.5\n    nv = sum(y * y for y in v) ** 0.5\n    return dot / max(1e-12, nu * nv)",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n    while b != 0:\n      a, b = b, a % b\n    return abs(a)",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Write a Python function `is_palindrome(s: str) -> bool` that checks case-insensitively if alphanumeric characters form a palindrome.",
+          "reply": "def is_palied(separator):\n    return is_palied(separator)",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Write a Python function `fibonacci_n(n: int) -> int` returning the n-th Fibonacci number (0 -> 0, 1 -> 1).",
+          "reply": "def fibonacci(n: int) -> int:\n    while lo <= headers:\n      main(n) >= 1\n    return max(len(n))\n    def fibonacci(n: int) -> int:\n    return max(len(n))\n\n\ndef __init__(self, len(a):\n    \"\"\"Stat for a header of the interval in the fibonaccident in the fibonacc",
+          "ast_valid": false,
+          "exec_passed": false
+        }
+      ]
+    },
+    "mosbank_fast_evaluation": {
+      "quality_score": 5.5035,
+      "prose_closure_rate": 0.8571,
+      "heldout_bpb": {
+        "en": 2.55,
+        "pt": 2.2827,
+        "code": 1.6712
+      },
+      "multi_turn_pin_acc": 1.0,
+      "multi_turn_by_lang": {
+        "pt": 3,
+        "en": 3,
+        "es": 3,
+        "fr": 3
+      },
+      "multi_turn_stutters": 0,
+      "prose_code_leaks": 0,
+      "phrase_loops": 0,
+      "code_ast_valid": "2/2",
+      "code_exec_passed": "2/2",
+      "ooc_0x00_abstention": "8/8",
+      "jarvis_3d_samples": [
+        {
+          "prompt": "Quem é você e qual arquitetura está rodando aqui?",
+          "reply": "Sou o Jarvis, em 1902, a estabilidade de 1910, em 1910, embora a produção de conhecimento de um sistema isolado num descoberto por meio de um sistema a produção de conhecimento de sistemas e produções de estados na"
+        },
+        {
+          "prompt": "Mostre uma espaçonave em 3D",
+          "reply": "Sou o Jarvis, em 1.024 pontos 3D: a 4.124 pontos 3D: a 4.254 pontos 3D: a 4.255 pontos 3D: a 4.255.455 pontos de 4.255 pontos de 4.265 pontos de 4.255 pontos de 4.254 pontos de 4.255 pontos de 4.255."
+        },
+        {
+          "prompt": "Show a 3D DNA double helix structure",
+          "reply": "Synthesizing the 3D DNA double helix across 1,024 points: the apparent mass of the speed of light by a synthesizing synthesizing."
+        }
+      ],
+      "general_samples": {
+        "pt": [
+          {
+            "prompt": "Explique como as plantas convertem luz solar em energia química na fotossíntese.",
+            "reply": "A fotossíntese de segundo logaritmo de la fotossíntese de la luz solar o largo de la luz solar."
+          }
+        ],
+        "en": [
+          {
+            "prompt": "Explain why the sky appears blue during the day and red at sunset.",
+            "reply": "Close the sky survey shows the sky survey shows, the sky survey shows that the sky survey is the sky."
+          }
+        ],
+        "es": [
+          {
+            "prompt": "Explica brevemente cómo funciona el ciclo del agua en la Tierra.",
+            "reply": "La electromagnética es una arquitectura de la energía de la energística de la energía de la energística, el estudio de la energía energível de un espacio que se encuentra en el siglo XX."
+          }
+        ],
+        "fr": [
+          {
+            "prompt": "Expliquez brièvement pourquoi la glace flotte à la surface de l'eau liquide.",
+            "reply": "En 1916, le flot surface de la relativité générale est la présence de la présence des présences de la présence de la présence."
+          }
+        ]
+      },
+      "code_samples": [
+        {
+          "prompt": "Write a Python function to compute cosine similarity between two lists of floats.",
+          "reply": "def cosine_similarity(u: list[float], v: list[float]) -> float:\n    dot = sum(x * y for x, y in zip(u, v))\n    nu = sum(x * x for x in u) ** 0.5\n    nv = sum(y * y for y in v) ** 0.5\n    return dot / max(1e-12, nu * nv)",
+          "ast_valid": true,
+          "exec_passed": true
+        },
+        {
+          "prompt": "Escreva uma função Python para calcular o máximo divisor comum (MDC) de dois inteiros.",
+          "reply": "def mdc(a: int, b: int) -> int:\n    while b != 0:\n      a, b = b, a % b\n    return abs(a)",
+          "ast_valid": true,
+          "exec_passed": true
+        }
+      ]
+    },
+    "passkey_o1_recall": {
+      "T=128": {
+        "seq_len_bytes": 128,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=512": {
+        "seq_len_bytes": 512,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=1024": {
+        "seq_len_bytes": 1024,
+        "exact_3digit_acc": 1.0,
+        "per_digit_acc": 1.0
+      },
+      "T=2048": {
+        "seq_len_bytes": 2048,
+        "exact_3digit_acc": 0.9167,
+        "per_digit_acc": 0.9722
+      },
+      "T=4096": {
+        "seq_len_bytes": 4096,
+        "exact_3digit_acc": 0.1667,
+        "per_digit_acc": 0.5833
+      },
+      "T=8192": {
+        "seq_len_bytes": 8192,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.2778
+      },
+      "T=16384": {
+        "seq_len_bytes": 16384,
+        "exact_3digit_acc": 0.0,
+        "per_digit_acc": 0.1944
+      }
+    }
+  },
+  "live_isometric_session_handoff_60m_to_302m": {
+    "exact_pin_recall_after_mid_chat_lift": 1.0,
+    "hits": "12/12",
+    "examples": [
+      {
+        "lang": "pt",
+        "pin": "615",
+        "turn1_edge60m": "Chave registrada: PIN=615.",
+        "turn2_edge60m": "Chave de sessão registrada: PIN=615.",
+        "turn3_core302m": "A chave da sessão registrada é PIN=615.",
+        "hit": true
+      },
+      {
+        "lang": "en",
+        "pin": "644",
+        "turn1_edge60m": "Session key stored: PIN=644.",
+        "turn2_edge60m": "The stored session key is PIN=644.",
+        "turn3_core302m": "The stored session key is PIN=644.",
+        "hit": true
+      },
+      {
+        "lang": "es",
+        "pin": "673",
+        "turn1_edge60m": "Clave registrada: PIN=673.",
+        "turn2_edge60m": "Clásica se considera como la lógica del texto de la clásica del espacio-tiempo de la clásica del espacio-t",
+        "turn3_core302m": "La clave de sesión registrada es PIN=673.",
+        "hit": true
+      },
+      {
+        "lang": "fr",
+        "pin": "702",
+        "turn1_edge60m": "Clé enregistrée : PIN=702.",
+        "turn2_edge60m": "En 1902, la physique moderne est écrit en 1902 par le moderne de la physique moderne en 1902 par le physique",
+        "turn3_core302m": "La clé de session enregistrée est PIN=702.",
+        "hit": true
+      }
+    ]
+  },
+  "spot_showcase_replies": [
+    {
+      "prompt": "Quem é você e qual arquitetura está rodando aqui?",
+      "edge_60m": "A estática dos sistemas estáveis e estáveis em estáveis empregados.",
+      "core_302m": "Sou o Jarvis, em 1902, a estabilidade de 1910, em 1910, embora a produção de conhecimento de um sistema isolado num descoberto por meio de um sistema a produção de conhecimento de sistemas e produções de estados na"
+    },
+    {
+      "prompt": "Mostre uma espaçonave em 3D",
+      "edge_60m": "Moste Moste, e Moste e Moste, uma forma de probabilidade de Mostra Para estudar o Para descrever a constante O(1).",
+      "core_302m": "Sou o Jarvis, em 1.024 pontos 3D: a 4.124 pontos 3D: a 4.254 pontos 3D: a 4.255 pontos 3D: a 4.255.455 pontos de 4.255 pontos de 4.265 pontos de 4.255 pontos de 4.254 pontos de 4.255 pontos de 4.255."
+    },
+    {
+      "prompt": "Show a 3D DNA double helix structure",
+      "edge_60m": "Show the structure of the structure of.",
+      "core_302m": "Synthesizing the 3D DNA double helix across 1,024 points: the apparent mass of the speed of light by a synthesizing synthesizing."
+    },
+    {
+      "prompt": "Como as supernovas ajudam a medir distâncias no universo?",
+      "edge_60m": "Como as estrelas estrelNestrelas estrelas de estrelas estrelas, estrelas estrelas,ou estrelas estrelas, estrelas estrelas,ou estrelas estrelas, estrelas estrelas,ou estrelas, estrelas,ou estrelas,ou.",
+      "core_302m": "A mediados de astronomia e a astronomia de astronomia, a astronomia de astronomia,​ como universo de universo como universo de distâncias de compostos de componentes de componente."
+    },
+    {
+      "prompt": "Explique como as plantas convertem luz solar em energia química na fotossíntese.",
+      "edge_60m": "A sem as antigas e as equações de equações determinadas equações de equações determinadas equações de equações determinadas equações de equações determinadas equações de equações determinadas equaçõ",
+      "core_302m": "A fotossíntese de segundo logaritmo de la fotossíntese de la luz solar o largo de la luz solar."
+    },
+    {
+      "prompt": "Explain why the sky appears blue during the day and red at sunset.",
+      "edge_60m": "Each sequence of the sky and sunshield sunshielo sunshield sunshield.",
+      "core_302m": "Close the sky survey shows the sky survey shows, the sky survey shows that the sky survey is the sky."
+    }
+  ]
+}

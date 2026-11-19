@@ -1,0 +1,70 @@
+{
+  "suite": "scar_field_v9_1_elastic_audit",
+  "version": "9.1.0-elastic",
+  "zero_legacy_guard": "PASS",
+  "isometric_geodesic_expansion": {
+    "unshifted_depth_scar_bank_step0_cosine": 0.999888,
+    "unshifted_max_abs_score_diff": 0.1498915,
+    "small_width_depth_step0_cosine": 0.987814,
+    "sovereign_60m_to_302m_step0_cosine": 0.995244,
+    "expanded_302m_h_form_unit_norm": 1.0,
+    "expanded_302m_h_world_unit_norm": 1.0,
+    "step1_asymmetric_lie_extra_cycle_v_grad_norm": 0.000306,
+    "step1_orthogonal_complement_weight_grad_norm": 0.152162,
+    "post_expansion_matryoshka_mask_tax_pct": 0.0
+  },
+  "dynamic_capacity_gears": {
+    "eco": {
+      "symplectic_steps": 1,
+      "macro_cycles": 1,
+      "container_bytes_delta": 0
+    },
+    "balanced": {
+      "symplectic_steps": 4,
+      "macro_cycles": 2,
+      "container_bytes_delta": 0
+    },
+    "deep": {
+      "symplectic_steps": 8,
+      "macro_cycles": 3,
+      "container_bytes_delta": 0
+    },
+    "frontier": {
+      "symplectic_steps": 12,
+      "macro_cycles": 3,
+      "container_bytes_delta": 0
+    }
+  },
+  "mos_geodesic_domain_bank": {
+    "num_specialists": 3,
+    "top_k_active": 2,
+    "mosbank_Demo_bytes": 9088,
+    "sovereign_302m_mosbank_bytes": 48832
+  },
+  "live_kalman_state_handoff": {
+    "context_replay_bytes_required": 0,
+    "equatorial_wfast_norm_preservation_ratio": 1.0,
+    "post_lift_query_score_cosine": 0.975687,
+    "lifted_biorth_slots_capacity": 64
+  },
+  "webgpu_wgsl_v9_kernels": {
+    "shader_file": "scar_field/webgpu/scar_field_v9.wgsl",
+    "compute_entry_points_count": 12,
+    "entry_points": [
+      "sf_fwht64_rademacher",
+      "sf_ternary_a_gemv",
+      "sf_e8_ternary_gemv",
+      "sf_unit_sphere_project",
+      "sf_cayley_woodbury_step",
+      "sf_kalman_wfast_step",
+      "sf_biorth_multibucket_alpha",
+      "sf_biorth_value_combine",
+      "sf_head_scores_and_tsallis15",
+      "sf_stiefel_wfast_lift",
+      "sf_pack_gen_cond",
+      "sf_assemble_symplectic_uv"
+    ],
+    "max_storage_buffers_per_pass": 8,
+    "webgpu_tier1_limit_8_compliant": true
+  }
+}

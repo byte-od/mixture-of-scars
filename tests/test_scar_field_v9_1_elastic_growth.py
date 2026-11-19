@@ -7,11 +7,13 @@ import torch
 import torch.nn.functional as F
 
 from scar_field import (
+    BatchedScarFieldSuperEngine,
     ElasticCapacityGear,
     MoSGeodesicDomainBank,
     RiemannianMuon,
     ScarFieldConfig,
     ScarFieldEngine,
+    clone_scarfield_engine_fast,
     expand_scarfield_geodesic_isometry,
     heal_all_e8_scars,
     lift_kalman_bus_state_isometric,
@@ -320,3 +322,25 @@ def test_v91_mos_geodesic_domain_bank_zero_shock_routing_and_container(tmp_path:
     with torch.no_grad():
         restored_code = eng.forward_sequence(code_seq)["scores"]
         assert float((restored_code - ref_code["scores"]).abs().max().item()) == 0.0
+
+
+def test_batched_super_engine_wrap_dim_isometric_parity() -> None:
+    """Verifies `BatchedScarFieldSuperEngine` preserves exact `wrap_dim` + `ref_dim` parity (`cos > 0.999999`) after `Edge -> Core` expansion."""
+    torch.manual_seed(1234)
+    edge = ScarFieldEngine(_edge_cfg())
+    core_cfg = _core_cfg()
+    core = expand_scarfield_geodesic_isometry(edge, core_cfg, seed=77)
+
+    bank = BatchedScarFieldSuperEngine(core, num_replicas=2)
+
+    seq = torch.tensor([[ord(c) for c in "Isometric Super-Kernel Parity Audit 2026"]], dtype=torch.long)
+    with torch.no_grad():
+        ref_scores = core.forward_sequence(seq)["scores"]
+        sup_out = bank.forward_sequence_batched(seq.unsqueeze(0).expand(2, -1, -1))
+        sup_scores0 = sup_out["scores"][0]
+        cos = float(F.cosine_similarity(ref_scores.flatten(), sup_scores0.flatten(), dim=0).item())
+        max_diff = float((ref_scores - sup_scores0).abs().max().item())
+
+    assert cos > 0.9999995, f"BatchedScarFieldSuperEngine wrap_dim parity drift: cos={cos}"
+    assert max_diff < 5e-6, f"BatchedScarFieldSuperEngine wrap_dim max_diff={max_diff}"
+

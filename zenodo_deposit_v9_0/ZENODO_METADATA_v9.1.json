@@ -1,0 +1,36 @@
+{
+  "upload_type": "publication",
+  "publication_type": "preprint",
+  "version": "9.1.0",
+  "publication_date": "2026-11-19",
+  "title": "Scaling Post-Transformer Hyperspherical Intelligence (ScarField v9.0 and v9.1-Elastic): 512-Slot Multi-Bucket Biorthogonal O(1) Memory Out to T = 16,384, 302.15M Spherical Packing at 1.1535 bpw, Function-Preserving Isometric Geodesic Expansion, and 12 Zero-Legacy WebGPU WGSL 1.0 Shaders",
+  "creators": [
+    {
+      "name": "Reis Filho, Julio Cesar da Costa",
+      "affiliation": "Byte-OD Research & System One Architecture Lab"
+    }
+  ],
+  "license": "cc-by-4.0",
+  "keywords": [
+    "ScarField v9",
+    "Multi-Bucket Biorthogonal O(1) Memory",
+    "Isometric Hyperspherical Model Expansion",
+    "Post-Transformer Architecture",
+    "Gosset E8 Lattice Quantization",
+    "Reversible Symplectic Cayley Flow",
+    "Dynamic Symplectic Capacity Gears",
+    "WebGPU WGSL Compute Shaders"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/byte-od/mixture-of-scars",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.5281/zenodo.24172784",
+      "relation": "isNewVersionOf",
+      "scheme": "doi"
+    }
+  ]
+}

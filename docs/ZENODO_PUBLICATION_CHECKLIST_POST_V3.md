@@ -6,7 +6,7 @@ Como o último preprint publicado na Zenodo foi a **`v3.0`** (`DOI: 10.5281/zeno
 
 ## Parte A — Evolução da Série Principal (`New Version` sobre `10.5281/zenodo.24172784`)
 
-Na página do registro atual da `v3.0` na Zenodo, clique em **`New version`** em sequência para publicar cada marco evolutivo (ou suba diretamente na ordem `v4.0` $\to$ `v5.0` $\to$ `v6.0` $\to$ **`v8.2.0`** para preservar o histórico versionado completo no Concept DOI):
+Na página do registro atual da `v3.0` na Zenodo, clique em **`New version`** em sequência para publicar cada marco evolutivo (ou suba diretamente na ordem `v4.0` $\to$ `v5.0` $\to$ `v6.0` $\to$ `v8.2.0` $\to$ **`v9.1.0`** para preservar o histórico versionado completo no Concept DOI):
 
 ### 1. Versão `4.0.0` — `zenodo_deposit_v4_0/`
 - **Escopo:** Operadores Unificados em Modelos Pré-Treinados (`0.5B -> 3B -> 72.71B <24 GB`, `VQ4-Scar`, `ProtectedInt4Scar` `20` Shaders WebGPU, `GoldenSlice P_⊥lang`) + Extração da biblioteca física independente `ScarCodec` (já atualizada com as métricas forenses auditadas: `188,2x` menor RMSE na EDP de Burgers 2D via Rusanov contra `rFFT` FP16 pareada byte a byte, covariância ruidosa cega e recall parcial `4-ch` mascarado `0,9999`).
@@ -43,6 +43,15 @@ Na página do registro atual da `v3.0` na Zenodo, clique em **`New version`** em
   3. `ScarField_v7_v8_LaTeX_Source_v8.2.zip`
   4. `mos_scarfield_v7_v8_hero.png`
 - **Metadados prontos para copiar:** `zenodo_deposit_v7_v8/ZENODO_METADATA_v8.2.json`
+
+### 4.5. Versão `9.1.0` — `zenodo_deposit_v9_0/` (`ScarField v9.0-Scale & v9.1-Elastic`)
+- **Escopo (`v9.0` & `v9.1` puros):** Particionamento Hadamard em octantes `16 × 32 = 512` slots biortogonais `O(1)` (`1,343 MiB` constantes, `Δ = +0 B`, reduzindo o custo cúbico da matriz dual de Gram em `256x` e estendendo o Passkey `O(1)` até `T = 16.384` bytes = `256x` o anel sensorial: `87,50%` em `3K` = `2,15x` sobre `v8.2`, `40,62%` exato / `78,12%` dígito em `4K` = `3,25x` sobre `v8.2`, `52,08%`/dígito em `16K` vs `0,0%` `Flat-48`/`Dense`) + Gate Perceptual `S1` resolvendo a bifurcação de prefixo em `EN` (`0/6 -> 6/6 = 100%`, `91,67%` global) + Prova de escala `302,15M` parâmetros esféricos em `41,548 MiB` (`1,1535 bpw` totais, `11,51 GiB` VRAM `A100`, `mmap cos = 1,000000`) + Expansão Isométrica Geodésica preservadora de função (`v9.1-Elastic`: `60M -> 302M` `step-0 cos = 0,994671`, `0%` taxa Matryoshka, quebra de sela assimétrica de Lie `U != 0, V = 0`, marchas simpléticas `Δ = +0 B`, promoção de sessão `O(1)` sem replay e `12` shaders `WebGPU WGSL 1.0`).
+- **Arquivos para arrastar no upload da `v9.1.0`:**
+  1. `ScarField_v9_Scale_and_Elastic_Isometry_Preprint_v9.1.pdf` *(arquivo principal)*
+  2. `ScarField_v9_Replication_v9.1.zip`
+  3. `ScarField_v9_LaTeX_Source_v9.1.zip`
+  4. `mos_scarfield_v9_0_v9_1_hero.png`
+- **Metadados prontos para copiar:** `zenodo_deposit_v9_0/ZENODO_METADATA_v9.1.json`
 
 ---
 

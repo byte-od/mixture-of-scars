@@ -143,17 +143,23 @@ def expand_e8_linear_isometric_(
     # Since `w_q_std0_unit = fwht^{-1}(w_q_rot0 / sqrt_i0)` ALREADY includes `1 / sqrt_i0`,
     # the exact base linear map is `tau0 * w_q_std0_unit`!
     w_q_std0_unit = fwht64_rademacher((w_q_rot0.to(dev) / sqrt_i0), src_mod.signs.to(dev), inverse=True)
-    w_actual0 = tau0 * w_q_std0_unit
-    if src_mod.scar_rank > 0 and a_u0 is not None and b_u0 is not None and abs(gam0) > 0.0:
+    w_q_std0_row_unit = project_rows_to_unit_sphere(w_q_std0_unit)
+    has_learned_scar = bool(src_mod.scar_rank > 0 and a_u0 is not None and b_u0 is not None and abs(gam0) > 0.08)
+    w_base0 = tau0 * w_q_std0_unit
+    w_actual0 = w_base0
+    if has_learned_scar and a_u0 is not None and b_u0 is not None:
         _, a_i8_0 = quantize_ternary_ste(a_u0.to(dev))
         _, b_i8_0 = quantize_ternary_ste(b_u0.to(dev))
         w_actual0 = w_actual0 + (gam0 / math.sqrt(float(i0 * max(1, src_mod.scar_rank)))) * (
             b_i8_0.float() @ a_i8_0.float()
         )
 
+    # When `has_learned_scar` is True, `(a_u0, b_u0, gam0)` operates in standard coordinates (no `signs`!)
+    # and transfers 100% bit-exactly across shifted 64D blocks, so `w_new` + `tau_base` match `w_base0` cleanly!
+    w_ref_for_base = w_base0 if has_learned_scar else w_actual0
     w_target_eq_actual = torch.zeros((o1, i1), dtype=torch.float32, device=dev)
     row_target_norms: List[float] = []
-    inv_tau0 = 1.0 / max(1e-6, abs(tau0))
+    inv_tau0 = (1.0 / tau0) if abs(tau0) > 1e-6 else 1.0
     for idx_m, (o_s, o_d) in enumerate(out_map):
         row = torch.zeros((i1,), dtype=torch.float32, device=dev)
         eq_unnorm = torch.zeros((i1,), dtype=torch.float32, device=dev)
@@ -161,10 +167,13 @@ def expand_e8_linear_isometric_(
             if b_s == b_d:
                 # Aligned `64D` block (`signs_1 == signs_0`): preserve exact pre-quantization `w_u0` (`0` E8 drift!)
                 eq_unnorm[64 * b_d : 64 * (b_d + 1)] = w_u0[o_s, 64 * b_s : 64 * (b_s + 1)]
+            elif has_learned_scar:
+                # Shifted `64D` block with exact scar preservation: match unit-norm `w_q_std0_row_unit` (`0` norm skew!)
+                eq_unnorm[64 * b_d : 64 * (b_d + 1)] = w_q_std0_row_unit[o_s, 64 * b_s : 64 * (b_s + 1)]
             else:
-                # Shifted `64D` block (`signs_1 != signs_0`): map effective operator normalized by `tau0`
+                # Shifted `64D` block (`gam0 == 0`): map effective operator normalized by signed `tau0`
                 eq_unnorm[64 * b_d : 64 * (b_d + 1)] = w_actual0[o_s, 64 * b_s : 64 * (b_s + 1)] * inv_tau0
-            w_target_eq_actual[o_d, 64 * b_d : 64 * (b_d + 1)] = w_actual0[o_s, 64 * b_s : 64 * (b_s + 1)]
+            w_target_eq_actual[o_d, 64 * b_d : 64 * (b_d + 1)] = w_ref_for_base[o_s, 64 * b_s : 64 * (b_s + 1)]
         eq_unit = project_rows_to_unit_sphere(eq_unnorm.unsqueeze(0)).squeeze(0)
         row = alpha_in * eq_unit
         row_target_norms.append(float(torch.linalg.vector_norm(w_target_eq_actual[o_d]).item()))
@@ -227,7 +236,7 @@ def expand_e8_linear_isometric_(
     r0 = src_mod.scar_rank
     r1 = dst_mod.scar_rank
     if r1 > 0 and dst_mod.a_scar is not None and dst_mod.b_scar is not None and dst_mod.gamma_scar is not None:
-        if has_shifted_block and unit_base_eq is not None:
+        if has_shifted_block and (not has_learned_scar) and unit_base_eq is not None:
             # Closed-form equatorial SVD/RRR ternary scar healing against exact `W_target_eq - W_base1_eq`!
             w_base1_eq = float(dst_mod.tau_base.item()) * unit_base_eq
             res_actual = w_target_eq_actual - w_base1_eq
@@ -489,13 +498,23 @@ def expand_scarfield_geodesic_isometry(
         raise ValueError(f"Destination subspace dim d_sub ({d_sub1}) must be >= source d_sub ({d_sub0})")
 
     # Preserve exact proper-time frequency & repeat-phase anchors on the equatorial submanifold
+    # (including identity reloads `d_form == sc.d_form` when `sc` already carries non-zero `ref_dim`!)
     cfg_work = ScarFieldConfig.from_dict(dst_cfg.to_dict())
-    if cfg_work.d_form > sc.d_form and cfg_work.proper_time_freq_ref_dim == 0:
-        cfg_work.proper_time_freq_ref_dim = sc.proper_time_freq_ref_dim or sc.d_form
-    if cfg_work.d_world > sc.d_world and cfg_work.proper_time_world_ref_dim == 0:
-        cfg_work.proper_time_world_ref_dim = sc.proper_time_world_ref_dim or sc.d_world
-    if cfg_work.d_key > sc.d_key and cfg_work.proper_time_key_ref_dim == 0:
-        cfg_work.proper_time_key_ref_dim = sc.proper_time_key_ref_dim or sc.d_key
+    if cfg_work.proper_time_freq_ref_dim == 0:
+        if sc.proper_time_freq_ref_dim > 0:
+            cfg_work.proper_time_freq_ref_dim = sc.proper_time_freq_ref_dim
+        elif cfg_work.d_form > sc.d_form:
+            cfg_work.proper_time_freq_ref_dim = sc.d_form
+    if cfg_work.proper_time_world_ref_dim == 0:
+        if sc.proper_time_world_ref_dim > 0:
+            cfg_work.proper_time_world_ref_dim = sc.proper_time_world_ref_dim
+        elif cfg_work.d_world > sc.d_world:
+            cfg_work.proper_time_world_ref_dim = sc.d_world
+    if cfg_work.proper_time_key_ref_dim == 0:
+        if sc.proper_time_key_ref_dim > 0:
+            cfg_work.proper_time_key_ref_dim = sc.proper_time_key_ref_dim
+        elif cfg_work.d_key > sc.d_key:
+            cfg_work.proper_time_key_ref_dim = sc.d_key
 
     dev = next(src_engine.parameters()).device
     gen = torch.Generator(device="cpu")

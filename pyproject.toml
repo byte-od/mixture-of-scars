@@ -80,3 +80,8 @@ scar_native = ["*.wgsl"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pyarrow>=25.0.1",
+]

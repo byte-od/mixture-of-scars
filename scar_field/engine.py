@@ -168,9 +168,9 @@ class ScarFieldEngine(nn.Module):
         if c.shock_closure_decay > 0.0 or c.enable_repeat_phase:
             eff_max_lag = max(max(c.wave_lags) if c.wave_lags else 0, 3 if c.enable_repeat_phase else 0)
             extra_lb = 2 if c.shock_closure_decay > 0.0 else 1
-            max_wave_buf = max(6, eff_max_lag + extra_lb)
+            max_wave_buf = max(64, eff_max_lag + extra_lb)
         else:
-            max_wave_buf = max(4, (max(c.wave_lags) + 1) if c.wave_lags else 4)
+            max_wave_buf = max(64, (max(c.wave_lags) + 1) if c.wave_lags else 4)
         self._recent_buf_cap = max_wave_buf
 
         self.frontend = ByteShockFrontEnd(
@@ -568,27 +568,34 @@ class ScarFieldEngine(nn.Module):
             rep_pen = (rep_sim - 0.88).clamp(min=0.0).square().sum(dim=-1)  # [V]
             scores = scores - 2.5 * rep_pen.unsqueeze(0)
 
-            # 2. O(1) Recent-Byte Cycle/Stutter Damper (`Delta = +0 B`: reuses `state.recent_bytes`!):
-            #    Permits valid 3-byte runs (`777`, `800`, `...`) and PEP-8 4/8/12-space indentation
-            #    while damping >= 4th identical non-space byte or >= 13th consecutive space!
+            # 2. O(1) Shift-Invariant Tandem-Repeat & Stutter Damper (`64 B` `state.recent_bytes`, `Delta = +0 B`):
+            #    Permits valid 3-byte runs (`777`, `800`, `...`), PEP-8 indentation, and non-contiguous code patterns
+            #    (`dot = sum(...) ... nu = sum(...)`) while extinguishing contiguous phrase loops `X + X` (`P = 3..32`)!
             if state.recent_len >= 3:
-                rb = state.recent_bytes[0, -state.recent_len :]
-                last_b = int(rb[-1].item())
+                rb_list = state.recent_bytes[0, -state.recent_len :].tolist()
+                rlen = len(rb_list)
+                last_b = rb_list[-1]
+                damped = False
                 if last_b == 32:
-                    if state.recent_len >= 13 and bool((rb[-13:] == 32).all().item()):
+                    if rlen >= 13 and all(x == 32 for x in rb_list[-13:]):
                         scores = scores.clone()
                         scores[0, 32] = scores[0, 32] - 6.0
-                elif last_b == int(rb[-2].item()) == int(rb[-3].item()):
+                        damped = True
+                elif last_b == rb_list[-2] == rb_list[-3]:
                     scores = scores.clone()
                     scores[0, last_b] = scores[0, last_b] - 6.0
-                elif state.recent_len >= 6:
-                    b_m2 = int(rb[-2].item())
-                    if (
-                        last_b == int(rb[-3].item()) == int(rb[-5].item())
-                        and b_m2 == int(rb[-4].item()) == int(rb[-6].item())
-                    ):
-                        scores = scores.clone()
-                        scores[0, b_m2] = scores[0, b_m2] - 5.0
+                    damped = True
+                elif rlen >= 6 and last_b == rb_list[-3] == rb_list[-5] and rb_list[-2] == rb_list[-4] == rb_list[-6]:
+                    scores = scores.clone()
+                    scores[0, rb_list[-2]] = scores[0, rb_list[-2]] - 5.0
+                    damped = True
+                if not damped and rlen >= 6:
+                    max_p = min(32, rlen // 2)
+                    for p_len in range(3, max_p + 1):
+                        if rb_list[rlen - p_len : rlen] == rb_list[rlen - 2 * p_len : rlen - p_len]:
+                            scores = scores.clone()
+                            scores[0, rb_list[rlen - p_len]] = scores[0, rb_list[rlen - p_len]] - 7.0
+                            break
 
         probs, _ = tsallis15_spherical_cap_probs(scores)
         p = probs[0]
@@ -789,6 +796,31 @@ class ScarFieldEngine(nn.Module):
             _ = self.step_byte_interactive(
                 ord("\n"), st, enable_ghost_jump_scouts=False, apply_repulsive_anti_loop=False
             )
+
+        if state is not None and state is not st:
+            state.w_fast.copy_(st.w_fast)
+            state.k_prev.copy_(st.k_prev)
+            state.has_prev_key.copy_(st.has_prev_key)
+            state.recent_bytes.copy_(st.recent_bytes)
+            state.recent_len = st.recent_len
+            state.ring_keys.copy_(st.ring_keys)
+            state.ring_vals.copy_(st.ring_vals)
+            state.ring_valid.copy_(st.ring_valid)
+            state.ring_ptr = st.ring_ptr
+            state.proper_time.copy_(st.proper_time)
+            state.h_origin.copy_(st.h_origin)
+            state.has_origin.copy_(st.has_origin)
+            state.h_prev.copy_(st.h_prev)
+            state.repulsive_ring.copy_(st.repulsive_ring)
+            state.repulsive_ptr = st.repulsive_ptr
+            if state.biorth_keys is not None and st.biorth_keys is not None:
+                state.biorth_keys.copy_(st.biorth_keys)
+            if state.biorth_vals is not None and st.biorth_vals is not None:
+                state.biorth_vals.copy_(st.biorth_vals)
+            if state.biorth_salience is not None and st.biorth_salience is not None:
+                state.biorth_salience.copy_(st.biorth_salience)
+            if state.biorth_valid is not None and st.biorth_valid is not None:
+                state.biorth_valid.copy_(st.biorth_valid)
 
         text_out = "" if abstained else bytes(gen_bytes).decode("utf-8", errors="replace").strip()
         n_gen = len(gen_bytes)
